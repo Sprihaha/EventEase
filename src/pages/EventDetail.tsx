@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useStore, currency, fmtDate, fmtTime } from "../lib/store";
 import { SeatMap } from "../components/SeatMap";
-import { QRCode, Button, Badge, Eyebrow, Card, Input, cx } from "../components/ui";
+import { QRCode, ticketPayload, Button, Badge, Eyebrow, Card, Input, cx } from "../components/ui";
 
 type Sel = { seat: string; tier: string; price: number };
 
@@ -337,7 +337,7 @@ export default function EventDetail() {
                   digital tickets are ready.
                 </p>
                 <div className="mx-auto mt-5 w-max rounded-2xl border border-line p-4">
-                  <QRCode value={ref} />
+                  <QRCode value={ticketPayload(ref, sel.map((s) => s.seat).join(","))} />
                   <div className="mt-2 flex items-center justify-center gap-1 text-xs text-muted">
                     <Ticket className="h-3 w-3" /> {sel.map((s) => s.seat).join(", ")}
                   </div>

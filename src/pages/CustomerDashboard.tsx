@@ -14,7 +14,7 @@ import {
 import { useStore, currency, fmtDate } from "../lib/store";
 import type { Booking } from "../lib/data";
 import { DashboardShell, StatCard, type NavItem } from "../components/DashboardShell";
-import { QRCode, Button, Badge, Card, Input, cx } from "../components/ui";
+import { QRCode, ticketPayload, Button, Badge, Card, Input, cx } from "../components/ui";
 
 const nav: NavItem[] = [
   { id: "tickets", label: "My tickets", icon: Ticket },
@@ -179,7 +179,7 @@ export default function CustomerDashboard() {
                 <h3 className="mt-3 font-display text-2xl font-semibold">{evOf(qr.eventId)?.title}</h3>
                 <p className="text-sm text-muted">{fmtDate(evOf(qr.eventId)!.date)} · {evOf(qr.eventId)?.venue}</p>
                 <div className="mx-auto mt-5 w-max rounded-2xl border border-line p-4">
-                  <QRCode value={qr.ref} size={160} />
+                  <QRCode value={ticketPayload(qr.ref, qr.seats.map((s) => s.seat).join(","))} size={160} />
                 </div>
                 <p className="mt-3 text-sm">Seats <b>{qr.seats.map((s) => s.seat).join(", ")}</b></p>
                 <p className="text-xs text-muted">Ref {qr.ref} · Present at the gate for scanning</p>

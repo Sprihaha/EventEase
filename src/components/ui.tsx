@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import QR from "qrcode";
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
@@ -106,40 +108,37 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   );
 }
 
-// Deterministic QR-style code (visual placeholder, not a scannable code)
+// Real, scannable QR code. `value` is encoded verbatim; ticket refs are wrapped
+// into a verification URL so a phone camera resolves to the check-in endpoint.
+export function ticketPayload(ref: string, seats?: string) {
+  const u = new URL("https://eventease.io/verify/" + encodeURIComponent(ref));
+  if (seats) u.searchParams.set("seats", seats);
+  return u.toString();
+}
+
 export function QRCode({ value, size = 132 }: { value: string; size?: number }) {
-  const n = 21;
-  let h = 0;
-  for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) >>> 0;
-  const rand = (i: number) => {
-    const x = Math.sin(h + i * 12.9898) * 43758.5453;
-    return x - Math.floor(x);
-  };
-  const cells: boolean[] = [];
-  for (let i = 0; i < n * n; i++) cells.push(rand(i) > 0.5);
-  const finder = (r: number, c: number) =>
-    (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7);
-  const cell = size / n;
+  const [svg, setSvg] = useState("");
+  useEffect(() => {
+    let alive = true;
+    QR.toString(value, {
+      type: "svg",
+      errorCorrectionLevel: "M",
+      margin: 0,
+      color: { dark: "#0b0b0f", light: "#ffffff" },
+    })
+      .then((s) => alive && setSvg(s))
+      .catch(() => alive && setSvg(""));
+    return () => {
+      alive = false;
+    };
+  }, [value]);
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Ticket QR code">
-      <rect width={size} height={size} fill="#fff" />
-      {cells.map((on, i) => {
-        const r = Math.floor(i / n);
-        const c = i % n;
-        if (finder(r, c)) return null;
-        return on ? <rect key={i} x={c * cell} y={r * cell} width={cell} height={cell} fill="#0b0b0f" /> : null;
-      })}
-      {[
-        [0, 0],
-        [0, n - 7],
-        [n - 7, 0],
-      ].map(([r, c], i) => (
-        <g key={i}>
-          <rect x={c * cell} y={r * cell} width={cell * 7} height={cell * 7} fill="#0b0b0f" />
-          <rect x={(c + 1) * cell} y={(r + 1) * cell} width={cell * 5} height={cell * 5} fill="#fff" />
-          <rect x={(c + 2) * cell} y={(r + 2) * cell} width={cell * 3} height={cell * 3} fill="#4f2fff" />
-        </g>
-      ))}
-    </svg>
+    <div
+      role="img"
+      aria-label="Scannable ticket QR code"
+      style={{ width: size, height: size }}
+      className="rounded-md ring-2 ring-accent/20 [&>svg]:h-full [&>svg]:w-full"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
   );
 }

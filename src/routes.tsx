@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import Verify from "./pages/Verify";
 
 function NotFound() {
   return (
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: "dashboard/customer", Component: CustomerDashboard },
       { path: "dashboard/organizer", Component: OrganizerDashboard },
       { path: "dashboard/admin", Component: AdminDashboard },
+      { path: "verify/:ref", Component: Verify },
       { path: "*", Component: NotFound },
     ],
   },
