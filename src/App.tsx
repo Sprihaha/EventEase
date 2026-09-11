@@ -1,3 +1,11 @@
+import { RouterProvider } from "react-router";
+import { StoreProvider } from "./lib/store";
+import { router } from "./routes";
+
 export default function App() {
-  return <div className="size-full flex items-center justify-center"></div>
+  return (
+    <StoreProvider>
+      <RouterProvider router={router} />
+    </StoreProvider>
+  );
 }

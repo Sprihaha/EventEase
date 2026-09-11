@@ -1,7 +1,69 @@
-@import 'tailwindcss';
+@import url("https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..700&family=Inter:wght@400;500;600;700;800&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bodoni Moda", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0b0b0f;
+  --color-paper: #ffffff;
+  --color-mist: #f5f5f4;
+  --color-line: #e7e5e4;
+  --color-muted: #78716c;
+
+  --color-accent: #4f2fff;
+  --color-accent-soft: #ece8ff;
+  --color-accent-ink: #2a1a99;
+
+  --color-live: #16a34a;
+  --color-warn: #d97706;
+  --color-danger: #dc2626;
+
+  --radius-xl2: 1.25rem;
+}
 
 html,
 body,
 #root {
   height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+/* Hide scrollbar for horizontal rails */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes ee-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ee-rise {
+  animation: ee-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: #fff;
 }
