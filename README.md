@@ -40,8 +40,8 @@ Pooler values shown by **Connect → Session pooler** in Supabase. The database
 password and deployment secrets must never be committed.
 
 `CORS_ORIGINS` is a comma-separated list. Add the published EventEase frontend
-URL before deploying. Published Figma Make `*.figma.site` origins are also
-allowed by `CORS_ORIGIN_REGEX`.
+URL before deploying. Figma-owned `.figma.site` and `.figma.com` origins are
+also allowed by `CORS_ORIGIN_REGEX`.
 
 The API persists the frontend's events, bookings, exchange listings, community
 posts, fraud alerts, and organizer accounts in the `eventease_state` PostgreSQL

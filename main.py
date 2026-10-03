@@ -34,7 +34,10 @@ def cors_origins() -> list[str]:
 
 
 def cors_origin_regex() -> str:
-    return os.getenv("CORS_ORIGIN_REGEX", r"https://.*\.figma\.site")
+    return os.getenv(
+        "CORS_ORIGIN_REGEX",
+        r"https://([a-z0-9-]+\.)*figma\.(site|com)",
+    )
 
 
 @asynccontextmanager

@@ -20,4 +20,4 @@ services:
       - key: CORS_ORIGINS
         sync: false
       - key: CORS_ORIGIN_REGEX
-        value: https://.*\.figma\.site
+        value: https://([a-z0-9-]+\.)*figma\.(site|com)
