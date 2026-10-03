@@ -33,6 +33,10 @@ def cors_origins() -> list[str]:
     return [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
 
 
+def cors_origin_regex() -> str:
+    return os.getenv("CORS_ORIGIN_REGEX", r"https://.*\.figma\.site")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     with engine.connect() as connection:
@@ -50,6 +54,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins(),
+    allow_origin_regex=cors_origin_regex(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],

@@ -19,3 +19,5 @@ services:
         value: require
       - key: CORS_ORIGINS
         sync: false
+      - key: CORS_ORIGIN_REGEX
+        value: https://.*\.figma\.site
