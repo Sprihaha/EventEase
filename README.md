@@ -33,6 +33,20 @@ This is the backend repository for EventEase, built with Python, FastAPI, and Py
    - Interactive API documentation (Swagger UI) is available at `http://localhost:8000/docs`
    - Alternative API documentation (ReDoc) is available at `http://localhost:8000/redoc`
 
+## Environment
+
+Copy `.env.example` to `.env` and replace the placeholders with the Session
+Pooler values shown by **Connect → Session pooler** in Supabase. The database
+password and deployment secrets must never be committed.
+
+`CORS_ORIGINS` is a comma-separated list. Add the published EventEase frontend
+URL before deploying.
+
+The API persists the frontend's events, bookings, exchange listings, community
+posts, fraud alerts, and organizer accounts in the `eventease_state` PostgreSQL
+table. Ticket verification reads the same shared state through
+`GET /tickets/{ref}`.
+
 ## Validation Engine Features
 The validation is handled seamlessly by Pydantic models defined in `models.py`:
 - Built-in type checking (e.g., ensuring an integer is passed for IDs).
@@ -60,3 +74,13 @@ You can easily run this application using Docker Compose. This ensures it runs c
    ```bash
    docker-compose down
    ```
+
+## Render Deployment
+
+1. Create a Render Blueprint from this repository and select the `backend`
+   branch.
+2. Render detects `render.yaml` and builds the Docker image.
+3. Enter `DB_HOST`, `DB_USER`, `DB_PASSWORD`, and `CORS_ORIGINS` in Render's
+   environment settings.
+4. Wait for `/health` to report `{"status":"ok","database":"connected"}`.
+5. Set the frontend's `VITE_API_URL` to the Render service URL and republish it.

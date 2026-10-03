@@ -7,19 +7,37 @@ from sqlalchemy.engine import URL
 # Load environment variables from .env file
 load_dotenv()
 
-# Build the connection URL
-# It safely encodes special characters in the password
-database_url = URL.create(
-    drivername="postgresql",
-    username=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    host=os.getenv("DB_HOST"),
-    port=os.getenv("DB_PORT", 5432),
-    database=os.getenv("DB_NAME")
-)
+def build_database_url():
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return database_url.replace("postgres://", "postgresql://", 1)
 
-# Create SQLAlchemy engine
-engine = create_engine(database_url, echo=True)
+    required = {
+        "DB_USER": os.getenv("DB_USER"),
+        "DB_PASSWORD": os.getenv("DB_PASSWORD"),
+        "DB_HOST": os.getenv("DB_HOST"),
+        "DB_NAME": os.getenv("DB_NAME"),
+    }
+    missing = [name for name, value in required.items() if not value]
+    if missing:
+        raise RuntimeError(f"Missing database settings: {', '.join(missing)}")
+
+    return URL.create(
+        drivername="postgresql",
+        username=required["DB_USER"],
+        password=required["DB_PASSWORD"],
+        host=required["DB_HOST"],
+        port=int(os.getenv("DB_PORT", "5432")),
+        database=required["DB_NAME"],
+    )
+
+
+engine = create_engine(
+    build_database_url(),
+    connect_args={"sslmode": os.getenv("DB_SSLMODE", "require")},
+    echo=os.getenv("SQL_ECHO", "false").lower() == "true",
+    pool_pre_ping=True,
+)
 
 # Session factory for DB interactions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
