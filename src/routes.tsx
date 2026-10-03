@@ -9,6 +9,15 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Verify from "./pages/Verify";
+import { StoreProvider } from "./lib/store";
+
+function Root() {
+  return (
+    <StoreProvider>
+      <Layout />
+    </StoreProvider>
+  );
+}
 
 function NotFound() {
   return (
@@ -25,7 +34,7 @@ function NotFound() {
 export const router = createBrowserRouter([
   {
     path: "/",
-    Component: Layout,
+    Component: Root,
     children: [
       { index: true, Component: Home },
       { path: "events", Component: Browse },
