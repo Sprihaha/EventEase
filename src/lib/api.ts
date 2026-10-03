@@ -19,10 +19,10 @@ export type EventEaseState = {
 export type StateCollection = keyof EventEaseState;
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
-if (!configuredApiUrl && import.meta.env.PROD) {
-  throw new Error("VITE_API_URL must be configured for production");
-}
-const apiUrl = (configuredApiUrl || "http://localhost:8000").replace(/\/$/, "");
+const defaultApiUrl = import.meta.env.DEV
+  ? "http://localhost:8000"
+  : "https://eventease-backend-fbpd.onrender.com";
+const apiUrl = (configuredApiUrl || defaultApiUrl).replace(/\/$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {
