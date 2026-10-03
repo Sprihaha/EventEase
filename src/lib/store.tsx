@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { loadOrSeedState, saveCollection, type EventEaseState } from "./api";
 import {
   seedEvents,
   seedBookings,
@@ -26,6 +27,8 @@ const demoUsers: Record<Role, User> = {
 
 type Store = {
   user: User | null;
+  isLoading: boolean;
+  syncError: string | null;
   login: (role: Role) => void;
   logout: () => void;
 
@@ -48,6 +51,15 @@ type Store = {
 
 const Ctx = createContext<Store | null>(null);
 
+const seedState: EventEaseState = {
+  events: seedEvents,
+  bookings: seedBookings,
+  exchange: seedExchange,
+  posts: seedPosts,
+  fraud: seedFraud,
+  organizers: seedOrganizers,
+};
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [events, setEvents] = useState<EventItem[]>(seedEvents);
@@ -56,10 +68,47 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<CommunityPost[]>(seedPosts);
   const [fraud, setFraud] = useState<FraudAlert[]>(seedFraud);
   const [organizers, setOrganizers] = useState<OrganizerAccount[]>(seedOrganizers);
+  const [isLoading, setIsLoading] = useState(true);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    loadOrSeedState(seedState)
+      .then((state) => {
+        if (!active) return;
+        setEvents(state.events);
+        setBookings(state.bookings);
+        setExchange(state.exchange);
+        setPosts(state.posts);
+        setFraud(state.fraud);
+        setOrganizers(state.organizers);
+        setSyncError(null);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setSyncError(error instanceof Error ? error.message : "Could not sync with Supabase");
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const persist = <K extends keyof EventEaseState>(collection: K, value: EventEaseState[K]) => {
+    void saveCollection(collection, value).catch((error: unknown) => {
+      setSyncError(error instanceof Error ? error.message : "Could not sync with Supabase");
+    });
+  };
 
   const value = useMemo<Store>(() => {
     return {
       user,
+      isLoading,
+      syncError,
       login: (role) => setUser(demoUsers[role]),
       logout: () => setUser(null),
       events,
@@ -81,27 +130,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           status: "confirmed",
           promo,
         };
-        setBookings((b) => [bk, ...b]);
-        setEvents((evs) =>
-          evs.map((e) => {
+        setBookings((current) => {
+          const next = [bk, ...current];
+          persist("bookings", next);
+          return next;
+        });
+        setEvents((current) => {
+          const next = current.map((e) => {
             if (e.id !== eventId) return e;
             const tiers = e.tiers.map((t) => {
               const n = seats.filter((s) => s.tier === t.name).length;
               return n ? { ...t, sold: t.sold + n } : t;
             });
             return { ...e, tiers };
-          }),
-        );
+          });
+          persist("events", next);
+          return next;
+        });
         return bk;
       },
       cancelBooking: (id) =>
-        setBookings((b) => b.map((x) => (x.id === id ? { ...x, status: "refunded" } : x))),
+        setBookings((current) => {
+          const next = current.map((x) =>
+            x.id === id ? { ...x, status: "refunded" as const } : x,
+          );
+          persist("bookings", next);
+          return next;
+        }),
       listForResale: (id, seat, ask) => {
-        setBookings((b) => b.map((x) => (x.id === id ? { ...x, status: "listed" } : x)));
+        setBookings((current) => {
+          const next = current.map((x) =>
+            x.id === id ? { ...x, status: "listed" as const } : x,
+          );
+          persist("bookings", next);
+          return next;
+        });
         const bk = bookings.find((x) => x.id === id);
         if (!bk) return;
-        setExchange((ex) => [
-          {
+        setExchange((current) => {
+          const next = [{
             id: "ex-" + Date.now(),
             bookingId: id,
             eventId: bk.eventId,
@@ -110,24 +177,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             tier: bk.seats.find((s) => s.seat === seat)?.tier ?? "Standard",
             askPrice: ask,
             verified: true,
-          },
-          ...ex,
-        ]);
+          }, ...current];
+          persist("exchange", next);
+          return next;
+        });
       },
       addPost: (p) =>
-        setPosts((all) => [
-          { ...p, id: "p-" + Date.now(), when: "now", likes: 0 },
-          ...all,
-        ]),
-      createEvent: (e) => setEvents((evs) => [{ ...e, status: "pending" }, ...evs]),
+        setPosts((current) => {
+          const next = [{ ...p, id: "p-" + Date.now(), when: "now", likes: 0 }, ...current];
+          persist("posts", next);
+          return next;
+        }),
+      createEvent: (e) =>
+        setEvents((current) => {
+          const next = [{ ...e, status: "pending" as const }, ...current];
+          persist("events", next);
+          return next;
+        }),
       setEventStatus: (id, status) =>
-        setEvents((evs) => evs.map((e) => (e.id === id ? { ...e, status } : e))),
+        setEvents((current) => {
+          const next = current.map((e) => (e.id === id ? { ...e, status } : e));
+          persist("events", next);
+          return next;
+        }),
       setOrganizerStatus: (id, status) =>
-        setOrganizers((o) => o.map((x) => (x.id === id ? { ...x, status } : x))),
+        setOrganizers((current) => {
+          const next = current.map((x) => (x.id === id ? { ...x, status } : x));
+          persist("organizers", next);
+          return next;
+        }),
       resolveFraud: (id) =>
-        setFraud((f) => f.map((x) => (x.id === id ? { ...x, resolved: true } : x))),
+        setFraud((current) => {
+          const next = current.map((x) => (x.id === id ? { ...x, resolved: true } : x));
+          persist("fraud", next);
+          return next;
+        }),
     };
-  }, [user, events, bookings, exchange, posts, fraud, organizers]);
+  }, [user, isLoading, syncError, events, bookings, exchange, posts, fraud, organizers]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
