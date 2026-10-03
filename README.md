@@ -41,3 +41,22 @@ The validation is handled seamlessly by Pydantic models defined in `models.py`:
   - Ensures event dates are in the future.
   - Ensures passwords contain at least one digit and one uppercase letter.
   - Enforces minimum and maximum string lengths.
+
+## Docker Usage
+
+You can easily run this application using Docker Compose. This ensures it runs consistently and automatically watches for code changes.
+
+1. **Start the application**
+   ```bash
+   docker-compose up --build
+   ```
+   *Note: Add the `-d` flag (`docker-compose up -d --build`) to run it in the background.*
+
+2. **Access the API**
+   - The API will be available at `http://localhost:8000`
+   - Interactive API documentation (Swagger UI) is available at `http://localhost:8000/docs`
+
+3. **Stop the application**
+   ```bash
+   docker-compose down
+   ```
