@@ -1,4 +1,3 @@
-import { projectId, publicAnonKey } from "../../utils/supabase/info";
 import type {
   Booking,
   CommunityPost,
@@ -19,14 +18,16 @@ export type EventEaseState = {
 
 export type StateCollection = keyof EventEaseState;
 
-const apiUrl = `https://${projectId}.supabase.co/functions/v1/make-server-ce9e62c6`;
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+if (!configuredApiUrl && import.meta.env.PROD) {
+  throw new Error("VITE_API_URL must be configured for production");
+}
+const apiUrl = (configuredApiUrl || "http://localhost:8000").replace(/\/$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${publicAnonKey}`,
-      apikey: publicAnonKey,
       "Content-Type": "application/json",
       ...init?.headers,
     },
