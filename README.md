@@ -23,12 +23,23 @@ This is the backend repository for EventEase, built with Python, FastAPI, and Py
    pip install -r requirements.txt
    ```
 
-3. **Run the server**
+3. **Configure environment variables**
+   Copy the sample environment file to `.env` and fill in your database credentials:
+   ```bash
+   # On Windows (PowerShell):
+   Copy-Item .env.example .env
+   # On Windows (cmd):
+   copy .env.example .env
+   # On macOS/Linux:
+   cp .env.example .env
+   ```
+
+4. **Run the server**
    ```bash
    uvicorn main:app --reload
    ```
 
-4. **Access the API**
+5. **Access the API**
    - The API will be available at `http://localhost:8000`
    - Interactive API documentation (Swagger UI) is available at `http://localhost:8000/docs`
    - Alternative API documentation (ReDoc) is available at `http://localhost:8000/redoc`
@@ -44,7 +55,7 @@ The validation is handled seamlessly by Pydantic models defined in `models.py`:
 
 ## Docker Usage
 
-You can easily run this application using Docker Compose. This ensures it runs consistently and automatically watches for code changes.
+You can easily run this application using Docker Compose. Ensure you have created your `.env` file first (`Copy-Item .env.example .env`).
 
 1. **Start the application**
    ```bash
