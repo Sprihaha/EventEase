@@ -25,6 +25,7 @@ export default defineConfig(({ mode }) => {
       figmaMakeKitPlugin({ storiesGlob: '/src/**/*.stories.{ts,tsx,js,jsx}' }),
     ],
     resolve: {
+      dedupe: ['react', 'react-dom'],
       alias: {
         '@': path.resolve(__dirname, './src'),
       },
@@ -276,7 +277,13 @@ function figmaReactRefreshBoundaryFallback(): Plugin {
     apply: 'serve',
     enforce: 'post',
     configureServer(server) {
-      sendFullReload = () => server.ws.send({ type: 'full-reload', path: '*' })
+      sendFullReload = () => {
+        // A future client loads the current graph normally, so only broadcast
+        // when there is already a preview connection waiting for the update.
+        if (server.ws.clients.size > 0) {
+          server.ws.send({ type: 'full-reload', path: '*' })
+        }
+      }
     },
     transform(code, id) {
       if (!/\.[jt]sx?(?:\?|$)/.test(id) || id.includes('/node_modules/')) return null
