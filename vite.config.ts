@@ -361,4 +361,4 @@ function figmaMakeKitPlugin(options: { storiesGlob: string | string[] }): Plugin
     },
   }
 }
-happy holida
+happy holiday
