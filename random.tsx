@@ -1,1 +1,1 @@
-ru
+rubbish 
