@@ -8,14 +8,24 @@ import {
   TrendingUp,
   Users,
   CheckCircle2,
+  CircleDollarSign,
+  Building2,
+  Armchair,
+  MapPin,
+  Clock3,
+  Wrench,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { categoryList, type Category, type EventItem } from "../lib/data";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
 import { Button, Badge, Card, Field, Input, Select, Textarea, Eyebrow, cx } from "../components/ui";
+import { OperationsSeatMap } from "../components/OperationsSeatMap";
 
 const nav: NavItem[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "sales", label: "Ticket sales", icon: CircleDollarSign },
+  { id: "venues", label: "Venue status", icon: Building2 },
+  { id: "seats", label: "Seat maps", icon: Armchair },
   { id: "events", label: "My events", icon: Ticket },
   { id: "create", label: "Create event", icon: CalendarPlus },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
@@ -42,6 +52,9 @@ export default function OrganizerDashboard() {
           </div>
 
           {active === "overview" && <Overview mine={mine} />}
+          {active === "sales" && <TicketSales mine={mine} />}
+          {active === "venues" && <VenueStatus mine={mine} />}
+          {active === "seats" && <OperationsSeatMap events={mine} eyebrow="Organizer seat maps" />}
           {active === "events" && <EventsTable mine={mine} />}
           {active === "create" && <CreateEvent onCreate={createEvent} organizer={{ id: user!.id, name: user!.name }} />}
           {active === "analytics" && <Analytics mine={mine} />}
@@ -49,6 +62,102 @@ export default function OrganizerDashboard() {
         </>
       )}
     </DashboardShell>
+  );
+}
+
+function TicketSales({ mine }: { mine: EventItem[] }) {
+  return (
+    <div className="space-y-5">
+      {mine.map((event) => {
+        const sold = event.tiers.reduce((sum, tier) => sum + tier.sold, 0);
+        const capacity = event.tiers.reduce((sum, tier) => sum + tier.total, 0);
+        const revenue = event.tiers.reduce((sum, tier) => sum + tier.sold * tier.price, 0);
+        return (
+          <Card key={event.id} className="overflow-hidden">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line p-5">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-display text-xl font-semibold">{event.title}</h2>
+                  <Badge tone={event.status === "published" ? "live" : "warn"}>{event.status}</Badge>
+                </div>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
+                  <MapPin className="h-4 w-4" /> {event.venue}, {event.city}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="font-display text-2xl font-semibold">{currency(revenue)}</div>
+                <div className="text-xs text-muted">{sold} of {capacity} tickets sold</div>
+              </div>
+            </div>
+            <div className="grid gap-px bg-line sm:grid-cols-3">
+              {event.tiers.map((tier) => {
+                const tierRevenue = tier.sold * tier.price;
+                const percent = Math.round((tier.sold / Math.max(tier.total, 1)) * 100);
+                return (
+                  <div key={tier.id} className="bg-paper p-5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">{tier.name}</span>
+                      <span className="text-sm text-muted">{currency(tier.price)}</span>
+                    </div>
+                    <div className="mt-4 font-display text-2xl font-semibold">{currency(tierRevenue)}</div>
+                    <div className="mt-1 text-xs text-muted">{tier.sold} sold · {percent}% filled</div>
+                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-mist">
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${percent}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function VenueStatus({ mine }: { mine: EventItem[] }) {
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      {mine.map((event, index) => {
+        const checks = [
+          { label: "Venue booking", status: "Confirmed" },
+          { label: "Safety inspection", status: index % 2 ? "Scheduled" : "Passed" },
+          { label: "Accessibility route", status: "Verified" },
+          { label: "Entry scanners", status: index % 2 ? "Testing" : "Ready" },
+        ];
+        const ready = checks.filter((check) => ["Confirmed", "Passed", "Verified", "Ready"].includes(check.status)).length;
+        return (
+          <Card key={event.id} className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-xl font-semibold">{event.venue}</h2>
+                <p className="mt-1 text-sm text-muted">{event.title} · {event.city}</p>
+              </div>
+              <Badge tone={ready === checks.length ? "live" : "warn"}>
+                {ready === checks.length ? "Ready" : `${ready}/${checks.length} ready`}
+              </Badge>
+            </div>
+            <div className="mt-5 space-y-2">
+              {checks.map((check) => {
+                const complete = ["Confirmed", "Passed", "Verified", "Ready"].includes(check.status);
+                return (
+                  <div key={check.label} className="flex items-center justify-between rounded-xl bg-mist/60 px-3 py-2.5 text-sm">
+                    <span className="flex items-center gap-2">
+                      {complete ? <CheckCircle2 className="h-4 w-4 text-live" /> : <Wrench className="h-4 w-4 text-warn" />}
+                      {check.label}
+                    </span>
+                    <span className={complete ? "font-medium text-live" : "font-medium text-warn"}>{check.status}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex items-center gap-1.5 text-xs text-muted">
+              <Clock3 className="h-3.5 w-3.5" /> Last operational update 12 minutes ago
+            </div>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
 

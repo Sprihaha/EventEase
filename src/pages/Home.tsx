@@ -8,6 +8,12 @@ import {
   Accessibility,
   Sparkles,
   ArrowRight,
+  Camera,
+  MessageCircle,
+  Route,
+  BellRing,
+  Map,
+  CircleCheck,
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { categoryList } from "../lib/data";
@@ -22,7 +28,7 @@ const promises = [
 ];
 
 export default function Home() {
-  const { events } = useStore();
+  const { events, eventsSource, user } = useStore();
   const navigate = useNavigate();
   const featured = events.filter((e) => e.featured && e.status === "published");
   const published = events.filter((e) => e.status === "published");
@@ -30,19 +36,19 @@ export default function Home() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 md:grid-cols-2 md:py-24">
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_80%_20%,var(--color-accent-soft),transparent_36%)]">
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 md:grid-cols-[1.05fr_0.95fr] md:py-24">
           <div className="ee-rise">
             <Badge tone="accent">
-              <Sparkles className="h-3 w-3" /> Next-generation ticketing
+              <Sparkles className="h-3 w-3" /> Your next experience starts here
             </Badge>
             <h1 className="mt-5 font-display text-5xl font-semibold leading-[0.98] tracking-tight md:text-7xl">
-              Every seat,<br />
-              <span className="italic text-accent">no surprises.</span>
+              Find your<br />
+              <span className="italic text-accent">unforgettable.</span>
             </h1>
             <p className="mt-6 max-w-md text-lg text-muted">
-              Discover concerts, theatre, sports and cultural events. Pick your exact seat, see it
-              before you sit, and buy with tickets you can actually trust.
+              Real concerts, music shows, theatre, dance, and cultural performances—discovered,
+              discussed, and booked with confidence.
             </p>
             <form
               onSubmit={(e) => {
@@ -58,6 +64,12 @@ export default function Home() {
               />
               <Button type="submit">Explore</Button>
             </form>
+            {!user && (
+              <p className="mt-3 flex items-center gap-1.5 text-xs text-muted">
+                <ShieldCheck className="h-3.5 w-3.5 text-live" />
+                Sign in is required when you select an event.
+              </p>
+            )}
             <div className="mt-4 flex flex-wrap gap-2">
               {categoryList.map((c) => (
                 <Link
@@ -72,6 +84,16 @@ export default function Home() {
           </div>
 
           <div className="relative ee-rise" style={{ animationDelay: "0.1s" }}>
+            <div className="absolute -right-4 -top-5 z-10 rounded-2xl border border-white/50 bg-paper/90 px-4 py-3 shadow-lg backdrop-blur">
+              <div className="flex items-center gap-2 text-xs font-semibold">
+                <span className={`h-2 w-2 rounded-full ${eventsSource === "ticketmaster" ? "bg-live" : "bg-accent"}`} />
+                {eventsSource === "loading"
+                  ? "Finding upcoming events…"
+                  : eventsSource === "ticketmaster"
+                    ? "Live via Ticketmaster"
+                    : "Curated event preview"}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               {featured.slice(0, 2).map((ev, i) => (
                 <div key={ev.id} className={i === 0 ? "translate-y-6" : ""}>
@@ -83,7 +105,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Promises */}
+      {/* Trust strip */}
       <section className="border-y border-line bg-mist/40">
         <div className="mx-auto grid max-w-7xl gap-px overflow-hidden md:grid-cols-4">
           {promises.map((p) => (
@@ -96,12 +118,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured events */}
+      {/* Upcoming events */}
       <section className="mx-auto max-w-7xl px-5 py-20">
         <div className="flex items-end justify-between">
           <div>
-            <Eyebrow>On sale now</Eyebrow>
-            <h2 className="mt-2 font-display text-4xl font-semibold tracking-tight">Featured events</h2>
+            <Eyebrow>What’s on</Eyebrow>
+            <h2 className="mt-2 font-display text-4xl font-semibold tracking-tight">Upcoming events</h2>
+            <p className="mt-2 max-w-lg text-sm text-muted">
+              Concerts, music, performing arts, dance, and more—sorted for what’s next.
+            </p>
           </div>
           <Link to="/events" className="hidden items-center gap-1 text-sm font-medium text-accent hover:underline sm:flex">
             Browse all <ArrowRight className="h-4 w-4" />
@@ -114,7 +139,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Community band */}
+      {/* EaseComms */}
       <section className="mx-auto max-w-7xl px-5">
         <div className="grid items-center gap-10 overflow-hidden rounded-[2.5rem] bg-ink p-10 text-white md:grid-cols-2 md:p-16">
           <div>
@@ -122,54 +147,77 @@ export default function Home() {
               <Users className="h-3 w-3" /> EaseComms
             </Badge>
             <h2 className="mt-5 font-display text-4xl font-semibold leading-tight md:text-5xl">
-              A shared space for every event
+              EaseComms, a community for event discussion and sharing
             </h2>
             <p className="mt-4 max-w-md text-white/70">
-              Meet fellow fans before the show, coordinate seats, upload real photos of the view,
-              and exchange tickets securely — all in one place, before and after you buy.
+              Meet fellow fans, share real venue views with EasePix, earn points for useful photos,
+              and exchange eligible tickets securely through EaseXchange.
             </p>
             <Button className="mt-7" variant="primary" onClick={() => navigate("/community")}>
               Enter the community
             </Button>
           </div>
-          <div className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-3xl bg-white/10 p-6 backdrop-blur">
+              <Camera className="h-6 w-6 text-white" />
+              <div className="mt-8 font-display text-2xl font-semibold">EasePix</div>
+              <p className="mt-2 text-sm leading-relaxed text-white/60">
+                Upload relevant venue-seat photos and earn community points.
+              </p>
+            </div>
+            <div className="rounded-3xl bg-accent p-6 sm:translate-y-6">
+              <Repeat className="h-6 w-6 text-white" />
+              <div className="mt-8 font-display text-2xl font-semibold">EaseXchange</div>
+              <p className="mt-2 text-sm leading-relaxed text-white/75">
+                Exchange eligible tickets with verified users under fair criteria.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white/5 p-4 text-sm text-white/70 sm:col-span-2">
+              <MessageCircle className="mr-2 inline h-4 w-4" />
+              “Section C has the best sightlines—I’ve added a photo from row D.”
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* EaseGuide */}
+      <section className="mx-auto max-w-7xl px-5 py-20">
+        <div className="grid gap-12 rounded-[2.5rem] border border-line bg-mist/40 p-8 md:grid-cols-[0.8fr_1.2fr] md:p-14">
+          <div>
+            <Badge tone="accent"><Route className="h-3 w-3" /> EaseGuide</Badge>
+            <h2 className="mt-5 font-display text-4xl font-semibold tracking-tight md:text-5xl">
+              EaseGuide, make your journey seamless
+            </h2>
+            <p className="mt-4 max-w-md text-muted">
+              From planning your route to finding the right entrance and seat, get helpful guidance
+              at every step of your event day.
+            </p>
+            <Button className="mt-7" variant="dark" onClick={() => navigate("/events")}>
+              Plan an event day <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
             {[
-              "“Section C has the best sightlines — went last tour.”",
-              "“Anyone want to swap my VIP A2 for two standards?”",
-              "“Wheelchair access via the east lobby — staff were great.”",
-            ].map((q, i) => (
-              <div
-                key={i}
-                className="rounded-2xl bg-white/5 p-4 text-sm text-white/80 backdrop-blur"
-                style={{ marginLeft: i * 24 }}
-              >
-                {q}
+              { icon: Map, number: "01", title: "Plan", copy: "Venue details and accessible routes before you leave." },
+              { icon: BellRing, number: "02", title: "Arrive", copy: "Timely reminders for doors, transport, and entry." },
+              { icon: CircleCheck, number: "03", title: "Enjoy", copy: "Seat guidance and community tips when you need them." },
+            ].map((step) => (
+              <div key={step.number} className="flex flex-col rounded-3xl border border-line bg-paper p-5">
+                <div className="flex items-center justify-between">
+                  <step.icon className="h-5 w-5 text-accent" />
+                  <span className="font-display text-sm text-muted">{step.number}</span>
+                </div>
+                <div className="mt-12 font-display text-xl font-semibold">{step.title}</div>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{step.copy}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Organizer CTA */}
-      <section className="mx-auto max-w-7xl px-5 py-20">
-        <div className="flex flex-col items-center gap-6 rounded-[2.5rem] border border-line bg-mist/40 p-12 text-center">
-          <Eyebrow>For organizers</Eyebrow>
-          <h2 className="max-w-2xl font-display text-4xl font-semibold tracking-tight">
-            Sell out your next event with tools that respect your fans
-          </h2>
-          <p className="max-w-xl text-muted">
-            Create events in minutes, set VIP, standard and concession pricing, run early-bird
-            promotions, and track sales in real time with built-in analytics.
-          </p>
-          <Button size="lg" onClick={() => navigate("/login")}>
-            Start selling
-          </Button>
-        </div>
-      </section>
-
       <section className="mx-auto max-w-7xl px-5 pb-8">
         <p className="text-center text-sm text-muted">
-          {published.length} events live · Trusted ticketing for Ticketmaster
+          {published.length} events available · Transparent, verified ticketing by EventEase
         </p>
       </section>
     </div>

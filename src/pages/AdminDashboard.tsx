@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -7,10 +8,18 @@ import {
   Check,
   X,
   AlertTriangle,
+  CircleDollarSign,
+  Armchair,
+  Route,
+  RotateCcw,
+  MapPin,
+  Accessibility,
+  Clock3,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
 import { Button, Badge, Card, Eyebrow, cx } from "../components/ui";
+import { OperationsSeatMap } from "../components/OperationsSeatMap";
 
 export default function AdminDashboard() {
   const { events, organizers, fraud } = useStore();
@@ -23,6 +32,10 @@ export default function AdminDashboard() {
     { id: "events", label: "Event approvals", icon: CalendarCheck, badge: pendingEvents },
     { id: "organizers", label: "Organizers", icon: Building2, badge: pendingOrgs },
     { id: "fraud", label: "Fraud monitor", icon: ShieldAlert, badge: openFraud },
+    { id: "sales", label: "Sales status", icon: CircleDollarSign },
+    { id: "seats", label: "Seat maps", icon: Armchair },
+    { id: "guide", label: "EaseGuide requests", icon: Route, badge: 3 },
+    { id: "refunds", label: "Refund requests", icon: RotateCcw, badge: 2 },
     { id: "analytics", label: "Platform analytics", icon: BarChart3 },
   ];
 
@@ -41,10 +54,165 @@ export default function AdminDashboard() {
           {active === "events" && <EventApprovals />}
           {active === "organizers" && <Organizers />}
           {active === "fraud" && <FraudMonitor />}
+          {active === "sales" && <SalesStatus />}
+          {active === "seats" && <OperationsSeatMap events={events} eyebrow="Platform seat maps" />}
+          {active === "guide" && <EaseGuideRequests />}
+          {active === "refunds" && <RefundRequests />}
           {active === "analytics" && <PlatformAnalytics />}
         </>
       )}
     </DashboardShell>
+  );
+}
+
+function SalesStatus() {
+  const { events } = useStore();
+  return (
+    <div className="space-y-4">
+      {events.map((event) => {
+        const sold = event.tiers.reduce((sum, tier) => sum + tier.sold, 0);
+        const capacity = event.tiers.reduce((sum, tier) => sum + tier.total, 0);
+        const revenue = event.tiers.reduce((sum, tier) => sum + tier.sold * tier.price, 0);
+        const sellThrough = Math.round((sold / Math.max(capacity, 1)) * 100);
+        return (
+          <Card key={event.id} className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-display text-xl font-semibold">{event.title}</h2>
+                  <Badge tone={event.status === "published" ? "live" : event.status === "pending" ? "warn" : "neutral"}>
+                    {event.status}
+                  </Badge>
+                </div>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
+                  <MapPin className="h-4 w-4" /> {event.venue} · {event.organizerName}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="font-display text-2xl font-semibold">{currency(revenue)}</div>
+                <div className="text-xs text-muted">gross ticket sales</div>
+              </div>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              {event.tiers.map((tier) => (
+                <div key={tier.id} className="rounded-2xl bg-mist/60 p-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">{tier.name}</span>
+                    <span className="text-muted">{tier.sold}/{tier.total}</span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-line">
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${(tier.sold / tier.total) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <span className="text-muted">{sold} of {capacity} tickets sold</span>
+              <span className="font-semibold text-live">{sellThrough}% sell-through</span>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+const guideSeed = [
+  { id: "EG-1042", user: "Nadia Lim", event: "Aurora — Midnight Tour", request: "Step-free route from Gate 2 to Section C", date: "18 Oct", priority: "high" },
+  { id: "EG-1043", user: "Marcus Tan", event: "Swan Lake — Winter Gala", request: "Companion assistance from taxi stand", date: "14 Dec", priority: "normal" },
+  { id: "EG-1044", user: "Aisha Rahman", event: "City Derby — Finals Night", request: "Audio navigation and accessible entrance", date: "2 Nov", priority: "normal" },
+] as const;
+
+function EaseGuideRequests() {
+  const [completed, setCompleted] = useState<string[]>([]);
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-accent-soft p-4 text-sm text-accent-ink">
+        EaseGuide requests coordinate accessible routes, arrival support, and venue assistance.
+      </div>
+      {guideSeed.map((request) => {
+        const done = completed.includes(request.id);
+        return (
+          <Card key={request.id} className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+                  <Accessibility className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-semibold">{request.request}</h2>
+                    <Badge tone={done ? "live" : request.priority === "high" ? "warn" : "neutral"}>
+                      {done ? "assigned" : request.priority}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-muted">{request.user} · {request.event}</p>
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
+                    <Clock3 className="h-3.5 w-3.5" /> Event date {request.date} · Request {request.id}
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant={done ? "outline" : "primary"}
+                disabled={done}
+                onClick={() => setCompleted((items) => [...items, request.id])}
+              >
+                {done ? <><Check className="h-4 w-4" /> Team assigned</> : "Assign support team"}
+              </Button>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+const refundSeed = [
+  { id: "RF-2081", ref: "EE-8F3K21", customer: "Alex Chen", event: "Hamlet — A New Staging", amount: 240, reason: "Unable to attend due to medical appointment" },
+  { id: "RF-2082", ref: "EE-2QP907", customer: "Jamie Koh", event: "City Derby — Finals Night", amount: 180, reason: "Duplicate booking made during checkout" },
+] as const;
+
+function RefundRequests() {
+  const [decisions, setDecisions] = useState<Record<string, "approved" | "declined">>({});
+  return (
+    <div className="space-y-4">
+      {refundSeed.map((request) => {
+        const decision = decisions[request.id];
+        return (
+          <Card key={request.id} className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-5">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-display text-xl font-semibold">{request.event}</h2>
+                  <Badge tone={decision === "approved" ? "live" : decision === "declined" ? "danger" : "warn"}>
+                    {decision ?? "pending review"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-sm text-muted">
+                  {request.customer} · Ticket {request.ref} · Request {request.id}
+                </p>
+                <p className="mt-3 max-w-xl rounded-xl bg-mist/60 p-3 text-sm">{request.reason}</p>
+              </div>
+              <div className="min-w-36 text-right">
+                <div className="font-display text-2xl font-semibold">{currency(request.amount)}</div>
+                <div className="text-xs text-muted">requested refund</div>
+                {!decision && (
+                  <div className="mt-4 flex justify-end gap-2">
+                    <Button size="sm" variant="danger" onClick={() => setDecisions((all) => ({ ...all, [request.id]: "declined" }))}>
+                      Decline
+                    </Button>
+                    <Button size="sm" onClick={() => setDecisions((all) => ({ ...all, [request.id]: "approved" }))}>
+                      Approve
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
 

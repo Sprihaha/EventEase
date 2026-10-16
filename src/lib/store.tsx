@@ -1,5 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { loadOrSeedState, saveCollection, type EventEaseState } from "./api";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type Context,
+  type ReactNode,
+} from "react";
 import {
   seedEvents,
   seedBookings,
@@ -16,6 +23,7 @@ import {
   type OrganizerAccount,
   type SeatBooking,
 } from "./data";
+import { fetchLiveEvents } from "./eventsApi";
 
 export type User = { id: string; name: string; email: string; role: Role };
 
@@ -27,12 +35,12 @@ const demoUsers: Record<Role, User> = {
 
 type Store = {
   user: User | null;
-  isLoading: boolean;
-  syncError: string | null;
   login: (role: Role) => void;
+  authenticate: (username: string, password: string) => User | null;
   logout: () => void;
 
   events: EventItem[];
+  eventsSource: "loading" | "ticketmaster" | "curated";
   bookings: Booking[];
   exchange: ExchangeListing[];
   posts: CommunityPost[];
@@ -49,69 +57,88 @@ type Store = {
   resolveFraud: (id: string) => void;
 };
 
-const Ctx = createContext<Store | null>(null);
-
-const seedState: EventEaseState = {
-  events: seedEvents,
-  bookings: seedBookings,
-  exchange: seedExchange,
-  posts: seedPosts,
-  fraud: seedFraud,
-  organizers: seedOrganizers,
+// Keep one context identity across Vite hot updates. Without this, consumers
+// refreshed before the provider can temporarily read from a newly-created,
+// unprovided context.
+const storeGlobal = globalThis as typeof globalThis & {
+  __eventEaseStoreContext?: Context<Store | null>;
 };
+const Ctx = storeGlobal.__eventEaseStoreContext ?? createContext<Store | null>(null);
+storeGlobal.__eventEaseStoreContext = Ctx;
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [events, setEvents] = useState<EventItem[]>(seedEvents);
+  const [eventsSource, setEventsSource] = useState<Store["eventsSource"]>("loading");
   const [bookings, setBookings] = useState<Booking[]>(seedBookings);
   const [exchange, setExchange] = useState<ExchangeListing[]>(seedExchange);
   const [posts, setPosts] = useState<CommunityPost[]>(seedPosts);
   const [fraud, setFraud] = useState<FraudAlert[]>(seedFraud);
   const [organizers, setOrganizers] = useState<OrganizerAccount[]>(seedOrganizers);
-  const [isLoading, setIsLoading] = useState(true);
-  const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-
-    loadOrSeedState(seedState)
-      .then((state) => {
+    fetchLiveEvents()
+      .then((live) => {
         if (!active) return;
-        setEvents(state.events);
-        setBookings(state.bookings);
-        setExchange(state.exchange);
-        setPosts(state.posts);
-        setFraud(state.fraud);
-        setOrganizers(state.organizers);
-        setSyncError(null);
+        if (live.length) {
+          setEvents(live);
+          setEventsSource("ticketmaster");
+        } else {
+          setEventsSource("curated");
+        }
       })
-      .catch((error: unknown) => {
-        if (!active) return;
-        setSyncError(error instanceof Error ? error.message : "Could not sync with Supabase");
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
-
+      .catch(() => active && setEventsSource("curated"));
     return () => {
       active = false;
     };
   }, []);
 
-  const persist = <K extends keyof EventEaseState>(collection: K, value: EventEaseState[K]) => {
-    void saveCollection(collection, value).catch((error: unknown) => {
-      setSyncError(error instanceof Error ? error.message : "Could not sync with Supabase");
-    });
-  };
-
   const value = useMemo<Store>(() => {
     return {
       user,
-      isLoading,
-      syncError,
       login: (role) => setUser(demoUsers[role]),
+      authenticate: (username, password) => {
+        const normalized = username.trim().toLowerCase();
+        const demoAccounts: Record<string, { password: string; user: User }> = {
+          hcy001: {
+            password: "try001",
+            user: { id: "u-cust", name: "HCY", email: "hcy001@eventease.demo", role: "customer" },
+          },
+          admin001: {
+            password: "try001",
+            user: { id: "u-admin", name: "EventEase Admin", email: "admin001@eventease.demo", role: "admin" },
+          },
+          event01: {
+            password: "try01",
+            user: { id: "org-livenation", name: "Event 01", email: "event01@eventease.demo", role: "organizer" },
+          },
+        };
+        const demo = demoAccounts[normalized];
+        if (demo?.password === password) {
+          setUser(demo.user);
+          return demo.user;
+        }
+        const saved = localStorage.getItem(`eventease-user-${normalized}`);
+        if (!saved) return null;
+        try {
+          const account = JSON.parse(saved) as { userId: string; password: string; email: string };
+          if (account.password !== password) return null;
+          const customer = {
+            id: account.userId,
+            name: account.userId,
+            email: account.email,
+            role: "customer" as const,
+          };
+          setUser(customer);
+          return customer;
+        } catch {
+          return null;
+        }
+      },
       logout: () => setUser(null),
       events,
+      eventsSource,
       bookings,
       exchange,
       posts,
@@ -130,45 +157,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           status: "confirmed",
           promo,
         };
-        setBookings((current) => {
-          const next = [bk, ...current];
-          persist("bookings", next);
-          return next;
-        });
-        setEvents((current) => {
-          const next = current.map((e) => {
+        setBookings((b) => [bk, ...b]);
+        setEvents((evs) =>
+          evs.map((e) => {
             if (e.id !== eventId) return e;
             const tiers = e.tiers.map((t) => {
               const n = seats.filter((s) => s.tier === t.name).length;
               return n ? { ...t, sold: t.sold + n } : t;
             });
             return { ...e, tiers };
-          });
-          persist("events", next);
-          return next;
-        });
+          }),
+        );
         return bk;
       },
       cancelBooking: (id) =>
-        setBookings((current) => {
-          const next = current.map((x) =>
-            x.id === id ? { ...x, status: "refunded" as const } : x,
-          );
-          persist("bookings", next);
-          return next;
-        }),
+        setBookings((b) => b.map((x) => (x.id === id ? { ...x, status: "refunded" } : x))),
       listForResale: (id, seat, ask) => {
-        setBookings((current) => {
-          const next = current.map((x) =>
-            x.id === id ? { ...x, status: "listed" as const } : x,
-          );
-          persist("bookings", next);
-          return next;
-        });
+        setBookings((b) => b.map((x) => (x.id === id ? { ...x, status: "listed" } : x)));
         const bk = bookings.find((x) => x.id === id);
         if (!bk) return;
-        setExchange((current) => {
-          const next = [{
+        setExchange((ex) => [
+          {
             id: "ex-" + Date.now(),
             bookingId: id,
             eventId: bk.eventId,
@@ -177,43 +186,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             tier: bk.seats.find((s) => s.seat === seat)?.tier ?? "Standard",
             askPrice: ask,
             verified: true,
-          }, ...current];
-          persist("exchange", next);
-          return next;
-        });
+          },
+          ...ex,
+        ]);
       },
       addPost: (p) =>
-        setPosts((current) => {
-          const next = [{ ...p, id: "p-" + Date.now(), when: "now", likes: 0 }, ...current];
-          persist("posts", next);
-          return next;
-        }),
-      createEvent: (e) =>
-        setEvents((current) => {
-          const next = [{ ...e, status: "pending" as const }, ...current];
-          persist("events", next);
-          return next;
-        }),
+        setPosts((all) => [
+          { ...p, id: "p-" + Date.now(), when: "now", likes: 0 },
+          ...all,
+        ]),
+      createEvent: (e) => setEvents((evs) => [{ ...e, status: "pending" }, ...evs]),
       setEventStatus: (id, status) =>
-        setEvents((current) => {
-          const next = current.map((e) => (e.id === id ? { ...e, status } : e));
-          persist("events", next);
-          return next;
-        }),
+        setEvents((evs) => evs.map((e) => (e.id === id ? { ...e, status } : e))),
       setOrganizerStatus: (id, status) =>
-        setOrganizers((current) => {
-          const next = current.map((x) => (x.id === id ? { ...x, status } : x));
-          persist("organizers", next);
-          return next;
-        }),
+        setOrganizers((o) => o.map((x) => (x.id === id ? { ...x, status } : x))),
       resolveFraud: (id) =>
-        setFraud((current) => {
-          const next = current.map((x) => (x.id === id ? { ...x, resolved: true } : x));
-          persist("fraud", next);
-          return next;
-        }),
+        setFraud((f) => f.map((x) => (x.id === id ? { ...x, resolved: true } : x))),
     };
-  }, [user, isLoading, syncError, events, bookings, exchange, posts, fraud, organizers]);
+  }, [user, events, eventsSource, bookings, exchange, posts, fraud, organizers]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -1,19 +1,37 @@
-import { Link } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Calendar, MapPin } from "lucide-react";
 import type { EventItem } from "../lib/data";
 import { currency, fmtDate } from "../lib/store";
 import { Badge } from "./ui";
+import { useStore } from "../lib/store";
 
 export function EventCard({ ev }: { ev: EventItem }) {
+  const { user } = useStore();
+  const location = useLocation();
+  const navigate = useNavigate();
   const from = Math.min(...ev.tiers.map((t) => t.price));
   const sold = ev.tiers.reduce((a, t) => a + t.sold, 0);
   const total = ev.tiers.reduce((a, t) => a + t.total, 0);
   const pct = Math.round((sold / total) * 100);
   const nearly = pct >= 85;
   return (
-    <Link
-      to={`/events/${ev.id}`}
-      className="group flex flex-col overflow-hidden rounded-3xl border border-line bg-paper transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_-30px_rgba(11,11,15,0.4)]"
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={() =>
+        navigate(user ? `/events/${ev.id}` : "/login", {
+          state: { returnTo: `/events/${ev.id}`, from: location.pathname },
+        })
+      }
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          navigate(user ? `/events/${ev.id}` : "/login", {
+            state: { returnTo: `/events/${ev.id}`, from: location.pathname },
+          });
+        }
+      }}
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-line bg-paper transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_-30px_rgba(11,11,15,0.4)]"
     >
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
@@ -56,6 +74,6 @@ export function EventCard({ ev }: { ev: EventItem }) {
           </span>
         </div>
       </div>
-    </Link>
+    </article>
   );
 }

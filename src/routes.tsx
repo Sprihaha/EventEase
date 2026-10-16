@@ -9,15 +9,7 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Verify from "./pages/Verify";
-import { StoreProvider } from "./lib/store";
-
-function Root() {
-  return (
-    <StoreProvider>
-      <Layout />
-    </StoreProvider>
-  );
-}
+import VerifyEmail from "./pages/VerifyEmail";
 
 function NotFound() {
   return (
@@ -34,7 +26,7 @@ function NotFound() {
 export const router = createBrowserRouter([
   {
     path: "/",
-    Component: Root,
+    Component: Layout,
     children: [
       { index: true, Component: Home },
       { path: "events", Component: Browse },
@@ -45,6 +37,7 @@ export const router = createBrowserRouter([
       { path: "dashboard/organizer", Component: OrganizerDashboard },
       { path: "dashboard/admin", Component: AdminDashboard },
       { path: "verify/:ref", Component: Verify },
+      { path: "verify-email/:code", Component: VerifyEmail },
       { path: "*", Component: NotFound },
     ],
   },
