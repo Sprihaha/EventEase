@@ -15,3 +15,7 @@ def on_account_locked(db: Session, *, user: User, ip: str | None) -> None:
 
 def on_signup(db: Session, *, user: User, ip: str | None) -> None:
     return None
+
+
+def on_ticket_pricing(db: Session, *, event, organiser: User) -> None:
+    return None
