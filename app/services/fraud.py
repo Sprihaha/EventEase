@@ -19,3 +19,7 @@ def on_signup(db: Session, *, user: User, ip: str | None) -> None:
 
 def on_ticket_pricing(db: Session, *, event, organiser: User) -> None:
     return None
+
+
+def on_event_rejected(db: Session, *, event) -> None:
+    return None

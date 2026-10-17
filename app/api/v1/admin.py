@@ -1,16 +1,22 @@
-from fastapi import APIRouter, Depends, Request
+import uuid
+
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.deps import client_ip, require_admin
 from app.core.errors import AppError
-from app.db.models import SourceKind, User
+from app.db.models import EventOrigin, EventStatus, Role, SourceKind, User, UserStatus
 from app.db.session import get_db
+from app.schemas.admin import AdminEventDetail, AdminEventListItem, AdminUser, AuditLogOut, ReasonRequest
+from app.schemas.common import Page
 from app.schemas.events import ImportResult
+from app.services import admin as admin_service
 from app.services import audit
 from app.services.ingestion.base import get_or_create_source, sync_source, upsert_external_events
 from app.services.ingestion.manual import parse_rows, validate_rows
 from app.services.ingestion.ticketmaster import configured_adapter
+from app.services.timeparse import parse_bound
 
 router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(require_admin)])
 
@@ -70,3 +76,85 @@ def sync_ticketmaster(request: Request, admin: User = Depends(require_admin), db
                  after={"created": result.created, "updated": result.updated}, ip=client_ip(request))
     db.commit()
     return {"created": result.created, "updated": result.updated, "failed": 0, "errors": []}
+
+
+# --------------------------------------------------------------------------- approval workflow
+
+
+@router.get("/events", response_model=Page[AdminEventListItem], summary="All events, filterable")
+def list_events(
+    db: Session = Depends(get_db),
+    status_filter: EventStatus | None = Query(None, alias="status"),
+    organiser_id: uuid.UUID | None = Query(None, alias="organiserId"),
+    origin: EventOrigin | None = None,
+    date_from: str | None = Query(None, alias="dateFrom"),
+    date_to: str | None = Query(None, alias="dateTo"),
+    q: str | None = Query(None, max_length=100),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100, alias="pageSize"),
+):
+    return admin_service.list_events(
+        db, status=status_filter, organiser_id=organiser_id, origin=origin,
+        date_from=parse_bound(date_from, "dateFrom", end_of_day=False),
+        date_to=parse_bound(date_to, "dateTo", end_of_day=True), q=q, page=page, page_size=page_size)
+
+
+@router.get("/events/{event_id}", response_model=AdminEventDetail, summary="Any event with categories and sales")
+def get_event(event_id: str, db: Session = Depends(get_db)):
+    return admin_service.event_detail(db, event_id)
+
+
+@router.post("/events/{event_id}/approve", response_model=AdminEventDetail)
+def approve_event(event_id: str, request: Request, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return admin_service.approve_event(db, admin, event_id, client_ip(request))
+
+
+@router.post("/events/{event_id}/reject", response_model=AdminEventDetail)
+def reject_event(event_id: str, body: ReasonRequest, request: Request, admin: User = Depends(require_admin),
+                 db: Session = Depends(get_db)):
+    return admin_service.reject_event(db, admin, event_id, body.reason, client_ip(request))
+
+
+@router.post("/events/{event_id}/suspend", response_model=AdminEventDetail,
+             summary="Stop sales on an approved event and notify affected customers")
+def suspend_event(event_id: str, body: ReasonRequest, request: Request, admin: User = Depends(require_admin),
+                  db: Session = Depends(get_db)):
+    return admin_service.suspend_event(db, admin, event_id, body.reason, client_ip(request))
+
+
+@router.post("/events/{event_id}/unsuspend", response_model=AdminEventDetail)
+def unsuspend_event(event_id: str, request: Request, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return admin_service.unsuspend_event(db, admin, event_id, client_ip(request))
+
+
+# --------------------------------------------------------------------------- users
+
+
+@router.get("/users", response_model=Page[AdminUser], summary="Users (contact details masked)")
+def list_users(db: Session = Depends(get_db), role: Role | None = None,
+               status_filter: UserStatus | None = Query(None, alias="status"), q: str | None = Query(None, max_length=50),
+               page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100, alias="pageSize")):
+    return admin_service.list_users(db, role=role, status=status_filter, q=q, page=page, page_size=page_size)
+
+
+@router.post("/users/{user_id}/suspend", response_model=AdminUser)
+def suspend_user(user_id: str, body: ReasonRequest, request: Request, admin: User = Depends(require_admin),
+                 db: Session = Depends(get_db)):
+    return admin_service.set_user_suspension(db, admin, user_id, True, body.reason, client_ip(request))
+
+
+@router.post("/users/{user_id}/unsuspend", response_model=AdminUser)
+def unsuspend_user(user_id: str, request: Request, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return admin_service.set_user_suspension(db, admin, user_id, False, None, client_ip(request))
+
+
+# --------------------------------------------------------------------------- audit log
+
+
+@router.get("/audit-logs", response_model=Page[AuditLogOut])
+def audit_logs(db: Session = Depends(get_db), entity_type: str | None = Query(None, alias="entityType", max_length=32),
+               entity_id: str | None = Query(None, alias="entityId", max_length=64),
+               actor_id: uuid.UUID | None = Query(None, alias="actorId"), action: str | None = Query(None, max_length=64),
+               page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200, alias="pageSize")):
+    return admin_service.list_audit_logs(db, entity_type=entity_type, entity_id=entity_id, actor_id=actor_id,
+                                         action=action, page=page, page_size=page_size)
