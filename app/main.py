@@ -44,12 +44,24 @@ def _expire_holds_once() -> None:
         logger.info("Released %s expired seat holds", released)
 
 
-async def _hold_sweeper(interval: int) -> None:
+def _purge_once() -> None:
+    from app.services.retention import purge_old_data
+
+    with SessionLocal() as db:
+        logger.info("Retention purge: %s", purge_old_data(db))
+
+
+async def _background_jobs(interval: int) -> None:
+    ticks_per_day = max(1, 86400 // interval)
+    tick = 0
     while True:
         try:
             await run_in_threadpool(_expire_holds_once)
+            if tick % ticks_per_day == 0:
+                await run_in_threadpool(_purge_once)
         except Exception:
-            logger.exception("Hold sweeper failed")
+            logger.exception("Background job failed")
+        tick += 1
         await asyncio.sleep(interval)
 
 
@@ -62,7 +74,7 @@ async def lifespan(_: FastAPI):
     _bootstrap_admin()
     sweeper = None
     if settings.BACKGROUND_JOBS_ENABLED:
-        sweeper = asyncio.create_task(_hold_sweeper(settings.HOLD_SWEEP_INTERVAL_SECONDS))
+        sweeper = asyncio.create_task(_background_jobs(settings.HOLD_SWEEP_INTERVAL_SECONDS))
     yield
     if sweeper:
         sweeper.cancel()
@@ -91,6 +103,19 @@ def create_app() -> FastAPI:
     )
     register_error_handlers(app)
     app.include_router(api_router)
+
+    @app.middleware("http")
+    async def security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        if request.url.path.startswith("/api/v1/"):
+            # API responses carry personal data and tokens: never cache them.
+            response.headers.setdefault("Cache-Control", "no-store")
+        if settings.is_production:
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        return response
 
     @app.get("/", tags=["System"], include_in_schema=False)
     def root():

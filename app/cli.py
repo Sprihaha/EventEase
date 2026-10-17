@@ -49,6 +49,14 @@ def cmd_ingest(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_purge(_: argparse.Namespace) -> int:
+    from app.services.retention import purge_old_data
+
+    with SessionLocal() as db:
+        print(f"Purged: {purge_old_data(db)}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description="EventEase management commands")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -61,6 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("seed-sample", help="Insert labelled sample events (development only)").set_defaults(func=cmd_seed_sample)
     sub.add_parser("ingest-events", help="Sync Singapore events from configured external sources").set_defaults(func=cmd_ingest)
+    sub.add_parser("purge-old-data", help="Delete personal data past DATA_RETENTION_DAYS (PDPA)").set_defaults(func=cmd_purge)
     return parser
 
 

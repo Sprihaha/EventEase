@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.deps import client_ip, require_customer
+from app.core.rate_limit import enforce
 from app.db.models import BookingStatus, User
 from app.db.session import get_db
 from app.schemas.bookings import BookingCreate, BookingOut, PayRequest, TicketHistoryItem
@@ -20,6 +21,7 @@ router = APIRouter(tags=["Bookings"], dependencies=[Depends(require_customer)])
 def create_booking(body: BookingCreate, request: Request, user: User = Depends(require_customer),
                    db: Session = Depends(get_db),
                    idempotency_key: str | None = Header(None, alias="Idempotency-Key", max_length=100)):
+    enforce("booking-user", str(user.id), get_settings().RATE_BOOKING_USER)
     booking = service.create_booking(db, get_settings(), user, body, client_ip(request), idempotency_key)
     return service.booking_view(db, booking)
 

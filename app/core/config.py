@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     RATE_RESET_IP: str = "10/900"
     RATE_USERNAME_CHECK_IP: str = "60/60"
     RATE_REFRESH_IP: str = "30/60"
+    RATE_BOOKING_USER: str = "20/60"
 
     # CORS / frontend
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8000,http://localhost:8443"
