@@ -26,6 +26,29 @@ def cmd_reset_password(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_seed_sample(_: argparse.Namespace) -> int:
+    from app.services.ingestion.sample import seed_sample_events
+
+    with SessionLocal() as db:
+        count = seed_sample_events(db)
+    print(f"Seeded {count} sample events (is_sample=true, hidden in production).")
+    return 0
+
+
+def cmd_ingest(_: argparse.Namespace) -> int:
+    from app.services.ingestion.base import sync_source
+    from app.services.ingestion.ticketmaster import configured_adapter
+
+    adapter = configured_adapter()
+    if adapter is None:
+        print("TICKETMASTER_API_KEY is not set; nothing to ingest.", file=sys.stderr)
+        return 1
+    with SessionLocal() as db:
+        result = sync_source(db, adapter, auto_approve=get_settings().INGEST_AUTO_APPROVE)
+    print(f"Ticketmaster: {result.created} created, {result.updated} updated.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description="EventEase management commands")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -35,6 +58,9 @@ def build_parser() -> argparse.ArgumentParser:
     reset = sub.add_parser("admin-reset-password", help="Generate a new admin password and force a change")
     reset.add_argument("--username", required=True)
     reset.set_defaults(func=cmd_reset_password)
+
+    sub.add_parser("seed-sample", help="Insert labelled sample events (development only)").set_defaults(func=cmd_seed_sample)
+    sub.add_parser("ingest-events", help="Sync Singapore events from configured external sources").set_defaults(func=cmd_ingest)
     return parser
 
 
