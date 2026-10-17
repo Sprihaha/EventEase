@@ -6,9 +6,27 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.deps import client_ip, require_admin
 from app.core.errors import AppError
-from app.db.models import EventOrigin, EventStatus, Role, SourceKind, User, UserStatus
+from app.db.models import (
+    EventOrigin,
+    EventStatus,
+    FraudSeverity,
+    FraudSignalType,
+    FraudStatus,
+    Role,
+    SourceKind,
+    User,
+    UserStatus,
+)
 from app.db.session import get_db
-from app.schemas.admin import AdminEventDetail, AdminEventListItem, AdminUser, AuditLogOut, ReasonRequest
+from app.schemas.admin import (
+    AdminEventDetail,
+    AdminEventListItem,
+    AdminUser,
+    AuditLogOut,
+    FraudSignalOut,
+    ReasonRequest,
+    ReviewRequest,
+)
 from app.schemas.common import Page
 from app.schemas.events import ImportResult
 from app.services import admin as admin_service
@@ -158,3 +176,29 @@ def audit_logs(db: Session = Depends(get_db), entity_type: str | None = Query(No
                page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200, alias="pageSize")):
     return admin_service.list_audit_logs(db, entity_type=entity_type, entity_id=entity_id, actor_id=actor_id,
                                          action=action, page=page, page_size=page_size)
+
+
+# --------------------------------------------------------------------------- fraud monitoring
+
+
+@router.get("/fraud-signals", response_model=Page[FraudSignalOut], summary="Detected fraud signals")
+def fraud_signals(db: Session = Depends(get_db), severity: FraudSeverity | None = None,
+                  type_: FraudSignalType | None = Query(None, alias="type"),
+                  status_filter: FraudStatus | None = Query(None, alias="status"),
+                  page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100, alias="pageSize")):
+    return admin_service.list_fraud_signals(db, severity=severity, type_=type_, status=status_filter, page=page,
+                                            page_size=page_size)
+
+
+@router.post("/fraud-signals/{signal_id}/review", response_model=FraudSignalOut)
+def review_signal(signal_id: str, request: Request, body: ReviewRequest | None = None,
+                  admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return admin_service.review_fraud_signal(db, admin, signal_id, FraudStatus.REVIEWED, body.note if body else None,
+                                             client_ip(request))
+
+
+@router.post("/fraud-signals/{signal_id}/dismiss", response_model=FraudSignalOut)
+def dismiss_signal(signal_id: str, request: Request, body: ReviewRequest | None = None,
+                   admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return admin_service.review_fraud_signal(db, admin, signal_id, FraudStatus.DISMISSED, body.note if body else None,
+                                             client_ip(request))

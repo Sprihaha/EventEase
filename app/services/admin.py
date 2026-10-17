@@ -9,6 +9,10 @@ from app.core.errors import AppError
 from app.core.security import utcnow
 from app.db.models import (
     AuditLog,
+    FraudSeverity,
+    FraudSignal,
+    FraudSignalType,
+    FraudStatus,
     Booking,
     BookingStatus,
     Event,
@@ -238,3 +242,46 @@ def list_audit_logs(db: Session, *, entity_type: str | None, entity_id: str | No
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     logs = db.scalars(stmt.order_by(AuditLog.created_at.desc(), AuditLog.id).offset((page - 1) * page_size).limit(page_size)).all()
     return _page(total, page, page_size, logs)
+
+
+# --------------------------------------------------------------------------- fraud signals
+
+
+def _signal_row(signal: FraudSignal, username: str | None) -> dict:
+    return {**{c: getattr(signal, c) for c in (
+        "id", "type", "severity", "status", "subject_user_id", "subject_event_id", "ip", "occurrences", "details",
+        "review_note", "reviewed_by_id", "reviewed_at", "created_at", "updated_at")}, "subject_username": username}
+
+
+def list_fraud_signals(db: Session, *, severity: FraudSeverity | None, type_: FraudSignalType | None,
+                       status: FraudStatus | None, page: int, page_size: int) -> dict:
+    stmt = select(FraudSignal, User.username).outerjoin(User, User.id == FraudSignal.subject_user_id)
+    if severity:
+        stmt = stmt.where(FraudSignal.severity == severity)
+    if type_:
+        stmt = stmt.where(FraudSignal.type == type_)
+    if status:
+        stmt = stmt.where(FraudSignal.status == status)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery()))
+    rows = db.execute(stmt.order_by(FraudSignal.updated_at.desc(), FraudSignal.id)
+                      .offset((page - 1) * page_size).limit(page_size)).all()
+    return _page(total, page, page_size, [_signal_row(s, name) for s, name in rows])
+
+
+def review_fraud_signal(db: Session, admin: User, raw_id: str, target: FraudStatus, note: str | None, ip: str | None) -> dict:
+    try:
+        signal = db.get(FraudSignal, uuid.UUID(raw_id), with_for_update=True)
+    except ValueError:
+        signal = None
+    if signal is None:
+        raise AppError(404, "FRAUD_SIGNAL_NOT_FOUND", "fraud signal not found")
+    if signal.status == target:
+        raise AppError(409, "INVALID_STATUS_TRANSITION", f"signal is already {target.value}")
+    before = {"status": signal.status.value}
+    signal.status, signal.review_note = target, note
+    signal.reviewed_by_id, signal.reviewed_at = admin.id, utcnow()
+    audit.record(db, actor=admin, action=f"FRAUD_SIGNAL_{target.value}", entity_type="FraudSignal", entity_id=signal.id,
+                 before=before, after={"status": target.value, "note": note}, ip=ip)
+    db.commit()
+    username = db.scalar(select(User.username).where(User.id == signal.subject_user_id)) if signal.subject_user_id else None
+    return _signal_row(signal, username)

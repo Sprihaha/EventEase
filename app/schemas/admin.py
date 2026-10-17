@@ -4,7 +4,16 @@ from typing import Any
 
 from pydantic import Field
 
-from app.db.models import EventCategory, EventOrigin, EventStatus, Role, UserStatus
+from app.db.models import (
+    EventCategory,
+    EventOrigin,
+    EventStatus,
+    FraudSeverity,
+    FraudSignalType,
+    FraudStatus,
+    Role,
+    UserStatus,
+)
 from app.schemas.common import CamelModel
 from app.schemas.organiser import SalesReport, TicketCategoryOut
 
@@ -71,3 +80,25 @@ class AuditLogOut(CamelModel):
     after: dict[str, Any] | None
     ip: str | None
     created_at: datetime
+
+
+class FraudSignalOut(CamelModel):
+    id: uuid.UUID
+    type: FraudSignalType
+    severity: FraudSeverity
+    status: FraudStatus
+    subject_user_id: uuid.UUID | None
+    subject_username: str | None
+    subject_event_id: uuid.UUID | None
+    ip: str | None
+    occurrences: int
+    details: dict[str, Any]
+    review_note: str | None
+    reviewed_by_id: uuid.UUID | None
+    reviewed_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ReviewRequest(CamelModel):
+    note: str | None = Field(None, max_length=1000)
