@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.api.v1 import api_router
 from app.core.config import get_settings
 from app.core.errors import AppError, register_error_handlers
 from app.db.session import SessionLocal, engine, get_db
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "Authorization", "Idempotency-Key"],
     )
     register_error_handlers(app)
+    app.include_router(api_router)
 
     @app.get("/", tags=["System"], include_in_schema=False)
     def root():
