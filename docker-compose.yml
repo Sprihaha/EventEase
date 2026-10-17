@@ -1,20 +1,36 @@
+# Local development: Postgres + API.
+#   1. Copy .env.example to .env and set POSTGRES_PASSWORD (any local value) and JWT_SECRET.
+#   2. docker compose up --build
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: eventease-backend-container
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eventease}
+      POSTGRES_USER: ${POSTGRES_USER:-eventease}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     ports:
-      - "8000:8000"
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eventease} -d ${POSTGRES_DB:-eventease}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
     env_file:
       - .env
-    volumes:
-      - .:/app
-    # Add a healthcheck to ensure the API is running
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    # Use reload in compose for live code changes
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-eventease}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-eventease}
+      DB_SSLMODE: disable
+      DB_SCHEMA: public
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
