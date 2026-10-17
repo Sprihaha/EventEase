@@ -1,7 +1,10 @@
+import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -32,13 +35,39 @@ def _bootstrap_admin() -> None:
             )
 
 
+def _expire_holds_once() -> None:
+    from app.services.bookings import expire_stale_holds
+
+    with SessionLocal() as db:
+        released = expire_stale_holds(db)
+    if released:
+        logger.info("Released %s expired seat holds", released)
+
+
+async def _hold_sweeper(interval: int) -> None:
+    while True:
+        try:
+            await run_in_threadpool(_expire_holds_once)
+        except Exception:
+            logger.exception("Hold sweeper failed")
+        await asyncio.sleep(interval)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    logging.basicConfig(level=get_settings().LOG_LEVEL)
+    settings = get_settings()
+    logging.basicConfig(level=settings.LOG_LEVEL)
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
     _bootstrap_admin()
+    sweeper = None
+    if settings.BACKGROUND_JOBS_ENABLED:
+        sweeper = asyncio.create_task(_hold_sweeper(settings.HOLD_SWEEP_INTERVAL_SECONDS))
     yield
+    if sweeper:
+        sweeper.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await sweeper
 
 
 def create_app() -> FastAPI:

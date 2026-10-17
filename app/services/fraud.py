@@ -23,3 +23,15 @@ def on_ticket_pricing(db: Session, *, event, organiser: User) -> None:
 
 def on_event_rejected(db: Session, *, event) -> None:
     return None
+
+
+def on_booking(db: Session, *, booking, user: User, ip: str | None) -> None:
+    return None
+
+
+def on_payment_failed(db: Session, *, user: User, booking) -> None:
+    return None
+
+
+def on_cancellation(db: Session, *, user: User) -> None:
+    return None

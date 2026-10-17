@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # Postgres schema holding the EventEase tables. Tests use an isolated schema.
     DB_SCHEMA: str = "public"
     SQL_ECHO: bool = False
+    # Keep pool_size + max_overflow below the database/pooler client limit
+    # (Supabase session pooler: 15 clients per project on small plans).
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 5
 
     # Auth
     JWT_SECRET: str | None = None

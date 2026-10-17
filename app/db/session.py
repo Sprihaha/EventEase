@@ -13,8 +13,9 @@ def _build_engine():
         connect_args={"sslmode": settings.DB_SSLMODE},
         echo=settings.SQL_ECHO,
         pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=20,
+        pool_size=settings.DB_POOL_SIZE,
+        max_overflow=settings.DB_MAX_OVERFLOW,
+        pool_timeout=10,
     )
     schema = settings.DB_SCHEMA
 
