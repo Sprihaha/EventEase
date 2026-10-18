@@ -1,4 +1,4 @@
-services:
+﻿services:
   - type: web
     name: eventease-backend
     runtime: docker
@@ -12,7 +12,7 @@ services:
       - key: DB_PORT
         value: "5432"
       - key: DB_NAME
-        value: postgres
+        value: eventease_db
       - key: DB_USER
         sync: false
       - key: DB_PASSWORD
@@ -20,13 +20,13 @@ services:
       - key: DB_SSLMODE
         value: require
       - key: DB_SCHEMA
-        value: eventease
+        value: public
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_USERNAME
         value: eventeaseadmin
       # Set ADMIN_PASSWORD in the dashboard, or leave it unset and run
-      # `python -m app.cli seed-admin` from the Render shell.
+      # python -m app.cli seed-admin from the Render shell.
       - key: ADMIN_PASSWORD
         sync: false
       - key: CORS_ORIGINS
