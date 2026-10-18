@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import Body, Depends, FastAPI, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -126,9 +127,13 @@ def create_app() -> FastAPI:
     def health(db: Session = Depends(get_db)):
         try:
             db.execute(text("SELECT 1"))
+            return {"status": "healthy", "database": "connected"}
         except Exception as error:
-            raise AppError(503, "DATABASE_UNAVAILABLE", "database unavailable") from error
-        return {"status": "ok", "database": "connected"}
+            logger.error("Health check database failure: %s", error)
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unhealthy", "database": "disconnected"},
+            )
 
     # ---------------------------------------------------------------------------
     # Figma Make Compatibility Routes (/state/* and /tickets/{ref})

@@ -298,4 +298,4 @@ The Render blueprint is in [render.yaml](render.yaml).
    tables (see [Legacy tables](#legacy-tables)).
 3. The container runs `alembic upgrade head` and serves with
    `--proxy-headers`, so client IPs come from `X-Forwarded-For`.
-4. `/health` reports `{"status": "ok", "database": "connected"}`.
+4. `/health` reports `{"status": "healthy", "database": "connected"}`.
