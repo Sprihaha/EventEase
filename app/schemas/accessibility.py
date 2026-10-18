@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.schemas.common import CamelModel
 
@@ -12,7 +12,15 @@ class NarrationOut(CamelModel):
 
 
 class NarrationIn(CamelModel):
-    transcript: str = Field(..., min_length=1, max_length=5000)
+    transcript: str = Field(..., max_length=5000)
+
+    @field_validator("transcript")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("transcript cannot be blank")
+        return value
 
 
 class AccessibilitySettingsOut(CamelModel):
