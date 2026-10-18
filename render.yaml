@@ -20,7 +20,7 @@ services:
       - key: DB_SSLMODE
         value: require
       - key: DB_SCHEMA
-        value: public
+        value: eventease
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_USERNAME

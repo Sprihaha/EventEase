@@ -71,7 +71,7 @@ All configuration comes from environment variables or `.env`. See
 | `APP_ENV` | `development` | `development`, `test` or `production` |
 | `DATABASE_URL` *or* `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME` | – | PostgreSQL connection |
 | `DB_SSLMODE` | `require` | `disable` for local Docker |
-| `DB_SCHEMA` | `public` | Schema holding the EventEase tables |
+| `DB_SCHEMA` | `public` (EventEase sets `eventease`) | Schema holding the EventEase tables |
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | `5` / `5` | Keep the total below your pooler's client limit (Supabase session pooler: 15) |
 | `JWT_SECRET` | – | **Required in production**, at least 32 characters |
 | `ACCESS_TOKEN_TTL_MINUTES` / `REFRESH_TOKEN_TTL_DAYS` | `15` / `7` | Token lifetimes |
@@ -108,13 +108,13 @@ Migration `0001` renames the old `users`, `events` and `eventease_state` tables
 to `legacy_*`. No data is dropped. It only renames tables in `DB_SCHEMA`.
 
 On Supabase, those tables are owned by `postgres`, not by the application role.
-In that case the migration stops with instructions instead of guessing. You
-have two options:
+In that case the migration stops with instructions instead of guessing.
 
-- **Rename once as the owner.** Run [scripts/rename_legacy_tables.sql](scripts/rename_legacy_tables.sql)
-  in the Supabase SQL editor, then run `alembic upgrade head`.
-- **Use a dedicated schema.** Set `DB_SCHEMA=eventease`. The new tables live
-  there and the legacy tables stay untouched in `public`.
+**EventEase uses `DB_SCHEMA=eventease`** (set in `render.yaml` and
+`.env.example`), so the new tables live in their own schema and the legacy
+tables stay untouched in `public`. The alternative, if you ever want the tables
+in `public`, is to run [scripts/rename_legacy_tables.sql](scripts/rename_legacy_tables.sql)
+in the Supabase SQL editor first.
 
 ### Default administrator
 
@@ -294,8 +294,8 @@ The Render blueprint is in [render.yaml](render.yaml).
 
 1. Set the database variables, `ADMIN_PASSWORD` (or seed later from the shell),
    `CORS_ORIGINS` and `FRONTEND_URL`. `JWT_SECRET` is generated automatically.
-2. Resolve the legacy tables (see [Legacy tables](#legacy-tables)) before the
-   first deploy against `public`.
+2. Keep `DB_SCHEMA=eventease`; the first deploy creates that schema and its
+   tables (see [Legacy tables](#legacy-tables)).
 3. The container runs `alembic upgrade head` and serves with
    `--proxy-headers`, so client IPs come from `X-Forwarded-For`.
 4. `/health` reports `{"status": "ok", "database": "connected"}`.
