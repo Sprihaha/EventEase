@@ -22,8 +22,19 @@ def build_database_url():
     if missing:
         raise RuntimeError(f"Missing database settings: {', '.join(missing)}")
 
+    drivername = "postgresql"
+    try:
+        import psycopg  # noqa: F401
+        drivername = "postgresql+psycopg"
+    except ImportError:
+        try:
+            import psycopg2  # noqa: F401
+            drivername = "postgresql+psycopg2"
+        except ImportError:
+            pass
+
     return URL.create(
-        drivername="postgresql",
+        drivername=drivername,
         username=required["DB_USER"],
         password=required["DB_PASSWORD"],
         host=required["DB_HOST"],
