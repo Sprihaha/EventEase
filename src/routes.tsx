@@ -10,6 +10,10 @@ import OrganizerDashboard from "./pages/OrganizerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Verify from "./pages/Verify";
 import VerifyEmail from "./pages/VerifyEmail";
+import AccessibilitySettings from "./pages/AccessibilitySettings";
+import AssistanceRequestForm from "./pages/AssistanceRequestForm";
+import AssistanceRequests from "./pages/AssistanceRequests";
+import EaseVoiceNarration from "./pages/EaseVoiceNarration";
 
 function NotFound() {
   return (
@@ -38,6 +42,10 @@ export const router = createBrowserRouter([
       { path: "dashboard/admin", Component: AdminDashboard },
       { path: "verify/:ref", Component: Verify },
       { path: "verify-email/:code", Component: VerifyEmail },
+      { path: "settings/accessibility", Component: AccessibilitySettings },
+      { path: "assistance", Component: AssistanceRequests },
+      { path: "assistance/request/:bookingId", Component: AssistanceRequestForm },
+      { path: "admin/easevoice-narration", Component: EaseVoiceNarration },
       { path: "*", Component: NotFound },
     ],
   },

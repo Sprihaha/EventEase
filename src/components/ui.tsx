@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import QR from "qrcode";
 
 export function cx(...c: (string | false | null | undefined)[]) {
@@ -61,9 +61,15 @@ export function Badge({
   );
 }
 
-export function Card({ children, className }: { children: ReactNode; className?: string }) {
+export function Card({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { children: ReactNode }) {
   return (
-    <div className={cx("rounded-3xl border border-line bg-paper", className)}>{children}</div>
+    <div {...props} className={cx("rounded-3xl border border-line bg-paper", className)}>
+      {children}
+    </div>
   );
 }
 

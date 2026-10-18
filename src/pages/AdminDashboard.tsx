@@ -15,17 +15,24 @@ import {
   MapPin,
   Accessibility,
   Clock3,
+  ClipboardList,
+  Volume2,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
 import { Button, Badge, Card, Eyebrow, cx } from "../components/ui";
 import { OperationsSeatMap } from "../components/OperationsSeatMap";
+import AssistanceQueue from "../components/AssistanceQueue";
+import EaseVoiceNarration from "./EaseVoiceNarration";
 
 export default function AdminDashboard() {
-  const { events, organizers, fraud } = useStore();
+  const { events, organizers, fraud, assistanceRequests } = useStore();
   const pendingEvents = events.filter((e) => e.status === "pending").length;
   const pendingOrgs = organizers.filter((o) => o.status === "pending").length;
   const openFraud = fraud.filter((f) => !f.resolved).length;
+  const openAssistance = assistanceRequests.filter((request) =>
+    ["Submitted", "Assigned", "In progress"].includes(request.status),
+  ).length;
 
   const nav: NavItem[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -33,6 +40,8 @@ export default function AdminDashboard() {
     { id: "organizers", label: "Organizers", icon: Building2, badge: pendingOrgs },
     { id: "fraud", label: "Fraud monitor", icon: ShieldAlert, badge: openFraud },
     { id: "sales", label: "Sales status", icon: CircleDollarSign },
+    { id: "assistance", label: "Assistance queue", icon: ClipboardList, badge: openAssistance },
+    { id: "narration", label: "EaseVoice narration", icon: Volume2 },
     { id: "seats", label: "Seat maps", icon: Armchair },
     { id: "guide", label: "EaseGuide requests", icon: Route, badge: 3 },
     { id: "refunds", label: "Refund requests", icon: RotateCcw, badge: 2 },
@@ -56,6 +65,8 @@ export default function AdminDashboard() {
           {active === "fraud" && <FraudMonitor />}
           {active === "sales" && <SalesStatus />}
           {active === "seats" && <OperationsSeatMap events={events} eyebrow="Platform seat maps" />}
+          {active === "assistance" && <AssistanceQueue />}
+          {active === "narration" && <EaseVoiceNarration embedded />}
           {active === "guide" && <EaseGuideRequests />}
           {active === "refunds" && <RefundRequests />}
           {active === "analytics" && <PlatformAnalytics />}
@@ -223,27 +234,39 @@ function Overview() {
     value: events.filter((e) => e.category === c).length,
   }));
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-      <Card className="p-6">
-        <Eyebrow>Marketplace health</Eyebrow>
-        <h3 className="mt-1 font-display text-xl font-semibold">Events by category</h3>
-        <div className="mt-6"><BarChart data={byCat} /></div>
-      </Card>
-      <Card className="p-6">
-        <Eyebrow>Needs attention</Eyebrow>
-        <h3 className="mt-1 font-display text-xl font-semibold">Latest fraud signals</h3>
-        <ul className="mt-4 space-y-3">
-          {fraud.slice(0, 3).map((f) => (
-            <li key={f.id} className="flex items-start gap-3 rounded-xl bg-mist/50 p-3">
-              <AlertTriangle className={cx("mt-0.5 h-4 w-4", f.severity === "high" ? "text-danger" : "text-warn")} />
-              <div className="text-sm">
-                <div className="font-medium">{f.type}</div>
-                <div className="text-muted">{f.event} · {f.when} ago</div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </Card>
+    <div className="space-y-8">
+      <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+        <Card className="p-6">
+          <Eyebrow>Marketplace health</Eyebrow>
+          <h3 className="mt-1 font-display text-xl font-semibold">Events by category</h3>
+          <div className="mt-6"><BarChart data={byCat} /></div>
+        </Card>
+        <Card className="p-6">
+          <Eyebrow>Needs attention</Eyebrow>
+          <h3 className="mt-1 font-display text-xl font-semibold">Latest fraud signals</h3>
+          <ul className="mt-4 space-y-3">
+            {fraud.slice(0, 3).map((f) => (
+              <li key={f.id} className="flex items-start gap-3 rounded-xl bg-mist/50 p-3">
+                <AlertTriangle className={cx("mt-0.5 h-4 w-4", f.severity === "high" ? "text-danger" : "text-warn")} />
+                <div className="text-sm">
+                  <div className="font-medium">{f.type}</div>
+                  <div className="text-muted">{f.event} · {f.when} ago</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+
+      <section aria-labelledby="overview-assistance-title">
+        <div className="mb-4">
+          <Eyebrow>EaseGuide operations</Eyebrow>
+          <h2 id="overview-assistance-title" className="mt-1 font-display text-2xl font-semibold">
+            Assistance queue
+          </h2>
+        </div>
+        <AssistanceQueue />
+      </section>
     </div>
   );
 }

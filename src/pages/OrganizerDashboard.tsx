@@ -20,6 +20,7 @@ import { categoryList, type Category, type EventItem } from "../lib/data";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
 import { Button, Badge, Card, Field, Input, Select, Textarea, Eyebrow, cx } from "../components/ui";
 import { OperationsSeatMap } from "../components/OperationsSeatMap";
+import EaseAnalytics from "../components/EaseAnalytics";
 
 const nav: NavItem[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -28,7 +29,7 @@ const nav: NavItem[] = [
   { id: "seats", label: "Seat maps", icon: Armchair },
   { id: "events", label: "My events", icon: Ticket },
   { id: "create", label: "Create event", icon: CalendarPlus },
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "analytics", label: "EaseAnalytics", icon: BarChart3 },
   { id: "promos", label: "Promotions", icon: Tag },
 ];
 
@@ -57,7 +58,7 @@ export default function OrganizerDashboard() {
           {active === "seats" && <OperationsSeatMap events={mine} eyebrow="Organizer seat maps" />}
           {active === "events" && <EventsTable mine={mine} />}
           {active === "create" && <CreateEvent onCreate={createEvent} organizer={{ id: user!.id, name: user!.name }} />}
-          {active === "analytics" && <Analytics mine={mine} />}
+          {active === "analytics" && <EaseAnalytics events={mine} />}
           {active === "promos" && <Promotions />}
         </>
       )}

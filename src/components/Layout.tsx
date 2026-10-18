@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router";
 import {
   Ticket,
@@ -10,9 +10,14 @@ import {
   Contrast,
   LogOut,
   ChevronRight,
+  ChevronDown,
+  Settings,
+  Route,
 } from "lucide-react";
 import { useStore } from "../lib/store";
-import { Button, cx } from "./ui";
+import type { Role } from "../lib/data";
+import { Badge, Button, Select, cx } from "./ui";
+import EaseVoice from "./EaseVoice";
 
 function AccessibilityBar() {
   const [big, setBig] = useState(false);
@@ -58,9 +63,31 @@ const navLinks = [
 ];
 
 export default function Layout() {
-  const { user, logout } = useStore();
+  const { user, login, logout } = useStore();
   const navigate = useNavigate();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenu = useRef<HTMLDivElement>(null);
   const dash = user ? `/dashboard/${user.role}` : "/login";
+
+  const previewAs = (role: Role) => {
+    login(role);
+    navigate(`/dashboard/${role}`);
+  };
+
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (!userMenu.current?.contains(event.target as Node)) setUserMenuOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setUserMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", escape);
+    };
+  }, []);
 
   return (
     <div className="flex min-h-full flex-col bg-paper">
@@ -91,26 +118,104 @@ export default function Layout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-accent/20 bg-accent-soft/50 p-1 pl-3">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-accent-ink xl:hidden">
+                Prototype
+              </span>
+              <div className="hidden items-center gap-2 xl:flex">
+                <span className="text-xs font-semibold text-accent-ink">Preview as</span>
+                <Badge tone="accent" className="bg-paper normal-case tracking-normal">
+                  Prototype only
+                </Badge>
+              </div>
+              <Select
+                aria-label="Preview prototype as a role"
+                value={user?.role ?? ""}
+                onChange={(event) => previewAs(event.target.value as Role)}
+                className="h-8 w-28 rounded-full border-0 bg-paper py-0 pl-3 pr-7 text-xs font-semibold focus:ring-2 sm:w-32"
+              >
+                <option value="" disabled>Preview as</option>
+                <option value="customer">Customer</option>
+                <option value="organizer">Organiser</option>
+                <option value="admin">Admin</option>
+              </Select>
+            </div>
             <div className="hidden lg:block">
               <AccessibilityBar />
             </div>
             {user ? (
-              <>
-                <Button variant="outline" size="sm" onClick={() => navigate(dash)}>
-                  <LayoutDashboard className="h-4 w-4" />
-                  <span className="hidden sm:inline capitalize">{user.role} dashboard</span>
-                </Button>
-                <button
-                  onClick={() => {
-                    logout();
-                    navigate("/");
-                  }}
-                  title="Sign out"
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-mist hover:text-ink"
+              <div ref={userMenu} className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setUserMenuOpen((open) => !open)}
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                  aria-label="Open user menu"
+                  className="focus-visible:ring-4 focus-visible:ring-accent/30"
                 >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </>
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ink text-[10px] text-white">
+                    {user.name[0]}
+                  </span>
+                  <span className="hidden sm:inline">{user.name}</span>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+                {userMenuOpen && (
+                  <div
+                    role="menu"
+                    aria-label="User menu"
+                    className="absolute right-0 top-12 z-50 w-64 rounded-2xl border border-line bg-paper p-2 shadow-xl"
+                  >
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate(dash);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium hover:bg-mist focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/30"
+                    >
+                      <LayoutDashboard className="h-4 w-4 text-accent" />
+                      <span className="capitalize">{user.role} dashboard</span>
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate("/settings/accessibility");
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium hover:bg-mist focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/30"
+                    >
+                      <Settings className="h-4 w-4 text-accent" />
+                      Accessibility settings
+                    </button>
+                    {user.role === "customer" && (
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigate("/assistance");
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium hover:bg-mist focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/30"
+                      >
+                        <Route className="h-4 w-4 text-accent" />
+                        My assistance requests
+                      </button>
+                    )}
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        logout();
+                        navigate("/");
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-danger hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-danger/20"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <Button size="sm" onClick={() => navigate("/login")}>
                 Sign in
@@ -123,6 +228,7 @@ export default function Layout() {
       <main className="flex-1">
         <Outlet />
       </main>
+      <EaseVoice />
 
       <footer className="mt-24 border-t border-line bg-ink text-white">
         <div className="mx-auto max-w-7xl px-5 py-16">

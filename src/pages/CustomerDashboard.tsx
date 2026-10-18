@@ -10,6 +10,7 @@ import {
   QrCode,
   X,
   Gift,
+  Accessibility,
 } from "lucide-react";
 import { useStore, currency, fmtDate } from "../lib/store";
 import type { Booking } from "../lib/data";
@@ -24,7 +25,7 @@ const nav: NavItem[] = [
 ];
 
 export default function CustomerDashboard() {
-  const { bookings, events, cancelBooking, listForResale } = useStore();
+  const { bookings, events, assistanceRequests, cancelBooking, listForResale } = useStore();
   const mine = bookings.filter((b) => b.userId === "u-cust");
   const [qr, setQr] = useState<Booking | null>(null);
   const [resell, setResell] = useState<Booking | null>(null);
@@ -46,9 +47,22 @@ export default function CustomerDashboard() {
 
           {active === "tickets" && (
             <div className="space-y-4">
+              <div className="flex justify-end">
+                <Link to="/assistance">
+                  <Button variant="outline" size="sm">
+                    <Accessibility className="h-4 w-4" /> My assistance requests
+                  </Button>
+                </Link>
+              </div>
               {upcoming.length ? (
                 upcoming.map((b) => {
                   const ev = evOf(b.eventId)!;
+                  const openRequest = assistanceRequests.find(
+                    (request) =>
+                      request.bookingId === b.id &&
+                      ["Submitted", "Assigned", "In progress"].includes(request.status),
+                  );
+                  const canRequest = new Date(ev.date).getTime() > Date.now();
                   return (
                     <Card key={b.id} className="flex flex-col overflow-hidden sm:flex-row">
                       <img src={ev.image} alt={ev.title} className="h-32 w-full object-cover sm:h-auto sm:w-40" />
@@ -69,9 +83,25 @@ export default function CustomerDashboard() {
                           </div>
                           <div className="mt-2 text-xs text-muted">Ref {b.ref}</div>
                         </div>
-                        <Button variant="dark" onClick={() => setQr(b)}>
-                          <QrCode className="h-4 w-4" /> Show ticket
-                        </Button>
+                        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                          <Button variant="dark" onClick={() => setQr(b)}>
+                            <QrCode className="h-4 w-4" /> Show ticket
+                          </Button>
+                          {openRequest ? (
+                            <Link
+                              to={`/assistance?request=${openRequest.id}`}
+                              className="text-center text-xs font-medium text-accent hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
+                            >
+                              Request already open, view it
+                            </Link>
+                          ) : canRequest ? (
+                            <Link to={`/assistance/request/${b.id}`}>
+                              <Button variant="outline" size="sm" className="w-full">
+                                <Accessibility className="h-4 w-4" /> Request assistance
+                              </Button>
+                            </Link>
+                          ) : null}
+                        </div>
                       </div>
                     </Card>
                   );

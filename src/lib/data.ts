@@ -46,6 +46,28 @@ export type Booking = {
   promo?: string;
 };
 
+export type AssistanceStatus =
+  | "Submitted"
+  | "Assigned"
+  | "In progress"
+  | "Completed"
+  | "Cancelled";
+
+export type AssistanceLevel = "Basic" | "Moderate" | "Full support";
+
+export type AssistanceRequest = {
+  id: string;
+  bookingId: string;
+  eventId: string;
+  userId: string;
+  requesterUsername: string;
+  supportNeeds: string;
+  level: AssistanceLevel;
+  assignedStaff?: string;
+  status: AssistanceStatus;
+  createdAt: string;
+};
+
 export type ExchangeListing = {
   id: string;
   bookingId: string;
@@ -266,6 +288,101 @@ export const seedBookings: Booking[] = [
     total: 44,
     purchasedAt: "2026-07-14T18:41:00",
     status: "refunded",
+  },
+  {
+    id: "bk-4",
+    ref: "EE-7GLA42",
+    eventId: "ev-ballet",
+    userId: "u-cust",
+    seats: [{ seat: "D8", tier: "Standard" }],
+    total: 130,
+    purchasedAt: "2026-09-12T14:20:00",
+    status: "confirmed",
+  },
+];
+
+export const seedAssistanceRequests: AssistanceRequest[] = [
+  {
+    id: "ar-1",
+    bookingId: "bk-2",
+    eventId: "ev-derby",
+    userId: "u-cust",
+    requesterUsername: "hcy001",
+    supportNeeds: "Step-free entrance and guidance from the arrival point to my seat.",
+    level: "Moderate",
+    assignedStaff: "Farah N.",
+    status: "Assigned",
+    createdAt: "2026-09-08T10:30:00",
+  },
+  {
+    id: "ar-2",
+    bookingId: "bk-1",
+    eventId: "ev-hamlet",
+    userId: "u-cust",
+    requesterUsername: "hcy001",
+    supportNeeds: "Audio guidance through the lobby and help locating accessible facilities.",
+    level: "Basic",
+    assignedStaff: "Daniel T.",
+    status: "Completed",
+    createdAt: "2026-08-31T16:10:00",
+  },
+  {
+    id: "ar-3",
+    bookingId: "bk-3",
+    eventId: "ev-lantern",
+    userId: "u-cust",
+    requesterUsername: "hcy001",
+    supportNeeds: "Continuous companion support from drop-off through event departure.",
+    level: "Full support",
+    status: "Cancelled",
+    createdAt: "2026-07-16T09:15:00",
+  },
+  {
+    id: "ar-4",
+    bookingId: "bk-4",
+    eventId: "ev-ballet",
+    userId: "u-amelia",
+    requesterUsername: "amelia88",
+    supportNeeds: "Help navigating from the main entrance to an aisle seat.",
+    level: "Basic",
+    status: "Submitted",
+    createdAt: "2026-09-14T11:40:00",
+  },
+  {
+    id: "ar-5",
+    bookingId: "bk-5",
+    eventId: "ev-aurora",
+    userId: "u-jerome",
+    requesterUsername: "jerome_l",
+    supportNeeds: "Wheelchair transfer support and guidance to the accessible viewing area.",
+    level: "Full support",
+    assignedStaff: "Mei W.",
+    status: "In progress",
+    createdAt: "2026-09-18T13:05:00",
+  },
+  {
+    id: "ar-6",
+    bookingId: "bk-6",
+    eventId: "ev-ballet",
+    userId: "u-ravi",
+    requesterUsername: "ravi_k",
+    supportNeeds: "Assistance locating the hearing loop collection point.",
+    level: "Moderate",
+    assignedStaff: "Sarah L.",
+    status: "Assigned",
+    createdAt: "2026-09-20T08:25:00",
+  },
+  {
+    id: "ar-7",
+    bookingId: "bk-7",
+    eventId: "ev-lantern",
+    userId: "u-nadia",
+    requesterUsername: "nadia_lim",
+    supportNeeds: "Step-free route information and a quiet waiting area before entry.",
+    level: "Basic",
+    assignedStaff: "Daniel T.",
+    status: "Completed",
+    createdAt: "2026-07-02T15:50:00",
   },
 ];
 

@@ -86,9 +86,11 @@ export default function Home() {
           <div className="relative ee-rise" style={{ animationDelay: "0.1s" }}>
             <div className="absolute -right-4 -top-5 z-10 rounded-2xl border border-white/50 bg-paper/90 px-4 py-3 shadow-lg backdrop-blur">
               <div className="flex items-center gap-2 text-xs font-semibold">
-                <span className={`h-2 w-2 rounded-full ${eventsSource === "ticketmaster" ? "bg-live" : "bg-accent"}`} />
+                <span className={`h-2 w-2 rounded-full ${eventsSource === "ticketmaster" || eventsSource === "backend" ? "bg-live" : "bg-accent"}`} />
                 {eventsSource === "loading"
                   ? "Finding upcoming events…"
+                  : eventsSource === "backend"
+                    ? "Live via EventEase API"
                   : eventsSource === "ticketmaster"
                     ? "Live via Ticketmaster"
                     : "Curated event preview"}

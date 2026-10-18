@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   Calendar,
@@ -32,6 +32,20 @@ export default function EventDetail() {
   const [promo, setPromo] = useState("");
   const [applied, setApplied] = useState(0);
   const [ref, setRef] = useState("");
+
+  useEffect(() => {
+    const narrationPage =
+      step === "pay"
+        ? "checkout"
+        : step === "done"
+          ? "booking-confirmation"
+          : sel.length
+            ? "select-tickets"
+            : "event-details";
+    window.dispatchEvent(
+      new CustomEvent("eventease:narration-page", { detail: narrationPage }),
+    );
+  }, [sel.length, step]);
 
   if (!ev) {
     return (

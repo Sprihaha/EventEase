@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Navigate } from "react-router";
 import { useStore } from "../lib/store";
 import type { Role } from "../lib/data";
@@ -21,6 +21,30 @@ export function DashboardShell({
   const { user } = useStore();
   const [active, setActive] = useState(nav[0].id);
 
+  useEffect(() => {
+    const pages: Partial<Record<Role, Record<string, string>>> = {
+      customer: { tickets: "my-tickets" },
+      organizer: {
+        overview: "organizer-dashboard",
+        sales: "ticket-sales",
+        venues: "venue-status",
+        seats: "organizer-seat-maps",
+        analytics: "easeanalytics",
+      },
+      admin: {
+        overview: "admin-dashboard",
+        events: "event-approvals",
+        assistance: "assistance-queue",
+        narration: "easevoice-narration",
+        analytics: "platform-analytics",
+      },
+    };
+    const page = pages[role]?.[active];
+    if (page) {
+      window.dispatchEvent(new CustomEvent("eventease:narration-page", { detail: page }));
+    }
+  }, [active, role]);
+
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== role) return <Navigate to={`/dashboard/${user.role}`} replace />;
 
@@ -41,13 +65,14 @@ export function DashboardShell({
                 </Badge>
               </div>
             </div>
-            <nav className="no-scrollbar mt-3 flex gap-1 overflow-x-auto lg:flex-col">
+            <nav className="mt-3 flex flex-wrap gap-1 lg:flex-col lg:flex-nowrap">
               {nav.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => setActive(n.id)}
+                  aria-pressed={active === n.id}
                   className={cx(
-                    "flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition lg:w-full",
+                    "flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20 lg:w-full",
                     active === n.id ? "bg-ink text-white" : "text-muted hover:bg-mist hover:text-ink",
                   )}
                 >

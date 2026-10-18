@@ -14,6 +14,7 @@ import {
   seedPosts,
   seedFraud,
   seedOrganizers,
+  seedAssistanceRequests,
   type Role,
   type EventItem,
   type Booking,
@@ -22,8 +23,20 @@ import {
   type FraudAlert,
   type OrganizerAccount,
   type SeatBooking,
+  type AssistanceRequest,
+  type AssistanceLevel,
 } from "./data";
 import { fetchLiveEvents } from "./eventsApi";
+import {
+  ApiError,
+  backendCancelBooking,
+  backendCreateEvent,
+  backendLogin,
+  backendLogout,
+  backendSetEventStatus,
+  fetchBackendEvents,
+  fetchBackendRoleEvents,
+} from "./backendApi";
 
 export type User = { id: string; name: string; email: string; role: Role };
 
@@ -36,16 +49,17 @@ const demoUsers: Record<Role, User> = {
 type Store = {
   user: User | null;
   login: (role: Role) => void;
-  authenticate: (username: string, password: string) => User | null;
+  authenticate: (username: string, password: string) => Promise<User | null>;
   logout: () => void;
 
   events: EventItem[];
-  eventsSource: "loading" | "ticketmaster" | "curated";
+  eventsSource: "loading" | "backend" | "ticketmaster" | "curated";
   bookings: Booking[];
   exchange: ExchangeListing[];
   posts: CommunityPost[];
   fraud: FraudAlert[];
   organizers: OrganizerAccount[];
+  assistanceRequests: AssistanceRequest[];
 
   book: (eventId: string, seats: SeatBooking[], total: number, promo?: string) => Booking;
   cancelBooking: (id: string) => void;
@@ -55,6 +69,17 @@ type Store = {
   setEventStatus: (id: string, status: EventItem["status"]) => void;
   setOrganizerStatus: (id: string, status: OrganizerAccount["status"]) => void;
   resolveFraud: (id: string) => void;
+  addAssistanceRequest: (
+    bookingId: string,
+    eventId: string,
+    supportNeeds: string,
+    level: AssistanceLevel,
+  ) => AssistanceRequest;
+  cancelAssistanceRequest: (id: string) => void;
+  updateAssistanceRequest: (
+    id: string,
+    update: Pick<AssistanceRequest, "assignedStaff" | "status">,
+  ) => void;
 };
 
 // Keep one context identity across Vite hot updates. Without this, consumers
@@ -75,20 +100,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<CommunityPost[]>(seedPosts);
   const [fraud, setFraud] = useState<FraudAlert[]>(seedFraud);
   const [organizers, setOrganizers] = useState<OrganizerAccount[]>(seedOrganizers);
+  const [assistanceRequests, setAssistanceRequests] =
+    useState<AssistanceRequest[]>(seedAssistanceRequests);
 
   useEffect(() => {
     let active = true;
-    fetchLiveEvents()
-      .then((live) => {
+    fetchBackendEvents()
+      .then((backendEvents) => {
         if (!active) return;
-        if (live.length) {
-          setEvents(live);
-          setEventsSource("ticketmaster");
-        } else {
-          setEventsSource("curated");
+        if (backendEvents.length) {
+          setEvents(backendEvents);
+          setEventsSource("backend");
+          return;
         }
+        return fetchLiveEvents().then((live) => {
+          if (!active) return;
+          if (live.length) {
+            setEvents(live);
+            setEventsSource("ticketmaster");
+          } else {
+            setEventsSource("curated");
+          }
+        });
       })
-      .catch(() => active && setEventsSource("curated"));
+      .catch(() =>
+        fetchLiveEvents()
+          .then((live) => {
+            if (!active) return;
+            if (live.length) setEvents(live);
+            setEventsSource(live.length ? "ticketmaster" : "curated");
+          })
+          .catch(() => active && setEventsSource("curated")),
+      );
     return () => {
       active = false;
     };
@@ -98,8 +141,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return {
       user,
       login: (role) => setUser(demoUsers[role]),
-      authenticate: (username, password) => {
+      authenticate: async (username, password) => {
         const normalized = username.trim().toLowerCase();
+        try {
+          const auth = await backendLogin(normalized, password);
+          const role = auth.user.role === "ORGANISER" ? "organizer" : auth.user.role.toLowerCase() as Role;
+          const account = {
+            id: auth.user.id,
+            name: auth.user.username,
+            email: "",
+            role,
+          };
+          const roleEvents = await fetchBackendRoleEvents(auth.user.role).catch(() => []);
+          if (roleEvents.length) {
+            setEvents(roleEvents);
+            setEventsSource("backend");
+          }
+          setUser(account);
+          return account;
+        } catch (error) {
+          if (error instanceof ApiError && error.status < 500) return null;
+        }
         const demoAccounts: Record<string, { password: string; user: User }> = {
           hcy001: {
             password: "try001",
@@ -136,7 +198,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return null;
         }
       },
-      logout: () => setUser(null),
+      logout: () => {
+        void backendLogout();
+        setUser(null);
+      },
       events,
       eventsSource,
       bookings,
@@ -144,6 +209,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       posts,
       fraud,
       organizers,
+      assistanceRequests,
       book: (eventId, seats, total, promo) => {
         const ref = "EE-" + Math.random().toString(36).slice(2, 8).toUpperCase();
         const bk: Booking = {
@@ -170,8 +236,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         );
         return bk;
       },
-      cancelBooking: (id) =>
-        setBookings((b) => b.map((x) => (x.id === id ? { ...x, status: "refunded" } : x))),
+      cancelBooking: (id) => {
+        void backendCancelBooking(id);
+        setBookings((b) => b.map((x) => (x.id === id ? { ...x, status: "refunded" } : x)));
+      },
       listForResale: (id, seat, ask) => {
         setBookings((b) => b.map((x) => (x.id === id ? { ...x, status: "listed" } : x)));
         const bk = bookings.find((x) => x.id === id);
@@ -195,15 +263,55 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           { ...p, id: "p-" + Date.now(), when: "now", likes: 0 },
           ...all,
         ]),
-      createEvent: (e) => setEvents((evs) => [{ ...e, status: "pending" }, ...evs]),
-      setEventStatus: (id, status) =>
-        setEvents((evs) => evs.map((e) => (e.id === id ? { ...e, status } : e))),
+      createEvent: (e) => {
+        void backendCreateEvent(e);
+        setEvents((evs) => [{ ...e, status: "pending" }, ...evs]);
+      },
+      setEventStatus: (id, status) => {
+        void backendSetEventStatus(id, status);
+        setEvents((evs) => evs.map((e) => (e.id === id ? { ...e, status } : e)));
+      },
       setOrganizerStatus: (id, status) =>
         setOrganizers((o) => o.map((x) => (x.id === id ? { ...x, status } : x))),
       resolveFraud: (id) =>
         setFraud((f) => f.map((x) => (x.id === id ? { ...x, resolved: true } : x))),
+      addAssistanceRequest: (bookingId, eventId, supportNeeds, level) => {
+        const request: AssistanceRequest = {
+          id: `ar-${Date.now()}`,
+          bookingId,
+          eventId,
+          userId: user?.id ?? "u-cust",
+          requesterUsername: user?.name ?? "hcy001",
+          supportNeeds,
+          level,
+          status: "Submitted",
+          createdAt: new Date().toISOString(),
+        };
+        setAssistanceRequests((all) => [request, ...all]);
+        return request;
+      },
+      cancelAssistanceRequest: (id) =>
+        setAssistanceRequests((all) =>
+          all.map((request) =>
+            request.id === id ? { ...request, status: "Cancelled" } : request,
+          ),
+        ),
+      updateAssistanceRequest: (id, update) =>
+        setAssistanceRequests((all) =>
+          all.map((request) => (request.id === id ? { ...request, ...update } : request)),
+        ),
     };
-  }, [user, events, eventsSource, bookings, exchange, posts, fraud, organizers]);
+  }, [
+    user,
+    events,
+    eventsSource,
+    bookings,
+    exchange,
+    posts,
+    fraud,
+    organizers,
+    assistanceRequests,
+  ]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -41,6 +41,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [signingIn, setSigningIn] = useState(false);
   const [attempts, setAttempts] = useState(() =>
     Number(sessionStorage.getItem("eventease-login-attempts") ?? 0),
   );
@@ -56,10 +57,13 @@ export default function Login() {
     return signUp.password.length >= 8 ? "Password strength: ready" : "Use at least 8 characters";
   }, [signUp.password]);
 
-  const handleSignIn = (event: FormEvent) => {
+  const handleSignIn = async (event: FormEvent) => {
     event.preventDefault();
     if (locked) return;
-    const account = authenticate(username, password);
+    setSigningIn(true);
+    setError("");
+    const account = await authenticate(username, password);
+    setSigningIn(false);
     if (account) {
       sessionStorage.removeItem("eventease-login-attempts");
       sessionStorage.removeItem("eventease-login-locked");
@@ -160,8 +164,8 @@ export default function Login() {
                 {!locked && attempts > 0 && (
                   <p className="text-xs text-muted">{remaining} sign-in attempts remaining.</p>
                 )}
-                <Button className="w-full" size="lg" type="submit" disabled={locked}>
-                  Sign in <ArrowRight className="h-4 w-4" />
+                <Button className="w-full" size="lg" type="submit" disabled={locked || signingIn}>
+                  {signingIn ? "Connecting…" : "Sign in"} {!signingIn && <ArrowRight className="h-4 w-4" />}
                 </Button>
               </form>
 
