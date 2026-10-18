@@ -5,6 +5,8 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
+      - key: APP_ENV
+        value: production
       - key: DB_HOST
         sync: false
       - key: DB_PORT
@@ -17,7 +19,23 @@ services:
         sync: false
       - key: DB_SSLMODE
         value: require
+      - key: DB_SCHEMA
+        value: eventease
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: eventeaseadmin
+      # Set ADMIN_PASSWORD in the dashboard, or leave it unset and run
+      # `python -m app.cli seed-admin` from the Render shell.
+      - key: ADMIN_PASSWORD
+        sync: false
       - key: CORS_ORIGINS
         sync: false
       - key: CORS_ORIGIN_REGEX
         value: https://([a-z0-9-]+\.)*figma\.(site|com)
+      - key: FRONTEND_URL
+        sync: false
+      - key: TICKETMASTER_API_KEY
+        sync: false
+      - key: PAYMENT_PROVIDER
+        value: mock
