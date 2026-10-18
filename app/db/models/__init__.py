@@ -1,4 +1,12 @@
 from app.db.models.booking import Booking, BookingItem, Payment, Ticket
+from app.db.models.assistance import (
+    ACTIVE_ASSISTANCE_STATUSES,
+    AccessibilitySettings,
+    AssistanceLevel,
+    AssistanceRequest,
+    AssistanceStatus,
+    NarrationTranscript,
+)
 from app.db.models.enums import (
     BookingStatus,
     EventCategory,
@@ -47,4 +55,10 @@ __all__ = [
     "TicketStatus",
     "User",
     "UserStatus",
+    "ACTIVE_ASSISTANCE_STATUSES",
+    "AccessibilitySettings",
+    "AssistanceLevel",
+    "AssistanceRequest",
+    "AssistanceStatus",
+    "NarrationTranscript",
 ]
