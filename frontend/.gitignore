@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+env/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Build outputs & cache
+dist/
+build/
+.cache/
+.vite/
+vite.config.*.timestamp-*
+*.tsbuildinfo
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Logs
+logs/
+*.log
+*-debug.log*
+
+# OS & temp files
+.DS_Store
+Thumbs.db
+.tmp-*

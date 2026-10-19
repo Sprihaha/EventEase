@@ -1,22 +1,34 @@
+# Dependencies
 node_modules/
+venv/
+.venv/
+env/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Build outputs & cache
 dist/
 build/
 .cache/
-.env*
-!.env.example
 .vite/
 vite.config.*.timestamp-*
 *.tsbuildinfo
-*-debug.log*
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Logs
 logs/
 *.log
-.claude-replay.*
-.tmp-*
-/.figma/design-context/
+*-debug.log*
 
-# Platform-managed agentplat state, not project source. In the
-# client-initiated single-repo workspace layout (make's `Path: "."` spec) the
-# repo root IS the workspace root, so these land inside this repo rather than
-# beside it.
-/.plugins/
-/.opencode-skills/
+# OS & temp files
+.DS_Store
+Thumbs.db
+.tmp-*
