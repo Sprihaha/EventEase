@@ -143,25 +143,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       login: (role) => setUser(demoUsers[role]),
       authenticate: async (username, password) => {
         const normalized = username.trim().toLowerCase();
-        try {
-          const auth = await backendLogin(normalized, password);
-          const role = auth.user.role === "ORGANISER" ? "organizer" : auth.user.role.toLowerCase() as Role;
-          const account = {
-            id: auth.user.id,
-            name: auth.user.username,
-            email: "",
-            role,
-          };
-          const roleEvents = await fetchBackendRoleEvents(auth.user.role).catch(() => []);
-          if (roleEvents.length) {
-            setEvents(roleEvents);
-            setEventsSource("backend");
-          }
-          setUser(account);
-          return account;
-        } catch {
-          return null;
+        const auth = await backendLogin(normalized, password);
+        const role = auth.user.role === "ORGANISER" ? "organizer" : (auth.user.role.toLowerCase() as Role);
+        const account = {
+          id: auth.user.id,
+          name: auth.user.username,
+          email: "",
+          role,
+        };
+        const roleEvents = await fetchBackendRoleEvents(auth.user.role).catch(() => []);
+        if (roleEvents.length) {
+          setEvents(roleEvents);
+          setEventsSource("backend");
         }
+        setUser(account);
+        return account;
       },
       logout: () => {
         void backendLogout();
