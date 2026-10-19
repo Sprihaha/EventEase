@@ -139,7 +139,12 @@ function toAudio(remote: BackendNarration): NarrationAudio | undefined {
 function mergeText(current: Narrations, remote: RemoteNarrations): Narrations {
   let next = current;
   for (const [id, item] of remote) {
+<<<<<<< Updated upstream
     if (item && next[id] !== item.transcript) next = { ...next, [id]: item.transcript };
+=======
+    // A page that only has a recording comes back with empty text: keep any text we already have.
+    if (item && item.transcript && next[id] !== item.transcript) next = { ...next, [id]: item.transcript };
+>>>>>>> Stashed changes
   }
   return next;
 }

@@ -88,7 +88,11 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
   const availablePages = narrationPages.filter((item) =>
     item.audiences.includes(audience as never),
   );
+<<<<<<< Updated upstream
   const hasNarration = (id: NarrationPageId) => Boolean(narrations[id].trim());
+=======
+  const hasNarration = (id: NarrationPageId) => Boolean(narrations[id].trim()) || Boolean(audio[id]);
+>>>>>>> Stashed changes
 
   const choosePage = (id: NarrationPageId) => {
     window.speechSynthesis?.cancel();
@@ -151,8 +155,12 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
   };
 
   const recording = audio[page];
+<<<<<<< Updated upstream
   // The server only takes a recording for a page whose text it already holds.
   const canUpload = !dirty && Boolean(narrations[page].trim()) && recordingBusy === null;
+=======
+  const canUpload = recordingBusy === null;
+>>>>>>> Stashed changes
 
   const chooseFile = async (file: File | undefined) => {
     if (fileInput.current) fileInput.current.value = "";
@@ -176,10 +184,14 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
     } catch (reason) {
       setRecordingNote({
         ok: false,
+<<<<<<< Updated upstream
         text:
           reason instanceof ApiError && reason.status === 404
             ? "Save the narration text for this page first (click Save narration), then upload the recording."
             : problemText(reason, "Could not upload the recording. Check your connection and try again."),
+=======
+        text: problemText(reason, "Could not upload the recording. Check your connection and try again."),
+>>>>>>> Stashed changes
       });
     } finally {
       setRecordingBusy(null);
@@ -361,11 +373,14 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
                 {recordingBusy === "remove" ? "Removing…" : "Remove recording"}
               </Button>
             )}
+<<<<<<< Updated upstream
             {!canUpload && recordingBusy === null && (
               <span className="text-xs text-muted">
                 {dirty ? "Save your changes to the text first." : "Write and save the narration text first."}
               </span>
             )}
+=======
+>>>>>>> Stashed changes
           </div>
           {recordingNote && (
             <p
