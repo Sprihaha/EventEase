@@ -53,36 +53,38 @@ export function DashboardShell({
       {/* Sidebar */}
       <aside className="mb-6 lg:mb-0">
         <div className="lg:sticky lg:top-24">
-          <div className="rounded-3xl border border-line p-4">
+          <div className="rounded-3xl border border-brand-purple/15 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3 px-2 py-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-ink font-semibold text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-brand-purple to-brand-deep font-bold text-white shadow-sm">
                 {user.name[0]}
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">{user.name}</div>
+                <div className="truncate text-sm font-bold text-brand-deep">{user.name}</div>
                 <Badge tone="accent" className="mt-0.5 capitalize">
                   {role}
                 </Badge>
               </div>
             </div>
-            <nav className="mt-3 flex flex-wrap gap-1 lg:flex-col lg:flex-nowrap">
+            <nav className="mt-4 flex flex-wrap gap-1 lg:flex-col lg:flex-nowrap">
               {nav.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => setActive(n.id)}
                   aria-pressed={active === n.id}
                   className={cx(
-                    "flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20 lg:w-full",
-                    active === n.id ? "bg-ink text-white" : "text-muted hover:bg-mist hover:text-ink",
+                    "cursor-pointer flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/20 lg:w-full",
+                    active === n.id
+                      ? "bg-brand-deep text-white shadow-sm font-semibold"
+                      : "text-muted hover:bg-brand-lilac/50 hover:text-brand-deep font-medium",
                   )}
                 >
-                  <n.icon className="h-4 w-4 shrink-0" />
+                  <n.icon className={cx("h-4 w-4 shrink-0", active === n.id ? "text-brand-orange" : "text-brand-purple")} />
                   <span className="flex-1 text-left">{n.label}</span>
                   {n.badge ? (
                     <span
                       className={cx(
-                        "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-                        active === n.id ? "bg-white/20" : "bg-danger/10 text-danger",
+                        "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                        active === n.id ? "bg-white/20 text-white" : "bg-danger/10 text-danger",
                       )}
                     >
                       {n.badge}
@@ -97,7 +99,7 @@ export function DashboardShell({
 
       {/* Content */}
       <div>
-        <h1 className="font-display text-4xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="font-brand text-4xl font-bold tracking-tight text-brand-deep">{title}</h1>
         <div className="mt-6">{children(active)}</div>
       </div>
     </div>
@@ -116,16 +118,16 @@ export function StatCard({
   tone?: "neutral" | "accent" | "live" | "danger";
 }) {
   const ring = {
-    neutral: "border-line",
-    accent: "border-accent/30 bg-accent-soft/40",
-    live: "border-live/30 bg-live/5",
-    danger: "border-danger/30 bg-danger/5",
+    neutral: "border-brand-purple/15 bg-white shadow-sm",
+    accent: "border-brand-purple/30 bg-brand-lilac/40 shadow-sm",
+    live: "border-emerald-300 bg-emerald-50/50 shadow-sm",
+    danger: "border-rose-300 bg-rose-50/50 shadow-sm",
   }[tone];
   return (
-    <div className={cx("rounded-2xl border p-5", ring)}>
-      <div className="text-sm text-muted">{label}</div>
-      <div className="mt-1.5 font-display text-3xl font-semibold">{value}</div>
-      {sub && <div className="mt-1 text-xs text-muted">{sub}</div>}
+    <div className={cx("rounded-3xl border p-5.5", ring)}>
+      <div className="text-xs font-bold uppercase tracking-wider text-muted">{label}</div>
+      <div className="mt-2 font-brand text-3xl font-bold text-brand-deep">{value}</div>
+      {sub && <div className="mt-1 text-xs font-medium text-muted">{sub}</div>}
     </div>
   );
 }
@@ -139,12 +141,12 @@ export function BarChart({ data }: { data: { label: string; value: number }[] })
         <div key={d.label} className="flex flex-1 flex-col items-center gap-2">
           <div className="flex w-full flex-1 items-end">
             <div
-              className="w-full rounded-t-lg bg-accent transition-all"
+              className="w-full rounded-t-lg bg-gradient-to-t from-brand-purple to-brand-orange transition-all"
               style={{ height: `${(d.value / max) * 100}%` }}
               title={String(d.value)}
             />
           </div>
-          <span className="text-xs text-muted">{d.label}</span>
+          <span className="text-xs font-semibold text-muted">{d.label}</span>
         </div>
       ))}
     </div>

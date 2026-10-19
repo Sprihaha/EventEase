@@ -52,31 +52,35 @@ export default function VerifyEmail() {
   }, [code]);
 
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-lg items-center px-5 py-16">
-      <Card className="w-full p-8 text-center">
+    <div className="mx-auto flex min-h-[65vh] max-w-lg items-center px-5 py-16">
+      <Card className="w-full p-8 text-center sm:p-10">
         {verifying ? (
           <>
-            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-line border-t-accent" />
-            <h1 className="mt-5 font-display text-4xl font-semibold">Verifying your account</h1>
-            <p className="mt-3 text-sm text-muted">Connecting securely to EventEase…</p>
+            <div className="mx-auto h-14 w-14 animate-spin rounded-full border-4 border-brand-purple/20 border-t-brand-orange" />
+            <h1 className="mt-6 font-brand text-3xl font-bold tracking-tight text-brand-deep">Verifying your account</h1>
+            <p className="mt-3 text-sm text-brand-ink/70">Connecting securely to EventEase…</p>
           </>
         ) : account ? (
           <>
-            <CheckCircle2 className="mx-auto h-14 w-14 text-live" />
-            <h1 className="mt-5 font-display text-4xl font-semibold">You’re verified</h1>
-            <p className="mt-3 text-sm text-muted">
-              Welcome, {account.userId}. Your customer account is ready to use.
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-live/10 text-live ring-8 ring-live/5">
+              <CheckCircle2 className="h-10 w-10" />
+            </div>
+            <h1 className="mt-6 font-brand text-3xl font-bold tracking-tight text-brand-deep">You’re verified</h1>
+            <p className="mt-3 text-sm text-brand-ink/70">
+              Welcome, <span className="font-semibold text-brand-deep">{account.userId}</span>. Your customer account is ready to use.
             </p>
-            <Button className="mt-7" onClick={() => navigate("/login")}>Continue to sign in</Button>
+            <Button className="mt-8 w-full" onClick={() => navigate("/login")}>Continue to sign in</Button>
           </>
         ) : (
           <>
-            <XCircle className="mx-auto h-14 w-14 text-danger" />
-            <h1 className="mt-5 font-display text-4xl font-semibold">Link unavailable</h1>
-            <p className="mt-3 text-sm text-muted">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-danger/10 text-danger ring-8 ring-danger/5">
+              <XCircle className="h-10 w-10" />
+            </div>
+            <h1 className="mt-6 font-brand text-3xl font-bold tracking-tight text-brand-deep">Link unavailable</h1>
+            <p className="mt-3 text-sm text-brand-ink/70">
               {error || "This verification link is invalid or has already been used."}
             </p>
-            <Button className="mt-7" onClick={() => navigate("/login")}>Return to sign in</Button>
+            <Button className="mt-8 w-full" onClick={() => navigate("/login")}>Return to sign in</Button>
           </>
         )}
       </Card>

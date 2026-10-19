@@ -2,8 +2,7 @@ import type { Category, EventItem, EventStatus } from "./data";
 
 const API_ORIGIN =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ??
-  "https://eventease-backend-qkbl.onrender.com";
+  "https://eventease-backend-fbpd.onrender.com";
 const API_ROOT = `${API_ORIGIN}/api/v1`;
 const TOKEN_KEY = "eventease-access-token";
 
