@@ -61,24 +61,37 @@ export default function Login() {
     event.preventDefault();
     if (locked) return;
     setSigningIn(true);
-    setError("");
-    const account = await authenticate(username, password);
-    setSigningIn(false);
-    if (account) {
-      sessionStorage.removeItem("eventease-login-attempts");
-      sessionStorage.removeItem("eventease-login-locked");
-      navigate(account.role === "customer" && returnTo ? returnTo : `/dashboard/${account.role}`);
-      return;
-    }
-    const next = attempts + 1;
-    setAttempts(next);
-    sessionStorage.setItem("eventease-login-attempts", String(next));
-    if (next >= 5) {
-      setLocked(true);
-      sessionStorage.setItem("eventease-login-locked", "true");
-      setError("This account is locked after 5 unsuccessful attempts. Contact support to unlock it.");
-    } else {
-      setError(`Username or password doesn't match. ${5 - next} attempts remaining.`);
+    try {
+      const account = await authenticate(username, password);
+      setSigningIn(false);
+      if (account) {
+        sessionStorage.removeItem("eventease-login-attempts");
+        sessionStorage.removeItem("eventease-login-locked");
+        navigate(account.role === "customer" && returnTo ? returnTo : `/dashboard/${account.role}`);
+        return;
+      }
+    } catch (err: unknown) {
+      setSigningIn(false);
+      const msg = err instanceof Error ? err.message : "";
+      if (
+        msg.includes("Failed to fetch") ||
+        msg.includes("NetworkError") ||
+        msg.includes("Load failed") ||
+        msg.includes("404")
+      ) {
+        setError("Cannot reach the backend service. Ensure the FastAPI backend is running at http://localhost:8000.");
+        return;
+      }
+      const next = attempts + 1;
+      setAttempts(next);
+      sessionStorage.setItem("eventease-login-attempts", String(next));
+      if (next >= 5) {
+        setLocked(true);
+        sessionStorage.setItem("eventease-login-locked", "true");
+        setError("This account is locked after 5 unsuccessful attempts. Contact support to unlock it.");
+      } else {
+        setError(msg || `Username or password doesn't match. ${5 - next} attempts remaining.`);
+      }
     }
   };
 
