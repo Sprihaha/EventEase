@@ -65,11 +65,6 @@ def get_audio(db: Session, page_key: str) -> tuple[bytes, str]:
 
 def set_audio(db: Session, admin: User, page_key: str, data: bytes, filename: str | None, ip: str | None) -> dict:
     row = _row(db, page_key, lock=True)
-<<<<<<< Updated upstream
-    if row is None:
-        raise AppError(404, "NARRATION_NOT_FOUND", "save the narration text for this page before adding a recording")
-=======
->>>>>>> Stashed changes
     if not data:
         raise AppError(400, "AUDIO_EMPTY", "the uploaded file is empty")
     if len(data) > MAX_AUDIO_BYTES:
@@ -77,12 +72,9 @@ def set_audio(db: Session, admin: User, page_key: str, data: bytes, filename: st
                        {"maxBytes": MAX_AUDIO_BYTES})
     if not looks_like_mp3(data):
         raise AppError(415, "AUDIO_NOT_MP3", "only MP3 recordings are accepted")
-<<<<<<< Updated upstream
-=======
     if row is None:  # recording first, text later: the page simply has no text yet
         row = NarrationTranscript(page_key=page_key, transcript="")
         db.add(row)
->>>>>>> Stashed changes
     before = _audio_state(row)
     row.audio_data = data
     row.audio_filename = clean_filename(filename, page_key)
