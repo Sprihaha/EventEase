@@ -124,7 +124,7 @@ Configure your environment settings:
 
 ```env
 # URL to EventEase FastAPI backend service
-# (Defaults to production backend https://eventease-backend-fbpd.onrender.com if omitted)
+# (Defaults to production backend https://eventease-backend-qkbl.onrender.com if omitted)
 VITE_API_BASE_URL=http://localhost:8000
 
 # Optional: Ticketmaster Discovery API key for live external events
@@ -163,7 +163,7 @@ The frontend client communicates with the EventEase **FastAPI Backend Service**:
 
 - **API Base Route**: `/api/v1`
 - **Authentication**: JWT Bearer token authentication stored in browser `localStorage`.
-- **Default Deployed API**: `https://eventease-backend-fbpd.onrender.com`
+- **Default Deployed API**: `https://eventease-backend-qkbl.onrender.com`
 - **Local API Target**: Set `VITE_API_BASE_URL=http://localhost:8000` when running the backend locally.
 
 For backend setup, database migrations, and API endpoint documentation, refer to the **`README.md`** on the **`backend`** branch.
