@@ -415,9 +415,27 @@ def test_admin_uploads_an_mp3_and_everyone_can_play_it(client, world):
     assert client.get("/api/v1/narration/home/audio").content == replacement
 
 
+<<<<<<< Updated upstream
 def test_mp3_upload_needs_existing_narration_text(client, world):
     response = put_audio(client, world.admin)
     assert response.status_code == 404 and error_of(response)["code"] == "NARRATION_NOT_FOUND"
+=======
+def test_mp3_can_be_uploaded_before_any_narration_text(client, world):
+    response = put_audio(client, world.admin)
+    assert response.status_code == 200
+    body = client.get("/api/v1/narration/home").json()
+    assert body["hasAudio"] is True and body["transcript"] == ""
+    assert client.get("/api/v1/narration/home/audio").status_code == 200
+    # text can still be added afterwards and the recording stays
+    client.put("/api/v1/admin/narration/home", headers=world.admin, json={"transcript": "Hello"})
+    assert client.get("/api/v1/narration/home").json()["hasAudio"] is True
+
+
+def test_invalid_mp3_does_not_create_a_narration_row(client, world):
+    response = put_audio(client, world.admin, data=b"not an mp3 at all")
+    assert response.status_code == 415
+    assert client.get("/api/v1/narration/home").status_code == 404
+>>>>>>> Stashed changes
 
 
 def test_mp3_upload_is_validated(client, world):

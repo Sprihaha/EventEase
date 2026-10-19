@@ -58,11 +58,18 @@ def get_narration_audio(page_key: str = PAGE_KEY, db: Session = Depends(get_db))
 @router.put("/admin/narration/{page_key}/audio", response_model=NarrationOut,
             summary="Upload an MP3 recording for this page (admin only, max 5 MB)",
             description="Send the MP3 file itself as the request body (Content-Type audio/mpeg). "
+<<<<<<< Updated upstream
                         "The page must already have narration text.",
             openapi_extra={"requestBody": {"required": True, "content": {
                 "audio/mpeg": {"schema": {"type": "string", "format": "binary"}}}}},
             responses={404: {"description": "NARRATION_NOT_FOUND"},
                        413: {"description": "AUDIO_TOO_LARGE"}, 415: {"description": "AUDIO_NOT_MP3"}})
+=======
+                        "The page does not need narration text first.",
+            openapi_extra={"requestBody": {"required": True, "content": {
+                "audio/mpeg": {"schema": {"type": "string", "format": "binary"}}}}},
+            responses={413: {"description": "AUDIO_TOO_LARGE"}, 415: {"description": "AUDIO_NOT_MP3"}})
+>>>>>>> Stashed changes
 def put_narration_audio(request: Request, page_key: str = PAGE_KEY,
                         filename: str | None = Query(None, max_length=255, description="Original file name"),
                         admin: User = Depends(require_admin), db: Session = Depends(get_db),
