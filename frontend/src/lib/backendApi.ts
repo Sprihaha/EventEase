@@ -3,9 +3,7 @@ import type { Category, EventItem, EventStatus } from "./data";
 const API_ORIGIN =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
   (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ??
-  (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-    ? "http://localhost:8000"
-    : "https://eventease-backend-fbpd.onrender.com");
+  "https://eventease-backend-qkbl.onrender.com";
 const API_ROOT = `${API_ORIGIN}/api/v1`;
 const TOKEN_KEY = "eventease-access-token";
 
