@@ -50,7 +50,7 @@ export default function CustomerDashboard() {
               <div className="flex justify-end">
                 <Link to="/assistance">
                   <Button variant="outline" size="sm">
-                    <Accessibility className="h-4 w-4" /> My assistance requests
+                    <Accessibility className="h-4 w-4 text-brand-purple" /> My assistance requests
                   </Button>
                 </Link>
               </div>
@@ -64,40 +64,40 @@ export default function CustomerDashboard() {
                   );
                   const canRequest = new Date(ev.date).getTime() > Date.now();
                   return (
-                    <Card key={b.id} className="flex flex-col overflow-hidden sm:flex-row">
-                      <img src={ev.image} alt={ev.title} className="h-32 w-full object-cover sm:h-auto sm:w-40" />
+                    <Card key={b.id} className="flex flex-col overflow-hidden sm:flex-row border border-brand-purple/15 bg-white shadow-sm rounded-3xl">
+                      <img src={ev.image} alt={ev.title} className="h-36 w-full object-cover sm:h-auto sm:w-44" />
                       <div className="flex flex-1 flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <Badge tone="live">Confirmed</Badge>
-                          <h3 className="mt-2 font-display text-xl font-semibold">{ev.title}</h3>
+                          <h3 className="mt-2 font-brand text-xl font-bold text-brand-deep">{ev.title}</h3>
                           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-                            <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{fmtDate(ev.date)}</span>
-                            <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{ev.venue}</span>
+                            <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4 text-brand-purple" />{fmtDate(ev.date)}</span>
+                            <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-brand-orange" />{ev.venue}</span>
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
+                          <div className="mt-3 flex flex-wrap gap-1.5">
                             {b.seats.map((s) => (
-                              <span key={s.seat} className="rounded-md bg-mist px-2 py-1 text-xs font-medium">
+                              <span key={s.seat} className="rounded-lg bg-brand-lilac px-2.5 py-1 text-xs font-bold text-brand-purple">
                                 {s.seat} · {s.tier}
                               </span>
                             ))}
                           </div>
-                          <div className="mt-2 text-xs text-muted">Ref {b.ref}</div>
+                          <div className="mt-2 text-xs font-medium text-muted">Ref <span className="font-bold text-brand-deep">{b.ref}</span></div>
                         </div>
                         <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                          <Button variant="dark" onClick={() => setQr(b)}>
+                          <Button onClick={() => setQr(b)}>
                             <QrCode className="h-4 w-4" /> Show ticket
                           </Button>
                           {openRequest ? (
                             <Link
                               to={`/assistance?request=${openRequest.id}`}
-                              className="text-center text-xs font-medium text-accent hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
+                              className="text-center text-xs font-bold text-brand-purple hover:text-brand-orange transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/20"
                             >
-                              Request already open, view it
+                              Request already open, view it →
                             </Link>
                           ) : canRequest ? (
                             <Link to={`/assistance/request/${b.id}`}>
                               <Button variant="outline" size="sm" className="w-full">
-                                <Accessibility className="h-4 w-4" /> Request assistance
+                                <Accessibility className="h-4 w-4 text-brand-purple" /> Request assistance
                               </Button>
                             </Link>
                           ) : null}
@@ -113,9 +113,9 @@ export default function CustomerDashboard() {
           )}
 
           {active === "history" && (
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden border border-brand-purple/15 bg-white shadow-sm rounded-3xl">
               <table className="w-full text-sm">
-                <thead className="border-b border-line bg-mist/50 text-left text-xs uppercase tracking-wide text-muted">
+                <thead className="border-b border-brand-purple/10 bg-brand-lilac/30 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   <tr>
                     <th className="p-4">Event</th>
                     <th className="p-4">Booked</th>
@@ -126,11 +126,11 @@ export default function CustomerDashboard() {
                 </thead>
                 <tbody>
                   {mine.map((b) => (
-                    <tr key={b.id} className="border-b border-line last:border-0">
-                      <td className="p-4 font-medium">{evOf(b.eventId)?.title}</td>
+                    <tr key={b.id} className="border-b border-brand-purple/10 last:border-0 hover:bg-brand-warm/50 transition-colors">
+                      <td className="p-4 font-bold text-brand-deep">{evOf(b.eventId)?.title}</td>
                       <td className="p-4 text-muted">{fmtDate(b.purchasedAt)}</td>
-                      <td className="p-4 text-muted">{b.seats.length}</td>
-                      <td className="p-4">{currency(b.total)}</td>
+                      <td className="p-4 font-semibold text-brand-deep">{b.seats.length}</td>
+                      <td className="p-4 font-bold text-brand-deep">{currency(b.total)}</td>
                       <td className="p-4">
                         <Badge
                           tone={
@@ -149,17 +149,17 @@ export default function CustomerDashboard() {
 
           {active === "resale" && (
             <div className="space-y-4">
-              <div className="rounded-2xl bg-accent-soft p-4 text-sm text-accent-ink">
+              <div className="rounded-2xl border border-brand-purple/20 bg-brand-lilac/60 p-4.5 text-sm font-medium text-brand-deep shadow-sm">
                 Change of plans? Get a full refund up to 48h before the show, or list your seat for a
                 secure, verified one-to-one transfer at face value.
               </div>
               {upcoming.map((b) => {
                 const ev = evOf(b.eventId)!;
                 return (
-                  <Card key={b.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <Card key={b.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between border border-brand-purple/15 bg-white shadow-sm rounded-3xl">
                     <div>
-                      <h3 className="font-display text-lg font-semibold">{ev.title}</h3>
-                      <div className="text-sm text-muted">
+                      <h3 className="font-brand text-lg font-bold text-brand-deep">{ev.title}</h3>
+                      <div className="mt-1 text-sm text-muted">
                         {b.seats.map((s) => s.seat).join(", ")} · Paid {currency(b.total)} · Ref {b.ref}
                       </div>
                     </div>
@@ -168,7 +168,7 @@ export default function CustomerDashboard() {
                         Cancel & refund
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => { setResell(b); setAsk(String(b.total)); }}>
-                        <Repeat className="h-4 w-4" /> List for resale
+                        <Repeat className="h-4 w-4 text-brand-orange" /> List for resale
                       </Button>
                     </div>
                   </Card>
@@ -179,24 +179,24 @@ export default function CustomerDashboard() {
           )}
 
           {active === "rewards" && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Card className="p-6">
-                <Heart className="h-6 w-6 text-accent" />
-                <div className="mt-3 font-display text-3xl font-semibold">1,240 pts</div>
-                <p className="text-sm text-muted">Earn 1 point per S$1. Redeem for fee-free bookings and early access.</p>
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-mist">
-                  <div className="h-full w-3/4 rounded-full bg-accent" />
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Card className="border border-brand-purple/15 bg-white p-6 shadow-sm rounded-3xl">
+                <Heart className="h-7 w-7 text-brand-magenta" />
+                <div className="mt-3 font-brand text-3xl font-bold text-brand-deep">1,240 pts</div>
+                <p className="mt-1 text-sm text-muted leading-relaxed">Earn 1 point per S$1. Redeem for fee-free bookings and early access.</p>
+                <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-brand-lilac">
+                  <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-brand-purple to-brand-orange" />
                 </div>
-                <p className="mt-2 text-xs text-muted">260 pts to Gold tier</p>
+                <p className="mt-2 text-xs font-semibold text-brand-purple">260 pts to Gold tier</p>
               </Card>
-              <Card className="p-6">
-                <Gift className="h-6 w-6 text-accent" />
-                <div className="mt-3 font-semibold">Your referral code</div>
-                <div className="mt-2 flex items-center gap-2">
-                  <code className="rounded-lg bg-mist px-3 py-2 font-mono text-sm">ALEX-FAN5</code>
+              <Card className="border border-brand-purple/15 bg-white p-6 shadow-sm rounded-3xl">
+                <Gift className="h-7 w-7 text-brand-orange" />
+                <div className="mt-3 font-brand text-xl font-bold text-brand-deep">Your referral code</div>
+                <div className="mt-3 flex items-center gap-2">
+                  <code className="rounded-xl border border-brand-purple/15 bg-brand-warm px-3.5 py-2 font-mono text-sm font-bold text-brand-purple">ALEX-FAN5</code>
                   <Button size="sm" variant="outline">Copy</Button>
                 </div>
-                <p className="mt-3 text-sm text-muted">Friends get 5% off their first booking; you earn 200 points each.</p>
+                <p className="mt-3 text-sm text-muted leading-relaxed">Friends get 5% off their first booking; you earn 200 points each.</p>
               </Card>
             </div>
           )}
@@ -206,13 +206,13 @@ export default function CustomerDashboard() {
             <Modal onClose={() => setQr(null)}>
               <div className="text-center">
                 <Badge tone="live">Valid ticket</Badge>
-                <h3 className="mt-3 font-display text-2xl font-semibold">{evOf(qr.eventId)?.title}</h3>
-                <p className="text-sm text-muted">{fmtDate(evOf(qr.eventId)!.date)} · {evOf(qr.eventId)?.venue}</p>
-                <div className="mx-auto mt-5 w-max rounded-2xl border border-line p-4">
+                <h3 className="mt-3 font-brand text-2xl font-bold text-brand-deep">{evOf(qr.eventId)?.title}</h3>
+                <p className="mt-1 text-sm text-muted">{fmtDate(evOf(qr.eventId)!.date)} · {evOf(qr.eventId)?.venue}</p>
+                <div className="mx-auto mt-5 w-max rounded-2xl border border-brand-purple/15 bg-brand-warm/60 p-5 shadow-sm">
                   <QRCode value={ticketPayload(qr.ref, qr.seats.map((s) => s.seat).join(","))} size={160} />
                 </div>
-                <p className="mt-3 text-sm">Seats <b>{qr.seats.map((s) => s.seat).join(", ")}</b></p>
-                <p className="text-xs text-muted">Ref {qr.ref} · Present at the gate for scanning</p>
+                <p className="mt-4 text-sm font-semibold text-brand-deep">Seats <b className="text-brand-purple">{qr.seats.map((s) => s.seat).join(", ")}</b></p>
+                <p className="mt-1 text-xs text-muted">Ref <span className="font-mono font-bold text-brand-deep">{qr.ref}</span> · Present at the gate for scanning</p>
               </div>
             </Modal>
           )}
@@ -220,12 +220,12 @@ export default function CustomerDashboard() {
           {/* Resale modal */}
           {resell && (
             <Modal onClose={() => setResell(null)}>
-              <h3 className="font-display text-2xl font-semibold">List for secure resale</h3>
+              <h3 className="font-brand text-2xl font-bold text-brand-deep">List for secure resale</h3>
               <p className="mt-1 text-sm text-muted">
                 {evOf(resell.eventId)?.title} · {resell.seats.map((s) => s.seat).join(", ")}
               </p>
-              <div className="mt-4">
-                <div className="text-sm font-medium">Asking price (max face value {currency(resell.total)})</div>
+              <div className="mt-5">
+                <div className="text-xs font-bold uppercase tracking-wider text-muted">Asking price (max face value {currency(resell.total)})</div>
                 <Input
                   className="mt-2"
                   value={ask}
@@ -235,7 +235,7 @@ export default function CustomerDashboard() {
                 />
               </div>
               <Button
-                className="mt-4 w-full"
+                className="mt-5 w-full"
                 onClick={() => {
                   listForResale(resell.id, resell.seats[0].seat, Math.min(+ask, resell.total));
                   setResell(null);
@@ -253,9 +253,9 @@ export default function CustomerDashboard() {
 
 function EmptyState() {
   return (
-    <div className="rounded-3xl border border-dashed border-line p-16 text-center">
-      <Ticket className="mx-auto h-8 w-8 text-muted" />
-      <p className="mt-3 text-muted">No upcoming events yet.</p>
+    <div className="rounded-3xl border border-dashed border-brand-purple/20 bg-white/50 p-16 text-center">
+      <Ticket className="mx-auto h-8 w-8 text-brand-orange" />
+      <p className="mt-3 text-sm font-medium text-muted">No upcoming events yet.</p>
       <Link to="/events">
         <Button className="mt-4">Discover events</Button>
       </Link>
@@ -265,9 +265,9 @@ function EmptyState() {
 
 function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
-      <Card className={cx("relative w-full max-w-md p-6 ee-rise")}>
-        <button onClick={onClose} className="absolute right-4 top-4 text-muted hover:text-ink">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-4 backdrop-blur-md">
+      <Card className={cx("relative w-full max-w-md border border-brand-purple/20 bg-white p-7 shadow-2xl ee-rise")}>
+        <button onClick={onClose} className="cursor-pointer absolute right-4 top-4 text-muted hover:text-brand-deep">
           <X className="h-5 w-5" />
         </button>
         {children}

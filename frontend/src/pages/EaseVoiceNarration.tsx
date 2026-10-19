@@ -44,7 +44,7 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
       <div className="mx-auto flex min-h-[55vh] max-w-xl items-center px-5 py-16 text-center">
         <Card className="w-full p-10">
           <ShieldX className="mx-auto h-12 w-12 text-danger" />
-          <h1 className="mt-5 font-display text-3xl font-semibold">
+          <h1 className="mt-5 font-brand text-3xl font-bold text-brand-deep">
             Access denied: admins only
           </h1>
           <p className="mt-3 text-sm text-muted">
@@ -113,7 +113,7 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
   return (
     <div className={embedded ? "" : "mx-auto max-w-4xl px-5 py-14"}>
       <Badge tone="accent"><Volume2 className="h-3 w-3" /> Admin only</Badge>
-      <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight">
+      <h1 className="mt-4 font-brand text-3xl sm:text-4xl font-bold tracking-tight text-brand-deep">
         EaseVoice narration
       </h1>
       <p className="mt-2 max-w-2xl text-muted">
@@ -172,7 +172,7 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
                   onClick={() => choosePage(item.id)}
                   className={cx(
                     "flex w-full items-center justify-between gap-4 rounded-xl px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20",
-                    page === item.id ? "bg-accent-soft" : "hover:bg-mist",
+                    page === item.id ? "bg-brand-purple/10 text-brand-purple font-semibold" : "hover:bg-brand-purple/5",
                   )}
                 >
                   <span>

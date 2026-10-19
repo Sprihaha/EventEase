@@ -15,18 +15,18 @@ export default function Verify() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-5 py-20 text-center">
-      <Badge tone="accent">
+      <Badge tone="neutral" className="border-0 bg-brand-orange text-white font-bold shadow-sm">
         <ShieldCheck className="h-3 w-3" /> Gate check-in
       </Badge>
 
-      <Card className="mt-6 w-full overflow-hidden">
-        <div className={valid ? "bg-live/10 p-8" : "bg-danger/10 p-8"}>
+      <Card className="mt-6 w-full overflow-hidden border border-brand-purple/15 bg-white shadow-xl rounded-3xl">
+        <div className={valid ? "bg-emerald-50 p-8 border-b border-emerald-100" : "bg-rose-50 p-8 border-b border-rose-100"}>
           {valid ? (
-            <CheckCircle2 className="mx-auto h-16 w-16 text-live" />
+            <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-600" />
           ) : (
-            <XCircle className="mx-auto h-16 w-16 text-danger" />
+            <XCircle className="mx-auto h-16 w-16 text-rose-600" />
           )}
-          <h1 className="mt-4 font-display text-3xl font-semibold">
+          <h1 className="mt-4 font-brand text-3xl font-bold text-brand-deep">
             {valid ? "Valid ticket" : booking ? "Ticket not valid" : "Ticket not found"}
           </h1>
           <p className="mt-1 text-sm text-muted">
@@ -51,7 +51,7 @@ export default function Verify() {
 
       <Link to="/" className="mt-6">
         <Button variant="outline">
-          <Ticket className="h-4 w-4" /> Back to EventEase
+          <Ticket className="h-4 w-4 text-brand-orange" /> Back to EventEase
         </Button>
       </Link>
     </div>
@@ -60,9 +60,9 @@ export default function Verify() {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between border-b border-line py-2 last:border-0">
+    <div className="flex justify-between border-b border-brand-purple/10 py-2.5 last:border-0">
       <span className="text-muted">{label}</span>
-      <span className="font-medium capitalize">{value}</span>
+      <span className="font-bold text-brand-deep capitalize">{value}</span>
     </div>
   );
 }

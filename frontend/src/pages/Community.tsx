@@ -37,23 +37,27 @@ export default function Community() {
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-12">
-      <Badge tone="accent">
+      <Badge tone="neutral" className="border-0 bg-brand-orange text-white font-bold shadow-sm">
         <Users className="h-3 w-3" /> EaseComms
       </Badge>
-      <h1 className="mt-3 font-display text-5xl font-semibold tracking-tight">The community space</h1>
-      <p className="mt-3 max-w-xl text-muted">
+      <h1 className="mt-3 font-brand text-4xl sm:text-5xl font-bold tracking-tight text-brand-deep">
+        The community space
+      </h1>
+      <p className="mt-3 max-w-xl text-sm sm:text-base leading-relaxed text-muted">
         Meet fellow fans, exchange tickets securely, share the real view from your seat, and find
         accessibility support — before and after you buy.
       </p>
 
-      <div className="no-scrollbar mt-8 flex gap-2 overflow-x-auto">
+      <div className="no-scrollbar mt-8 flex gap-2.5 overflow-x-auto pb-1">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={cx(
-              "flex items-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition",
-              tab === t.id ? "border-accent bg-accent text-white" : "border-line text-muted hover:border-ink hover:text-ink",
+              "cursor-pointer flex items-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-sm transition",
+              tab === t.id
+                ? "border-brand-purple bg-brand-purple text-white shadow-md font-bold"
+                : "border-brand-purple/15 bg-white text-muted hover:border-brand-purple hover:text-brand-deep font-semibold",
             )}
           >
             <t.icon className="h-4 w-4" /> {t.label}
@@ -64,34 +68,41 @@ export default function Community() {
       <div className="mt-8">
         {tab === "feed" && (
           <div className="space-y-4">
-            <Card className="p-4">
+            <Card className="border border-brand-purple/15 bg-white p-5 shadow-sm rounded-3xl">
               <Textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 rows={2}
                 placeholder="Ask about seats, find people to go with, share a tip…"
               />
-              <div className="mt-3 flex justify-end">
+              <div className="mt-3.5 flex justify-end">
                 <Button size="sm" onClick={submit}>
                   <Send className="h-4 w-4" /> Post
                 </Button>
               </div>
             </Card>
             {posts.map((p) => (
-              <div key={p.id} className="flex gap-3 rounded-2xl border border-line p-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-accent-ink">
+              <div
+                key={p.id}
+                className="flex gap-3.5 rounded-2xl border border-brand-purple/15 bg-white p-5 shadow-sm"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta font-bold text-white shadow-sm">
                   {p.author[0]}
                 </div>
                 <div className="flex-1">
                   <div className="text-sm">
-                    <span className="font-semibold">{p.author}</span>{" "}
+                    <span className="font-bold text-brand-deep">{p.author}</span>{" "}
                     <span className="text-muted">on {eventName(p.eventId)} · {p.when}</span>
                   </div>
-                  <p className="mt-1 text-sm text-muted">{p.body}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">{p.body}</p>
                   {p.photo && (
-                    <img src={p.photo} alt="Seat view" className="mt-3 h-44 w-full max-w-md rounded-xl object-cover" />
+                    <img
+                      src={p.photo}
+                      alt="Seat view"
+                      className="mt-3.5 h-48 w-full max-w-md rounded-xl object-cover shadow-sm"
+                    />
                   )}
-                  <button className="mt-2 flex items-center gap-1.5 text-sm text-muted hover:text-accent">
+                  <button className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-muted transition-colors hover:text-brand-magenta cursor-pointer">
                     <Heart className="h-4 w-4" /> {p.likes}
                   </button>
                 </div>
@@ -102,26 +113,30 @@ export default function Community() {
 
         {tab === "exchange" && (
           <div>
-            <div className="mb-4 flex items-center gap-2 rounded-2xl bg-live/10 p-4 text-sm text-live">
-              <ShieldCheck className="h-5 w-5 shrink-0" />
+            <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4.5 text-sm font-medium text-emerald-900 shadow-sm">
+              <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
               Every listing is a verified one-to-one transfer at or below face value. No shady
               resellers, no scams — the platform re-issues the QR to the new owner.
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-2">
               {exchange.map((x) => (
-                <Card key={x.id} className="p-5">
+                <Card key={x.id} className="border border-brand-purple/15 bg-white p-6 shadow-sm rounded-3xl">
                   <div className="flex items-center justify-between">
                     <Badge tone="live">
                       <ShieldCheck className="h-3 w-3" /> Verified transfer
                     </Badge>
-                    <span className="text-sm text-muted">{x.tier}</span>
+                    <span className="text-sm font-semibold text-muted">{x.tier}</span>
                   </div>
-                  <h3 className="mt-3 font-display text-lg font-semibold">{eventName(x.eventId)}</h3>
+                  <h3 className="mt-3 font-brand text-xl font-bold text-brand-deep">
+                    {eventName(x.eventId)}
+                  </h3>
                   <div className="mt-1 text-sm text-muted">
                     Seat {x.seat} · Listed by {x.sellerName}
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
-                    <span className="font-display text-xl font-semibold">{currency(x.askPrice)}</span>
+                  <div className="mt-5 flex items-center justify-between border-t border-brand-purple/10 pt-4">
+                    <span className="font-brand text-2xl font-bold text-brand-deep">
+                      {currency(x.askPrice)}
+                    </span>
                     <Button size="sm">Request transfer</Button>
                   </div>
                 </Card>
@@ -132,27 +147,34 @@ export default function Community() {
 
         {tab === "views" && (
           <div>
-            <div className="mb-4 flex items-center gap-2 rounded-2xl bg-accent-soft p-4 text-sm text-accent-ink">
-              <Rotate3d className="h-5 w-5 shrink-0" />
+            <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-brand-purple/20 bg-brand-lilac/60 p-4.5 text-sm font-medium text-brand-deep shadow-sm">
+              <Rotate3d className="h-5 w-5 shrink-0 text-brand-purple" />
               Explore 360° venue views and real, community-uploaded photos so you know exactly what
               you're paying for before you buy.
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {posts
                 .filter((p) => p.photo)
                 .concat(posts.filter((p) => p.photo))
                 .slice(0, 6)
                 .map((p, i) => (
-                  <div key={i} className="group relative overflow-hidden rounded-2xl border border-line">
-                    <img src={p.photo} alt="Seat view" className="h-44 w-full object-cover" />
-                    <div className="absolute inset-0 flex items-end bg-gradient-to-t from-ink/70 to-transparent p-3">
+                  <div
+                    key={i}
+                    className="group relative overflow-hidden rounded-2xl border border-brand-purple/15 bg-white shadow-sm"
+                  >
+                    <img
+                      src={p.photo}
+                      alt="Seat view"
+                      className="h-48 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 flex items-end bg-gradient-to-t from-brand-deep/85 via-brand-deep/30 to-transparent p-4">
                       <div className="text-white">
-                        <div className="text-sm font-semibold">Section {p.section ?? "GA"}</div>
-                        <div className="text-xs text-white/70">{eventName(p.eventId)}</div>
+                        <div className="font-brand text-sm font-bold">Section {p.section ?? "GA"}</div>
+                        <div className="text-xs text-white/75">{eventName(p.eventId)}</div>
                       </div>
                     </div>
-                    <button className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-ink">
-                      <Rotate3d className="h-3 w-3" /> 360°
+                    <button className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-brand-deep/85 px-3 py-1 text-xs font-bold text-white backdrop-blur shadow-sm">
+                      <Rotate3d className="h-3.5 w-3.5 text-brand-orange" /> 360°
                     </button>
                   </div>
                 ))}
@@ -161,17 +183,19 @@ export default function Community() {
         )}
 
         {tab === "access" && (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2">
             {[
               { icon: Accessibility, h: "Companion assistance", p: "Request a trained companion to help you navigate the venue, from entrance to seat and back." },
               { icon: Users, h: "In-built audio tour & voice guidance", p: "Turn-by-turn voice guidance around the venue plus an audio description of the event and facilities." },
               { icon: ShieldCheck, h: "Accessible community", p: "Connect with others before booking to ask about ramps, lifts, sensory rooms and quiet spaces." },
               { icon: Camera, h: "Verified access photos", p: "Community-shared photos of step-free routes, accessible seating and facilities." },
             ].map((f) => (
-              <Card key={f.h} className="p-5">
-                <f.icon className="h-6 w-6 text-accent" />
-                <h3 className="mt-3 font-display text-lg font-semibold">{f.h}</h3>
-                <p className="mt-1.5 text-sm text-muted">{f.p}</p>
+              <Card key={f.h} className="border border-brand-purple/15 bg-white p-6 shadow-sm rounded-3xl">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-lilac text-brand-purple">
+                  <f.icon className="h-6 w-6" />
+                </div>
+                <h3 className="mt-4 font-brand text-lg font-bold text-brand-deep">{f.h}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{f.p}</p>
               </Card>
             ))}
           </div>

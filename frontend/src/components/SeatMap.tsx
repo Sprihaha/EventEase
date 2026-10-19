@@ -47,8 +47,8 @@ export function SeatMap({
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-center">
-        <div className="w-2/3 rounded-t-[100%] border-t-2 border-ink/30 py-2 text-center text-xs font-semibold uppercase tracking-[0.3em] text-muted">
+      <div className="mb-6 flex items-center justify-center">
+        <div className="w-2/3 rounded-t-[100%] border-t-2 border-brand-purple/40 py-2.5 text-center font-brand text-xs font-bold uppercase tracking-[0.3em] text-brand-purple">
           Stage
         </div>
       </div>
@@ -59,7 +59,7 @@ export function SeatMap({
             const label = String.fromCharCode(65 + r);
             return (
               <div key={r} className="flex items-center gap-1.5">
-                <span className="w-4 text-xs font-medium text-muted">{label}</span>
+                <span className="w-4 text-xs font-bold text-muted">{label}</span>
                 {cols.map((__, c) => {
                   const id = label + (c + 1);
                   const isSold = sold.has(id);
@@ -71,12 +71,21 @@ export function SeatMap({
                       onClick={() => onToggle(id, tier.name, tier.price)}
                       title={`${id} · ${tier.name} · S$${tier.price}`}
                       className={cx(
-                        "h-6 w-6 rounded-md text-[9px] font-semibold transition-all",
-                        isSold && "cursor-not-allowed bg-line text-transparent",
-                        !isSold && !isSel && tier.name === "VIP" && "bg-accent-soft text-accent-ink hover:ring-2 hover:ring-accent",
-                        !isSold && !isSel && tier.name === "Standard" && "bg-mist text-ink hover:ring-2 hover:ring-accent",
-                        !isSold && !isSel && tier.name === "Concession" && "bg-stone-100 text-muted hover:ring-2 hover:ring-accent",
-                        isSel && "bg-accent text-white ring-2 ring-accent",
+                        "h-6 w-6 rounded-md text-[9px] font-bold transition-all cursor-pointer",
+                        isSold && "cursor-not-allowed bg-brand-purple/10 text-transparent opacity-40",
+                        !isSold &&
+                          !isSel &&
+                          tier.name === "VIP" &&
+                          "bg-brand-lilac text-brand-purple hover:ring-2 hover:ring-brand-purple",
+                        !isSold &&
+                          !isSel &&
+                          tier.name === "Standard" &&
+                          "bg-mist text-brand-deep hover:ring-2 hover:ring-brand-purple",
+                        !isSold &&
+                          !isSel &&
+                          tier.name === "Concession" &&
+                          "bg-stone-100 text-muted hover:ring-2 hover:ring-brand-purple",
+                        isSel && "bg-brand-orange text-white ring-2 ring-brand-orange shadow-md",
                       )}
                     >
                       {c + 1}
@@ -88,25 +97,25 @@ export function SeatMap({
           })}
         </div>
       </div>
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-muted">
+      <div className="mt-7 flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-muted">
         {ev.tiers.map((t) => (
           <span key={t.id} className="flex items-center gap-1.5">
             <span
               className={cx(
                 "h-3 w-3 rounded",
-                t.name === "VIP" && "bg-accent-soft",
-                t.name === "Standard" && "bg-mist",
-                t.name === "Concession" && "bg-stone-100",
+                t.name === "VIP" && "bg-brand-lilac border border-brand-purple/30",
+                t.name === "Standard" && "bg-mist border border-brand-purple/20",
+                t.name === "Concession" && "bg-stone-100 border border-stone-300",
               )}
             />
             {t.name} · S${t.price}
           </span>
         ))}
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-accent" /> Selected
+          <span className="h-3 w-3 rounded bg-brand-orange shadow-xs" /> Selected
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-line" /> Sold
+          <span className="h-3 w-3 rounded bg-brand-purple/10 opacity-50" /> Sold
         </span>
       </div>
     </div>
