@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Pause, ShieldX, Volume2, X } from "lucide-react";
+import { ChevronDown, Music, Pause, ShieldX, Trash2, Upload, Volume2, X } from "lucide-react";
 import { useStore } from "../lib/store";
+import { ApiError, MAX_NARRATION_AUDIO_BYTES } from "../lib/backendApi";
 import {
   narrationPages,
   type NarrationAudience,
@@ -11,9 +12,22 @@ import { Badge, Button, Card, Select, Textarea, cx } from "../components/ui";
 
 const maxLength = 5000;
 
+const sizeLabel = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+function problemText(reason: unknown, fallback: string) {
+  if (reason instanceof ApiError) {
+    if (reason.status === 401) return "Your login has expired. Please log in as an admin again.";
+    if (reason.status === 403) return "Only an administrator can change narration.";
+    return reason.message;
+  }
+  return fallback;
+}
+
 export default function EaseVoiceNarration({ embedded = false }: { embedded?: boolean }) {
   const { user } = useStore();
-  const { settings, narrations, saveNarration } = useAccessibility();
+  const { settings, narrations, audio, saveNarration, loadNarrations, uploadAudio, removeAudio } =
+    useAccessibility();
   const [page, setPage] = useState<NarrationPageId>("home");
   const [audience, setAudience] = useState<NarrationAudience>("customer");
   const [draft, setDraft] = useState(narrations.home);
@@ -21,7 +35,22 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [recordingBusy, setRecordingBusy] = useState<"upload" | "remove" | null>(null);
+  const [recordingNote, setRecordingNote] = useState<{ ok: boolean; text: string } | null>(null);
   const menu = useRef<HTMLDivElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  // Show what is saved on the server (text and recordings) for every page.
+  useEffect(() => {
+    void loadNarrations(narrationPages.map((item) => item.id));
+  }, []);
+
+  // When the server text arrives, refresh the editor unless the admin has already started typing.
+  useEffect(() => {
+    if (!dirty) setDraft(narrations[page]);
+  }, [narrations, page, dirty]);
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -66,8 +95,10 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
     setSpeaking(false);
     setPage(id);
     setDraft(narrations[id]);
+    setDirty(false);
     setError("");
     setSaved(false);
+    setRecordingNote(null);
     setMenuOpen(false);
   };
 
@@ -98,16 +129,74 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
     setSpeaking(true);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!draft.trim()) {
       setError("Narration text cannot be blank");
       setSaved(false);
       return;
     }
-    saveNarration(page, draft.trim());
-    setDraft(draft.trim());
-    setError("");
-    setSaved(true);
+    setSaving(true);
+    try {
+      await saveNarration(page, draft.trim());
+      setDraft(draft.trim());
+      setDirty(false);
+      setError("");
+      setSaved(true);
+    } catch (reason) {
+      setSaved(false);
+      setError(problemText(reason, "Could not save the narration. Check your connection and try again."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const recording = audio[page];
+  // The server only takes a recording for a page whose text it already holds.
+  const canUpload = !dirty && Boolean(narrations[page].trim()) && recordingBusy === null;
+
+  const chooseFile = async (file: File | undefined) => {
+    if (fileInput.current) fileInput.current.value = "";
+    if (!file) return;
+    setRecordingNote(null);
+    if (!/\.mp3$/i.test(file.name) && file.type !== "audio/mpeg") {
+      setRecordingNote({ ok: false, text: "Please choose an MP3 file (a file ending in .mp3)." });
+      return;
+    }
+    if (file.size > MAX_NARRATION_AUDIO_BYTES) {
+      setRecordingNote({
+        ok: false,
+        text: `That file is ${sizeLabel(file.size)}. The limit is ${sizeLabel(MAX_NARRATION_AUDIO_BYTES)}.`,
+      });
+      return;
+    }
+    setRecordingBusy("upload");
+    try {
+      await uploadAudio(page, file);
+      setRecordingNote({ ok: true, text: `Recording “${file.name}” uploaded. It now plays instead of the computer voice.` });
+    } catch (reason) {
+      setRecordingNote({
+        ok: false,
+        text:
+          reason instanceof ApiError && reason.status === 404
+            ? "Save the narration text for this page first (click Save narration), then upload the recording."
+            : problemText(reason, "Could not upload the recording. Check your connection and try again."),
+      });
+    } finally {
+      setRecordingBusy(null);
+    }
+  };
+
+  const deleteRecording = async () => {
+    setRecordingNote(null);
+    setRecordingBusy("remove");
+    try {
+      await removeAudio(page);
+      setRecordingNote({ ok: true, text: "Recording removed. This page is read aloud by the computer voice again." });
+    } catch (reason) {
+      setRecordingNote({ ok: false, text: problemText(reason, "Could not remove the recording. Try again.") });
+    } finally {
+      setRecordingBusy(null);
+    }
   };
 
   return (
@@ -198,6 +287,7 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
             value={draft}
             onChange={(event) => {
               setDraft(event.target.value);
+              setDirty(true);
               setError("");
               setSaved(false);
             }}
@@ -220,12 +310,81 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
           </div>
         </div>
 
+        <div className="mt-7 rounded-2xl border border-line bg-mist/40 p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-brand-deep">
+            <Music className="h-4 w-4 text-brand-purple" /> Your own recording (MP3)
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            Upload an MP3 of your own voice for this page. When a recording exists, visitors hear it instead of the
+            computer voice. Maximum {sizeLabel(MAX_NARRATION_AUDIO_BYTES)}.
+          </p>
+
+          {recording && (
+            <div className="mt-4">
+              <div className="text-sm">
+                <span className="font-medium">{recording.filename}</span>
+                <span className="ml-2 text-muted">{sizeLabel(recording.sizeBytes)}</span>
+              </div>
+              <audio
+                key={recording.url}
+                controls
+                preload="none"
+                src={recording.url}
+                aria-label={`Recording for ${selectedPage.name}`}
+                className="mt-2 w-full"
+              />
+            </div>
+          )}
+
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".mp3,audio/mpeg"
+            className="sr-only"
+            tabIndex={-1}
+            aria-label="Choose an MP3 recording"
+            onChange={(event) => void chooseFile(event.target.files?.[0])}
+          />
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canUpload}
+              onClick={() => fileInput.current?.click()}
+            >
+              <Upload className="h-4 w-4" />
+              {recordingBusy === "upload" ? "Uploading…" : recording ? "Replace MP3" : "Upload MP3"}
+            </Button>
+            {recording && (
+              <Button type="button" variant="ghost" disabled={recordingBusy !== null} onClick={() => void deleteRecording()}>
+                <Trash2 className="h-4 w-4" />
+                {recordingBusy === "remove" ? "Removing…" : "Remove recording"}
+              </Button>
+            )}
+            {!canUpload && recordingBusy === null && (
+              <span className="text-xs text-muted">
+                {dirty ? "Save your changes to the text first." : "Write and save the narration text first."}
+              </span>
+            )}
+          </div>
+          {recordingNote && (
+            <p
+              role={recordingNote.ok ? "status" : "alert"}
+              className={cx("mt-3 text-sm font-medium", recordingNote.ok ? "text-live" : "text-danger")}
+            >
+              {recordingNote.text}
+            </p>
+          )}
+        </div>
+
         <div className="mt-7 flex flex-wrap gap-3 border-t border-line pt-6">
           <Button type="button" variant="outline" onClick={preview}>
             {speaking ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            {speaking ? "Stop preview" : "Preview"}
+            {speaking ? "Stop preview" : "Preview text"}
           </Button>
-          <Button type="button" onClick={save}>Save narration</Button>
+          <Button type="button" onClick={() => void save()} disabled={saving}>
+            {saving ? "Saving…" : "Save narration"}
+          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -233,6 +392,7 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
               window.speechSynthesis?.cancel();
               setSpeaking(false);
               setDraft(narrations[page]);
+              setDirty(false);
               setError("");
               setSaved(false);
             }}

@@ -2,8 +2,11 @@ import { useMemo, useState } from "react";
 import { BarChart3, CalendarDays, CircleDollarSign, Ticket, Users } from "lucide-react";
 import type { EventItem } from "../lib/data";
 import { Badge, Button, Card, Select, cx } from "./ui";
+import ReportDownload from "./ReportDownload";
 
 type Range = 7 | 30 | 90;
+
+const isLiveEventId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 type EventSales = {
   event: EventItem;
@@ -98,19 +101,34 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
           <h2 className="mt-3 font-brand text-3xl font-bold tracking-tight text-brand-deep">EaseAnalytics</h2>
           <p className="mt-1 text-sm text-muted">Sales performance across your EventEase events.</p>
         </div>
-        <label className="min-w-64">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
-            Event
-          </span>
-          <Select
-            value={eventId}
-            onChange={(event) => setEventId(event.target.value)}
-            aria-label="Filter EaseAnalytics by event"
-          >
-            <option value="all">All my events</option>
-            {events.map((event) => <option key={event.id} value={event.id}>{event.title}</option>)}
-          </Select>
-        </label>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="min-w-64">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
+              Event
+            </span>
+            <Select
+              value={eventId}
+              onChange={(event) => setEventId(event.target.value)}
+              aria-label="Filter EaseAnalytics by event"
+            >
+              <option value="all">All my events</option>
+              {events.map((event) => <option key={event.id} value={event.id}>{event.title}</option>)}
+            </Select>
+          </label>
+          <ReportDownload
+            label="Download report"
+            buildPath={(format) =>
+              `/organiser/analytics/export?format=${format}&days=${range}` +
+              (eventId !== "all" ? `&eventId=${eventId}` : "")
+            }
+            fallbackName={(format) => `easeanalytics-report.${format}`}
+            validate={() =>
+              eventId !== "all" && !isLiveEventId(eventId)
+                ? "This event has no live sales record yet. Choose “All my events” to download a report."
+                : null
+            }
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -269,3 +269,88 @@ export function backendCancelBooking(id: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return Promise.resolve();
   return request(`/me/bookings/${id}/cancel`, { method: "POST" }, true);
 }
+
+// ---------------------------------------------------------------------------
+// Package E: EaseVoice narration (text + MP3 recording) and report downloads
+// ---------------------------------------------------------------------------
+
+export type BackendNarration = {
+  pageKey: string;
+  transcript: string;
+  updatedAt: string;
+  hasAudio: boolean;
+  audioFilename: string | null;
+  audioSizeBytes: number | null;
+};
+
+export const MAX_NARRATION_AUDIO_BYTES = 5 * 1024 * 1024;
+
+/** Public narration for one page. Resolves to null when the admin has not written one yet. */
+export async function fetchBackendNarration(pageKey: string) {
+  try {
+    return await request<BackendNarration>(`/narration/${pageKey}`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/** Admin only: create or replace the narration text for a page. */
+export function saveBackendNarration(pageKey: string, transcript: string) {
+  return request<BackendNarration>(
+    `/admin/narration/${pageKey}`,
+    { method: "PUT", body: JSON.stringify({ transcript }) },
+    true,
+  );
+}
+
+/** Address of the admin-recorded MP3 for a page (public, so an <audio> tag can play it). */
+export function narrationAudioUrl(pageKey: string) {
+  return `${API_ROOT}/narration/${pageKey}/audio`;
+}
+
+/** Admin only: upload an MP3 for a page whose narration text is already saved. */
+export function uploadBackendNarrationAudio(pageKey: string, file: File) {
+  return request<BackendNarration>(
+    `/admin/narration/${pageKey}/audio?filename=${encodeURIComponent(file.name)}`,
+    { method: "PUT", body: file, headers: { "Content-Type": "audio/mpeg" } },
+    true,
+  );
+}
+
+/** Admin only: remove the MP3 for a page (the text narration stays). */
+export function deleteBackendNarrationAudio(pageKey: string) {
+  return request<void>(`/admin/narration/${pageKey}/audio`, { method: "DELETE" }, true);
+}
+
+/**
+ * Downloads a PDF/Excel report from the backend with the logged-in user's token and
+ * hands it to the browser as a normal file download. Resolves to the file name.
+ */
+export async function downloadBackendReport(path: string, fallbackName: string) {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (!token) throw new ApiError("Please log in to download reports.", 401);
+  const response = await fetch(`${API_ROOT}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as
+      | { error?: { message?: string }; detail?: string }
+      | null;
+    throw new ApiError(
+      body?.error?.message ?? body?.detail ?? `Backend request failed (${response.status})`,
+      response.status,
+    );
+  }
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const name = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return name;
+}
