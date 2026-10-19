@@ -53,8 +53,8 @@ export default function AssistanceQueue() {
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line p-5">
           <div>
-            <div className="flex items-center gap-2 font-display text-xl font-semibold">
-              <ClipboardList className="h-5 w-5 text-accent" /> Assistance queue
+            <div className="flex items-center gap-2 font-brand text-xl font-bold text-brand-deep">
+              <ClipboardList className="h-5 w-5 text-brand-orange" /> Assistance queue
             </div>
             <p className="mt-1 text-sm text-muted">
               Review EaseGuide requests and assign venue support staff.
@@ -77,7 +77,7 @@ export default function AssistanceQueue() {
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[64rem] text-sm">
-            <thead className="border-b border-line bg-mist/50 text-left text-xs uppercase tracking-wide text-muted">
+            <thead className="border-b border-brand-purple/10 bg-brand-purple/5 text-left text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="p-4">Requester</th>
                 <th className="p-4">Event</th>
@@ -208,7 +208,7 @@ function RequestPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <Badge tone={statusTone[request.status]}>{request.status}</Badge>
-            <h2 id="queue-panel-title" className="mt-3 font-display text-3xl font-semibold">
+            <h2 id="queue-panel-title" className="mt-3 font-brand text-3xl font-bold text-brand-deep">
               Assistance request
             </h2>
             <p className="mt-1 text-sm text-muted">{request.requesterUsername} · {eventName}</p>

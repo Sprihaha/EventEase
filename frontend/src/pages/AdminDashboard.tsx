@@ -90,17 +90,17 @@ function SalesStatus() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-display text-xl font-semibold">{event.title}</h2>
+                  <h2 className="font-brand text-xl font-bold text-brand-deep">{event.title}</h2>
                   <Badge tone={event.status === "published" ? "live" : event.status === "pending" ? "warn" : "neutral"}>
                     {event.status}
                   </Badge>
                 </div>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-                  <MapPin className="h-4 w-4" /> {event.venue} · {event.organizerName}
+                  <MapPin className="h-4 w-4 text-brand-orange" /> {event.venue} · {event.organizerName}
                 </p>
               </div>
               <div className="text-right">
-                <div className="font-display text-2xl font-semibold">{currency(revenue)}</div>
+                <div className="font-brand text-2xl font-bold text-brand-deep">{currency(revenue)}</div>
                 <div className="text-xs text-muted">gross ticket sales</div>
               </div>
             </div>
@@ -108,11 +108,11 @@ function SalesStatus() {
               {event.tiers.map((tier) => (
                 <div key={tier.id} className="rounded-2xl bg-mist/60 p-4">
                   <div className="flex justify-between text-sm">
-                    <span className="font-medium">{tier.name}</span>
+                    <span className="font-medium text-brand-deep">{tier.name}</span>
                     <span className="text-muted">{tier.sold}/{tier.total}</span>
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-line">
-                    <div className="h-full rounded-full bg-accent" style={{ width: `${(tier.sold / tier.total) * 100}%` }} />
+                    <div className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-orange" style={{ width: `${(tier.sold / tier.total) * 100}%` }} />
                   </div>
                 </div>
               ))}
@@ -138,7 +138,7 @@ function EaseGuideRequests() {
   const [completed, setCompleted] = useState<string[]>([]);
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-accent-soft p-4 text-sm text-accent-ink">
+      <div className="rounded-2xl border border-brand-purple/20 bg-brand-purple/10 p-4 text-sm font-medium text-brand-deep">
         EaseGuide requests coordinate accessible routes, arrival support, and venue assistance.
       </div>
       {guideSeed.map((request) => {
@@ -147,12 +147,12 @@ function EaseGuideRequests() {
           <Card key={request.id} className="p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-purple/15 text-brand-purple">
                   <Accessibility className="h-5 w-5" />
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-semibold">{request.request}</h2>
+                    <h2 className="font-brand font-bold text-brand-deep">{request.request}</h2>
                     <Badge tone={done ? "live" : request.priority === "high" ? "warn" : "neutral"}>
                       {done ? "assigned" : request.priority}
                     </Badge>
@@ -195,7 +195,7 @@ function RefundRequests() {
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-display text-xl font-semibold">{request.event}</h2>
+                  <h2 className="font-brand text-xl font-bold text-brand-deep">{request.event}</h2>
                   <Badge tone={decision === "approved" ? "live" : decision === "declined" ? "danger" : "warn"}>
                     {decision ?? "pending review"}
                   </Badge>
@@ -206,7 +206,7 @@ function RefundRequests() {
                 <p className="mt-3 max-w-xl rounded-xl bg-mist/60 p-3 text-sm">{request.reason}</p>
               </div>
               <div className="min-w-36 text-right">
-                <div className="font-display text-2xl font-semibold">{currency(request.amount)}</div>
+                <div className="font-brand text-2xl font-bold text-brand-deep">{currency(request.amount)}</div>
                 <div className="text-xs text-muted">requested refund</div>
                 {!decision && (
                   <div className="mt-4 flex justify-end gap-2">
@@ -238,18 +238,18 @@ function Overview() {
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <Card className="p-6">
           <Eyebrow>Marketplace health</Eyebrow>
-          <h3 className="mt-1 font-display text-xl font-semibold">Events by category</h3>
+          <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">Events by category</h3>
           <div className="mt-6"><BarChart data={byCat} /></div>
         </Card>
         <Card className="p-6">
           <Eyebrow>Needs attention</Eyebrow>
-          <h3 className="mt-1 font-display text-xl font-semibold">Latest fraud signals</h3>
+          <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">Latest fraud signals</h3>
           <ul className="mt-4 space-y-3">
             {fraud.slice(0, 3).map((f) => (
               <li key={f.id} className="flex items-start gap-3 rounded-xl bg-mist/50 p-3">
                 <AlertTriangle className={cx("mt-0.5 h-4 w-4", f.severity === "high" ? "text-danger" : "text-warn")} />
                 <div className="text-sm">
-                  <div className="font-medium">{f.type}</div>
+                  <div className="font-medium text-brand-deep">{f.type}</div>
                   <div className="text-muted">{f.event} · {f.when} ago</div>
                 </div>
               </li>
@@ -261,7 +261,7 @@ function Overview() {
       <section aria-labelledby="overview-assistance-title">
         <div className="mb-4">
           <Eyebrow>EaseGuide operations</Eyebrow>
-          <h2 id="overview-assistance-title" className="mt-1 font-display text-2xl font-semibold">
+          <h2 id="overview-assistance-title" className="mt-1 font-brand text-2xl font-bold text-brand-deep">
             Assistance queue
           </h2>
         </div>
@@ -277,7 +277,7 @@ function EventApprovals() {
   return (
     <Card className="overflow-hidden">
       <table className="w-full text-sm">
-        <thead className="border-b border-line bg-mist/50 text-left text-xs uppercase tracking-wide text-muted">
+        <thead className="border-b border-brand-purple/10 bg-brand-purple/5 text-left text-xs uppercase tracking-wide text-muted">
           <tr>
             <th className="p-4">Event</th>
             <th className="p-4">Organizer</th>
@@ -324,7 +324,7 @@ function Organizers() {
   return (
     <Card className="overflow-hidden">
       <table className="w-full text-sm">
-        <thead className="border-b border-line bg-mist/50 text-left text-xs uppercase tracking-wide text-muted">
+        <thead className="border-b border-brand-purple/10 bg-brand-purple/5 text-left text-xs uppercase tracking-wide text-muted">
           <tr>
             <th className="p-4">Organizer</th>
             <th className="p-4">Contact</th>
@@ -431,7 +431,7 @@ function PlatformAnalytics() {
       </div>
       <Card className="p-6">
         <Eyebrow>Growth</Eyebrow>
-        <h3 className="mt-1 font-display text-xl font-semibold">Monthly GMV</h3>
+        <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">Monthly GMV</h3>
         <div className="mt-6"><BarChart data={revenue} /></div>
       </Card>
     </div>

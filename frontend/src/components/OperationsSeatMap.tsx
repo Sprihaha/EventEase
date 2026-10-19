@@ -30,9 +30,9 @@ export function OperationsSeatMap({
   return (
     <div className="grid gap-5 xl:grid-cols-[18rem_1fr]">
       <Card className="h-max p-5">
-        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">{eyebrow}</div>
+        <div className="text-xs font-bold uppercase tracking-[0.2em] text-brand-orange">{eyebrow}</div>
         <label className="mt-4 block">
-          <span className="mb-1.5 block text-sm font-medium">Event</span>
+          <span className="mb-1.5 block text-sm font-medium text-brand-deep">Event</span>
           <Select value={selected.id} onChange={(event) => setSelectedId(event.target.value)}>
             {events.map((item) => (
               <option key={item.id} value={item.id}>{item.title}</option>
@@ -42,14 +42,14 @@ export function OperationsSeatMap({
         <div className="mt-5 space-y-3 border-t border-line pt-5 text-sm">
           <div>
             <div className="text-xs text-muted">Venue</div>
-            <div className="mt-1 flex items-start gap-1.5 font-medium">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+            <div className="mt-1 flex items-start gap-1.5 font-medium text-brand-deep">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-orange" />
               {selected.venue}, {selected.city}
             </div>
           </div>
           <div>
             <div className="text-xs text-muted">Event date</div>
-            <div className="mt-1 font-medium">{fmtDate(selected.date)}</div>
+            <div className="mt-1 font-medium text-brand-deep">{fmtDate(selected.date)}</div>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted">Seats sold</span>
@@ -60,7 +60,7 @@ export function OperationsSeatMap({
       <Card className="p-5 sm:p-7">
         <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-2xl font-semibold">{selected.title}</h2>
+            <h2 className="font-brand text-2xl font-bold text-brand-deep">{selected.title}</h2>
             <p className="mt-1 text-sm text-muted">Operational view of sold and available inventory.</p>
           </div>
           <Badge tone="accent"><Armchair className="h-3 w-3" /> Live inventory</Badge>

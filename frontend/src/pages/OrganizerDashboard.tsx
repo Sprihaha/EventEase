@@ -78,15 +78,15 @@ function TicketSales({ mine }: { mine: EventItem[] }) {
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line p-5">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-display text-xl font-semibold">{event.title}</h2>
+                  <h2 className="font-brand text-xl font-bold text-brand-deep">{event.title}</h2>
                   <Badge tone={event.status === "published" ? "live" : "warn"}>{event.status}</Badge>
                 </div>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-                  <MapPin className="h-4 w-4" /> {event.venue}, {event.city}
+                  <MapPin className="h-4 w-4 text-brand-orange" /> {event.venue}, {event.city}
                 </p>
               </div>
               <div className="text-right">
-                <div className="font-display text-2xl font-semibold">{currency(revenue)}</div>
+                <div className="font-brand text-2xl font-bold text-brand-deep">{currency(revenue)}</div>
                 <div className="text-xs text-muted">{sold} of {capacity} tickets sold</div>
               </div>
             </div>
@@ -97,13 +97,13 @@ function TicketSales({ mine }: { mine: EventItem[] }) {
                 return (
                   <div key={tier.id} className="bg-paper p-5">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">{tier.name}</span>
+                      <span className="font-semibold text-brand-deep">{tier.name}</span>
                       <span className="text-sm text-muted">{currency(tier.price)}</span>
                     </div>
-                    <div className="mt-4 font-display text-2xl font-semibold">{currency(tierRevenue)}</div>
+                    <div className="mt-4 font-brand text-2xl font-bold text-brand-deep">{currency(tierRevenue)}</div>
                     <div className="mt-1 text-xs text-muted">{tier.sold} sold · {percent}% filled</div>
                     <div className="mt-4 h-2 overflow-hidden rounded-full bg-mist">
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${percent}%` }} />
+                      <div className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-orange" style={{ width: `${percent}%` }} />
                     </div>
                   </div>
                 );
@@ -131,7 +131,7 @@ function VenueStatus({ mine }: { mine: EventItem[] }) {
           <Card key={event.id} className="p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-xl font-semibold">{event.venue}</h2>
+                <h2 className="font-brand text-xl font-bold text-brand-deep">{event.venue}</h2>
                 <p className="mt-1 text-sm text-muted">{event.title} · {event.city}</p>
               </div>
               <Badge tone={ready === checks.length ? "live" : "warn"}>
@@ -171,14 +171,14 @@ function Overview({ mine }: { mine: EventItem[] }) {
     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
       <Card className="p-6">
         <Eyebrow>Revenue by event</Eyebrow>
-        <h3 className="mt-1 font-display text-xl font-semibold">Sales performance</h3>
+        <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">Sales performance</h3>
         <div className="mt-6">
           <BarChart data={data} />
         </div>
       </Card>
       <Card className="p-6">
         <Eyebrow>Audience</Eyebrow>
-        <h3 className="mt-1 font-display text-xl font-semibold">Engagement snapshot</h3>
+        <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">Engagement snapshot</h3>
         <ul className="mt-5 space-y-4 text-sm">
           {[
             { icon: Users, l: "Unique visitors", v: "12,480", d: "+18% wk" },
@@ -187,10 +187,10 @@ function Overview({ mine }: { mine: EventItem[] }) {
           ].map((r) => (
             <li key={r.l} className="flex items-center justify-between">
               <span className="flex items-center gap-2.5 text-muted">
-                <r.icon className="h-4 w-4" /> {r.l}
+                <r.icon className="h-4 w-4 text-brand-purple" /> {r.l}
               </span>
               <span className="text-right">
-                <span className="font-display text-lg font-semibold">{r.v}</span>{" "}
+                <span className="font-brand text-lg font-bold text-brand-deep">{r.v}</span>{" "}
                 <span className="text-xs text-live">{r.d}</span>
               </span>
             </li>
@@ -213,7 +213,7 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-display text-lg font-semibold">{e.title}</h3>
+                  <h3 className="font-brand text-lg font-bold text-brand-deep">{e.title}</h3>
                   <Badge tone={e.status === "published" ? "live" : e.status === "pending" ? "warn" : "neutral"}>
                     {e.status}
                   </Badge>
@@ -221,7 +221,7 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
                 <div className="text-sm text-muted">{e.venue} · {e.category}</div>
               </div>
               <div className="text-right">
-                <div className="font-display text-lg font-semibold">
+                <div className="font-brand text-lg font-bold text-brand-deep">
                   {currency(e.tiers.reduce((a, t) => a + t.sold * t.price, 0))}
                 </div>
                 <div className="text-xs text-muted">{sold}/{cap} sold</div>
@@ -231,18 +231,18 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
               {e.tiers.map((t) => (
                 <div key={t.id} className="rounded-xl bg-mist/60 p-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{t.name}</span>
+                    <span className="font-medium text-brand-deep">{t.name}</span>
                     <span className="text-muted">{currency(t.price)}</span>
                   </div>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
-                    <div className="h-full rounded-full bg-accent" style={{ width: `${(t.sold / t.total) * 100}%` }} />
+                    <div className="h-full rounded-full bg-brand-purple" style={{ width: `${(t.sold / t.total) * 100}%` }} />
                   </div>
                   <div className="mt-1 text-xs text-muted">{t.sold}/{t.total}</div>
                 </div>
               ))}
             </div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line">
-              <div className="h-full rounded-full bg-live" style={{ width: `${pct}%` }} />
+              <div className="h-full rounded-full bg-brand-orange" style={{ width: `${pct}%` }} />
             </div>
           </Card>
         );
@@ -304,7 +304,7 @@ function CreateEvent({
     return (
       <Card className="p-10 text-center">
         <CheckCircle2 className="mx-auto h-12 w-12 text-live" />
-        <h3 className="mt-3 font-display text-2xl font-semibold">Event submitted</h3>
+        <h3 className="mt-3 font-brand text-2xl font-bold text-brand-deep">Event submitted</h3>
         <p className="mt-1 text-muted">
           Your event is now <Badge tone="warn">pending</Badge> admin approval. You'll be notified once
           it goes live.
@@ -317,9 +317,9 @@ function CreateEvent({
   }
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 sm:p-8">
       <Eyebrow>New event</Eyebrow>
-      <h3 className="mt-1 font-display text-2xl font-semibold">Event details</h3>
+      <h3 className="mt-1 font-brand text-2xl font-bold text-brand-deep">Event details</h3>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Field label="Event title">
@@ -389,7 +389,7 @@ function Analytics({ mine }: { mine: EventItem[] }) {
     <div className="space-y-6">
       <Card className="p-6">
         <Eyebrow>Demand forecasting</Eyebrow>
-        <h3 className="mt-1 font-display text-xl font-semibold">Weekly sales velocity</h3>
+        <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">Weekly sales velocity</h3>
         <p className="mt-1 text-sm text-muted">Projected sell-out in ~2 weeks at current pace. Consider releasing more VIP inventory.</p>
         <div className="mt-6">
           <BarChart data={weeks} />
@@ -400,8 +400,8 @@ function Analytics({ mine }: { mine: EventItem[] }) {
           const rev = e.tiers.reduce((a, t) => a + t.sold * t.price, 0);
           return (
             <Card key={e.id} className="p-5">
-              <div className="text-sm font-medium">{e.title}</div>
-              <div className="mt-2 font-display text-2xl font-semibold">{currency(rev)}</div>
+              <div className="text-sm font-medium text-brand-deep">{e.title}</div>
+              <div className="mt-2 font-brand text-2xl font-bold text-brand-deep">{currency(rev)}</div>
               <div className="mt-3 space-y-1.5">
                 {e.tiers.map((t) => (
                   <div key={t.id} className="flex justify-between text-xs text-muted">
@@ -428,11 +428,11 @@ function Promotions() {
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between border-b border-line p-5">
-        <h3 className="font-display text-xl font-semibold">Active promotions</h3>
+        <h3 className="font-brand text-xl font-bold text-brand-deep">Active promotions</h3>
         <Button size="sm"><Tag className="h-4 w-4" /> New promo</Button>
       </div>
       <table className="w-full text-sm">
-        <thead className="bg-mist/50 text-left text-xs uppercase tracking-wide text-muted">
+        <thead className="bg-brand-purple/5 border-b border-brand-purple/10 text-left text-xs uppercase tracking-wide text-muted">
           <tr>
             <th className="p-4">Code</th>
             <th className="p-4">Type</th>
@@ -443,10 +443,10 @@ function Promotions() {
         </thead>
         <tbody>
           {promos.map((p) => (
-            <tr key={p.code} className="border-b border-line last:border-0">
-              <td className="p-4"><code className="rounded bg-mist px-2 py-1 font-mono text-xs">{p.code}</code></td>
+            <tr key={p.code} className="border-b border-line last:border-0 hover:bg-brand-purple/5 transition-colors">
+              <td className="p-4"><code className="rounded bg-brand-purple/10 px-2 py-1 font-mono text-xs font-semibold text-brand-purple">{p.code}</code></td>
               <td className="p-4 text-muted">{p.type}</td>
-              <td className="p-4 font-medium">{p.off}</td>
+              <td className="p-4 font-semibold text-brand-deep">{p.off}</td>
               <td className="p-4 text-muted">{p.used}</td>
               <td className="p-4"><Badge tone={p.active ? "live" : "neutral"}>{p.active ? "Active" : "Ended"}</Badge></td>
             </tr>

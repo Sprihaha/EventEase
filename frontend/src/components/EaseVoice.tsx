@@ -9,7 +9,7 @@ import {
 import { Button, Select, cx } from "./ui";
 
 const focusRing =
-  "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/30 focus-visible:ring-offset-2";
+  "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30 focus-visible:ring-offset-2";
 
 export default function EaseVoice() {
   const { pathname } = useLocation();
@@ -71,13 +71,13 @@ export default function EaseVoice() {
     <div
       role="toolbar"
       aria-label="EaseVoice narration controls"
-      className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full border border-accent/20 bg-paper p-1.5 pl-3 shadow-[0_14px_40px_-12px_rgba(79,47,255,0.5)]"
+      className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-full border border-brand-purple/20 bg-white/95 p-1.5 pl-3.5 shadow-[0_14px_40px_-12px_rgba(50,19,79,0.35)] backdrop-blur"
     >
-      <div className="hidden items-center gap-2 pr-1 sm:flex">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-soft text-accent">
+      <div className="hidden items-center gap-2.5 pr-1 sm:flex">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-lilac text-brand-purple">
           <Volume2 className="h-4 w-4" />
         </span>
-        <span className="text-sm font-semibold">EaseVoice</span>
+        <span className="font-brand text-sm font-bold text-brand-deep">EaseVoice</span>
       </div>
       <Button
         type="button"
@@ -99,7 +99,7 @@ export default function EaseVoice() {
           }
           aria-label="Voice speed"
           className={cx(
-            "h-9 w-[4.75rem] rounded-full border-0 bg-mist py-0 pl-3 pr-6 text-xs font-semibold",
+            "h-9 w-[4.75rem] rounded-full border-0 bg-brand-lilac/60 py-0 pl-3 pr-6 text-xs font-bold text-brand-deep",
             focusRing,
           )}
         >

@@ -18,9 +18,9 @@ import EaseVoiceNarration from "./pages/EaseVoiceNarration";
 function NotFound() {
   return (
     <div className="mx-auto max-w-xl px-5 py-32 text-center">
-      <h1 className="font-display text-6xl font-semibold">404</h1>
+      <h1 className="font-brand text-7xl font-bold text-brand-deep">404</h1>
       <p className="mt-3 text-muted">This page took an early exit.</p>
-      <a href="/" className="mt-6 inline-block text-accent hover:underline">
+      <a href="/" className="mt-6 inline-block font-brand text-sm font-bold text-brand-orange hover:text-brand-purple transition-colors">
         Back to home →
       </a>
     </div>
