@@ -15,8 +15,7 @@ import {
   Route,
 } from "lucide-react";
 import { useStore } from "../lib/store";
-import type { Role } from "../lib/data";
-import { Badge, Button, Select, cx } from "./ui";
+import { Button, cx } from "./ui";
 import EaseVoice from "./EaseVoice";
 
 function AccessibilityBar() {
@@ -63,18 +62,13 @@ const navLinks = [
 ];
 
 export default function Layout() {
-  const { user, login, logout } = useStore();
+  const { user, logout } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenu = useRef<HTMLDivElement>(null);
   const dash = user ? `/dashboard/${user.role}` : "/login";
   const isHome = location.pathname === "/";
-
-  const previewAs = (role: Role) => {
-    login(role);
-    navigate(`/dashboard/${role}`);
-  };
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -148,51 +142,6 @@ export default function Layout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
-            <div
-              className={cx(
-                "flex items-center gap-2 rounded-full border p-1 pl-3",
-                isHome
-                  ? "border-white/15 bg-white/5"
-                  : "border-accent/20 bg-accent-soft/50",
-              )}
-            >
-              <span
-                className={cx(
-                  "hidden text-[10px] font-bold uppercase tracking-wide sm:inline xl:hidden",
-                  isHome ? "text-white/70" : "text-accent-ink",
-                )}
-              >
-                Prototype
-              </span>
-              <div className="hidden items-center gap-2 xl:flex">
-                <span className={cx("text-xs font-semibold", isHome ? "text-white/70" : "text-accent-ink")}>
-                  Preview as
-                </span>
-                <Badge
-                  tone="accent"
-                  className={cx(
-                    "normal-case tracking-normal",
-                    isHome ? "bg-brand-orange text-white" : "bg-paper",
-                  )}
-                >
-                  Prototype only
-                </Badge>
-              </div>
-              <Select
-                aria-label="Preview prototype as a role"
-                value={user?.role ?? ""}
-                onChange={(event) => previewAs(event.target.value as Role)}
-                className={cx(
-                  "h-8 w-24 rounded-full border-0 py-0 pl-3 pr-7 text-xs font-semibold focus:ring-2 sm:w-32",
-                  isHome ? "bg-white text-brand-deep" : "bg-paper",
-                )}
-              >
-                <option value="" disabled>Preview</option>
-                <option value="customer">Customer</option>
-                <option value="organizer">Organiser</option>
-                <option value="admin">Admin</option>
-              </Select>
-            </div>
             <div className="hidden lg:block">
               <AccessibilityBar />
             </div>
