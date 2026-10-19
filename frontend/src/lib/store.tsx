@@ -40,15 +40,8 @@ import {
 
 export type User = { id: string; name: string; email: string; role: Role };
 
-const demoUsers: Record<Role, User> = {
-  customer: { id: "u-cust", name: "Alex Chen", email: "alex@eventease.io", role: "customer" },
-  organizer: { id: "org-livenation", name: "Live Nation Asia", email: "ops@livenation.asia", role: "organizer" },
-  admin: { id: "u-admin", name: "Sam Rivera", email: "sam@eventease.io", role: "admin" },
-};
-
 type Store = {
   user: User | null;
-  login: (role: Role) => void;
   authenticate: (username: string, password: string) => Promise<User | null>;
   logout: () => void;
 
@@ -140,7 +133,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Store>(() => {
     return {
       user,
-      login: (role) => setUser(demoUsers[role]),
       authenticate: async (username, password) => {
         const normalized = username.trim().toLowerCase();
         const auth = await backendLogin(normalized, password);
