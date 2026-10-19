@@ -1,5 +1,6 @@
 import math
 import uuid
+from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -10,6 +11,7 @@ from app.core.security import utcnow
 from app.db.models import (
     ACTIVE_ASSISTANCE_STATUSES,
     AssistanceRequest,
+    AuditLog,
     AssistanceStatus,
     Booking,
     BookingStatus,
@@ -19,8 +21,11 @@ from app.db.models import (
 from app.schemas.assistance import AssistanceCreate, AssistanceUpdate
 from app.services import audit
 from app.services import bookings as booking_service
+from app.services.reports import assistance_report
 
 S = AssistanceStatus
+SGT = timezone(timedelta(hours=8))  # Singapore: report date filters are read as Singapore calendar days
+EXPORT_ROW_LIMIT = 5000
 AUDIT_FIELDS = ["status", "assigned_staff"]
 
 # Who can move a request where. COMPLETED and CANCELLED are final.
@@ -214,3 +219,64 @@ def staff_update(db: Session, admin: User, raw_id: str, data: AssistanceUpdate, 
     request_id = req.id
     db.commit()
     return get_for_staff(db, str(request_id))
+
+
+# --------------------------------------------------------------------------- audit export (ADMIN)
+
+def _export_filters(status: AssistanceStatus | None, created_from: date | None, created_to: date | None) -> list:
+    if created_from and created_to and created_from > created_to:
+        raise AppError(422, "INVALID_DATE_RANGE", "createdFrom must be on or before createdTo",
+                       {"createdFrom": created_from.isoformat(), "createdTo": created_to.isoformat()})
+    filters = []
+    if status:
+        filters.append(AssistanceRequest.status == status)
+    if created_from:
+        filters.append(AssistanceRequest.created_at >= datetime.combine(created_from, time.min, tzinfo=SGT))
+    if created_to:
+        filters.append(AssistanceRequest.created_at < datetime.combine(created_to + timedelta(days=1), time.min,
+                                                                      tzinfo=SGT))
+    return filters
+
+
+def export_report(db: Session, admin: User, file_format: str, status: AssistanceStatus | None,
+                  created_from: date | None, created_to: date | None, ip: str | None) -> tuple[bytes, str]:
+    """Build the audit report (PDF or Excel) for the matching requests and record the download itself in the audit log."""
+    filters = _export_filters(status, created_from, created_to)
+    total = db.scalar(select(func.count()).select_from(AssistanceRequest).where(*filters)) or 0
+    result = db.execute(
+        _base_stmt().where(*filters)
+        .order_by(AssistanceRequest.created_at.desc(), AssistanceRequest.id)
+        .limit(EXPORT_ROW_LIMIT)
+    ).all()
+    rows = [_out(req, event, requester) for req, event, requester in result]
+
+    trail: list[dict] = []
+    if rows:
+        logs = db.scalars(
+            select(AuditLog)
+            .where(AuditLog.entity_type == "AssistanceRequest",
+                   AuditLog.entity_id.in_([str(r["id"]) for r in rows]))
+            .order_by(AuditLog.created_at.desc())
+        ).all()
+        for log in logs:
+            before, after = log.before or {}, log.after or {}
+            trail.append({"at": log.created_at, "request_id": log.entity_id, "action": log.action,
+                          "actor_role": log.actor_role, "from_status": before.get("status"),
+                          "to_status": after.get("status"), "staff": after.get("assigned_staff")})
+
+    filter_text = (f"Status: {status.value if status else 'all'}; submitted from "
+                   f"{created_from.isoformat() if created_from else 'any date'} to "
+                   f"{created_to.isoformat() if created_to else 'any date'}")
+    generated = datetime.now(timezone.utc)
+    build = assistance_report.build_pdf if file_format == "pdf" else assistance_report.build_xlsx
+    content = build(requested_by=admin.username, filters=filter_text, rows=rows, total_matching=total,
+                    trail=trail, generated=generated)
+
+    audit.record(db, actor=admin, action="ASSISTANCE_EXPORTED", entity_type="AssistanceExport",
+                 entity_id="assistance-requests", before=None,
+                 after={"format": file_format, "status": status.value if status else None,
+                        "createdFrom": created_from.isoformat() if created_from else None,
+                        "createdTo": created_to.isoformat() if created_to else None, "rows": len(rows)}, ip=ip)
+    db.commit()
+    stamp = generated.astimezone(SGT).strftime("%Y%m%d-%H%M")
+    return content, f"eventease-assistance-audit-{stamp}.{file_format}"

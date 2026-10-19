@@ -8,17 +8,100 @@ from app.services import audit
 
 DEFAULT_VOICE_SPEED = 1.0
 DEFAULT_AUTO_NARRATE = False
+MAX_AUDIO_BYTES = 5 * 1024 * 1024  # 5 MB is plenty for a page of narration
 
 
-def get_narration(db: Session, page_key: str) -> NarrationTranscript:
-    row = db.scalar(select(NarrationTranscript).where(NarrationTranscript.page_key == page_key))
+def _out(row: NarrationTranscript) -> dict:
+    return {
+        "page_key": row.page_key,
+        "transcript": row.transcript,
+        "updated_at": row.updated_at,
+        "has_audio": row.audio_size_bytes is not None,
+        "audio_filename": row.audio_filename,
+        "audio_size_bytes": row.audio_size_bytes,
+    }
+
+
+def _audio_state(row: NarrationTranscript | None) -> dict | None:
+    if row is None:
+        return None
+    return {"hasAudio": row.audio_size_bytes is not None, "filename": row.audio_filename,
+            "sizeBytes": row.audio_size_bytes}
+
+
+def looks_like_mp3(data: bytes) -> bool:
+    """Cheap signature check: an ID3 tag, or an MPEG audio frame header (0xFFEx)."""
+    if len(data) < 4:
+        return False
+    if data[:3] == b"ID3":
+        return True
+    return data[0] == 0xFF and (data[1] & 0xE0) == 0xE0 and ((data[1] >> 1) & 0x03) != 0
+
+
+def clean_filename(raw: str | None, page_key: str) -> str:
+    name = (raw or "").replace("\\", "/").split("/")[-1].strip()
+    name = "".join(ch for ch in name if ch.isprintable() and ch not in '"<>|:*?')[:255].strip()
+    return name or f"{page_key}.mp3"
+
+
+def _row(db: Session, page_key: str, *, lock: bool = False) -> NarrationTranscript | None:
+    stmt = select(NarrationTranscript).where(NarrationTranscript.page_key == page_key)
+    return db.scalar(stmt.with_for_update() if lock else stmt)
+
+
+def get_narration(db: Session, page_key: str) -> dict:
+    row = _row(db, page_key)
     if row is None:
         raise AppError(404, "NARRATION_NOT_FOUND", "no narration text for this page")
-    return row
+    return _out(row)
 
 
-def upsert_narration(db: Session, admin: User, page_key: str, transcript: str, ip: str | None) -> NarrationTranscript:
-    row = db.scalar(select(NarrationTranscript).where(NarrationTranscript.page_key == page_key).with_for_update())
+def get_audio(db: Session, page_key: str) -> tuple[bytes, str]:
+    row = _row(db, page_key)
+    if row is None or row.audio_size_bytes is None or row.audio_data is None:
+        raise AppError(404, "NARRATION_AUDIO_NOT_FOUND", "no recording for this page")
+    return bytes(row.audio_data), row.audio_filename or f"{page_key}.mp3"
+
+
+def set_audio(db: Session, admin: User, page_key: str, data: bytes, filename: str | None, ip: str | None) -> dict:
+    row = _row(db, page_key, lock=True)
+    if row is None:
+        raise AppError(404, "NARRATION_NOT_FOUND", "save the narration text for this page before adding a recording")
+    if not data:
+        raise AppError(400, "AUDIO_EMPTY", "the uploaded file is empty")
+    if len(data) > MAX_AUDIO_BYTES:
+        raise AppError(413, "AUDIO_TOO_LARGE", f"recordings can be at most {MAX_AUDIO_BYTES // (1024 * 1024)} MB",
+                       {"maxBytes": MAX_AUDIO_BYTES})
+    if not looks_like_mp3(data):
+        raise AppError(415, "AUDIO_NOT_MP3", "only MP3 recordings are accepted")
+    before = _audio_state(row)
+    row.audio_data = data
+    row.audio_filename = clean_filename(filename, page_key)
+    row.audio_size_bytes = len(data)
+    db.flush()
+    audit.record(db, actor=admin, action="NARRATION_AUDIO_UPLOADED", entity_type="Narration", entity_id=page_key,
+                 before=before, after=_audio_state(row), ip=ip)
+    db.commit()
+    db.refresh(row)
+    return _out(row)
+
+
+def remove_audio(db: Session, admin: User, page_key: str, ip: str | None) -> None:
+    row = _row(db, page_key, lock=True)
+    if row is None or row.audio_size_bytes is None:
+        raise AppError(404, "NARRATION_AUDIO_NOT_FOUND", "no recording for this page")
+    before = _audio_state(row)
+    row.audio_data = None
+    row.audio_filename = None
+    row.audio_size_bytes = None
+    db.flush()
+    audit.record(db, actor=admin, action="NARRATION_AUDIO_REMOVED", entity_type="Narration", entity_id=page_key,
+                 before=before, after=_audio_state(row), ip=ip)
+    db.commit()
+
+
+def upsert_narration(db: Session, admin: User, page_key: str, transcript: str, ip: str | None) -> dict:
+    row = _row(db, page_key, lock=True)
     before = {"transcript": row.transcript} if row else None
     if row is None:
         row = NarrationTranscript(page_key=page_key, transcript=transcript.strip())
@@ -30,7 +113,7 @@ def upsert_narration(db: Session, admin: User, page_key: str, transcript: str, i
                  before=before, after={"transcript": row.transcript}, ip=ip)
     db.commit()
     db.refresh(row)
-    return row
+    return _out(row)
 
 
 def get_settings(db: Session, user: User) -> dict:

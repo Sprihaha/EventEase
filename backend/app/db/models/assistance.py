@@ -2,7 +2,7 @@
 import uuid
 from enum import StrEnum
 
-from sqlalchemy import Boolean, CheckConstraint, Float, ForeignKey, Index, String, Text, Uuid, text
+from sqlalchemy import Boolean, CheckConstraint, Float, ForeignKey, Index, Integer, LargeBinary, String, Text, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, Timestamps, UUIDPk, str_enum
@@ -63,6 +63,10 @@ class NarrationTranscript(UUIDPk, Timestamps, Base):
 
     page_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     transcript: Mapped[str] = mapped_column(Text, nullable=False)
+    # Optional admin-recorded MP3. The bytes are deferred so normal text reads never load them.
+    audio_data: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
+    audio_filename: Mapped[str | None] = mapped_column(String(255))
+    audio_size_bytes: Mapped[int | None] = mapped_column(Integer)
 
 
 class AccessibilitySettings(Timestamps, Base):

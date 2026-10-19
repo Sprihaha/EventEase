@@ -9,6 +9,9 @@ class NarrationOut(CamelModel):
     page_key: str
     transcript: str
     updated_at: datetime
+    has_audio: bool = False
+    audio_filename: str | None = None
+    audio_size_bytes: int | None = None
 
 
 class NarrationIn(CamelModel):
