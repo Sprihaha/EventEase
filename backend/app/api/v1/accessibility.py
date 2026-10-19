@@ -1,3 +1,8 @@
+<<<<<<< Updated upstream
+=======
+from urllib.parse import quote
+
+>>>>>>> Stashed changes
 from fastapi import APIRouter, Depends, Path, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
@@ -47,17 +52,71 @@ def put_narration(body: NarrationIn, request: Request, page_key: str = PAGE_KEY,
     return service.upsert_narration(db, admin, page_key, body.transcript, client_ip(request))
 
 
+<<<<<<< Updated upstream
 @router.get("/narration/{page_key}/audio", summary="The admin-recorded MP3 for this page (public)",
             responses={200: {"content": {"audio/mpeg": {}}}, 404: {"description": "NARRATION_AUDIO_NOT_FOUND"}})
 def get_narration_audio(page_key: str = PAGE_KEY, db: Session = Depends(get_db)):
     data, filename = service.get_audio(db, page_key)
     return Response(content=data, media_type="audio/mpeg",
                     headers={"Content-Disposition": f'inline; filename="{filename}"', "Cache-Control": "no-cache"})
+=======
+def inline_disposition(filename: str) -> str:
+    """Content-Disposition that survives non-English file names.
+
+    HTTP headers are Latin-1, so a name like "歌.mp3" must be sent percent-encoded (RFC 5987) with a plain ASCII
+    fallback; putting it in the header as-is makes the response fail with a server error.
+    """
+    ascii_name = "".join(ch if ch.isascii() and ch.isprintable() and ch not in '"\\' else "_" for ch in filename)
+    return f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename, safe='')}"
+
+
+def byte_range(header: str | None, size: int) -> tuple[int, int] | str | None:
+    """Parse a single-range 'Range: bytes=a-b' header.
+
+    Returns (start, end) inclusive, "unsatisfiable" for a range outside the file, or None to serve the whole file
+    (no header, or one we do not understand). Browsers ask for ranges to show the length of an audio file and to seek.
+    """
+    if not header or not header.startswith("bytes=") or "," in header or size <= 0:
+        return None
+    first, _, last = header[len("bytes="):].strip().partition("-")
+    try:
+        if first == "":  # "-500": the last 500 bytes
+            count = int(last)
+            if count <= 0:
+                return "unsatisfiable"
+            return max(size - count, 0), size - 1
+        start = int(first)
+        end = int(last) if last else size - 1
+    except ValueError:
+        return None
+    if start < 0 or start >= size or end < start:
+        return "unsatisfiable"
+    return start, min(end, size - 1)
+
+
+@router.get("/narration/{page_key}/audio", summary="The admin-recorded MP3 for this page (public)",
+            description="Supports HTTP range requests, so browsers can show the length and seek.",
+            responses={200: {"content": {"audio/mpeg": {}}}, 206: {"description": "Partial content (range request)"},
+                       404: {"description": "NARRATION_AUDIO_NOT_FOUND"}})
+def get_narration_audio(request: Request, page_key: str = PAGE_KEY, db: Session = Depends(get_db)):
+    data, filename = service.get_audio(db, page_key)
+    headers = {"Content-Disposition": inline_disposition(filename), "Cache-Control": "no-cache",
+               "Accept-Ranges": "bytes"}
+    span = byte_range(request.headers.get("range"), len(data))
+    if span == "unsatisfiable":
+        return Response(status_code=416, headers={**headers, "Content-Range": f"bytes */{len(data)}"})
+    if span is not None:
+        start, end = span
+        return Response(content=data[start:end + 1], status_code=206, media_type="audio/mpeg",
+                        headers={**headers, "Content-Range": f"bytes {start}-{end}/{len(data)}"})
+    return Response(content=data, media_type="audio/mpeg", headers=headers)
+>>>>>>> Stashed changes
 
 
 @router.put("/admin/narration/{page_key}/audio", response_model=NarrationOut,
             summary="Upload an MP3 recording for this page (admin only, max 5 MB)",
             description="Send the MP3 file itself as the request body (Content-Type audio/mpeg). "
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
                         "The page must already have narration text.",
             openapi_extra={"requestBody": {"required": True, "content": {
@@ -65,10 +124,15 @@ def get_narration_audio(page_key: str = PAGE_KEY, db: Session = Depends(get_db))
             responses={404: {"description": "NARRATION_NOT_FOUND"},
                        413: {"description": "AUDIO_TOO_LARGE"}, 415: {"description": "AUDIO_NOT_MP3"}})
 =======
+=======
+>>>>>>> Stashed changes
                         "The page does not need narration text first.",
             openapi_extra={"requestBody": {"required": True, "content": {
                 "audio/mpeg": {"schema": {"type": "string", "format": "binary"}}}}},
             responses={413: {"description": "AUDIO_TOO_LARGE"}, 415: {"description": "AUDIO_NOT_MP3"}})
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 def put_narration_audio(request: Request, page_key: str = PAGE_KEY,
                         filename: str | None = Query(None, max_length=255, description="Original file name"),

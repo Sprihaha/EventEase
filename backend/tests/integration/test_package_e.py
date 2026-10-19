@@ -416,10 +416,13 @@ def test_admin_uploads_an_mp3_and_everyone_can_play_it(client, world):
 
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 def test_mp3_upload_needs_existing_narration_text(client, world):
     response = put_audio(client, world.admin)
     assert response.status_code == 404 and error_of(response)["code"] == "NARRATION_NOT_FOUND"
 =======
+=======
+>>>>>>> Stashed changes
 def test_mp3_can_be_uploaded_before_any_narration_text(client, world):
     response = put_audio(client, world.admin)
     assert response.status_code == 200
@@ -431,10 +434,49 @@ def test_mp3_can_be_uploaded_before_any_narration_text(client, world):
     assert client.get("/api/v1/narration/home").json()["hasAudio"] is True
 
 
+<<<<<<< Updated upstream
+=======
+def test_mp3_with_a_non_english_file_name_can_be_played(client, world):
+    from urllib.parse import quote
+
+    assert put_audio(client, world.admin, filename=quote("歌曲 - 测试.mp3")).status_code == 200
+    response = client.get("/api/v1/narration/home/audio")
+    assert response.status_code == 200 and response.content == MP3
+    assert "filename*=UTF-8''" in response.headers["content-disposition"]
+    assert client.get("/api/v1/narration/home").json()["audioFilename"] == "歌曲 - 测试.mp3"
+
+
+def test_mp3_supports_range_requests(client, world):
+    assert put_audio(client, world.admin).status_code == 200
+    url = "/api/v1/narration/home/audio"
+    full = client.get(url)
+    assert full.status_code == 200 and full.headers["accept-ranges"] == "bytes"
+    size = len(MP3)
+
+    part = client.get(url, headers={"Range": "bytes=0-9"})
+    assert part.status_code == 206 and part.content == MP3[:10]
+    assert part.headers["content-range"] == f"bytes 0-9/{size}"
+
+    tail = client.get(url, headers={"Range": "bytes=5-"})
+    assert tail.status_code == 206 and tail.content == MP3[5:]
+
+    last = client.get(url, headers={"Range": "bytes=-4"})
+    assert last.status_code == 206 and last.content == MP3[-4:]
+
+    beyond = client.get(url, headers={"Range": f"bytes={size + 10}-"})
+    assert beyond.status_code == 416 and beyond.headers["content-range"] == f"bytes */{size}"
+
+    assert client.get(url, headers={"Range": "bytes=abc"}).status_code == 200  # not understood: whole file
+
+
+>>>>>>> Stashed changes
 def test_invalid_mp3_does_not_create_a_narration_row(client, world):
     response = put_audio(client, world.admin, data=b"not an mp3 at all")
     assert response.status_code == 415
     assert client.get("/api/v1/narration/home").status_code == 404
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 
