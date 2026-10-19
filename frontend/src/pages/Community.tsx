@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Users,
@@ -9,8 +9,11 @@ import {
   ShieldCheck,
   Accessibility,
   Send,
+  X,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
+import type { ExchangeListing } from "../lib/data";
+import SwapRequestPanel from "../components/SwapRequestPanel";
 import { Button, Badge, Card, Eyebrow, Textarea, cx } from "../components/ui";
 
 const tabs = [
@@ -21,10 +24,26 @@ const tabs = [
 ] as const;
 
 export default function Community() {
-  const { posts, exchange, events, user, addPost } = useStore();
+  const { posts, exchange, events, bookings, user, addPost } = useStore();
   const navigate = useNavigate();
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("feed");
   const [draft, setDraft] = useState("");
+  const [selectedListing, setSelectedListing] = useState<ExchangeListing | null>(null);
+  const listingsDialog = useRef<HTMLDialogElement>(null);
+  const [swapListing, setSwapListing] = useState<ExchangeListing | null>(null);
+
+  useEffect(() => {
+    if (selectedListing) listingsDialog.current?.showModal();
+    else listingsDialog.current?.close();
+  }, [selectedListing]);
+
+  const otherListings = selectedListing
+    ? exchange.filter((listing) =>
+        listing.eventId === selectedListing.eventId
+        && listing.id !== selectedListing.id
+        && !bookings.some((booking) => booking.id === listing.bookingId && booking.userId === user?.id),
+      )
+    : [];
 
   const eventName = (id: string) => events.find((e) => e.id === id)?.title ?? "Event";
 
@@ -137,7 +156,7 @@ export default function Community() {
                     <span className="font-brand text-2xl font-bold text-brand-deep">
                       {currency(x.askPrice)}
                     </span>
-                    <Button size="sm">Request transfer</Button>
+                    <Button size="sm" onClick={() => setSelectedListing(x)}>Request transfer</Button>
                   </div>
                 </Card>
               ))}
@@ -201,6 +220,62 @@ export default function Community() {
           </div>
         )}
       </div>
+      <dialog
+        ref={listingsDialog}
+        aria-labelledby="other-listings-title"
+        aria-describedby="other-listings-event"
+        onClose={() => { setSelectedListing(null); setSwapListing(null); }}
+        className="fixed inset-0 m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-3xl border border-brand-purple/15 bg-white p-5 text-brand-deep shadow-xl backdrop:bg-brand-deep/40 sm:p-7"
+      >
+        {swapListing ? (
+          <SwapRequestPanel
+            key={swapListing.id}
+            listing={swapListing}
+            eventName={eventName(swapListing.eventId)}
+            onBack={() => setSwapListing(null)}
+            onClose={() => setSelectedListing(null)}
+          />
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 id="other-listings-title" className="font-brand text-2xl font-bold">
+                  Other listings for this event
+                </h2>
+                <p id="other-listings-event" className="mt-2 text-sm text-muted">
+                  {selectedListing && eventName(selectedListing.eventId)}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" aria-label="Close listings popup" onClick={() => setSelectedListing(null)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="mt-5 space-y-4">
+              {otherListings.map((listing) => (
+                <Card key={listing.id} className="p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {listing.verified && (
+                      <Badge tone="live"><ShieldCheck className="h-3 w-3" /> Verified transfer</Badge>
+                    )}
+                    <span className="text-sm font-semibold text-muted">{listing.tier}</span>
+                  </div>
+                  <h3 className="mt-3 font-brand text-xl font-bold">{eventName(listing.eventId)}</h3>
+                  <p className="mt-1 text-sm text-muted">Seat {listing.seat} · Listed by {listing.sellerName}</p>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-brand-purple/10 pt-4">
+                    <span className="font-brand text-2xl font-bold">{currency(listing.askPrice)}</span>
+                    <Button size="sm" onClick={() => setSwapListing(listing)}>Request swap</Button>
+                  </div>
+                </Card>
+              ))}
+              {!otherListings.length && (
+                <p className="rounded-2xl bg-brand-lilac/60 p-5 text-sm text-muted">
+                  No other users have listings for this event yet.
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </dialog>
     </div>
   );
 }
