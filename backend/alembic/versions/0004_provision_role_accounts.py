@@ -20,9 +20,9 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 _ACCOUNTS = (
-    ("Janice", None, "ADMIN", "$argon2id$v=19$m=65536,p=4,t=3$rFJrgPryz5pNSCVF2g1/vA$BajpNaZ0XLXkA9aGJwtmoJX8vG5ALkkhkgTSaA7ruE0"),
-    ("John", "john@eventease.local", "CUSTOMER", "$argon2id$v=19$m=65536,p=4,t=3$FGnTWhhAxnVLQga7yMEZoA$CcGsBC7A8YArEaRKMppu3t5d6ln0hT3otz6ORPpg7iQ"),
-    ("Jay", "jay@eventease.local", "ORGANISER", "$argon2id$v=19$m=65536,p=4,t=3$M6Jeajgixvvswl9u94Sb2g$uSMxrGHx86Uvuh2PlxhaYibXfBPpm8BXj2gHbPWDBnE"),
+    ("Janice", None, "ADMIN", "$argon2id$v=19$m=65536,t=3,p=4$d32piU1U6WFIycxK+ch50Q$6u3jzWzywclnOj6FoMDB8hK1waAVLvv1bCeuvhcax74"),
+    ("John", "john@eventease.local", "CUSTOMER", "$argon2id$v=19$m=65536,t=3,p=4$v/HCG/YQbRXbJf2yMXTlSw$aS+C7WiEUH/HS9Ptq4UF7SbssM8QIvBWYo1NPxR0E7Y"),
+    ("Jay", "jay@eventease.local", "ORGANISER", "$argon2id$v=19$m=65536,t=3,p=4$4ZNQD6VLWe/eNplSFkvN0Q$KAqLyVAhfKvcwReVlM7qsS/ZoZG3uv+5L19RNVluBpY"),
 )
 
 

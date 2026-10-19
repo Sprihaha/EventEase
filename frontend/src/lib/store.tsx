@@ -145,7 +145,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const normalized = username.trim().toLowerCase();
         try {
           const auth = await backendLogin(normalized, password);
-          const role = auth.user.role === "ORGANISER" ? "organizer" : auth.user.role.toLowerCase() as Role;
+          const role = auth.user.role === "ORGANISER" ? "organizer" : (auth.user.role.toLowerCase() as Role);
           const account = {
             id: auth.user.id,
             name: auth.user.username,
@@ -159,41 +159,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           }
           setUser(account);
           return account;
-        } catch (error) {
-          if (error instanceof ApiError && error.status < 500) return null;
-        }
-        const demoAccounts: Record<string, { password: string; user: User }> = {
-          hcy001: {
-            password: "try001",
-            user: { id: "u-cust", name: "HCY", email: "hcy001@eventease.demo", role: "customer" },
-          },
-          admin001: {
-            password: "try001",
-            user: { id: "u-admin", name: "EventEase Admin", email: "admin001@eventease.demo", role: "admin" },
-          },
-          event01: {
-            password: "try01",
-            user: { id: "org-livenation", name: "Event 01", email: "event01@eventease.demo", role: "organizer" },
-          },
-        };
-        const demo = demoAccounts[normalized];
-        if (demo?.password === password) {
-          setUser(demo.user);
-          return demo.user;
-        }
-        const saved = localStorage.getItem(`eventease-user-${normalized}`);
-        if (!saved) return null;
-        try {
-          const account = JSON.parse(saved) as { userId: string; password: string; email: string };
-          if (account.password !== password) return null;
-          const customer = {
-            id: account.userId,
-            name: account.userId,
-            email: account.email,
-            role: "customer" as const,
-          };
-          setUser(customer);
-          return customer;
         } catch {
           return null;
         }

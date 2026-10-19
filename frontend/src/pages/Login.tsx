@@ -128,7 +128,7 @@ export default function Login() {
                     autoComplete="username"
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
-                    placeholder="e.g. hcy001"
+                    placeholder="e.g. Janice, John, or Jay"
                     required
                     disabled={locked}
                   />
