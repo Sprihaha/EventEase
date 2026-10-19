@@ -41,6 +41,10 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
   const [recordingNote, setRecordingNote] = useState<{ ok: boolean; text: string } | null>(null);
   const menu = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+<<<<<<< Updated upstream
+=======
+  const previewSound = useRef<HTMLAudioElement | null>(null);
+>>>>>>> Stashed changes
 
   // Show what is saved on the server (text and recordings) for every page.
   useEffect(() => {
@@ -65,6 +69,10 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
       document.removeEventListener("mousedown", close);
       document.removeEventListener("keydown", escape);
       window.speechSynthesis?.cancel();
+<<<<<<< Updated upstream
+=======
+      previewSound.current?.pause();
+>>>>>>> Stashed changes
     };
   }, []);
 
@@ -90,9 +98,23 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
   );
   const hasNarration = (id: NarrationPageId) => Boolean(narrations[id].trim()) || Boolean(audio[id]);
 
+<<<<<<< Updated upstream
   const choosePage = (id: NarrationPageId) => {
     window.speechSynthesis?.cancel();
     setSpeaking(false);
+=======
+  const stopPreview = () => {
+    window.speechSynthesis?.cancel();
+    if (previewSound.current) {
+      previewSound.current.pause();
+      previewSound.current = null;
+    }
+    setSpeaking(false);
+  };
+
+  const choosePage = (id: NarrationPageId) => {
+    stopPreview();
+>>>>>>> Stashed changes
     setPage(id);
     setDraft(narrations[id]);
     setDirty(false);
@@ -110,6 +132,7 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
     choosePage(firstPage.id);
   };
 
+<<<<<<< Updated upstream
   const preview = () => {
     if (!draft.trim()) {
       setError("Narration text cannot be blank");
@@ -118,6 +141,39 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
     if (speaking) {
       window.speechSynthesis.cancel();
       setSpeaking(false);
+=======
+  // Preview plays what visitors will hear: the recording if there is one, otherwise the text read aloud.
+  const preview = () => {
+    if (speaking) {
+      stopPreview();
+      return;
+    }
+    const uploaded = audio[page];
+    if (uploaded) {
+      const sound = new Audio(uploaded.url);
+      sound.playbackRate = settings.voiceSpeed;
+      sound.onended = () => {
+        previewSound.current = null;
+        setSpeaking(false);
+      };
+      sound.onerror = () => {
+        previewSound.current = null;
+        setSpeaking(false);
+        setError("The recording could not be played. Try uploading it again.");
+      };
+      previewSound.current = sound;
+      sound.play().then(
+        () => setSpeaking(true),
+        () => {
+          previewSound.current = null;
+          setError("The recording could not be played. Try uploading it again.");
+        },
+      );
+      return;
+    }
+    if (!draft.trim()) {
+      setError("Write some narration text or upload an MP3 to preview.");
+>>>>>>> Stashed changes
       return;
     }
     const utterance = new SpeechSynthesisUtterance(draft.trim());
@@ -324,7 +380,11 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
               <audio
                 key={recording.url}
                 controls
+<<<<<<< Updated upstream
                 preload="none"
+=======
+                preload="metadata"
+>>>>>>> Stashed changes
                 src={recording.url}
                 aria-label={`Recording for ${selectedPage.name}`}
                 className="mt-2 w-full"
@@ -371,7 +431,11 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
         <div className="mt-7 flex flex-wrap gap-3 border-t border-line pt-6">
           <Button type="button" variant="outline" onClick={preview}>
             {speaking ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+<<<<<<< Updated upstream
             {speaking ? "Stop preview" : "Preview text"}
+=======
+            {speaking ? "Stop preview" : audio[page] ? "Preview recording" : "Preview text"}
+>>>>>>> Stashed changes
           </Button>
           <Button type="button" onClick={() => void save()} disabled={saving}>
             {saving ? "Saving…" : "Save narration"}
@@ -380,8 +444,12 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
             type="button"
             variant="ghost"
             onClick={() => {
+<<<<<<< Updated upstream
               window.speechSynthesis?.cancel();
               setSpeaking(false);
+=======
+              stopPreview();
+>>>>>>> Stashed changes
               setDraft(narrations[page]);
               setDirty(false);
               setError("");
