@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.db.models import Booking, BookingItem, BookingStatus, Event, TicketCategory, TicketCategoryType, User
+from app.services import audit
 from app.services.events import parse_event_id
+from app.services.reports import analytics_report
 
 CURRENCY = "SGD"
 SGT = timezone(timedelta(hours=8))  # Singapore has no daylight saving
@@ -129,3 +131,24 @@ def tier_demand(db: Session, organiser: User, raw_event_id: str | None) -> dict:
                       "share_percent": share_percent(qty, total)})
     tiers.sort(key=lambda t: t["tickets_sold"], reverse=True)
     return {"currency": CURRENCY, "total_tickets_sold": total, "tiers": tiers}
+
+
+# --------------------------------------------------------------------------- export
+
+def export_report(db: Session, organiser: User, file_format: str, days: int, raw_event_id: str | None,
+                  ip: str | None) -> tuple[bytes, str]:
+    """Build the PDF/Excel report from the same queries the dashboard uses, and record the download."""
+    sales_data = sales(db, organiser, raw_event_id)
+    velocity = revenue_velocity(db, organiser, days, raw_event_id)
+    tiers = tier_demand(db, organiser, raw_event_id)
+    scope = sales_data["events"][0]["title"] if raw_event_id and sales_data["events"] else "All my events"
+    generated = datetime.now(timezone.utc)
+    build = analytics_report.build_pdf if file_format == "pdf" else analytics_report.build_xlsx
+    content = build(organiser=organiser.username, scope=scope, days=days, sales=sales_data, velocity=velocity,
+                    tiers=tiers, generated=generated)
+    audit.record(db, actor=organiser, action="ANALYTICS_EXPORTED", entity_type="AnalyticsExport",
+                 entity_id="organiser-analytics", before=None,
+                 after={"format": file_format, "days": days, "eventId": raw_event_id}, ip=ip)
+    db.commit()
+    stamp = generated.astimezone(SGT).strftime("%Y%m%d-%H%M")
+    return content, f"eventease-analytics-{stamp}.{file_format}"
