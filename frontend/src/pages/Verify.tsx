@@ -1,68 +1,26 @@
-import { useSearchParams, useParams, Link } from "react-router";
-import { CheckCircle2, XCircle, ShieldCheck, Ticket } from "lucide-react";
-import { useStore, fmtDate } from "../lib/store";
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router";
+import { useStore } from "../lib/store";
+import { verifyTicket, checkInTicket, type Verification } from "../lib/ticketingApi";
 import { Button, Badge, Card } from "../components/ui";
 
 export default function Verify() {
-  const { ref } = useParams();
-  const [params] = useSearchParams();
-  const seats = params.get("seats");
-  const { bookings, events } = useStore();
-
-  const booking = bookings.find((b) => b.ref === ref);
-  const ev = booking ? events.find((e) => e.id === booking.eventId) : undefined;
-  const valid = booking && booking.status === "confirmed";
-
-  return (
-    <div className="mx-auto flex max-w-md flex-col items-center px-5 py-20 text-center">
-      <Badge tone="neutral" className="border-0 bg-brand-orange text-white font-bold shadow-sm">
-        <ShieldCheck className="h-3 w-3" /> Gate check-in
-      </Badge>
-
-      <Card className="mt-6 w-full overflow-hidden border border-brand-purple/15 bg-white shadow-xl rounded-3xl">
-        <div className={valid ? "bg-emerald-50 p-8 border-b border-emerald-100" : "bg-rose-50 p-8 border-b border-rose-100"}>
-          {valid ? (
-            <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-600" />
-          ) : (
-            <XCircle className="mx-auto h-16 w-16 text-rose-600" />
-          )}
-          <h1 className="mt-4 font-brand text-3xl font-bold text-brand-deep">
-            {valid ? "Valid ticket" : booking ? "Ticket not valid" : "Ticket not found"}
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            {valid
-              ? "Admit this guest. QR authenticity confirmed."
-              : booking
-                ? `This ticket is marked "${booking.status}" and cannot be used for entry.`
-                : `No booking matches reference ${ref}.`}
-          </p>
-        </div>
-
-        {booking && (
-          <div className="space-y-2 p-6 text-left text-sm">
-            <Row label="Reference" value={booking.ref} />
-            {ev && <Row label="Event" value={ev.title} />}
-            {ev && <Row label="Date" value={fmtDate(ev.date)} />}
-            <Row label="Seats" value={seats || booking.seats.map((s) => s.seat).join(", ")} />
-            <Row label="Status" value={booking.status} />
-          </div>
-        )}
-      </Card>
-
-      <Link to="/" className="mt-6">
-        <Button variant="outline">
-          <Ticket className="h-4 w-4 text-brand-orange" /> Back to EventEase
-        </Button>
-      </Link>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between border-b border-brand-purple/10 py-2.5 last:border-0">
-      <span className="text-muted">{label}</span>
-      <span className="font-bold text-brand-deep capitalize">{value}</span>
-    </div>
-  );
+  const { ref = "" } = useParams();
+  const { user } = useStore();
+  const [result, setResult] = useState<Verification | null>(null);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController(); setResult(null); setError(""); setMessage("");
+    verifyTicket(ref, controller.signal).then(setResult).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Verification unavailable."); });
+    return () => controller.abort();
+  }, [ref]);
+  const checkin = async () => {
+    setBusy(true); setError("");
+    try { const check = await checkInTicket(ref); setMessage(check.message); setResult(await verifyTicket(ref)); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Check-in was not confirmed. Refresh before retrying."); }
+    finally { setBusy(false); }
+  };
+  return <div className="mx-auto max-w-lg px-5 py-14 text-center"><Badge tone="accent">Ticket verification</Badge><Card className="mt-6 space-y-4 p-7"><h1 className="font-brand text-3xl font-bold">{result ? result.valid ? "Valid ticket" : "Ticket unavailable for entry" : error ? "Ticket not verified" : "Checking ticket…"}</h1>{error && <p role="alert" className="text-danger">{error}</p>}{result && <><h2 className="text-xl font-bold">{result.eventTitle}</h2><p>Seat {result.seatLabel ?? "General Admission"}</p><p>{result.message}</p>{result.checkedInAt && <p>Admitted: {new Date(result.checkedInAt).toLocaleString("en-SG")}</p>}{result.valid && (user?.role === "admin" || user?.role === "organizer") && <Button disabled={busy} onClick={checkin}>{busy ? "Recording…" : "Admit guest & record check-in"}</Button>}{result.valid && user?.role !== "admin" && user?.role !== "organizer" && <p className="text-sm text-muted">Gate staff must sign in to record admission.</p>}</>}{message && <p role="status">{message}</p>}</Card><Link to="/dashboard/customer"><Button variant="outline" className="mt-6">Back to my tickets</Button></Link></div>;
 }

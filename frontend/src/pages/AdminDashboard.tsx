@@ -24,6 +24,7 @@ import { Button, Badge, Card, Eyebrow, cx } from "../components/ui";
 import { OperationsSeatMap } from "../components/OperationsSeatMap";
 import AssistanceQueue from "../components/AssistanceQueue";
 import EaseVoiceNarration from "./EaseVoiceNarration";
+import ResetDemoData from "../components/ResetDemoData";
 
 export default function AdminDashboard() {
   const { events, organizers, fraud, assistanceRequests } = useStore();
@@ -59,7 +60,7 @@ export default function AdminDashboard() {
             <StatCard label="Approved organizers" value={String(organizers.filter((o) => o.status === "approved").length)} />
           </div>
 
-          {active === "overview" && <Overview />}
+          {active === "overview" && <><Overview /><div className="mt-8"><ResetDemoData /></div></>}
           {active === "events" && <EventApprovals />}
           {active === "organizers" && <Organizers />}
           {active === "fraud" && <FraudMonitor />}
@@ -273,9 +274,18 @@ function Overview() {
 
 function EventApprovals() {
   const { events, setEventStatus } = useStore();
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState<string | null>(null);
+  const update = async (id: string, status: "published" | "rejected") => {
+    setPending(id); setError("");
+    try { await setEventStatus(id, status); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Event update failed."); }
+    finally { setPending(null); }
+  };
   const list = [...events].sort((a) => (a.status === "pending" ? -1 : 1));
   return (
     <Card className="overflow-hidden">
+      {error && <p role="alert" className="p-4 text-danger">{error}</p>}
       <table className="w-full text-sm">
         <thead className="border-b border-brand-purple/10 bg-brand-purple/5 text-left text-xs uppercase tracking-wide text-muted">
           <tr>
@@ -300,10 +310,10 @@ function EventApprovals() {
               <td className="p-4">
                 {e.status === "pending" ? (
                   <div className="flex justify-end gap-2">
-                    <Button size="sm" onClick={() => setEventStatus(e.id, "published")}>
+                    <Button size="sm" disabled={!!pending} onClick={() => void update(e.id, "published")}>
                       <Check className="h-4 w-4" /> Approve
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => setEventStatus(e.id, "rejected")}>
+                    <Button size="sm" variant="danger" disabled={!!pending} onClick={() => void update(e.id, "rejected")}>
                       <X className="h-4 w-4" /> Reject
                     </Button>
                   </div>

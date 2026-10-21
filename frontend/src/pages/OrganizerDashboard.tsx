@@ -207,7 +207,7 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
       {mine.map((e) => {
         const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
         const cap = e.tiers.reduce((a, t) => a + t.total, 0);
-        const pct = Math.round((sold / cap) * 100);
+        const pct = Math.round((sold / Math.max(cap, 1)) * 100);
         return (
           <Card key={e.id} className="p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -227,6 +227,7 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
                 <div className="text-xs text-muted">{sold}/{cap} sold</div>
               </div>
             </div>
+            {e.rejectionReason && <p role="status" className="mt-3 text-sm text-danger">Rejection reason: {e.rejectionReason}</p>}
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
               {e.tiers.map((t) => (
                 <div key={t.id} className="rounded-xl bg-mist/60 p-3">
@@ -255,7 +256,7 @@ function CreateEvent({
   onCreate,
   organizer,
 }: {
-  onCreate: (e: EventItem) => void;
+  onCreate: (e: EventItem) => Promise<void>;
   organizer: { id: string; name: string };
 }) {
   const [form, setForm] = useState({
@@ -273,17 +274,20 @@ function CreateEvent({
   const [done, setDone] = useState(false);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
-  const submit = () => {
-    if (!form.title || !form.date || !form.venue) return;
-    onCreate({
-      id: "ev-" + Date.now(),
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async () => {
+    if (!form.title || !form.date || !form.venue || saving) return;
+    setSaving(true); setError("");
+    try { await onCreate({
+      id: "",
       title: form.title,
       category: form.category,
       date: new Date(form.date).toISOString(),
       doors: "18:30",
       venue: form.venue,
       city: form.city,
-      image: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80",
+      image: `${window.location.origin}/event-placeholder.svg`,
       blurb: form.blurb || "A new event on EventEase.",
       organizerId: organizer.id,
       organizerName: organizer.name,
@@ -298,6 +302,8 @@ function CreateEvent({
       ],
     });
     setDone(true);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "The event was not saved. Please try again."); }
+    finally { setSaving(false); }
   };
 
   if (done) {
@@ -362,15 +368,12 @@ function CreateEvent({
             <Input type="number" value={form.conc} onChange={(e) => set("conc", e.target.value)} />
           </Field>
         </div>
-        <div className="mt-4 max-w-xs">
-          <Field label="Early-bird discount (% — optional)">
-            <Input type="number" value={form.earlyBird} onChange={(e) => set("earlyBird", e.target.value)} placeholder="e.g. 15" />
-          </Field>
-        </div>
       </div>
 
-      <Button className="mt-6" onClick={submit}>
-        Submit for approval
+      <p className="mt-4 text-sm text-muted">This layout creates 20 VIP, 40 Standard and 20 Concession seats. They become bookable after admin approval.</p>
+      {error && <p role="alert" className="mt-4 text-danger">{error}</p>}
+      <Button className="mt-6" disabled={saving} onClick={() => void submit()}>
+        {saving ? "Saving…" : "Submit for approval"}
       </Button>
     </Card>
   );

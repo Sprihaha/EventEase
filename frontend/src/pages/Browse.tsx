@@ -7,7 +7,7 @@ import { EventCard } from "../components/EventCard";
 import { Eyebrow, Input, Select, cx } from "../components/ui";
 
 export default function Browse() {
-  const { events } = useStore();
+  const { publicEvents: events, eventsSource, eventsError } = useStore();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<Category | "All">((params.get("cat") as Category) ?? "All");
@@ -18,9 +18,9 @@ export default function Browse() {
     let list = events.filter((e) => e.status === "published");
     if (cat !== "All") list = list.filter((e) => e.category === cat);
     if (q) list = list.filter((e) => (e.title + e.venue + e.city).toLowerCase().includes(q.toLowerCase()));
-    list = list.filter((e) => Math.min(...e.tiers.map((t) => t.price)) <= maxPrice);
+    list = list.filter(e => e.priceFrom === undefined && !e.tiers.length || (e.priceFrom ?? Math.min(...e.tiers.map(t => t.price))) <= maxPrice);
     list = [...list].sort((a, b) => {
-      if (sort === "price") return Math.min(...a.tiers.map((t) => t.price)) - Math.min(...b.tiers.map((t) => t.price));
+      if (sort === "price") return (a.priceFrom ?? Math.min(...a.tiers.map((t) => t.price))) - (b.priceFrom ?? Math.min(...b.tiers.map((t) => t.price)));
       return +new Date(a.date) - +new Date(b.date);
     });
     return list;
@@ -43,6 +43,8 @@ export default function Browse() {
         every listing.
       </p>
 
+      {eventsSource === "loading" && <p role="status" className="mt-4">Loading events…</p>}
+      {eventsError && <p role="alert" className="mt-4 text-danger">{eventsError}</p>}
       <div className="mt-8 grid gap-8 lg:grid-cols-[280px_1fr]">
         {/* Filters */}
         <aside className="h-max rounded-3xl border border-brand-purple/15 bg-white p-6 shadow-sm lg:sticky lg:top-24">
