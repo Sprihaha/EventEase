@@ -1,12 +1,14 @@
 import secrets
+import os
 import warnings
 from functools import lru_cache
 from typing import Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import model_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy.engine import URL
+from sqlalchemy.engine import URL, make_url
 
 
 class Settings(BaseSettings):
@@ -15,6 +17,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     APP_ENV: Literal["development", "test", "production"] = "development"
+    LOCAL_SANDBOX: bool = False
+    LOCAL_ONLY: bool = False
     LOG_LEVEL: str = "INFO"
 
     # Database: either DATABASE_URL or the individual DB_* settings.
@@ -67,6 +71,9 @@ class Settings(BaseSettings):
     ADMIN_USERNAME: str = "eventeaseadmin"
     ADMIN_PASSWORD: str | None = None
     AUTO_SEED_ADMIN: bool = True
+    # Deliberately disabled until a prototype operator explicitly enables it.
+    DEMO_RESET_ENABLED: bool = False
+    ALLOW_PRODUCTION_DEMO_RESET: bool = False
 
     # Events / ingestion
     TICKETMASTER_API_KEY: str | None = None
@@ -84,6 +91,10 @@ class Settings(BaseSettings):
     CANCELLATION_CUTOFF_HOURS: int = 48
     BACKGROUND_JOBS_ENABLED: bool = True
     HOLD_SWEEP_INTERVAL_SECONDS: int = 30
+
+    # EaseXchange policy, independent of Package B's booking hold duration.
+    EXCHANGE_REQUEST_TTL_HOURS: int = Field(default=168, ge=1, le=8760)
+    EXCHANGE_MATCH_TTL_MINUTES: int = Field(default=30, ge=1, le=1440)
 
     # Payments
     PAYMENT_PROVIDER: Literal["mock", "stripe"] = "mock"
@@ -120,6 +131,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":
+        if self.LOCAL_SANDBOX or self.LOCAL_ONLY:
+            url = make_url(self.database_url)
+            host = url.query.get("host", url.host or "")
+            if not (host in ("localhost", "127.0.0.1", "::1") or str(host).startswith("/")):
+                raise ValueError("local mode refuses a nonlocal database")
+            if self.APP_ENV == "production" or self.PAYMENT_PROVIDER != "mock":
+                raise ValueError("local mode requires development/test and simulated payments")
         if self.DB_SCHEMA != "public" and not self.DB_SCHEMA.replace("_", "").isalnum():
             raise ValueError("DB_SCHEMA must be alphanumeric/underscore")
         if self.is_production and not self.JWT_SECRET:
@@ -133,6 +151,15 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.APP_ENV == "production"
+
+    @property
+    def database_is_local(self) -> bool:
+        """Classify configuration only; never resolve DNS or open a connection."""
+        url = make_url(self.database_url)
+        host = str(url.query.get("host", url.host or ""))
+        # The project's Compose service is named db. Unknown/network hosts are
+        # conservatively treated as real databases, even in development mode.
+        return (host in ("localhost", "127.0.0.1", "::1", "db") or host.startswith("/")) and not url.query.get("hostaddr")
 
     @property
     def tz(self) -> ZoneInfo:
@@ -197,7 +224,8 @@ def jwt_secret(settings: "Settings") -> str:
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    local = any(os.environ.get(key) == "true" for key in ("LOCAL_SANDBOX", "LOCAL_ONLY"))
+    return Settings(_env_file=None) if local else Settings()
 
 
 def parse_rate(spec: str) -> tuple[int, int]:

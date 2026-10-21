@@ -173,6 +173,7 @@ def test_seeded_admin_blocked_from_real_admin_routes_until_password_change(clien
 
 PUBLIC_ROUTES = {
     ("GET", "/health"), ("GET", "/"),
+    ("GET", "/tickets/{ref}"), ("GET", "/tickets/{ref}/qr"),
     ("POST", "/api/v1/auth/login"), ("POST", "/api/v1/auth/signup"), ("GET", "/api/v1/auth/username-available"),
     ("POST", "/api/v1/auth/forgot-password"), ("POST", "/api/v1/auth/reset-password"),
     ("POST", "/api/v1/auth/refresh"), ("POST", "/api/v1/auth/logout"),

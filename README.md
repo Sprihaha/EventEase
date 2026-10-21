@@ -32,8 +32,13 @@ pip install -r requirements-dev.txt
 
 cp .env.example .env              # PowerShell: Copy-Item .env.example .env
 # edit .env: database settings and JWT_SECRET (any 32+ random characters)
+```
 
-alembic upgrade head              # create / upgrade the schema
+Before starting the application, complete the separately authorized migration
+release step described below. The required schema head is **0007**. Application
+startup does not run Alembic or create the required schema.
+
+```bash
 python -m app.cli seed-admin      # prints the generated admin password ONCE
 python -m app.cli seed-sample     # optional: labelled sample events (dev only)
 uvicorn app.main:app --reload     # http://localhost:8000/api/docs
@@ -43,11 +48,19 @@ uvicorn app.main:app --reload     # http://localhost:8000/api/docs
 
 ```bash
 cp .env.example .env              # set POSTGRES_PASSWORD (any local value) and JWT_SECRET
-docker compose up --build
+docker compose up -d db
+```
+
+Stop here until the selected database has reached revision **0007** through a
+separately authorized migration release step. Starting the database service does
+not apply migrations. Only after the required schema exists, start the API:
+
+```bash
+docker compose up --build api
 docker compose exec api python -m app.cli seed-admin
 ```
 
-The API container runs `alembic upgrade head` before it starts.
+Container/application startup does **not** automatically run Alembic migrations.
 
 ### npm-style aliases
 
@@ -71,7 +84,7 @@ All configuration comes from environment variables or `.env`. See
 | `APP_ENV` | `development` | `development`, `test` or `production` |
 | `DATABASE_URL` *or* `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME` | – | PostgreSQL connection |
 | `DB_SSLMODE` | `require` | `disable` for local Docker |
-| `DB_SCHEMA` | `public` (EventEase sets `eventease`) | Schema holding the EventEase tables |
+| `DB_SCHEMA` | `public` | Schema holding the EventEase tables |
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | `5` / `5` | Keep the total below your pooler's client limit (Supabase session pooler: 15) |
 | `JWT_SECRET` | – | **Required in production**, at least 32 characters |
 | `ACCESS_TOKEN_TTL_MINUTES` / `REFRESH_TOKEN_TTL_DAYS` | `15` / `7` | Token lifetimes |
@@ -92,6 +105,21 @@ All configuration comes from environment variables or `.env`. See
 
 ## Database, migrations and seeding
 
+The configured application schema is **`DB_SCHEMA=public`**. The current required
+code head is **0007**. Revisions **0006** and **0007** have already been applied
+successfully to the real Supabase database, which is at **0007 (head)**.
+
+Migrations are a deliberate, separately authorized release step, never an
+application-startup action. For a future release or a different database, verify
+the intended target and revision, preserve a verified backup, and obtain approval
+before applying pending migrations. Production/deployment must start the updated
+application only after its required schema revision has been applied. A code push
+or container restart does not perform that step.
+
+The following are manual maintenance commands, not startup hooks. Run only the
+command authorized for the selected database; routine startup requires none of
+these migration or seeding commands.
+
 ```bash
 alembic upgrade head                                   # apply migrations
 alembic revision --autogenerate -m "describe change"   # after editing app/db/models
@@ -110,11 +138,10 @@ to `legacy_*`. No data is dropped. It only renames tables in `DB_SCHEMA`.
 On Supabase, those tables are owned by `postgres`, not by the application role.
 In that case the migration stops with instructions instead of guessing.
 
-**EventEase uses `DB_SCHEMA=eventease`** (set in `render.yaml` and
-`.env.example`), so the new tables live in their own schema and the legacy
-tables stay untouched in `public`. The alternative, if you ever want the tables
-in `public`, is to run [scripts/rename_legacy_tables.sql](scripts/rename_legacy_tables.sql)
-in the Supabase SQL editor first.
+**EventEase uses `DB_SCHEMA=public`**, as configured in `render.yaml` and
+`.env.example`. The legacy rename behavior belongs to initial migration `0001`;
+it is not part of routine startup or the already completed 0006/0007 upgrade.
+Do not rerun legacy-table preparation against the migrated deployment.
 
 ### Default administrator
 
@@ -294,8 +321,12 @@ The Render blueprint is in [render.yaml](render.yaml).
 
 1. Set the database variables, `ADMIN_PASSWORD` (or seed later from the shell),
    `CORS_ORIGINS` and `FRONTEND_URL`. `JWT_SECRET` is generated automatically.
-2. Keep `DB_SCHEMA=eventease`; the first deploy creates that schema and its
-   tables (see [Legacy tables](#legacy-tables)).
-3. The container runs `alembic upgrade head` and serves with
-   `--proxy-headers`, so client IPs come from `X-Forwarded-For`.
-4. `/health` reports `{"status": "healthy", "database": "connected"}`.
+2. Set **`DB_SCHEMA=public`**. The current required schema head is **0007**.
+3. Before starting the updated application, verify that the target database has
+   the required revision. Apply any pending migrations only as a separate,
+   explicitly authorized release step after backup and readiness checks. The
+   real Supabase deployment has already reached **0007 (head)**.
+4. Start the application only after that schema prerequisite is satisfied. The
+   container starts Uvicorn with `--proxy-headers`, so client IPs come from
+   `X-Forwarded-For`. It does **not** automatically run Alembic migrations.
+5. `/health` reports `{"status": "healthy", "database": "connected"}`.

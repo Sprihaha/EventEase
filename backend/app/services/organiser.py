@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError
 from app.core.security import utcnow
-from app.db.models import BookingItem, Event, EventOrigin, EventStatus, TicketCategory, User
+from app.db.models import BookingItem, Event, EventOrigin, EventStatus, EventSeat, TicketCategory, User
 from app.schemas.organiser import EventCreate, EventUpdate, TicketCategoryCreate, TicketCategoryUpdate
 from app.services import audit, fraud
 from app.services.events import parse_event_id
@@ -35,6 +35,8 @@ def _own_event(db: Session, organiser: User, raw_id: str, *, lock: bool = False)
 def create_event(db: Session, organiser: User, data: EventCreate, ip: str | None) -> Event:
     start, end = to_utc(data.start_at), to_utc(data.end_at)
     _validate_dates(start, end)
+    if sum(c.quantity for c in data.initial_categories) > data.capacity:
+        raise AppError(422, "CAPACITY_EXCEEDED", "initial ticket quantities exceed event capacity")
     event = Event(
         origin=EventOrigin.ORGANISER, organiser_id=organiser.id, title=data.title.strip(), category=data.category,
         short_description=data.short_description or (data.description or "")[:300] or None,
@@ -43,6 +45,17 @@ def create_event(db: Session, organiser: User, data: EventCreate, ip: str | None
     )
     db.add(event)
     db.flush()
+    row_offset = 0
+    for initial in data.initial_categories:
+        category = TicketCategory(event_id=event.id, type=initial.type, name=initial.name,
+            seat_section=initial.seat_section or initial.name, price_cents=initial.price_cents, quantity_total=initial.quantity)
+        db.add(category); db.flush()
+        for index in range(initial.quantity):
+            row_index = row_offset + index // 10
+            row = chr(65 + row_index) if row_index < 26 else f"R{row_index+1}"
+            number = index % 10 + 1
+            db.add(EventSeat(event_id=event.id, ticket_category_id=category.id, label=f"{row}-{number}",row_label=row,number=number))
+        row_offset += (initial.quantity + 9) // 10
     audit.record(db, actor=organiser, action="EVENT_SUBMITTED", entity_type="Event", entity_id=event.id,
                  before=None, after=audit.snapshot(event, EVENT_AUDIT_FIELDS), ip=ip)
     db.commit()

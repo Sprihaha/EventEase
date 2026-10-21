@@ -13,6 +13,14 @@ def _http_url(value: str | None) -> str | None:
     return value
 
 
+class InitialTicketCategory(CamelModel):
+    type: TicketCategoryType
+    name: str = Field(..., min_length=1, max_length=100)
+    price_cents: int = Field(..., ge=0, le=10_000_000)
+    quantity: int = Field(..., ge=1, le=5000)
+    seat_section: str | None = Field(None, max_length=100)
+
+
 class EventCreate(CamelModel):
     title: str = Field(..., min_length=3, max_length=200)
     category: EventCategory
@@ -24,6 +32,7 @@ class EventCreate(CamelModel):
     end_at: datetime
     image_url: str | None = Field(None, max_length=2000)
     capacity: int = Field(..., ge=1, le=200_000)
+    initial_categories: list[InitialTicketCategory] = Field(default_factory=list, max_length=10)
 
     _url = field_validator("image_url")(_http_url)
 

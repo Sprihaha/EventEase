@@ -53,12 +53,21 @@ def _purge_once() -> None:
         logger.info("Retention purge: %s", purge_old_data(db))
 
 
+def _refresh_exchanges_once() -> None:
+    from app.services.exchanges import refresh
+    from app.services.exchange_ticketing import get_exchange_ticketing
+
+    with SessionLocal() as db:
+        refresh(db, get_exchange_ticketing())
+
+
 async def _background_jobs(interval: int) -> None:
     ticks_per_day = max(1, 86400 // interval)
     tick = 0
     while True:
         try:
             await run_in_threadpool(_expire_holds_once)
+            await run_in_threadpool(_refresh_exchanges_once)
             if tick % ticks_per_day == 0:
                 await run_in_threadpool(_purge_once)
         except Exception:
@@ -135,87 +144,17 @@ def create_app() -> FastAPI:
                 content={"status": "unhealthy", "database": "disconnected"},
             )
 
-    # ---------------------------------------------------------------------------
-    # Figma Make Compatibility Routes (/state/* and /tickets/{ref})
-    # ---------------------------------------------------------------------------
-
-    @app.post("/state/bootstrap", tags=["Figma Compatibility"], include_in_schema=False)
-    def bootstrap_state(seed: dict[str, Any], db: Session = Depends(get_db)):
-        import json
-        for collection, data in seed.items():
-            db.execute(
-                text("""
-                    INSERT INTO public.eventease_state (key, value)
-                    VALUES (:key, :val)
-                    ON CONFLICT (key) DO NOTHING
-                """),
-                {"key": collection, "val": json.dumps(data)},
-            )
-        db.commit()
-        rows = db.execute(text("SELECT key, value FROM public.eventease_state")).fetchall()
-        return {r[0]: r[1] for r in rows}
-
-    @app.put("/state/{collection}", tags=["Figma Compatibility"], include_in_schema=False)
-    def save_state_collection(collection: str, value: Any = Body(...), db: Session = Depends(get_db)):
-        import json
-        db.execute(
-            text("""
-                INSERT INTO public.eventease_state (key, value)
-                VALUES (:key, :val)
-                ON CONFLICT (key) DO UPDATE SET value = :val, updated_at = NOW()
-            """),
-            {"key": collection, "val": json.dumps(value)},
-        )
-        db.commit()
-        return {"ok": True}
-
-    @app.get("/tickets/{ref}", tags=["Figma Compatibility"], include_in_schema=False)
+    # Legacy QR links resolve only authoritative tickets. The old unauthenticated
+    # /state mock-store write routes are deliberately no longer exposed.
+    @app.get("/tickets/{ref}", tags=["Tickets"], include_in_schema=False)
     def verify_ticket_legacy(ref: str, db: Session = Depends(get_db)):
-        from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
-        from app.db.models import Event, Ticket, TicketStatus
+        from app.api.v1.tickets import verify_ticket
+        return verify_ticket(ref, db)
 
-        # Check eventease_state bookings
-        row = db.execute(
-            text("SELECT value FROM public.eventease_state WHERE key = 'bookings'")
-        ).scalar()
-        bookings = row if isinstance(row, list) else []
-        booking = next((b for b in bookings if b.get("ref") == ref), None)
-        if not booking:
-            # Check tickets table
-            ticket = db.scalar(
-                select(Ticket)
-                .where(Ticket.code == ref)
-                .options(selectinload(Ticket.booking))
-            )
-            if ticket:
-                event = db.get(Event, ticket.booking.event_id)
-                return {
-                    "booking": {
-                        "id": str(ticket.booking.id),
-                        "ref": ticket.code,
-                        "status": "confirmed" if ticket.status == TicketStatus.VALID else "cancelled",
-                    },
-                    "event": {"title": event.title if event else "Event"},
-                }
-            return None
-
-        ev_row = db.execute(
-            text("SELECT value FROM public.eventease_state WHERE key = 'events'")
-        ).scalar()
-        events = ev_row if isinstance(ev_row, list) else []
-        event = next((e for e in events if e.get("id") == booking.get("eventId")), None)
-        return {"booking": booking, "event": event}
-
-    @app.get("/tickets/{ref}/qr", tags=["Figma Compatibility"], include_in_schema=False)
-    def ticket_qr_legacy(ref: str, fmt: str = "svg"):
-        from fastapi import Response
-        from app.api.v1.tickets import generate_qr_svg, generate_qr_png_bytes
-
-        payload = f"https://eventease.io/verify/{ref}"
-        if fmt == "png":
-            return Response(content=generate_qr_png_bytes(payload), media_type="image/png")
-        return Response(content=generate_qr_svg(payload), media_type="image/svg+xml")
+    @app.get("/tickets/{ref}/qr", tags=["Tickets"], include_in_schema=False)
+    def ticket_qr_legacy(ref: str, db: Session = Depends(get_db)):
+        from app.api.v1.tickets import get_ticket_qr
+        return get_ticket_qr(ref, "svg", db)
 
     return app
 

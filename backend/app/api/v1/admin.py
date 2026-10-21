@@ -29,6 +29,8 @@ from app.schemas.admin import (
 )
 from app.schemas.common import Page
 from app.schemas.events import ImportResult
+from app.schemas.demo_reset import DemoResetRequest, DemoResetResult, DemoResetTarget
+from app.services.demo_reset import reset_demo_data, reset_target
 from app.services import admin as admin_service
 from app.services import audit
 from app.services.ingestion.base import get_or_create_source, sync_source, upsert_external_events
@@ -37,6 +39,18 @@ from app.services.ingestion.ticketmaster import configured_adapter
 from app.services.timeparse import parse_bound
 
 router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(require_admin)])
+
+
+@router.get("/reset-demo-data/target", response_model=DemoResetTarget)
+def reset_database_target(admin: User = Depends(require_admin)):
+    return reset_target(get_settings())
+
+
+@router.post("/reset-demo-data", response_model=DemoResetResult)
+def reset_application_data(body: DemoResetRequest, admin: User = Depends(require_admin),
+                           db: Session = Depends(get_db)):
+    deleted = reset_demo_data(db, get_settings(), admin, body)
+    return DemoResetResult(deleted=deleted, message="Application data cleared. User accounts were preserved.")
 
 
 async def _read_import(request: Request) -> tuple[bytes, str]:
