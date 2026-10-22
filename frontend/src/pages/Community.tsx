@@ -1492,81 +1492,225 @@ export default function Community() {
         )}
       </div>
       ) : (
-        /* DEDICATED EASEEXCHANGE VIEW (Simplified & Clean) */
-        <div id="exchange-view" className="max-w-3xl mx-auto py-4">
-          <div className="rounded-3xl border border-brand-line bg-white p-6 sm:p-10 shadow-sm text-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-brand-lilac px-4 py-1.5 text-xs font-black uppercase tracking-wider text-brand-purple border border-brand-purple/20 mb-4">
-              <ShieldCheck className="h-4 w-4 text-brand-purple" /> Official Ticket Exchange
+        /* DEDICATED EASEEXCHANGE VIEW (Integrated from user design) */
+        <div id="exchange-view" className="max-w-5xl mx-auto py-4 space-y-8">
+          {/* Hero Section */}
+          <div className="rounded-3xl border border-brand-line bg-white p-6 sm:p-10 lg:p-12 shadow-sm">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.12fr_1fr] gap-8 lg:gap-12 items-center">
+              {/* Left Column: Hero Copy */}
+              <div className="max-w-xl">
+                <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[1.7px] text-brand-purple">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/15" />
+                  FAN-TO-FAN TICKET EXCHANGE
+                </div>
+
+                <h1 className="mt-4 font-brand text-4xl sm:text-5xl lg:text-[54px] font-extrabold leading-[1.06] tracking-tight text-brand-deep">
+                  Plans change.<br />
+                  The show{" "}
+                  <span className="relative inline-block text-brand-purple font-black">
+                    goes on.
+                    <span
+                      className="absolute -bottom-1.5 left-0 w-full h-[6px] border-t-[3px] border-[#ff9c66] rounded-[50%] -rotate-[2deg] pointer-events-none"
+                      aria-hidden="true"
+                    />
+                  </span>
+                </h1>
+
+                <p className="mt-5 text-sm sm:text-base leading-relaxed text-muted max-w-md">
+                  Your next great night shouldn’t come with a markup. Swap tickets or pass them on to another fan, all at original face value.
+                </p>
+
+                {/* Sign In Action Button (replaces Find/List ticket buttons) */}
+                <div className="mt-7 flex flex-wrap items-center gap-3">
+                  {!user ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/login")}
+                      className="cursor-pointer inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-purple/25 transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
+                    >
+                      <LogIn className="h-4 w-4" /> Sign In to EventEase <span className="text-lg leading-none font-normal">↗</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/dashboard/customer")}
+                      className="cursor-pointer inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-purple/25 transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
+                    >
+                      <CheckCircle2 className="h-4 w-4" /> Signed in as {user.name} · View My Tickets <span className="text-lg leading-none font-normal">↗</span>
+                    </button>
+                  )}
+                </div>
+
+                <p className="mt-4 flex items-center gap-2 text-xs text-muted">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>Use your EventEase account to get started.</span>
+                </p>
+              </div>
+
+              {/* Right Column: Ticket Illustration Art Box */}
+              <div className="relative h-[374px] w-full max-w-[380px] sm:max-w-[420px] mx-auto rounded-[25px] border border-[#e4daef] bg-[#ede7f6] flex items-center justify-center overflow-hidden shadow-sm">
+                {/* Concentric Decorative Rings */}
+                <div className="absolute h-[290px] w-[290px] rounded-full border border-[#d6c8e8] pointer-events-none" />
+                <div className="absolute h-[420px] w-[420px] rounded-full border border-[#dfd4ed] pointer-events-none" />
+
+                {/* Sparkle Stars */}
+                <span className="absolute top-8 right-10 text-2xl font-bold text-brand-purple select-none pointer-events-none">
+                  ✦
+                </span>
+                <span className="absolute bottom-10 left-8 text-xl font-bold text-brand-orange select-none pointer-events-none">
+                  ✧
+                </span>
+
+                {/* Floating Badge: Face Value (Top Right) */}
+                <div className="absolute top-6 right-4 z-20 flex items-center gap-1.5 rounded-xl border border-[#ffddbc] bg-[#fff5e9] px-3 py-2 text-[11px] font-bold text-[#925125] shadow-sm rotate-[5deg]">
+                  Face value. Always.
+                </div>
+
+                {/* Back Ticket (Warm Peach, tilted -13deg) */}
+                <div
+                  className="absolute z-0 h-[258px] w-[268px] rounded-[17px] bg-[#ffb887] shadow-xl border border-white/60 overflow-hidden flex flex-col justify-start"
+                  style={{ transform: "rotate(-13deg) translate(-37px, -14px)" }}
+                >
+                  <div className="p-6 font-black text-[27px] leading-tight text-[#713a29] tracking-tight">
+                    LIVE FOR<br />THE MOMENT.
+                  </div>
+                </div>
+
+                {/* Front Ticket (Purple header + White bottom, tilted +8deg) */}
+                <div
+                  className="absolute z-10 w-[268px] rounded-[17px] bg-white shadow-2xl border border-white overflow-hidden"
+                  style={{ transform: "rotate(8deg) translate(18px, 8px)" }}
+                >
+                  {/* Ticket Top */}
+                  <div className="bg-[#6f39d6] p-5 pb-4 text-white">
+                    <div className="text-[9px] font-extrabold uppercase tracking-[2px] opacity-75">
+                      THE GOOD NIGHTS TOUR
+                    </div>
+                    <h2 className="mt-3 font-brand text-[25px] font-black leading-tight tracking-tight">
+                      One ticket.<br />Endless memories.
+                    </h2>
+                    <p className="mt-1 text-[10px] font-bold opacity-80 tracking-wider">
+                      LIVE MUSIC · GOOD COMPANY
+                    </p>
+                  </div>
+
+                  {/* Ticket Bottom with Cutout Notches */}
+                  <div className="relative bg-white px-6 py-4">
+                    {/* Left and Right cutout notch circles */}
+                    <div className="absolute -left-[10px] -top-[10px] h-5 w-5 rounded-full bg-[#ede7f6]" />
+                    <div className="absolute -right-[10px] -top-[10px] h-5 w-5 rounded-full bg-[#ede7f6]" />
+
+                    <div className="flex justify-between border-b border-dashed border-[#ddd3e5] pb-3 mb-3">
+                      <div>
+                        <span className="block text-[8px] font-bold uppercase tracking-wider text-muted">
+                          SECTION
+                        </span>
+                        <strong className="text-xs font-black text-brand-deep">Floor A</strong>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-[8px] font-bold uppercase tracking-wider text-muted">
+                          ADMISSION
+                        </span>
+                        <strong className="text-xs font-black text-brand-deep">One happy fan</strong>
+                      </div>
+                    </div>
+
+                    {/* Barcode graphic */}
+                    <div
+                      className="h-7 w-full opacity-85"
+                      style={{
+                        background:
+                          "repeating-linear-gradient(90deg, #312340 0px, #312340 2px, transparent 2px, transparent 5px, #312340 5px, #312340 6px, transparent 6px, transparent 9px)",
+                      }}
+                    />
+                    <div className="mt-1.5 text-center text-[8px] font-black tracking-[1.4px] text-muted">
+                      LESS SCROLLING. MORE SINGING.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating Badge: Verified (Bottom Left) */}
+                <div
+                  className="absolute bottom-7 left-4 z-20 flex items-center gap-2 rounded-xl border border-[#eee9f4] bg-white px-3.5 py-2.5 text-[11px] font-bold text-brand-deep shadow-lg"
+                  style={{ transform: "rotate(-4deg)" }}
+                >
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#eaf5ed] text-[#287958] font-black">
+                    ✓
+                  </div>
+                  <span>New fan. Fresh barcode.</span>
+                </div>
+              </div>
             </div>
 
-            <h2 className="font-brand text-2xl sm:text-3xl font-extrabold tracking-tight text-brand-deep">
-              What is <span className="font-feature italic text-brand-orange">EaseXchange</span>?
-            </h2>
-
-            <p className="mt-3 max-w-xl mx-auto text-sm sm:text-base leading-relaxed text-muted">
-              <strong className="text-brand-deep">EaseXchange</strong> is EventEase’s fan-to-fan platform for swapping tickets at original face value with zero markups, zero scams, and automatic barcode re-issue at the gate.
-            </p>
-
-            {/* 3 Simple Pillars */}
-            <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
-              <div className="rounded-2xl border border-brand-line bg-brand-warm/60 p-4">
-                <div className="text-xs font-extrabold text-brand-deep flex items-center gap-1.5">
-                  <span className="text-brand-orange">✦</span> Face-Value Cap
-                </div>
-                <p className="mt-1 text-[11px] text-muted">Strict price caps protect fans against scalpers and markups.</p>
+            {/* Trust Benefits Bar */}
+            <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-brand-line border-y border-brand-line py-5 text-center">
+              <div className="flex items-center justify-center gap-2.5 py-2 sm:py-0 text-xs font-bold text-brand-deep">
+                <Tag className="h-4 w-4 text-brand-purple" />
+                <span>No price markups</span>
               </div>
-
-              <div className="rounded-2xl border border-brand-line bg-brand-warm/60 p-4">
-                <div className="text-xs font-extrabold text-brand-deep flex items-center gap-1.5">
-                  <span className="text-brand-purple">✦</span> Verified QR Codes
-                </div>
-                <p className="mt-1 text-[11px] text-muted">Previous barcodes are voided instantly and re-minted for the buyer.</p>
+              <div className="flex items-center justify-center gap-2.5 py-2 sm:py-0 text-xs font-bold text-brand-deep">
+                <ShieldCheck className="h-4 w-4 text-brand-purple" />
+                <span>Reissued ticket codes</span>
               </div>
-
-              <div className="rounded-2xl border border-brand-line bg-brand-warm/60 p-4">
-                <div className="text-xs font-extrabold text-brand-deep flex items-center gap-1.5">
-                  <span className="text-brand-magenta">✦</span> Fair Swaps
-                </div>
-                <p className="mt-1 text-[11px] text-muted">Easily exchange dates, seating tiers, or sections with real fans.</p>
+              <div className="flex items-center justify-center gap-2.5 py-2 sm:py-0 text-xs font-bold text-brand-deep">
+                <Users className="h-4 w-4 text-brand-purple" />
+                <span>Fans, not scalpers</span>
               </div>
             </div>
 
-            {/* Sign In Redirect Card */}
-            <div className="mt-8 pt-6 border-t border-brand-line flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-left">
-                {!user ? (
-                  <>
-                    <h3 className="text-sm font-bold text-brand-deep">Ready to swap or list your tickets?</h3>
-                    <p className="text-xs text-muted">Sign in with your EventEase account to get started.</p>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="text-sm font-bold text-brand-deep flex items-center gap-1.5 text-emerald-700">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Signed in as {user.name}
-                    </h3>
-                    <p className="text-xs text-muted">Your account is ready for ticket exchanges.</p>
-                  </>
-                )}
+            {/* 3 Simple How It Works Steps */}
+            <div className="mt-10 space-y-4">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h3 className="font-brand text-xl sm:text-2xl font-bold tracking-tight text-brand-deep">
+                    Different plans. Simple swaps.
+                  </h3>
+                  <p className="text-xs text-muted">A little less hassle. A lot more live moments.</p>
+                </div>
+                <span className="hidden sm:inline-block rounded-full border border-brand-line px-3 py-1 text-[11px] font-black uppercase tracking-wider text-muted">
+                  HOW IT WORKS
+                </span>
               </div>
 
-              <div>
-                {!user ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate("/login")}
-                    className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-orange/25 transition-transform hover:-translate-y-0.5 active:translate-y-0"
-                  >
-                    <LogIn className="h-4 w-4" /> Sign In ↗
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => navigate("/dashboard/customer")}
-                    className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-brand-deep px-5 py-3 text-xs font-extrabold text-white shadow-md hover:bg-brand-purple transition"
-                  >
-                    View My Tickets ↗
-                  </button>
-                )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-brand-line bg-brand-warm/30 p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-lilac text-brand-purple font-bold">
+                      <Tag className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-muted">01</span>
+                  </div>
+                  <h4 className="font-brand text-sm font-bold text-brand-deep">Find your fit</h4>
+                  <p className="mt-1 text-xs text-muted leading-relaxed">
+                    Looking for another date, seat, or section? Find a ticket that works for your new plans.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-brand-line bg-brand-warm/30 p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-brand-orange font-bold">
+                      <Repeat className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-muted">02</span>
+                  </div>
+                  <h4 className="font-brand text-sm font-bold text-brand-deep">Keep it fair</h4>
+                  <p className="mt-1 text-xs text-muted leading-relaxed">
+                    Connect with another fan and exchange at original face value. No inflated ticket prices.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-brand-line bg-brand-warm/30 p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 font-bold">
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-muted">03</span>
+                  </div>
+                  <h4 className="font-brand text-sm font-bold text-brand-deep">Make it yours</h4>
+                  <p className="mt-1 text-xs text-muted leading-relaxed">
+                    Previous ticket codes are voided and new ones issued to the buyer. Your next night out, sorted.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
