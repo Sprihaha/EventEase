@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   Users,
   Repeat,
@@ -10,8 +10,9 @@ import {
   Accessibility,
   Send,
 } from "lucide-react";
-import { useStore, currency } from "../lib/store";
-import { Button, Badge, Card, Eyebrow, Textarea, cx } from "../components/ui";
+import { useStore } from "../lib/store";
+import SecureExchange from "../components/SecureExchange";
+import { Button, Badge, Card, Textarea, cx } from "../components/ui";
 
 const tabs = [
   { id: "feed", label: "Discussion", icon: Users },
@@ -21,10 +22,20 @@ const tabs = [
 ] as const;
 
 export default function Community() {
-  const { posts, exchange, events, user, addPost } = useStore();
+  const { posts, events, user, addPost } = useStore();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("feed");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const tab = tabs.find((item) => item.id === requestedTab)?.id ?? "feed";
   const [draft, setDraft] = useState("");
+  const setTab = (id: (typeof tabs)[number]["id"]) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set("tab", id);
+      next.delete("view");
+      return next;
+    });
+  };
 
   const eventName = (id: string) => events.find((e) => e.id === id)?.title ?? "Event";
 
@@ -111,39 +122,7 @@ export default function Community() {
           </div>
         )}
 
-        {tab === "exchange" && (
-          <div>
-            <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4.5 text-sm font-medium text-emerald-900 shadow-sm">
-              <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
-              Every listing is a verified one-to-one transfer at or below face value. No shady
-              resellers, no scams — the platform re-issues the QR to the new owner.
-            </div>
-            <div className="grid gap-5 sm:grid-cols-2">
-              {exchange.map((x) => (
-                <Card key={x.id} className="border border-brand-purple/15 bg-white p-6 shadow-sm rounded-3xl">
-                  <div className="flex items-center justify-between">
-                    <Badge tone="live">
-                      <ShieldCheck className="h-3 w-3" /> Verified transfer
-                    </Badge>
-                    <span className="text-sm font-semibold text-muted">{x.tier}</span>
-                  </div>
-                  <h3 className="mt-3 font-brand text-xl font-bold text-brand-deep">
-                    {eventName(x.eventId)}
-                  </h3>
-                  <div className="mt-1 text-sm text-muted">
-                    Seat {x.seat} · Listed by {x.sellerName}
-                  </div>
-                  <div className="mt-5 flex items-center justify-between border-t border-brand-purple/10 pt-4">
-                    <span className="font-brand text-2xl font-bold text-brand-deep">
-                      {currency(x.askPrice)}
-                    </span>
-                    <Button size="sm">Request transfer</Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
+        {tab === "exchange" && <SecureExchange key={user?.id ?? "public"} />}
 
         {tab === "views" && (
           <div>

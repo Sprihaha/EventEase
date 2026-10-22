@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { Pause, Play, Volume2 } from "lucide-react";
 import {
@@ -13,9 +13,11 @@ const focusRing =
 
 export default function EaseVoice() {
   const { pathname } = useLocation();
-  const { settings, narrations, saveSettings } = useAccessibility();
+  const { settings, narrations, audio, loadNarrations, saveSettings } = useAccessibility();
   const [playback, setPlayback] = useState<"idle" | "playing" | "paused">("idle");
   const [page, setPage] = useState<NarrationPageId>(() => narrationPageForPath(pathname));
+  const player = useRef<HTMLAudioElement | null>(null);
+  const recordingUrl = audio[page]?.url;
 
   useEffect(() => {
     setPage(narrationPageForPath(pathname));
@@ -29,12 +31,21 @@ export default function EaseVoice() {
     return () => window.removeEventListener("eventease:narration-page", changePage);
   }, []);
 
+  // Pick up text and recordings the admin saved on the server for the page being viewed.
+  useEffect(() => {
+    void loadNarrations([page]);
+  }, [page]);
+
   const stop = useCallback(() => {
     window.speechSynthesis?.cancel();
+    if (player.current) {
+      player.current.pause();
+      player.current = null;
+    }
     setPlayback("idle");
   }, []);
 
-  const readPage = useCallback(() => {
+  const speak = useCallback(() => {
     if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const text = narrations[page].trim();
@@ -47,14 +58,43 @@ export default function EaseVoice() {
     setPlayback("playing");
   }, [narrations, page, settings.voiceSpeed]);
 
+  // An admin recording plays instead of the browser voice; without one we read the text aloud.
+  const readPage = useCallback(() => {
+    stop();
+    if (!recordingUrl) {
+      speak();
+      return;
+    }
+    const recording = new Audio(recordingUrl);
+    recording.playbackRate = settings.voiceSpeed;
+    recording.onended = () => {
+      player.current = null;
+      setPlayback("idle");
+    };
+    recording.onerror = () => {
+      player.current = null;
+      speak(); // the recording could not be loaded: fall back to the browser voice
+    };
+    player.current = recording;
+    recording.play().then(
+      () => setPlayback("playing"),
+      () => {
+        player.current = null;
+        setPlayback("idle");
+      },
+    );
+  }, [recordingUrl, settings.voiceSpeed, speak, stop]);
+
   const togglePlayback = () => {
     if (playback === "playing") {
-      window.speechSynthesis.pause();
+      if (player.current) player.current.pause();
+      else window.speechSynthesis.pause();
       setPlayback("paused");
       return;
     }
     if (playback === "paused") {
-      window.speechSynthesis.resume();
+      if (player.current) void player.current.play();
+      else window.speechSynthesis.resume();
       setPlayback("playing");
       return;
     }

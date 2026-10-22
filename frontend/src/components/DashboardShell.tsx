@@ -18,7 +18,7 @@ export function DashboardShell({
   nav: NavItem[];
   children: (active: string) => ReactNode;
 }) {
-  const { user } = useStore();
+  const { user, sessionLoading } = useStore();
   const [active, setActive] = useState(nav[0].id);
 
   useEffect(() => {
@@ -45,6 +45,7 @@ export function DashboardShell({
     }
   }, [active, role]);
 
+  if (sessionLoading) return <p role="status" className="p-10">Restoring session…</p>;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== role) return <Navigate to={`/dashboard/${user.role}`} replace />;
 
