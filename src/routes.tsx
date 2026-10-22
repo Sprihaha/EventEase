@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
@@ -36,6 +36,8 @@ export const router = createBrowserRouter([
       { path: "events", Component: Browse },
       { path: "events/:id", Component: EventDetail },
       { path: "community", Component: Community },
+      { path: "exchange", Component: () => <Navigate to="/community?tab=exchange" replace /> },
+      { path: "easexchange", Component: () => <Navigate to="/community?tab=exchange" replace /> },
       { path: "login", Component: Login },
       { path: "dashboard/customer", Component: CustomerDashboard },
       { path: "dashboard/organizer", Component: OrganizerDashboard },
