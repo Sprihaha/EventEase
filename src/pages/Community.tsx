@@ -2546,42 +2546,48 @@ export default function Community() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-brand-line bg-brand-warm/30 p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-lilac text-brand-purple font-bold">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                {/* Card 01: EasePix Search gradient (purple->magenta) -> EasePix Upload gradient (orange->amber) on hover */}
+                <div className="group relative isolate overflow-hidden rounded-[20px] p-6 text-white border border-white/25 shadow-md shadow-brand-purple/25 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg hover:shadow-brand-orange/25 bg-gradient-to-r from-brand-purple to-brand-magenta">
+                  <div className="absolute inset-0 -z-10 bg-gradient-to-r from-brand-orange to-brand-amber opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100" />
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-white backdrop-blur-sm font-bold shadow-sm">
                       <Tag className="h-5 w-5" />
                     </div>
-                    <span className="text-xs font-bold text-muted">01</span>
+                    <span className="text-xs font-black text-white/80 tracking-wider">01</span>
                   </div>
-                  <h4 className="font-brand text-sm font-bold text-brand-deep">Find your fit</h4>
-                  <p className="mt-1 text-xs text-muted leading-relaxed">
+                  <h4 className="font-brand text-lg font-bold text-white tracking-tight">Find your fit</h4>
+                  <p className="mt-1.5 text-xs text-white/90 leading-relaxed">
                     Looking for another date, seat, or section? Find a ticket that works for your new plans.
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-brand-line bg-brand-warm/30 p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-brand-orange font-bold">
+                {/* Card 02: EasePix Search gradient (purple->magenta) -> EasePix Upload gradient (orange->amber) on hover */}
+                <div className="group relative isolate overflow-hidden rounded-[20px] p-6 text-white border border-white/25 shadow-md shadow-brand-purple/25 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg hover:shadow-brand-orange/25 bg-gradient-to-r from-brand-purple to-brand-magenta">
+                  <div className="absolute inset-0 -z-10 bg-gradient-to-r from-brand-orange to-brand-amber opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100" />
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-white backdrop-blur-sm font-bold shadow-sm">
                       <Repeat className="h-5 w-5" />
                     </div>
-                    <span className="text-xs font-bold text-muted">02</span>
+                    <span className="text-xs font-black text-white/80 tracking-wider">02</span>
                   </div>
-                  <h4 className="font-brand text-sm font-bold text-brand-deep">Keep it fair</h4>
-                  <p className="mt-1 text-xs text-muted leading-relaxed">
+                  <h4 className="font-brand text-lg font-bold text-white tracking-tight">Keep it fair</h4>
+                  <p className="mt-1.5 text-xs text-white/90 leading-relaxed">
                     Connect with another fan and exchange at original face value. No inflated ticket prices.
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-brand-line bg-brand-warm/30 p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 font-bold">
+                {/* Card 03: EasePix Search gradient (purple->magenta) -> EasePix Upload gradient (orange->amber) on hover */}
+                <div className="group relative isolate overflow-hidden rounded-[20px] p-6 text-white border border-white/25 shadow-md shadow-brand-purple/25 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg hover:shadow-brand-orange/25 bg-gradient-to-r from-brand-purple to-brand-magenta">
+                  <div className="absolute inset-0 -z-10 bg-gradient-to-r from-brand-orange to-brand-amber opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100" />
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-white backdrop-blur-sm font-bold shadow-sm">
                       <ShieldCheck className="h-5 w-5" />
                     </div>
-                    <span className="text-xs font-bold text-muted">03</span>
+                    <span className="text-xs font-black text-white/80 tracking-wider">03</span>
                   </div>
-                  <h4 className="font-brand text-sm font-bold text-brand-deep">Make it yours</h4>
-                  <p className="mt-1 text-xs text-muted leading-relaxed">
+                  <h4 className="font-brand text-lg font-bold text-white tracking-tight">Make it yours</h4>
+                  <p className="mt-1.5 text-xs text-white/90 leading-relaxed">
                     Previous ticket codes are voided and new ones issued to the buyer. Your next night out, sorted.
                   </p>
                 </div>
