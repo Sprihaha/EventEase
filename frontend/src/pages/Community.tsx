@@ -29,11 +29,17 @@ import { useStore } from "../lib/store";
 import SecureExchange from "../components/SecureExchange";
 import { Button, Badge, Card, Textarea, cx } from "../components/ui";
 
-const tabs = [
+const commsChannels = [
   { id: "feed", label: "EaseConnect", icon: Users, desc: "Discussions & fan forums" },
-  { id: "exchange", label: "EaseXchange", icon: Repeat, desc: "Ticket swaps" },
   { id: "views", label: "EasePix", icon: Camera, desc: "Real seat views" },
   { id: "access", label: "EaseXplore", icon: Accessibility, desc: "Venue guides" },
+] as const;
+
+type CommsChannelId = (typeof commsChannels)[number]["id"];
+
+const allTabs = [
+  ...commsChannels,
+  { id: "exchange", label: "EaseExchange", icon: Repeat, desc: "Ticket swaps" },
 ] as const;
 
 type FilterType = "all" | "following" | "views" | "questions";
@@ -43,7 +49,18 @@ export default function Community() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
-  const tab = tabs.find((item) => item.id === requestedTab)?.id ?? "feed";
+  const tab = allTabs.find((item) => item.id === requestedTab)?.id ?? "feed";
+  const [lastCommsTab, setLastCommsTab] = useState<CommsChannelId>(
+    tab === "exchange" ? "feed" : (tab as CommsChannelId)
+  );
+
+  useEffect(() => {
+    if (tab !== "exchange") {
+      setLastCommsTab(tab as CommsChannelId);
+    }
+  }, [tab]);
+
+  const mainSection = tab === "exchange" ? "exchange" : "comms";
 
   const [draft, setDraft] = useState("");
   const [selectedEventId, setSelectedEventId] = useState<string>("");
@@ -69,14 +86,14 @@ export default function Community() {
     }, 2800);
   };
 
-  const setTab = (id: (typeof tabs)[number]["id"]) => {
+  const setTab = (id: (typeof allTabs)[number]["id"]) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       next.set("tab", id);
       next.delete("view");
       return next;
     });
-    const found = tabs.find((t) => t.id === id);
+    const found = allTabs.find((t) => t.id === id);
     if (found) {
       showToast(`${found.label} selected`);
     }
@@ -275,32 +292,135 @@ export default function Community() {
         </div>
       </section>
 
-      {/* 2. THE BUZZ CONTINUOUS MARQUEE / TICKER BANNER */}
-      <section
-        className="mb-8 flex h-11 items-center gap-4 overflow-hidden rounded-xl bg-brand-deep text-white shadow-md shadow-brand-deep/15"
-        aria-label="EventEase community highlights"
+      {/* 2. TOP-LEVEL SIDE-BY-SIDE TABS: EaseComms & EaseExchange */}
+      <nav
+        id="main-tabs-nav"
+        aria-label="Community Sections"
+        className="mb-8 rounded-2xl border border-brand-line bg-white/95 p-2 shadow-sm backdrop-blur-md"
       >
-        <span className="flex h-full shrink-0 items-center bg-brand-orange px-4 text-[10px] font-black uppercase tracking-wider text-white">
-          THE BUZZ
-        </span>
-        <div className="flex min-w-0 items-center gap-6 overflow-hidden text-xs font-extrabold tracking-wider whitespace-nowrap">
-          <span className="text-white">✦ FIND YOUR CROWD</span>
-          <i className="not-italic text-brand-magenta text-sm">✳</i>
-          <span className="text-brand-amber">SHARE THE VIEW</span>
-          <i className="not-italic text-brand-purple text-sm">✦</i>
-          <span className="text-white">SWAP YOUR SEAT</span>
-          <i className="not-italic text-brand-magenta text-sm">✳</i>
-          <span className="text-brand-amber">MAKE IT A NIGHT</span>
-          <i className="not-italic text-brand-purple text-sm">✦</i>
-          <span className="text-white">ACCESSIBLE FOR ALL</span>
-          <i className="not-italic text-brand-magenta text-sm">✳</i>
-          <span className="text-brand-amber">FEEL THE MOMENT</span>
-          <i className="not-italic text-brand-purple text-sm">✦</i>
-          <span className="text-white">LIVE MUSIC & THEATRE</span>
-        </div>
-      </section>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {/* Tab 1: EaseComms */}
+          <button
+            type="button"
+            id="tab-easecomms"
+            onClick={() => {
+              setTab(lastCommsTab);
+            }}
+            className={cx(
+              "cursor-pointer group relative flex items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-left transition-all duration-200",
+              mainSection === "comms"
+                ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                : "bg-brand-warm/60 text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple",
+            )}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className={cx(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
+                  mainSection === "comms"
+                    ? "bg-white/20 text-white"
+                    : "bg-brand-lilac/70 text-brand-purple group-hover:bg-brand-purple group-hover:text-white",
+                )}
+              >
+                <Users className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-brand text-base sm:text-lg font-black tracking-tight leading-none">
+                    EaseComms
+                  </span>
+                  <span
+                    className={cx(
+                      "rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider",
+                      mainSection === "comms"
+                        ? "bg-white/25 text-white"
+                        : "bg-brand-lilac text-brand-purple",
+                    )}
+                  >
+                    Community
+                  </span>
+                </div>
+                <p
+                  className={cx(
+                    "mt-1 text-xs truncate",
+                    mainSection === "comms" ? "text-white/85" : "text-muted",
+                  )}
+                >
+                  Discussions, 360° seat views & venue accessibility
+                </p>
+              </div>
+            </div>
 
-      {/* 3. CONTENT GRID: 3 COLUMNS ON EASECONNECT, 2 COLUMNS ON OTHER CHANNELS */}
+            {mainSection === "comms" && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-black text-white shrink-0">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> Active
+              </span>
+            )}
+          </button>
+
+          {/* Tab 2: EaseExchange */}
+          <button
+            type="button"
+            id="tab-easeexchange"
+            onClick={() => {
+              setTab("exchange");
+            }}
+            className={cx(
+              "cursor-pointer group relative flex items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-left transition-all duration-200",
+              mainSection === "exchange"
+                ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                : "bg-brand-warm/60 text-brand-deep hover:bg-orange-50/70 hover:text-brand-orange",
+            )}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className={cx(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
+                  mainSection === "exchange"
+                    ? "bg-white/20 text-white"
+                    : "bg-orange-100 text-brand-orange group-hover:bg-brand-orange group-hover:text-white",
+                )}
+              >
+                <Repeat className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-brand text-base sm:text-lg font-black tracking-tight leading-none">
+                    EaseExchange
+                  </span>
+                  <span
+                    className={cx(
+                      "rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider",
+                      mainSection === "exchange"
+                        ? "bg-white/25 text-white"
+                        : "bg-orange-100 text-brand-orange",
+                    )}
+                  >
+                    Ticket Swaps
+                  </span>
+                </div>
+                <p
+                  className={cx(
+                    "mt-1 text-xs truncate",
+                    mainSection === "exchange" ? "text-white/85" : "text-muted",
+                  )}
+                >
+                  Face-value ticket swaps backed by community verification
+                </p>
+              </div>
+            </div>
+
+            {mainSection === "exchange" && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-black text-white shrink-0">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> Active
+              </span>
+            )}
+          </button>
+        </div>
+      </nav>
+
+      {/* 3. CONTENT: EASECOMMS (Channels & Feed) vs EASEEXCHANGE (Ticket Swaps) */}
+      {mainSection === "comms" ? (
       <div
         id="community-grid"
         className={cx(
@@ -314,11 +434,11 @@ export default function Community() {
         <aside className="space-y-4">
           <div className="rounded-3xl border border-brand-line bg-white p-4 shadow-sm lg:sticky lg:top-24">
             <div className="px-2 pb-2 text-[10px] font-black uppercase tracking-wider text-muted">
-              Explore community
+              EaseComms Channels
             </div>
 
             <div className="space-y-1.5" role="tablist" aria-label="EaseComms channels">
-              {tabs.map((t) => {
+              {commsChannels.map((t) => {
                 const isSelected = tab === t.id;
                 const Icon = t.icon;
                 return (
@@ -329,7 +449,7 @@ export default function Community() {
                     className={cx(
                       "cursor-pointer group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all",
                       isSelected
-                        ? "bg-gradient-to-r from-brand-purple to-brand-magenta text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                        ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
                         : "text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple",
                     )}
                   >
@@ -415,13 +535,11 @@ export default function Community() {
             <div>
               <h2 className="font-brand text-2xl font-bold tracking-tight text-brand-deep">
                 {tab === "feed" && "The conversation"}
-                {tab === "exchange" && "Swap with confidence"}
                 {tab === "views" && "Real views, real seats"}
                 {tab === "access" && "Explore before you go"}
               </h2>
               <p className="text-xs text-muted">
                 {tab === "feed" && "What fans are talking about right now across Singapore"}
-                {tab === "exchange" && "Secure, face-value ticket swaps backed by community verification"}
                 {tab === "views" && "Explore 360° views and verified photos before buying"}
                 {tab === "access" && "Accessibility guides, companion assistance, and step-free navigation"}
               </p>
@@ -694,12 +812,7 @@ export default function Community() {
             </div>
           )}
 
-          {/* TAB 2: EASEXCHANGE */}
-          {tab === "exchange" && (
-            <div className="space-y-4">
-              <SecureExchange key={user?.id ?? "public"} />
-            </div>
-          )}
+
 
           {/* TAB 3: EASEPIX SEAT VIEWS & 360° */}
           {tab === "views" && (
@@ -952,6 +1065,45 @@ export default function Community() {
           </aside>
         )}
       </div>
+      ) : (
+        /* DEDICATED EASEEXCHANGE VIEW */
+        <div id="exchange-view" className="space-y-6">
+          {/* Official Trust & Escrow Guarantee Banner */}
+          <div className="relative overflow-hidden rounded-3xl border border-brand-orange/20 bg-gradient-to-r from-brand-deep via-brand-deep to-brand-purple p-6 sm:p-8 text-white shadow-xl">
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 rounded-full bg-brand-orange/20 px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-brand-amber border border-brand-orange/30">
+                  <ShieldCheck className="h-3.5 w-3.5 text-brand-amber" /> Official Fan-to-Fan Exchange
+                </div>
+                <h2 className="font-brand text-2xl sm:text-3xl font-extrabold tracking-tight">
+                  Swap Tickets with Zero Hassle & 100% Protection.
+                </h2>
+                <p className="max-w-2xl text-xs sm:text-sm leading-relaxed text-brand-warm/80">
+                  Fair face-value trades only. Original tickets are securely invalidated and re-issued with unique digital QR barcodes immediately upon match confirmation.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0 text-left">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-sm">
+                  <div className="text-base font-extrabold text-brand-amber">Face Value</div>
+                  <div className="text-[10px] text-white/70">Anti-scalping cap</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-sm">
+                  <div className="text-base font-extrabold text-emerald-400">Instant QR</div>
+                  <div className="text-[10px] text-white/70">Automatic re-issue</div>
+                </div>
+                <div className="col-span-2 sm:col-span-1 rounded-xl border border-white/10 bg-white/5 p-3.5 backdrop-blur-sm">
+                  <div className="text-base font-extrabold text-brand-lilac">Verified</div>
+                  <div className="text-[10px] text-white/70">Singapore venues</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SecureExchange Core Component */}
+          <SecureExchange key={user?.id ?? "public"} />
+        </div>
+      )}
 
       {/* 4. FLOATING EASEVOICE WIDGET */}
       <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-full border border-brand-purple/20 bg-white/95 px-4 py-2.5 shadow-2xl backdrop-blur-md">
