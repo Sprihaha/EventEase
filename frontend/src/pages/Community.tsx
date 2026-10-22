@@ -308,6 +308,7 @@ export default function Community() {
   const [seatRowInput, setSeatRowInput] = useState("Row D");
   const [seatPhotoInput, setSeatPhotoInput] = useState("");
   const [seatEventIdInput, setSeatEventIdInput] = useState("");
+  const [gallerySearchFilter, setGallerySearchFilter] = useState<{ eventId?: string; section?: string } | null>(null);
 
   const composerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1241,7 +1242,28 @@ export default function Community() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-end gap-2 pt-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2">
+                    {/* Search Button (Purple Gradient) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetEventId = seatEventIdInput || events[0]?.id || "";
+                        setGallerySearchFilter({
+                          eventId: targetEventId,
+                          section: seatSectionInput,
+                        });
+                        const evTitle = events.find((e) => e.id === targetEventId)?.title ?? "Selected Event";
+                        showToast(`Searching seat views for ${evTitle}`);
+                        setTimeout(() => {
+                          document.getElementById("community-photos-gallery")?.scrollIntoView({ behavior: "smooth" });
+                        }, 100);
+                      }}
+                      className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-purple/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+                    >
+                      <Search className="h-4 w-4" /> Search
+                    </button>
+
+                    {/* Share Seat View Button (Orange Gradient) */}
                     <button
                       type="button"
                       onClick={() => {
@@ -1262,7 +1284,7 @@ export default function Community() {
                         setSeatPhotoInput("");
                         showToast("Seat view shared successfully! You earned +15 EasePoints ✨");
                       }}
-                      className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-purple/20 transition-all hover:opacity-95"
+                      className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
                     >
                       <Camera className="h-4 w-4" /> Share Seat View
                     </button>
@@ -1271,20 +1293,46 @@ export default function Community() {
               </div>
 
               {/* Gallery Header */}
-              <div>
-                <h3 className="font-brand text-base font-bold text-brand-deep">
-                  Community Seat Photos
-                </h3>
-                <p className="text-xs text-muted">
-                  Real, unedited photos shared by fans who sat there
-                </p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-brand text-base font-bold text-brand-deep">
+                    Community Seat Photos
+                  </h3>
+                  <p className="text-xs text-muted">
+                    {gallerySearchFilter
+                      ? `Showing results for ${events.find((e) => e.id === gallerySearchFilter.eventId)?.title ?? "Selected Event"}${gallerySearchFilter.section ? ` · ${gallerySearchFilter.section}` : ""}`
+                      : "Real, unedited photos shared by fans who sat there"}
+                  </p>
+                </div>
+                {gallerySearchFilter && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGallerySearchFilter(null);
+                      showToast("Showing all seat photos");
+                    }}
+                    className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
+                  >
+                    <X className="h-3.5 w-3.5" /> Clear search filter
+                  </button>
+                )}
               </div>
 
               {/* Photos Grid */}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div id="community-photos-gallery" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {posts
                   .filter((p) => p.photo)
                   .concat(posts.filter((p) => p.photo))
+                  .filter((p) => {
+                    if (!gallerySearchFilter) return true;
+                    if (gallerySearchFilter.eventId && p.eventId && p.eventId !== gallerySearchFilter.eventId) {
+                      return false;
+                    }
+                    if (gallerySearchFilter.section && p.section && !p.section.toLowerCase().includes(gallerySearchFilter.section.toLowerCase())) {
+                      return false;
+                    }
+                    return true;
+                  })
                   .slice(0, 9)
                   .map((p, i) => (
                     <div
