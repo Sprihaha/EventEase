@@ -128,6 +128,26 @@ def test_existing_accounts_log_in_without_verifying(client, db):
     assert "token=" in get_mailer().outbox[-1].body
 
 
+def test_password_reset_link_also_verifies_the_email(client, db):
+    user = make_user(db, email="resetfan@gmail.com")
+    client.post("/api/v1/auth/forgot-password", json={"identifier": user.email})
+    token = get_mailer().outbox[-1].body.split("token=")[1].split()[0]
+    response = client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": "Fresh-pass1"})
+    assert response.status_code == 200
+    assert _user(db, user.username).email_verified_at is not None
+    login(client, user.username, "Fresh-pass1")
+
+
+def test_reset_password_unlocks_a_locked_account(client, db):
+    user = make_user(db, email="lockedfan@gmail.com", failed_login_count=0,
+                     locked_until=utcnow() + timedelta(minutes=15))
+    assert error_of(_login(client, user.username))["code"] == "ACCOUNT_LOCKED"
+    client.post("/api/v1/auth/forgot-password", json={"identifier": user.username})
+    token = get_mailer().outbox[-1].body.split("token=")[1].split()[0]
+    assert client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": "Fresh-pass1"}).status_code == 200
+    login(client, user.username, "Fresh-pass1")
+
+
 def test_reminders_target_only_existing_unverified_deliverable_accounts(client, db):
     pending = make_user(db, username="pending", email="pending@gmail.com")
     make_user(db, username="placeholder", email="placeholder@example.com")

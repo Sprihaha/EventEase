@@ -13,7 +13,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useStore } from "../lib/store";
-import { ApiError, backendResendVerification, backendSignup } from "../lib/backendApi";
+import { ApiError, backendForgotPassword, backendResendVerification, backendSignup } from "../lib/backendApi";
 import { Badge, Button, Card, Field, Input } from "../components/ui";
 
 type SignUp = {
@@ -36,8 +36,11 @@ export default function Login() {
   const { authenticate } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
-  const [mode, setMode] = useState<"signin" | "signup" | "sent">("signin");
+  const navState = location.state as { returnTo?: string; mode?: "forgot" } | null;
+  const returnTo = navState?.returnTo;
+  const [mode, setMode] = useState<"signin" | "signup" | "sent" | "forgot" | "forgotSent">(
+    navState?.mode === "forgot" ? "forgot" : "signin",
+  );
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -70,7 +73,29 @@ export default function Login() {
   // Set when the account exists but its email has not been verified yet.
   const [unverified, setUnverified] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  const [forgotIdentifier, setForgotIdentifier] = useState("");
+  const [forgotSending, setForgotSending] = useState(false);
   const remaining = Math.max(0, 5 - attempts);
+
+  const openForgot = () => {
+    setForgotIdentifier(username);
+    setError("");
+    setMode("forgot");
+  };
+
+  const handleForgot = async (event: FormEvent) => {
+    event.preventDefault();
+    setForgotSending(true);
+    setError("");
+    try {
+      await backendForgotPassword(forgotIdentifier.trim());
+      setMode("forgotSent");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not send the reset link. Please try again.");
+    } finally {
+      setForgotSending(false);
+    }
+  };
 
   const resendLink = async (identifier: string) => {
     setResendState("sending");
@@ -125,7 +150,7 @@ export default function Login() {
       if (next >= 5) {
         setLocked(true);
         sessionStorage.setItem("eventease-login-locked", "true");
-        setError("This account is locked after 5 unsuccessful attempts. Contact support to unlock it.");
+        setError("This account is locked after 5 unsuccessful attempts. Reset your password below to unlock it.");
       } else {
         setError(msg || `Username or password doesn't match. ${5 - next} attempts remaining.`);
       }
@@ -227,6 +252,15 @@ export default function Login() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
+                  <div className="mt-1.5 text-right">
+                    <button
+                      type="button"
+                      className="cursor-pointer text-xs font-semibold text-brand-purple underline-offset-2 hover:underline"
+                      onClick={openForgot}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                 </Field>
                 {error && (
                   <div role="alert" className="rounded-xl border border-rose-200 bg-danger/10 p-3.5 text-sm font-medium text-danger">
@@ -308,6 +342,60 @@ export default function Login() {
                 </Button>
               </form>
             </>
+          )}
+
+          {mode === "forgot" && (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => { setMode("signin"); setError(""); }} className="-ml-3">
+                <ArrowLeft className="h-4 w-4" /> Back to sign in
+              </Button>
+              <h1 className="mt-4 font-brand text-4xl font-bold tracking-tight text-brand-deep">
+                Reset your password
+              </h1>
+              <p className="mt-2 text-sm text-muted">
+                Enter your username or email. We'll email you a link to choose a new password.
+              </p>
+              <form className="mt-8 space-y-5" onSubmit={handleForgot}>
+                <Field label="Username or email">
+                  <Input
+                    autoComplete="username"
+                    value={forgotIdentifier}
+                    onChange={(e) => setForgotIdentifier(e.target.value)}
+                    required
+                  />
+                </Field>
+                {error && (
+                  <div role="alert" className="rounded-xl border border-rose-200 bg-danger/10 p-3.5 text-sm font-medium text-danger">
+                    {error}
+                  </div>
+                )}
+                <Button className="w-full" size="lg" type="submit" disabled={forgotSending}>
+                  {forgotSending ? "Sending…" : "Send reset link"} {!forgotSending && <Mail className="h-4 w-4" />}
+                </Button>
+              </form>
+            </>
+          )}
+
+          {mode === "forgotSent" && (
+            <div className="py-12 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+                <Mail className="h-6 w-6" />
+              </div>
+              <h1 className="mt-5 font-brand text-4xl font-bold tracking-tight text-brand-deep">
+                Check your inbox
+              </h1>
+              <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted">
+                If an account matches <strong className="text-brand-deep">{forgotIdentifier.trim()}</strong>, we've
+                emailed it a link to reset the password. The link works once and expires in 30 minutes.
+              </p>
+              <p className="mx-auto mt-3 max-w-sm text-xs text-muted">
+                No email? Check your spam folder. New accounts must verify their email first, and administrator
+                passwords can't be reset by email.
+              </p>
+              <Button className="mt-7" size="lg" onClick={() => { setMode("signin"); setError(""); }}>
+                Back to sign in <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
           )}
 
           {mode === "sent" && (

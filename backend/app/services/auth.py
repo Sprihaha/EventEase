@@ -311,4 +311,7 @@ def reset_password(db: Session, token: str, new_password: str) -> None:
     check_not_protected(user.username)
     record.used_at = utcnow()
     _set_password(db, user, new_password)
+    # The link was opened from the user's inbox, which proves they own the address.
+    if user.email_verified_at is None:
+        user.email_verified_at = record.used_at
     db.commit()

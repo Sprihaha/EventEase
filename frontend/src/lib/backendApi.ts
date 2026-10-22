@@ -227,6 +227,21 @@ export async function backendVerifyEmail(token: string) {
   });
 }
 
+export async function backendForgotPassword(identifier: string) {
+  // Always succeeds with the same message, so it never reveals which accounts exist.
+  return request<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ identifier }),
+  });
+}
+
+export async function backendResetPassword(token: string, newPassword: string) {
+  return request<{ message: string }>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, newPassword }),
+  });
+}
+
 export async function backendResendVerification(identifier: string) {
   return request<{ message: string }>("/auth/resend-verification", {
     method: "POST",

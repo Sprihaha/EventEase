@@ -10,6 +10,7 @@ import OrganizerDashboard from "./pages/OrganizerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Verify from "./pages/Verify";
 import VerifyEmail from "./pages/VerifyEmail";
+import ResetPassword from "./pages/ResetPassword";
 import AccessibilitySettings from "./pages/AccessibilitySettings";
 import AssistanceRequestForm from "./pages/AssistanceRequestForm";
 import AssistanceRequests from "./pages/AssistanceRequests";
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
       { path: "dashboard/admin", Component: AdminDashboard },
       { path: "verify/:ref", Component: Verify },
       { path: "verify-email/:code", Component: VerifyEmail },
+      { path: "reset-password", Component: ResetPassword },
       { path: "settings/accessibility", Component: AccessibilitySettings },
       { path: "assistance", Component: AssistanceRequests },
       { path: "assistance/request/:bookingId", Component: AssistanceRequestForm },
