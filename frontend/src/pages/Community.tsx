@@ -88,15 +88,17 @@ export default function Community() {
     }, 2800);
   };
 
-  const scrollToSection = (targetId: string) => {
+  const scrollToSection = (targetId: string = "main-tabs-nav") => {
     setTimeout(() => {
       const element = document.getElementById(targetId);
       if (element) {
-        const yOffset = -90; // offset for sticky navbar
+        const navBar = document.querySelector("header");
+        const navBarHeight = navBar ? navBar.getBoundingClientRect().height : 64;
+        const yOffset = -(navBarHeight + 16); // offset so header sits cleanly below sticky navbar
         const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
         window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
       }
-    }, 60);
+    }, 50);
   };
 
   const setTab = (id: (typeof allTabs)[number]["id"], shouldScroll = false) => {
@@ -111,7 +113,7 @@ export default function Community() {
       showToast(`${found.label} selected`);
     }
     if (shouldScroll) {
-      scrollToSection(id === "exchange" ? "exchange-view" : "community-grid");
+      scrollToSection("main-tabs-nav");
     }
   };
 
@@ -269,7 +271,7 @@ export default function Community() {
               <button
                 type="button"
                 onClick={() => {
-                  scrollToSection("community-grid");
+                  scrollToSection("main-tabs-nav");
                 }}
                 className="cursor-pointer inline-flex items-center gap-1.5 rounded-2xl border border-white/25 bg-white/10 px-4.5 py-3 text-xs font-bold text-white backdrop-blur-md transition hover:bg-white/20"
               >
