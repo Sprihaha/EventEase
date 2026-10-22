@@ -147,6 +147,12 @@ function SearchableCombobox({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!value) {
+      setQuery("");
+    }
+  }, [value]);
+
   const filteredOptions = options.filter((opt) => {
     if (!query) return true;
     const q = query.toLowerCase();
@@ -1364,6 +1370,24 @@ export default function Community() {
                   </div>
 
                   <div className="flex flex-wrap items-center justify-end gap-2.5 pt-1">
+                    {/* Clear Filters Button (When any filter input is selected) */}
+                    {(seatEventIdInput || seatSectionInput || seatRowInput || hasSearched || gallerySearchFilter) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSeatEventIdInput("");
+                          setSeatSectionInput("");
+                          setSeatRowInput("");
+                          setGallerySearchFilter(null);
+                          setHasSearched(false);
+                          showToast("Search filters cleared");
+                        }}
+                        className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-brand-line bg-white/80 px-3.5 py-2.5 text-xs font-semibold text-muted hover:bg-brand-warm/60 hover:text-brand-deep transition-all"
+                      >
+                        <X className="h-3.5 w-3.5" /> Clear filters
+                      </button>
+                    )}
+
                     {/* Search Button (Purple Gradient) */}
                     <button
                       type="button"
@@ -1437,7 +1461,10 @@ export default function Community() {
                         onClick={() => {
                           setGallerySearchFilter(null);
                           setHasSearched(false);
-                          showToast("Search cleared");
+                          setSeatEventIdInput("");
+                          setSeatSectionInput("");
+                          setSeatRowInput("");
+                          showToast("Search filters cleared");
                         }}
                         className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
                       >
