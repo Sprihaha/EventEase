@@ -1491,7 +1491,7 @@ export default function Community() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-brand text-base font-bold text-white">
-                        EaseExplore · {events.find((e) => e.id === (gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id))?.venue ?? "The National Stadium"}
+                        {events.find((e) => e.id === (gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id))?.venue ?? "The National Stadium"}
                       </span>
                       <span className="rounded-full bg-brand-orange/20 px-2 py-0.5 text-[10px] font-extrabold text-brand-orange border border-brand-orange/30">
                         360° Panoramic
@@ -1508,7 +1508,7 @@ export default function Community() {
                   onClick={handleOpenEaseExplore}
                   className="cursor-pointer shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
                 >
-                  <Rotate3d className="h-4 w-4" /> Open 360° Venue View
+                  <Rotate3d className="h-4 w-4" /> Open EaseExplore
                 </button>
               </div>
 
