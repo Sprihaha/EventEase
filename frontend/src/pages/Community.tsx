@@ -1851,16 +1851,14 @@ export default function Community() {
                       </div>
                     </div>
 
-                    {/* Barcode graphic */}
-                    <div
-                      className="h-7 w-full opacity-85"
-                      style={{
-                        background:
-                          "repeating-linear-gradient(90deg, #312340 0px, #312340 2px, transparent 2px, transparent 5px, #312340 5px, #312340 6px, transparent 6px, transparent 9px)",
-                      }}
-                    />
-                    <div className="mt-1.5 text-center text-[8px] font-black tracking-[1.4px] text-muted">
-                      LESS SCROLLING. MORE SINGING.
+                    {/* QR Code graphic */}
+                    <div className="flex flex-col items-center justify-center pt-0.5 pb-1">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-[#e1d9ea] bg-[#faf8fc] p-1.5 shadow-inner">
+                        <QrCode className="h-full w-full text-brand-deep" />
+                      </div>
+                      <div className="mt-1.5 text-center text-[8px] font-black tracking-[1.4px] text-muted">
+                        LESS SCROLLING. MORE SINGING.
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1873,7 +1871,7 @@ export default function Community() {
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#eaf5ed] text-[#287958] font-black">
                     ✓
                   </div>
-                  <span>New fan. Fresh barcode.</span>
+                  <span>New fan. Fresh QR code.</span>
                 </div>
               </div>
             </div>
