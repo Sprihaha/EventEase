@@ -1688,8 +1688,30 @@ export default function Community() {
                       return searchTokens.length > 0 && searchTokens.every((tok) => cleanSeat.includes(tok));
                     };
 
+                    // Include preset catalog and any custom searched section that has no preset photos
+                    const searchedSecTrimmed = (gallerySearchFilter?.section || seatSectionInput || "").trim();
+                    const baseCatalog: SectionSegment[] = [...sectionDataCatalog];
+
+                    if (
+                      searchedSecTrimmed &&
+                      !baseCatalog.some(
+                        (sec) =>
+                          sec.name.toLowerCase() === searchedSecTrimmed.toLowerCase() ||
+                          sec.name.toLowerCase().includes(searchedSecTrimmed.toLowerCase()) ||
+                          searchedSecTrimmed.toLowerCase().includes(sec.name.toLowerCase())
+                      )
+                    ) {
+                      baseCatalog.push({
+                        id: `sec-${searchedSecTrimmed.toLowerCase().replace(/\s+/g, "-")}`,
+                        name: searchedSecTrimmed,
+                        tier: "Reserved Seating",
+                        rowRange: "General Tier",
+                        photos: [],
+                      });
+                    }
+
                     // Build dynamic section catalog integrating user posts and seat rows
-                    const dynamicSections = sectionDataCatalog.map((sec) => {
+                    const dynamicSections = baseCatalog.map((sec) => {
                       const matchedUserPosts = userEventPhotos
                         .filter((p) => p.section && p.section.toLowerCase().includes(sec.name.toLowerCase().replace("section ", "")))
                         .map((p) => ({
@@ -1706,27 +1728,8 @@ export default function Community() {
                       if (searchedRow) {
                         const matchingPhotos = allSecPhotos.filter((p) => matchesSearchedSeat(p.seat));
                         const remainingPhotos = allSecPhotos.filter((p) => !matchesSearchedSeat(p.seat));
-
-                        const isThisTargetSection =
-                          (gallerySearchFilter?.section &&
-                            (sec.name.toLowerCase().includes(gallerySearchFilter.section.toLowerCase()) ||
-                             gallerySearchFilter.section.toLowerCase().includes(sec.name.toLowerCase()))) ||
-                          selectedGallerySection.toLowerCase() === sec.name.toLowerCase();
-
-                        // If user searched for this section and row, but no preset photo has this exact seat label,
-                        // generate a verified sightline for that seat so it is shown first and highlighted
-                        if (matchingPhotos.length === 0 && isThisTargetSection) {
-                          const customSeatView: SectionSeatPhoto = {
-                            photo: sec.photos[0]?.photo || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=85",
-                            authorName: "Verified Sightline (EventEase Community)",
-                            section: sec.name,
-                            seat: `${sec.name} · ${(gallerySearchFilter?.row || seatRowInput).trim()}`,
-                            vibe: `Direct stage vantage from ${(gallerySearchFilter?.row || seatRowInput).trim()}. Clear head clearance and optimal sound line.`,
-                          };
-                          prioritizedPhotos = [customSeatView, ...allSecPhotos];
-                        } else {
-                          prioritizedPhotos = [...matchingPhotos, ...remainingPhotos];
-                        }
+                        // If matching photos exist, put them first; otherwise keep all section photos so users can view closest seats
+                        prioritizedPhotos = [...matchingPhotos, ...remainingPhotos];
                       } else {
                         prioritizedPhotos = allSecPhotos;
                       }
@@ -1834,114 +1837,209 @@ export default function Community() {
 
                         {/* Segmented Section Cards Grid */}
                         <div className="space-y-6">
-                          {sectionsToDisplay.map((sec) => (
-                            <div
-                              key={sec.id}
-                              className="rounded-3xl border border-brand-line bg-white/90 p-4.5 sm:p-5 shadow-xs transition hover:shadow-sm"
-                            >
-                              {/* Section Segment Header */}
-                              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-line pb-3.5 mb-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-lilac text-brand-purple shadow-xs">
-                                    <MapPin className="h-4.5 w-4.5" />
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <h4 className="font-brand text-base font-extrabold text-brand-deep">
-                                        {sec.name}
-                                      </h4>
-                                      <span className="rounded-full bg-brand-orange/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-brand-orange">
-                                        {sec.rowRange}
-                                      </span>
-                                      {searchedRow && sec.photos.some((p) => matchesSearchedSeat(p.seat)) && (
-                                        <span className="rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white px-2.5 py-0.5 text-[10px] font-extrabold shadow-xs flex items-center gap-1 animate-pulse">
-                                          <Sparkles className="h-3 w-3" /> Matched Seat Shown First
-                                        </span>
-                                      )}
+                          {sectionsToDisplay.map((sec) => {
+                            const hasExactSeatMatch = Boolean(searchedRow && sec.photos.some((p) => matchesSearchedSeat(p.seat)));
+                            const isSectionWithNoSeatMatch = Boolean(searchedRow && sec.photos.length > 0 && !hasExactSeatMatch);
+
+                            return (
+                              <div
+                                key={sec.id}
+                                className="rounded-3xl border border-brand-line bg-white/90 p-4.5 sm:p-5 shadow-xs transition hover:shadow-sm"
+                              >
+                                {/* Section Segment Header */}
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-line pb-3.5 mb-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-lilac text-brand-purple shadow-xs">
+                                      <MapPin className="h-4.5 w-4.5" />
                                     </div>
-                                    <p className="text-xs text-muted mt-0.5">{sec.tier}</p>
+                                    <div>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <h4 className="font-brand text-base font-extrabold text-brand-deep">
+                                          {sec.name}
+                                        </h4>
+                                        <span className="rounded-full bg-brand-orange/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-brand-orange">
+                                          {sec.rowRange}
+                                        </span>
+                                        {hasExactSeatMatch && (
+                                          <span className="rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white px-2.5 py-0.5 text-[10px] font-extrabold shadow-xs flex items-center gap-1 animate-pulse">
+                                            <Sparkles className="h-3 w-3" /> Exact Seat Match Shown First
+                                          </span>
+                                        )}
+                                        {isSectionWithNoSeatMatch && (
+                                          <span className="rounded-full bg-amber-100 border border-amber-300 text-amber-800 px-2.5 py-0.5 text-[10px] font-bold flex items-center gap-1">
+                                            <Eye className="h-3 w-3" /> Showing Closest Seats
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted mt-0.5">{sec.tier}</p>
+                                    </div>
                                   </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEaseExplore(sec.name)}
+                                    className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-brand-purple/20 bg-brand-lilac/40 px-3 py-1.5 text-xs font-bold text-brand-purple hover:bg-brand-purple hover:text-white transition shadow-xs"
+                                  >
+                                    <Rotate3d className="h-3.5 w-3.5" /> View in 360°
+                                  </button>
                                 </div>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEaseExplore(sec.name)}
-                                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-brand-purple/20 bg-brand-lilac/40 px-3 py-1.5 text-xs font-bold text-brand-purple hover:bg-brand-purple hover:text-white transition shadow-xs"
-                                >
-                                  <Rotate3d className="h-3.5 w-3.5" /> View in 360°
-                                </button>
-                              </div>
-
-                              {/* Photos Grid for this section */}
-                              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                {sec.photos.map((p, pIdx) => {
-                                  const isExactSeatMatch = Boolean(searchedRow && matchesSearchedSeat(p.seat));
-
-                                  return (
-                                    <div
-                                      key={pIdx}
-                                      className={cx(
-                                        "group relative overflow-hidden rounded-2xl transition-all duration-300",
-                                        isExactSeatMatch
-                                          ? "ring-4 ring-brand-orange ring-offset-2 ring-offset-white shadow-xl shadow-brand-orange/35 scale-[1.01] bg-gradient-to-b from-brand-orange/15 via-white to-white"
-                                          : "border border-brand-line bg-white shadow-xs hover:shadow-md"
-                                      )}
-                                    >
-                                      {/* High-visibility Match Badge */}
-                                      {isExactSeatMatch && (
-                                        <div className="absolute top-2.5 right-2.5 z-20">
-                                          <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-orange via-amber-500 to-brand-orange px-3 py-1 text-[11px] font-black text-white shadow-lg shadow-brand-orange/40 animate-pulse tracking-wide uppercase">
-                                            <Sparkles className="h-3.5 w-3.5" /> Searched Seat Match
-                                          </span>
-                                        </div>
-                                      )}
-
-                                      <div className="relative h-56 w-full overflow-hidden bg-brand-deep">
-                                        <img
-                                          src={p.photo}
-                                          alt={p.seat}
-                                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/95 via-brand-deep/35 to-transparent p-4 flex flex-col justify-between">
-                                          <div className="flex items-center justify-between gap-2">
-                                            <span className="rounded-full bg-brand-deep/85 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                                              {p.authorName}
-                                            </span>
-                                            {!isExactSeatMatch && (
-                                              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                                                Verified Sightline
-                                              </span>
-                                            )}
+                                {/* Case 2: No pics found for the entire section */}
+                                {sec.photos.length === 0 ? (
+                                  <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-brand-line bg-brand-warm/30 py-10 px-6 text-center">
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-lilac/70 text-brand-purple shadow-sm mb-3">
+                                      <Camera className="h-6 w-6 text-brand-purple" />
+                                    </div>
+                                    <h5 className="font-brand text-sm font-bold text-brand-deep">
+                                      No EasePix found for this section ({sec.name})
+                                    </h5>
+                                    <p className="mt-1 text-xs text-muted max-w-md">
+                                      No fan sightline photos have been shared for {sec.name} yet. Please look at other sections to explore views, or inspect the interactive 360° venue vantage in EaseExplore!
+                                    </p>
+                                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => setSelectedGallerySection("all")}
+                                        className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-brand-line bg-white px-3.5 py-2 text-xs font-bold text-brand-deep hover:bg-brand-lilac/30 hover:text-brand-purple transition shadow-xs"
+                                      >
+                                        <Layers className="h-3.5 w-3.5" /> Look at other sections
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenEaseExplore(sec.name)}
+                                        className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:opacity-95"
+                                      >
+                                        <Rotate3d className="h-3.5 w-3.5" /> Open 360° View
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {/* Case 1: No pics found for that row/seat in this section -> show banner and closest pictures */}
+                                    {isSectionWithNoSeatMatch && (
+                                      <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50/40 to-amber-50 p-4 text-brand-deep shadow-xs">
+                                        <div className="flex items-center gap-3">
+                                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 shadow-xs">
+                                            <Eye className="h-5 w-5" />
                                           </div>
-
-                                          <div className="text-white space-y-1.5">
-                                            <div
-                                              className={cx(
-                                                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-black text-white shadow-sm",
-                                                isExactSeatMatch
-                                                  ? "bg-gradient-to-r from-brand-orange to-brand-amber ring-2 ring-white/70 shadow-md"
-                                                  : "bg-brand-orange"
-                                              )}
-                                            >
-                                              <MapPin className="h-3.5 w-3.5" /> {p.seat}
-                                              {isExactSeatMatch && (
-                                                <span className="text-[10px] uppercase font-bold text-white/90">
-                                                  (Matched Seat)
-                                                </span>
-                                              )}
+                                          <div>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <h5 className="font-brand text-xs font-bold text-amber-950">
+                                                No EasePix found for &ldquo;{gallerySearchFilter?.row || seatRowInput}&rdquo; in {sec.name}
+                                              </h5>
+                                              <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-black uppercase text-amber-900">
+                                                Showing Closest Seats
+                                              </span>
                                             </div>
-                                            <p className="text-[11px] text-white/90 line-clamp-2">
-                                              {p.vibe}
+                                            <p className="mt-0.5 text-xs text-amber-900/80">
+                                              No fan photos have been shared for that exact row or seat yet. Please look at the closest seat pictures below to preview your sightline angle!
                                             </p>
                                           </div>
                                         </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (!user) {
+                                              window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                                              navigate("/login", { state: { returnTo: "/community?tab=views" } });
+                                            } else {
+                                              setSeatSectionInput(sec.name);
+                                              setSeatPhotoInput("");
+                                              setShareModalOrigin("easepix");
+                                              setIsShareModalOpen(true);
+                                            }
+                                          }}
+                                          className="cursor-pointer shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3.5 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100/60 transition shadow-xs"
+                                        >
+                                          <Camera className="h-3.5 w-3.5" /> Upload EasePix
+                                        </button>
                                       </div>
+                                    )}
+
+                                    {/* Photos Grid for this section */}
+                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                      {sec.photos.map((p, pIdx) => {
+                                        const isExactSeatMatch = Boolean(searchedRow && matchesSearchedSeat(p.seat));
+
+                                        return (
+                                          <div
+                                            key={pIdx}
+                                            className={cx(
+                                              "group relative overflow-hidden rounded-2xl transition-all duration-300",
+                                              isExactSeatMatch
+                                                ? "ring-4 ring-brand-orange ring-offset-2 ring-offset-white shadow-xl shadow-brand-orange/35 scale-[1.01] bg-gradient-to-b from-brand-orange/15 via-white to-white"
+                                                : "border border-brand-line bg-white shadow-xs hover:shadow-md"
+                                            )}
+                                          >
+                                            {/* High-visibility Match Badge */}
+                                            {isExactSeatMatch && (
+                                              <div className="absolute top-2.5 right-2.5 z-20">
+                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-orange via-amber-500 to-brand-orange px-3 py-1 text-[11px] font-black text-white shadow-lg shadow-brand-orange/40 animate-pulse tracking-wide uppercase">
+                                                  <Sparkles className="h-3.5 w-3.5" /> Searched Seat Match
+                                                </span>
+                                              </div>
+                                            )}
+
+                                            <div className="relative h-56 w-full overflow-hidden bg-brand-deep">
+                                              <img
+                                                src={p.photo}
+                                                alt={p.seat}
+                                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                              />
+                                              <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/95 via-brand-deep/35 to-transparent p-4 flex flex-col justify-between">
+                                                <div className="flex items-center justify-between gap-2">
+                                                  <span className="rounded-full bg-brand-deep/85 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                                                    {p.authorName}
+                                                  </span>
+                                                  {isExactSeatMatch ? null : isSectionWithNoSeatMatch ? (
+                                                    <span className="rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                                                      Closest Seat Angle
+                                                    </span>
+                                                  ) : (
+                                                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                                                      Verified Sightline
+                                                    </span>
+                                                  )}
+                                                </div>
+
+                                                <div className="text-white space-y-1.5">
+                                                  <div
+                                                    className={cx(
+                                                      "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-black text-white shadow-sm",
+                                                      isExactSeatMatch
+                                                        ? "bg-gradient-to-r from-brand-orange to-brand-amber ring-2 ring-white/70 shadow-md"
+                                                        : isSectionWithNoSeatMatch
+                                                        ? "bg-amber-600/90 ring-1 ring-white/40"
+                                                        : "bg-brand-orange"
+                                                    )}
+                                                  >
+                                                    <MapPin className="h-3.5 w-3.5" /> {p.seat}
+                                                    {isExactSeatMatch && (
+                                                      <span className="text-[10px] uppercase font-bold text-white/90">
+                                                        (Matched Seat)
+                                                      </span>
+                                                    )}
+                                                    {isSectionWithNoSeatMatch && (
+                                                      <span className="text-[10px] uppercase font-bold text-white/90">
+                                                        (Closest Angle)
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <p className="text-[11px] text-white/90 line-clamp-2">
+                                                    {p.vibe}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
                                     </div>
-                                  );
-                                })}
+                                  </>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );
