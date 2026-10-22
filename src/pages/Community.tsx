@@ -318,6 +318,7 @@ export default function Community() {
   const [seatPhotoInput, setSeatPhotoInput] = useState("");
   const [seatEventIdInput, setSeatEventIdInput] = useState("");
   const [gallerySearchFilter, setGallerySearchFilter] = useState<{ eventId?: string; section?: string } | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const handleOpenEaseExplore = () => {
@@ -1264,6 +1265,7 @@ export default function Community() {
                       type="button"
                       onClick={() => {
                         const targetEventId = seatEventIdInput || events[0]?.id || "";
+                        setHasSearched(true);
                         setGallerySearchFilter({
                           eventId: targetEventId,
                           section: seatSectionInput,
@@ -1454,7 +1456,13 @@ export default function Community() {
                             });
                             setSeatPhotoInput("");
                             setIsShareModalOpen(false);
+                            setHasSearched(true);
+                            setGallerySearchFilter({
+                              eventId: targetEventId,
+                              section: seatSectionInput,
+                            });
                             showToast("Seat view shared successfully! You earned +15 EasePoints ✨");
+                            scrollToSection("seat-search-results");
                           }}
                           className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
                         >
@@ -1466,31 +1474,35 @@ export default function Community() {
                 </div>
               )}
 
-              {/* Gallery Header - Renamed to Results */}
-              <div id="seat-search-results" className="scroll-mt-24 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-brand text-base font-bold text-brand-deep">
-                    Results
-                  </h3>
-                  <p className="text-xs text-muted">
-                    {gallerySearchFilter
-                      ? `Showing results for ${events.find((e) => e.id === gallerySearchFilter.eventId)?.title ?? "Selected Event"}${gallerySearchFilter.section ? ` · ${gallerySearchFilter.section}` : ""}`
-                      : "Real, unedited photos shared by fans who sat there"}
-                  </p>
-                </div>
-                {gallerySearchFilter && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGallerySearchFilter(null);
-                      showToast("Showing all seat photos");
-                    }}
-                    className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
-                  >
-                    <X className="h-3.5 w-3.5" /> Clear search filter
-                  </button>
-                )}
-              </div>
+              {/* Results Section - Only appears after searching */}
+              {hasSearched && (
+                <div className="space-y-6 pt-2">
+                  {/* Gallery Header - Renamed to Results */}
+                  <div id="seat-search-results" className="scroll-mt-24 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-brand text-base font-bold text-brand-deep">
+                        Results
+                      </h3>
+                      <p className="text-xs text-muted">
+                        {gallerySearchFilter
+                          ? `Showing results for ${events.find((e) => e.id === gallerySearchFilter.eventId)?.title ?? "Selected Event"}${gallerySearchFilter.section ? ` · ${gallerySearchFilter.section}` : ""}`
+                          : "Real, unedited photos shared by fans who sat there"}
+                      </p>
+                    </div>
+                    {gallerySearchFilter && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGallerySearchFilter(null);
+                          setHasSearched(false);
+                          showToast("Search cleared");
+                        }}
+                        className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
+                      >
+                        <X className="h-3.5 w-3.5" /> Clear search filter
+                      </button>
+                    )}
+                  </div>
 
               {/* EaseExplore Venue Banner ("EaseExplore line") */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl border border-brand-purple/20 bg-gradient-to-r from-brand-deep via-[#311c59] to-brand-deep p-4.5 text-white shadow-lg">
@@ -1620,6 +1632,8 @@ export default function Community() {
                   </div>
                 );
               })()}
+                </div>
+              )}
             </div>
           )}
         </main>
