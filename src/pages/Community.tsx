@@ -377,6 +377,22 @@ export default function Community() {
     }, 50);
   };
 
+  const scrollToTabsIfAtTop = () => {
+    setTimeout(() => {
+      const element = document.getElementById("main-tabs-nav");
+      if (element) {
+        const navBar = document.querySelector("header");
+        const navBarHeight = navBar ? navBar.getBoundingClientRect().height : 64;
+        const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
+        const targetY = Math.max(0, elementTop - navBarHeight - 12);
+        // Only auto-scroll down if user is currently near the top of the page (in the hero area above the tabs)
+        if (window.pageYOffset < targetY - 40) {
+          window.scrollTo({ top: targetY, behavior: "smooth" });
+        }
+      }
+    }, 50);
+  };
+
   const setTab = (id: (typeof allTabs)[number]["id"]) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
@@ -388,7 +404,15 @@ export default function Community() {
     if (found) {
       showToast(`${found.label} selected`);
     }
+    scrollToTabsIfAtTop();
   };
+
+  // If user arrives specifically targeting exchange, auto-scroll to tabs from the top
+  useEffect(() => {
+    if (requestedTab === "exchange") {
+      scrollToTabsIfAtTop();
+    }
+  }, []);
 
   const eventName = (id: string) => events.find((e) => e.id === id)?.title ?? "Live Music";
 
@@ -604,6 +628,7 @@ export default function Community() {
             id="tab-easecomms"
             onClick={() => {
               setTab(lastCommsTab);
+              scrollToTabsIfAtTop();
             }}
             className={cx(
               "cursor-pointer group relative flex items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-left transition-all duration-200",
@@ -657,6 +682,7 @@ export default function Community() {
             id="tab-easeexchange"
             onClick={() => {
               setTab("exchange");
+              scrollToTabsIfAtTop();
             }}
             className={cx(
               "cursor-pointer group relative flex items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-left transition-all duration-200",
