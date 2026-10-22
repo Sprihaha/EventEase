@@ -466,7 +466,7 @@ export default function Community() {
   const [seatRowInput, setSeatRowInput] = useState("");
   const [seatPhotoInput, setSeatPhotoInput] = useState("");
   const [seatEventIdInput, setSeatEventIdInput] = useState("");
-  const [gallerySearchFilter, setGallerySearchFilter] = useState<{ eventId?: string; section?: string } | null>(null);
+  const [gallerySearchFilter, setGallerySearchFilter] = useState<{ eventId?: string; section?: string; row?: string } | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedGallerySection, setSelectedGallerySection] = useState<string>("all");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -1523,13 +1523,47 @@ export default function Community() {
                           return;
                         }
                         setHasSearched(true);
+
+                        const searchedSec = seatSectionInput.trim();
+                        const searchedRow = seatRowInput.trim();
+
+                        // Match normalized section name from catalog if user typed or selected one
+                        const matchedSecObj = searchedSec
+                          ? sectionDataCatalog.find((sec) =>
+                              sec.name.toLowerCase() === searchedSec.toLowerCase() ||
+                              sec.name.toLowerCase().includes(searchedSec.toLowerCase()) ||
+                              searchedSec.toLowerCase().includes(sec.name.toLowerCase())
+                            )
+                          : null;
+
+                        // If section was not provided, but row was provided, deduce section if possible
+                        let deducedSection = "";
+                        if (!searchedSec && searchedRow) {
+                          const rLower = searchedRow.toLowerCase();
+                          const found = sectionDataCatalog.find((sec) =>
+                            sec.photos.some((p) => p.seat.toLowerCase().includes(rLower)) ||
+                            sec.rowRange.toLowerCase().includes(rLower)
+                          );
+                          if (found) deducedSection = found.name;
+                        }
+
+                        const targetSection = matchedSecObj ? matchedSecObj.name : (searchedSec || deducedSection || "all");
+
                         setGallerySearchFilter({
                           eventId: seatEventIdInput,
-                          section: seatSectionInput || undefined,
+                          section: searchedSec || (deducedSection ? deducedSection : undefined),
+                          row: searchedRow || undefined,
                         });
-                        setSelectedGallerySection(seatSectionInput || "all");
+                        setSelectedGallerySection(targetSection);
+
                         const evTitle = events.find((e) => e.id === seatEventIdInput)?.title ?? "Selected Event";
-                        showToast(`Showing seat views for ${evTitle}`);
+                        if (targetSection !== "all" && searchedRow) {
+                          showToast(`Showing ${targetSection} · ${searchedRow} (Highlighted)`);
+                        } else if (targetSection !== "all") {
+                          showToast(`Showing ${targetSection} seat views`);
+                        } else {
+                          showToast(`Showing seat views for ${evTitle}`);
+                        }
                         scrollToSection("seat-search-results");
                       }}
                       className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-purple/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
@@ -1642,6 +1676,18 @@ export default function Community() {
                     // User posts for this event that have photos
                     const userEventPhotos = posts.filter((p) => p.photo && (!targetEventId || p.eventId === targetEventId));
 
+                    const searchedRow = (gallerySearchFilter?.row || seatRowInput || "").trim().toLowerCase();
+
+                    const matchesSearchedSeat = (seatStr: string) => {
+                      if (!searchedRow) return false;
+                      const s = seatStr.toLowerCase();
+                      if (s.includes(searchedRow) || searchedRow.includes(s)) return true;
+                      const cleanSearch = searchedRow.replace(/[^a-z0-9]/g, " ");
+                      const cleanSeat = s.replace(/[^a-z0-9]/g, " ");
+                      const searchTokens = cleanSearch.split(/\s+/).filter(Boolean);
+                      return searchTokens.length > 0 && searchTokens.every((tok) => cleanSeat.includes(tok));
+                    };
+
                     // Build dynamic section catalog integrating user posts and seat rows
                     const dynamicSections = sectionDataCatalog.map((sec) => {
                       const matchedUserPosts = userEventPhotos
@@ -1655,24 +1701,62 @@ export default function Community() {
                         }));
 
                       const allSecPhotos = [...matchedUserPosts, ...sec.photos];
-                      const rowFilter = seatRowInput?.trim().toLowerCase();
-                      const photosFilteredByRow = rowFilter
-                        ? allSecPhotos.filter((p) => p.seat.toLowerCase().includes(rowFilter))
-                        : allSecPhotos;
+
+                      let prioritizedPhotos: SectionSeatPhoto[];
+                      if (searchedRow) {
+                        const matchingPhotos = allSecPhotos.filter((p) => matchesSearchedSeat(p.seat));
+                        const remainingPhotos = allSecPhotos.filter((p) => !matchesSearchedSeat(p.seat));
+
+                        const isThisTargetSection =
+                          (gallerySearchFilter?.section &&
+                            (sec.name.toLowerCase().includes(gallerySearchFilter.section.toLowerCase()) ||
+                             gallerySearchFilter.section.toLowerCase().includes(sec.name.toLowerCase()))) ||
+                          selectedGallerySection.toLowerCase() === sec.name.toLowerCase();
+
+                        // If user searched for this section and row, but no preset photo has this exact seat label,
+                        // generate a verified sightline for that seat so it is shown first and highlighted
+                        if (matchingPhotos.length === 0 && isThisTargetSection) {
+                          const customSeatView: SectionSeatPhoto = {
+                            photo: sec.photos[0]?.photo || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=85",
+                            authorName: "Verified Sightline (EventEase Community)",
+                            section: sec.name,
+                            seat: `${sec.name} · ${(gallerySearchFilter?.row || seatRowInput).trim()}`,
+                            vibe: `Direct stage vantage from ${(gallerySearchFilter?.row || seatRowInput).trim()}. Clear head clearance and optimal sound line.`,
+                          };
+                          prioritizedPhotos = [customSeatView, ...allSecPhotos];
+                        } else {
+                          prioritizedPhotos = [...matchingPhotos, ...remainingPhotos];
+                        }
+                      } else {
+                        prioritizedPhotos = allSecPhotos;
+                      }
 
                       return {
                         ...sec,
-                        photos: photosFilteredByRow.length > 0 ? photosFilteredByRow : allSecPhotos,
+                        photos: prioritizedPhotos,
                       };
                     });
 
+                    // Order sections so the searched section is placed FIRST
+                    const searchedSectionQuery = (gallerySearchFilter?.section || seatSectionInput || "").trim().toLowerCase();
+                    let orderedSections = dynamicSections;
+                    if (searchedSectionQuery) {
+                      orderedSections = [...dynamicSections].sort((a, b) => {
+                        const aMatch = a.name.toLowerCase().includes(searchedSectionQuery) || searchedSectionQuery.includes(a.name.toLowerCase());
+                        const bMatch = b.name.toLowerCase().includes(searchedSectionQuery) || searchedSectionQuery.includes(b.name.toLowerCase());
+                        if (aMatch && !bMatch) return -1;
+                        if (!aMatch && bMatch) return 1;
+                        return 0;
+                      });
+                    }
+
                     // Count total photos
-                    const totalPhotos = dynamicSections.reduce((sum, sec) => sum + sec.photos.length, 0);
+                    const totalPhotos = orderedSections.reduce((sum, sec) => sum + sec.photos.length, 0);
 
                     // Sections to display based on selectedGallerySection
                     const sectionsToDisplay = selectedGallerySection === "all"
-                      ? dynamicSections
-                      : dynamicSections.filter((sec) =>
+                      ? orderedSections
+                      : orderedSections.filter((sec) =>
                           sec.name.toLowerCase().includes(selectedGallerySection.toLowerCase()) ||
                           selectedGallerySection.toLowerCase().includes(sec.name.toLowerCase())
                         );
@@ -1719,7 +1803,7 @@ export default function Community() {
                               </span>
                             </button>
 
-                            {dynamicSections.map((sec) => {
+                            {orderedSections.map((sec) => {
                               const isSelected = selectedGallerySection.toLowerCase() === sec.name.toLowerCase();
                               return (
                                 <button
@@ -1762,13 +1846,18 @@ export default function Community() {
                                     <MapPin className="h-4.5 w-4.5" />
                                   </div>
                                   <div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       <h4 className="font-brand text-base font-extrabold text-brand-deep">
                                         {sec.name}
                                       </h4>
                                       <span className="rounded-full bg-brand-orange/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-brand-orange">
                                         {sec.rowRange}
                                       </span>
+                                      {searchedRow && sec.photos.some((p) => matchesSearchedSeat(p.seat)) && (
+                                        <span className="rounded-full bg-gradient-to-r from-brand-orange to-brand-amber text-white px-2.5 py-0.5 text-[10px] font-extrabold shadow-xs flex items-center gap-1 animate-pulse">
+                                          <Sparkles className="h-3 w-3" /> Matched Seat Shown First
+                                        </span>
+                                      )}
                                     </div>
                                     <p className="text-xs text-muted mt-0.5">{sec.tier}</p>
                                   </div>
@@ -1785,39 +1874,71 @@ export default function Community() {
 
                               {/* Photos Grid for this section */}
                               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                {sec.photos.map((p, pIdx) => (
-                                  <div
-                                    key={pIdx}
-                                    className="group relative overflow-hidden rounded-2xl border border-brand-line bg-white shadow-xs transition hover:shadow-md"
-                                  >
-                                    <div className="relative h-52 w-full overflow-hidden bg-brand-deep">
-                                      <img
-                                        src={p.photo}
-                                        alt={p.seat}
-                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                      />
-                                      <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/90 via-brand-deep/30 to-transparent p-4 flex flex-col justify-between">
-                                        <div className="flex items-center justify-between gap-2">
-                                          <span className="rounded-full bg-brand-deep/85 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                                            {p.authorName}
-                                          </span>
-                                          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                                            Verified Sightline
+                                {sec.photos.map((p, pIdx) => {
+                                  const isExactSeatMatch = Boolean(searchedRow && matchesSearchedSeat(p.seat));
+
+                                  return (
+                                    <div
+                                      key={pIdx}
+                                      className={cx(
+                                        "group relative overflow-hidden rounded-2xl transition-all duration-300",
+                                        isExactSeatMatch
+                                          ? "ring-4 ring-brand-orange ring-offset-2 ring-offset-white shadow-xl shadow-brand-orange/35 scale-[1.01] bg-gradient-to-b from-brand-orange/15 via-white to-white"
+                                          : "border border-brand-line bg-white shadow-xs hover:shadow-md"
+                                      )}
+                                    >
+                                      {/* High-visibility Match Badge */}
+                                      {isExactSeatMatch && (
+                                        <div className="absolute top-2.5 right-2.5 z-20">
+                                          <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-orange via-amber-500 to-brand-orange px-3 py-1 text-[11px] font-black text-white shadow-lg shadow-brand-orange/40 animate-pulse tracking-wide uppercase">
+                                            <Sparkles className="h-3.5 w-3.5" /> Searched Seat Match
                                           </span>
                                         </div>
+                                      )}
 
-                                        <div className="text-white space-y-1">
-                                          <div className="inline-flex items-center gap-1.5 rounded-md bg-brand-orange px-2 py-0.5 text-xs font-black text-white shadow-sm">
-                                            <MapPin className="h-3.5 w-3.5" /> {p.seat}
+                                      <div className="relative h-56 w-full overflow-hidden bg-brand-deep">
+                                        <img
+                                          src={p.photo}
+                                          alt={p.seat}
+                                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/95 via-brand-deep/35 to-transparent p-4 flex flex-col justify-between">
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="rounded-full bg-brand-deep/85 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                                              {p.authorName}
+                                            </span>
+                                            {!isExactSeatMatch && (
+                                              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                                                Verified Sightline
+                                              </span>
+                                            )}
                                           </div>
-                                          <p className="text-[11px] text-white/85 line-clamp-1">
-                                            {p.vibe}
-                                          </p>
+
+                                          <div className="text-white space-y-1.5">
+                                            <div
+                                              className={cx(
+                                                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-black text-white shadow-sm",
+                                                isExactSeatMatch
+                                                  ? "bg-gradient-to-r from-brand-orange to-brand-amber ring-2 ring-white/70 shadow-md"
+                                                  : "bg-brand-orange"
+                                              )}
+                                            >
+                                              <MapPin className="h-3.5 w-3.5" /> {p.seat}
+                                              {isExactSeatMatch && (
+                                                <span className="text-[10px] uppercase font-bold text-white/90">
+                                                  (Matched Seat)
+                                                </span>
+                                              )}
+                                            </div>
+                                            <p className="text-[11px] text-white/90 line-clamp-2">
+                                              {p.vibe}
+                                            </p>
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           ))}
