@@ -17,12 +17,13 @@ from app.core.security import (
     verify_password,
 )
 from app.db.models import LoginAttempt, PasswordResetToken, RefreshToken, Role, User, UserStatus
-from app.rules.contact import EMAIL_TAKEN, normalise_email, normalise_sg_phone
+from app.rules.contact import EMAIL_TAKEN, mask_email, normalise_email, normalise_sg_phone
 from app.rules.errors import RuleError
 from app.rules.password import check_password
 from app.rules.protected_accounts import check_not_protected, is_protected_username
 from app.rules.username import USERNAME_TAKEN
 from app.services import audit, fraud
+from app.services.email_verification import send_signup_verification
 from app.services.mail.base import send_safely
 from app.services.usernames import check_username_available, suggest_usernames
 
@@ -192,6 +193,13 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
         db.commit()
         raise AppError(403, "ACCOUNT_SUSPENDED", "this account is suspended")
 
+    if user.needs_email_verification:
+        user.failed_login_count = 0
+        _record_attempt(db, identifier, user, ip, False, "EMAIL_UNVERIFIED")
+        db.commit()
+        raise AppError(403, "EMAIL_NOT_VERIFIED", "please verify your email before signing in",
+                       {"email": mask_email(user.email)})
+
     user.failed_login_count = 0
     user.locked_until = None
     _record_attempt(db, identifier, user, ip, True, "OK")
@@ -204,7 +212,8 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
 
 
 def signup(db: Session, settings: Settings, *, username: str, password: str, email: str, phone: str,
-           role: str, ip: str | None) -> Session_:
+           role: str, ip: str | None) -> User:
+    """Create an unverified account and email its verification link. No session until verified."""
     if role.upper() == Role.ADMIN.value:
         raise AppError(403, "ROLE_NOT_ALLOWED", "administrator accounts cannot be created through sign-up")
     if role not in SIGNUP_ROLES:
@@ -219,7 +228,7 @@ def signup(db: Session, settings: Settings, *, username: str, password: str, ema
 
     user = User(username=username, email=normalised_email, phone_e164=phone_e164,
                 password_hash=hash_password(password), role=Role(role), signup_ip=ip,
-                password_changed_at=utcnow())
+                password_changed_at=utcnow(), email_verification_required=True)
     db.add(user)
     try:
         db.flush()
@@ -232,10 +241,9 @@ def signup(db: Session, settings: Settings, *, username: str, password: str, ema
         if "uq_users_email_lower" in str(error.orig):
             raise RuleError(*EMAIL_TAKEN, status_code=409) from error
         raise
-    session = _start_session(db, settings, user)
-    db.commit()
+    send_signup_verification(db, settings, user)
     fraud.on_signup(db, user=user, ip=ip)
-    return session
+    return user
 
 
 # --------------------------------------------------------------------------- passwords
@@ -271,7 +279,7 @@ def forgot_password(db: Session, settings: Settings, identifier: str) -> None:
     """Always succeeds silently; only users with an email (never the admin or a protected account) get a link."""
     user = _find_by_identifier(db, identifier)
     if (user is None or user.email is None or user.role == Role.ADMIN or user.status != UserStatus.ACTIVE
-            or is_protected_username(user.username)):
+            or is_protected_username(user.username) or user.needs_email_verification):
         return
     now = utcnow()
     db.execute(

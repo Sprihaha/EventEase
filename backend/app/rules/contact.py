@@ -33,6 +33,20 @@ def normalise_sg_phone(phone: str) -> str:
     return f"+65{match.group(1)}"
 
 
+# Reserved for documentation and testing (RFC 2606 / RFC 6761); mail to them never arrives.
+_UNDELIVERABLE_DOMAINS = ("example.com", "example.net", "example.org")
+_UNDELIVERABLE_SUFFIXES = (".example", ".test", ".invalid", ".localhost", ".local")
+
+
+def is_undeliverable_email(email: str | None) -> bool:
+    if not email or "@" not in email:
+        return True
+    domain = email.rpartition("@")[2].lower()
+    return (domain in _UNDELIVERABLE_DOMAINS or domain == "localhost"
+            or any(domain.endswith("." + d) for d in _UNDELIVERABLE_DOMAINS)
+            or any(domain.endswith(s) for s in _UNDELIVERABLE_SUFFIXES))
+
+
 def mask_email(email: str | None) -> str | None:
     if not email:
         return None

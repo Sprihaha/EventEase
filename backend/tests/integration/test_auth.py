@@ -30,18 +30,19 @@ def seeded_admin_password(db) -> str:
 # ----------------------------------------------------------------- sign-up
 
 
-@pytest.mark.parametrize("role,redirect", [("CUSTOMER", "/customer/dashboard"), ("ORGANISER", "/organiser/dashboard")])
-def test_signup_success_returns_tokens_and_redirect(client, db, role, redirect):
+@pytest.mark.parametrize("role", ["CUSTOMER", "ORGANISER"])
+def test_signup_creates_unverified_account_without_session(client, db, role):
     response = signup(client, role=role)
     assert response.status_code == 201, response.text
     body = response.json()
-    assert body["redirectTo"] == redirect
-    assert body["user"]["role"] == role and body["user"]["username"] == "newfan"
-    assert body["accessToken"] and body["tokenType"] == "Bearer" and body["expiresIn"] == 900
-    assert get_settings().REFRESH_COOKIE_NAME in response.cookies
-    assert "password" not in response.text.lower().replace("mustchangepassword", "")
+    assert body["verificationRequired"] is True and body["email"] == "n***@example.com"
+    assert "accessToken" not in body
+    assert get_settings().REFRESH_COOKIE_NAME not in response.cookies
+    assert "password" not in response.text.lower()
     user = db.scalar(select(User).where(User.username == "newfan"))
-    assert user.phone_e164 == "+6591234567" and user.password_hash.startswith("$argon2id$")
+    assert user.role == role and user.phone_e164 == "+6591234567" and user.password_hash.startswith("$argon2id$")
+    assert user.email_verification_required and user.email_verified_at is None
+    assert "/verify-email/" in get_mailer().outbox[-1].body
 
 
 @pytest.mark.parametrize("role", ["ADMIN", "admin", "Admin"])

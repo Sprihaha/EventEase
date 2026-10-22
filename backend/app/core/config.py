@@ -65,7 +65,8 @@ class Settings(BaseSettings):
     # CORS / frontend
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8000,http://localhost:8443"
     CORS_ORIGIN_REGEX: str = r"https://([a-z0-9-]+\.)*figma\.(site|com)"
-    FRONTEND_URL: str = "http://localhost:5173"
+    # Links in emails point here; the Vite dev server listens on 8443 (vite.config.ts).
+    FRONTEND_URL: str = "http://localhost:8443"
 
     # Default administrator
     ADMIN_USERNAME: str = "eventeaseadmin"
@@ -101,9 +102,22 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str | None = None
     STRIPE_WEBHOOK_SECRET: str | None = None
 
-    # Mail
-    MAIL_TRANSPORT: Literal["console"] = "console"
+    # Mail. "console" prints messages; "smtp" sends real mail (e.g. Gmail: smtp.gmail.com,
+    # port 587, the account address as SMTP_USERNAME and a Google app password).
+    MAIL_TRANSPORT: Literal["console", "smtp"] = "console"
     MAIL_FROM: str = "EventEase <no-reply@eventease.local>"
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_TIMEOUT_SECONDS: int = 15
+
+    # Email verification: required for new sign-ups; accounts created earlier get reminders.
+    EMAIL_VERIFICATION_TTL_HOURS: int = Field(default=24, ge=1, le=720)
+    EMAIL_REMINDER_TTL_DAYS: int = Field(default=7, ge=1, le=60)
+    RATE_VERIFY_EMAIL_IP: str = "20/900"
+    RATE_RESEND_VERIFICATION_IP: str = "5/900"
+    RATE_RESEND_VERIFICATION_IDENTIFIER: str = "3/3600"
 
     # Fraud thresholds
     FRAUD_FAILED_LOGINS_PER_IP: int = 10
@@ -146,6 +160,8 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must be at least 32 characters")
         if self.PAYMENT_PROVIDER == "stripe" and not self.STRIPE_SECRET_KEY:
             raise ValueError("STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe")
+        if self.MAIL_TRANSPORT == "smtp" and not (self.SMTP_HOST and self.SMTP_USERNAME and self.SMTP_PASSWORD):
+            raise ValueError("SMTP_HOST, SMTP_USERNAME and SMTP_PASSWORD are required when MAIL_TRANSPORT=smtp")
         return self
 
     @property

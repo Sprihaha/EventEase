@@ -13,6 +13,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useStore } from "../lib/store";
+import { ApiError, backendResendVerification, backendSignup } from "../lib/backendApi";
 import { Badge, Button, Card, Field, Input } from "../components/ui";
 
 type SignUp = {
@@ -41,6 +42,17 @@ export default function Login() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [mode]);
+
+  // The old preview sign-up kept plain-text passwords in localStorage; remove any leftovers.
+  useEffect(() => {
+    try {
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith("eventease-pending-") || key.startsWith("eventease-user-"))
+        .forEach((key) => localStorage.removeItem(key));
+    } catch {
+      // Storage unavailable (private mode); nothing to clean up.
+    }
+  }, []);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -53,8 +65,21 @@ export default function Login() {
     () => sessionStorage.getItem("eventease-login-locked") === "true",
   );
   const [signUp, setSignUp] = useState<SignUp>(emptySignUp);
-  const [verificationCode, setVerificationCode] = useState("");
+  const [signingUp, setSigningUp] = useState(false);
+  const [signUpError, setSignUpError] = useState("");
+  // Set when the account exists but its email has not been verified yet.
+  const [unverified, setUnverified] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const remaining = Math.max(0, 5 - attempts);
+
+  const resendLink = async (identifier: string) => {
+    setResendState("sending");
+    try {
+      await backendResendVerification(identifier);
+    } finally {
+      setResendState("sent");
+    }
+  };
 
   const passwordHint = useMemo(() => {
     if (!signUp.password) return "";
@@ -76,6 +101,14 @@ export default function Login() {
       }
     } catch (err: unknown) {
       setSigningIn(false);
+      if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") {
+        // The password was right, so this is not a failed attempt.
+        setUnverified(true);
+        setResendState("idle");
+        setError(`Please verify your email before signing in. Open the link we sent to ${err.details.email ?? "your email"}.`);
+        return;
+      }
+      setUnverified(false);
       const msg = err instanceof Error ? err.message : "";
       if (
         msg.includes("Failed to fetch") ||
@@ -99,12 +132,25 @@ export default function Login() {
     }
   };
 
-  const handleSignUp = (event: FormEvent) => {
+  const handleSignUp = async (event: FormEvent) => {
     event.preventDefault();
-    const code = crypto.randomUUID();
-    localStorage.setItem(`eventease-pending-${code}`, JSON.stringify(signUp));
-    setVerificationCode(code);
-    setMode("sent");
+    setSigningUp(true);
+    setSignUpError("");
+    try {
+      await backendSignup({
+        username: signUp.userId,
+        password: signUp.password,
+        email: signUp.email,
+        phone: signUp.phone,
+      });
+      setSignUp((current) => ({ ...current, password: "" }));
+      setResendState("idle");
+      setMode("sent");
+    } catch (err: unknown) {
+      setSignUpError(err instanceof Error ? err.message : "Sign-up failed. Please try again.");
+    } finally {
+      setSigningUp(false);
+    }
   };
 
   const update = (key: keyof SignUp, value: string) =>
@@ -185,6 +231,22 @@ export default function Login() {
                 {error && (
                   <div role="alert" className="rounded-xl border border-rose-200 bg-danger/10 p-3.5 text-sm font-medium text-danger">
                     {error}
+                    {unverified && (
+                      <div className="mt-2">
+                        {resendState === "sent" ? (
+                          <span className="font-normal">A new verification link is on its way. Check your inbox and spam folder.</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="cursor-pointer font-semibold underline underline-offset-2"
+                            disabled={resendState === "sending"}
+                            onClick={() => void resendLink(username)}
+                          >
+                            {resendState === "sending" ? "Sending…" : "Resend verification link"}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 {!locked && attempts > 0 && (
@@ -236,8 +298,13 @@ export default function Login() {
                     <Input value={signUp.billingAddress} onChange={(e) => update("billingAddress", e.target.value)} required />
                   </Field>
                 </div>
-                <Button className="mt-2 w-full sm:col-span-2" size="lg" type="submit">
-                  Send verification link <Mail className="h-4 w-4" />
+                {signUpError && (
+                  <div role="alert" className="rounded-xl border border-rose-200 bg-danger/10 p-3.5 text-sm font-medium text-danger sm:col-span-2">
+                    {signUpError}
+                  </div>
+                )}
+                <Button className="mt-2 w-full sm:col-span-2" size="lg" type="submit" disabled={signingUp}>
+                  {signingUp ? "Creating your account…" : "Send verification link"} {!signingUp && <Mail className="h-4 w-4" />}
                 </Button>
               </form>
             </>
@@ -252,11 +319,26 @@ export default function Login() {
                 Check your inbox
               </h1>
               <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted">
-                A verification link has been prepared for <strong className="text-brand-deep">{signUp.email}</strong>.
-                In this preview, use the button below to simulate opening the email.
+                We've sent a verification link to <strong className="text-brand-deep">{signUp.email}</strong>.
+                Open it within 24 hours to activate your account, then sign in.
               </p>
-              <Button className="mt-7" size="lg" onClick={() => navigate(`/verify-email/${verificationCode}`)}>
-                Open verification link <ArrowRight className="h-4 w-4" />
+              <p className="mx-auto mt-3 max-w-sm text-xs text-muted">
+                Can't find it? Check your spam folder.{" "}
+                {resendState === "sent" ? (
+                  <span className="font-semibold text-brand-deep">A new link is on its way.</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="cursor-pointer font-semibold text-brand-deep underline underline-offset-2"
+                    disabled={resendState === "sending"}
+                    onClick={() => void resendLink(signUp.email)}
+                  >
+                    {resendState === "sending" ? "Sending…" : "Resend link"}
+                  </button>
+                )}
+              </p>
+              <Button className="mt-7" size="lg" onClick={() => { setMode("signin"); setError(""); setUnverified(false); }}>
+                Back to sign in <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           )}

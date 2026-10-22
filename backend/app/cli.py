@@ -2,6 +2,7 @@
 
     python -m app.cli seed-admin
     python -m app.cli admin-reset-password --username eventeaseadmin
+    python -m app.cli send-verification-reminders [--send]
 """
 
 import argparse
@@ -49,6 +50,22 @@ def cmd_ingest(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verification_reminders(args: argparse.Namespace) -> int:
+    from app.services.email_verification import reminder_recipients, send_verification_reminders
+
+    settings = get_settings()
+    with SessionLocal() as db:
+        recipients = send_verification_reminders(db, settings) if args.send else reminder_recipients(db)
+    for r in recipients:
+        status = f"SKIPPED ({r.skipped_reason})" if r.skipped_reason else ("sent" if args.send else "would send")
+        print(f"  {r.username:<15} {r.masked_email:<32} {status}")
+    if not recipients:
+        print("No existing accounts are waiting for email verification.")
+    elif not args.send:
+        print(f"\nDry run: nothing was sent (MAIL_TRANSPORT={settings.MAIL_TRANSPORT}). Add --send to email them.")
+    return 0
+
+
 def cmd_purge(_: argparse.Namespace) -> int:
     from app.services.retention import purge_old_data
 
@@ -70,6 +87,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("seed-sample", help="Insert labelled sample events (development only)").set_defaults(func=cmd_seed_sample)
     sub.add_parser("ingest-events", help="Sync Singapore events from configured external sources").set_defaults(func=cmd_ingest)
     sub.add_parser("purge-old-data", help="Delete personal data past DATA_RETENTION_DAYS (PDPA)").set_defaults(func=cmd_purge)
+
+    remind = sub.add_parser("send-verification-reminders",
+                            help="List (or with --send, email) existing accounts whose email is not yet verified")
+    remind.add_argument("--send", action="store_true", help="Actually send the reminder emails")
+    remind.set_defaults(func=cmd_verification_reminders)
     return parser
 
 

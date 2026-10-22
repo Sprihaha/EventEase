@@ -12,12 +12,17 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     MeResponse,
+    ResendVerificationRequest,
     ResetPasswordRequest,
     SignupRequest,
+    SignupResponse,
     UsernameAvailability,
+    VerifyEmailRequest,
 )
+from app.rules.contact import mask_email
 from app.schemas.common import Message
 from app.services import auth as auth_service
+from app.services import email_verification
 from app.services.usernames import check_username_available
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -60,16 +65,34 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     return _respond(response, auth_service.login(db, settings, body.identifier, body.password, ip))
 
 
-@router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED,
+@router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED,
              responses={400: {"description": "Rule violation"}, 403: {"description": "ROLE_NOT_ALLOWED"},
                         409: {"description": "USERNAME_TAKEN / EMAIL_TAKEN"}})
-def signup(body: SignupRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+def signup(body: SignupRequest, request: Request, db: Session = Depends(get_db)):
+    """Creates an unverified account and emails a verification link; log in after opening it."""
     settings = get_settings()
     ip = client_ip(request)
     enforce("signup-ip", ip, settings.RATE_SIGNUP_IP)
-    session = auth_service.signup(db, settings, username=body.username, password=body.password, email=body.email,
-                                  phone=body.phone, role=body.role, ip=ip)
-    return _respond(response, session)
+    user = auth_service.signup(db, settings, username=body.username, password=body.password, email=body.email,
+                               phone=body.phone, role=body.role, ip=ip)
+    return {"message": "Account created. Open the link we emailed you to verify your address, then sign in.",
+            "email": mask_email(user.email)}
+
+
+@router.post("/verify-email", response_model=Message, responses={400: {"description": "VERIFICATION_LINK_INVALID"}})
+def verify_email(body: VerifyEmailRequest, request: Request, db: Session = Depends(get_db)):
+    enforce("verify-email-ip", client_ip(request), get_settings().RATE_VERIFY_EMAIL_IP)
+    email_verification.verify_email(db, body.token)
+    return {"message": "Email verified. You can now sign in."}
+
+
+@router.post("/resend-verification", response_model=Message)
+def resend_verification(body: ResendVerificationRequest, request: Request, db: Session = Depends(get_db)):
+    settings = get_settings()
+    enforce("resend-verification-ip", client_ip(request), settings.RATE_RESEND_VERIFICATION_IP)
+    enforce("resend-verification-id", body.identifier.strip(), settings.RATE_RESEND_VERIFICATION_IDENTIFIER)
+    email_verification.resend_verification(db, settings, body.identifier)
+    return {"message": "If that account still needs verifying, a new link has been sent to its email address."}
 
 
 @router.get("/username-available", response_model=UsernameAvailability,
@@ -115,7 +138,8 @@ def logout(request: Request, db: Session = Depends(get_db)):
 @router.get("/me", response_model=MeResponse)
 def me(user: User = Depends(get_current_user)):
     return MeResponse(id=user.id, username=user.username, role=user.role, email=user.email, phone=user.phone_e164,
-                      must_change_password=user.must_change_password, created_at=user.created_at)
+                      must_change_password=user.must_change_password,
+                      email_verified=user.email_verified_at is not None, created_at=user.created_at)
 
 
 @router.post("/change-password", response_model=AuthResponse)

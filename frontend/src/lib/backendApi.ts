@@ -13,6 +13,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    public code = "",
+    public details: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -89,11 +91,13 @@ export async function request<T>(path: string, init: RequestInit = {}, authentic
   const response = await fetch(`${API_ROOT}${path}`, { ...init, headers });
   if (!response.ok) {
     const body = await response.json().catch(() => null) as
-      | { error?: { message?: string }; detail?: string }
+      | { error?: { code?: string; message?: string; details?: Record<string, unknown> }; detail?: string }
       | null;
     throw new ApiError(
       body?.error?.message ?? body?.detail ?? `Backend request failed (${response.status})`,
       response.status,
+      body?.error?.code,
+      body?.error?.details,
     );
   }
   if (response.status === 204) return undefined as T;
@@ -209,9 +213,24 @@ export async function backendSignup(account: {
   email: string;
   phone: string;
 }) {
-  return request<BackendAuth>("/auth/signup", {
+  // Creates an unverified account; the backend emails a link to /verify-email/:token.
+  return request<{ message: string; email: string; verificationRequired: boolean }>("/auth/signup", {
     method: "POST",
     body: JSON.stringify({ ...account, role: "CUSTOMER" }),
+  });
+}
+
+export async function backendVerifyEmail(token: string) {
+  return request<{ message: string }>("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function backendResendVerification(identifier: string) {
+  return request<{ message: string }>("/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ identifier }),
   });
 }
 
