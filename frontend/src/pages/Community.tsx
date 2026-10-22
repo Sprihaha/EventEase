@@ -88,7 +88,18 @@ export default function Community() {
     }, 2800);
   };
 
-  const setTab = (id: (typeof allTabs)[number]["id"]) => {
+  const scrollToSection = (targetId: string) => {
+    setTimeout(() => {
+      const element = document.getElementById(targetId);
+      if (element) {
+        const yOffset = -90; // offset for sticky navbar
+        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+      }
+    }, 60);
+  };
+
+  const setTab = (id: (typeof allTabs)[number]["id"], shouldScroll = false) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       next.set("tab", id);
@@ -98,6 +109,9 @@ export default function Community() {
     const found = allTabs.find((t) => t.id === id);
     if (found) {
       showToast(`${found.label} selected`);
+    }
+    if (shouldScroll) {
+      scrollToSection(id === "exchange" ? "exchange-view" : "community-grid");
     }
   };
 
@@ -255,7 +269,7 @@ export default function Community() {
               <button
                 type="button"
                 onClick={() => {
-                  document.getElementById("community-grid")?.scrollIntoView({ behavior: "smooth" });
+                  scrollToSection("community-grid");
                 }}
                 className="cursor-pointer inline-flex items-center gap-1.5 rounded-2xl border border-white/25 bg-white/10 px-4.5 py-3 text-xs font-bold text-white backdrop-blur-md transition hover:bg-white/20"
               >
@@ -306,7 +320,7 @@ export default function Community() {
             type="button"
             id="tab-easecomms"
             onClick={() => {
-              setTab(lastCommsTab);
+              setTab(lastCommsTab, true);
             }}
             className={cx(
               "cursor-pointer group relative flex items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-left transition-all duration-200",
@@ -365,7 +379,7 @@ export default function Community() {
             type="button"
             id="tab-easeexchange"
             onClick={() => {
-              setTab("exchange");
+              setTab("exchange", true);
             }}
             className={cx(
               "cursor-pointer group relative flex items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-left transition-all duration-200",
