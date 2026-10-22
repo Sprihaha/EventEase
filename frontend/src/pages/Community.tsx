@@ -410,12 +410,6 @@ export default function Community() {
                 </p>
               </div>
             </div>
-
-            {mainSection === "comms" && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-black text-white shrink-0">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> Active
-              </span>
-            )}
           </button>
 
           {/* Tab 2: EaseExchange */}
@@ -469,12 +463,6 @@ export default function Community() {
                 </p>
               </div>
             </div>
-
-            {mainSection === "exchange" && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-black text-white shrink-0">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> Active
-              </span>
-            )}
           </button>
         </div>
       </nav>
@@ -1499,8 +1487,7 @@ export default function Community() {
             <div className="grid grid-cols-1 lg:grid-cols-[1.12fr_1fr] gap-8 lg:gap-12 items-center">
               {/* Left Column: Hero Copy */}
               <div className="max-w-xl">
-                <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[1.7px] text-brand-purple">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/15" />
+                <div className="text-[11px] font-extrabold uppercase tracking-[1.7px] text-brand-purple">
                   FAN-TO-FAN TICKET EXCHANGE
                 </div>
 
