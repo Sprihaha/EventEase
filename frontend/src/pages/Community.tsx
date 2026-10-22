@@ -308,7 +308,6 @@ export default function Community() {
   const [seatRowInput, setSeatRowInput] = useState("Row D");
   const [seatPhotoInput, setSeatPhotoInput] = useState("");
   const [seatEventIdInput, setSeatEventIdInput] = useState("");
-  const [selectedSeatSectionFilter, setSelectedSeatSectionFilter] = useState("all");
 
   const composerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1271,40 +1270,14 @@ export default function Community() {
                 </div>
               </div>
 
-              {/* Gallery Header & Filter Pills */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-brand text-base font-bold text-brand-deep">
-                    Community Seat Photos
-                  </h3>
-                  <p className="text-xs text-muted">
-                    Real, unedited photos shared by fans who sat there
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { id: "all", label: "All Seats" },
-                    { id: "vip", label: "VIP Floor" },
-                    { id: "section a", label: "Section A" },
-                    { id: "section b", label: "Section B" },
-                    { id: "section c", label: "Section C" },
-                  ].map((filterItem) => (
-                    <button
-                      key={filterItem.id}
-                      type="button"
-                      onClick={() => setSelectedSeatSectionFilter(filterItem.id)}
-                      className={cx(
-                        "cursor-pointer rounded-full px-3 py-1 text-xs font-bold transition-all",
-                        selectedSeatSectionFilter === filterItem.id
-                          ? "bg-brand-deep text-white shadow-sm"
-                          : "bg-brand-lilac/60 text-brand-deep hover:bg-brand-purple hover:text-white"
-                      )}
-                    >
-                      {filterItem.label}
-                    </button>
-                  ))}
-                </div>
+              {/* Gallery Header */}
+              <div>
+                <h3 className="font-brand text-base font-bold text-brand-deep">
+                  Community Seat Photos
+                </h3>
+                <p className="text-xs text-muted">
+                  Real, unedited photos shared by fans who sat there
+                </p>
               </div>
 
               {/* Photos Grid */}
@@ -1312,13 +1285,6 @@ export default function Community() {
                 {posts
                   .filter((p) => p.photo)
                   .concat(posts.filter((p) => p.photo))
-                  .filter((p) => {
-                    if (selectedSeatSectionFilter === "all") return true;
-                    if (selectedSeatSectionFilter === "vip") {
-                      return (p.section?.toLowerCase().includes("vip") || p.section?.toLowerCase().includes("floor"));
-                    }
-                    return p.section?.toLowerCase().includes(selectedSeatSectionFilter);
-                  })
                   .slice(0, 9)
                   .map((p, i) => (
                     <div
