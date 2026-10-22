@@ -1988,16 +1988,23 @@ export default function Community() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 text-white">
-              <div className="flex items-center gap-2">
-                <Rotate3d className="h-5 w-5 text-brand-orange animate-spin" />
-                <span className="font-brand text-sm font-bold">
-                  {preview360Photo.title} · Section {preview360Photo.section ?? "C"}
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-orange to-brand-amber text-white shadow-md">
+                  <Rotate3d className="h-5 w-5 animate-spin" />
+                </div>
+                <div>
+                  <h3 className="font-brand text-lg font-bold text-white leading-tight">
+                    EaseXplore
+                  </h3>
+                  <p className="text-xs text-white/80 mt-0.5 font-medium">
+                    {preview360Photo.title} · {preview360Photo.section ? (preview360Photo.section.toLowerCase().startsWith("section") ? preview360Photo.section : `Section ${preview360Photo.section}`) : "Section C"}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setPreview360Photo(null)}
-                className="cursor-pointer rounded-full p-1 text-white/70 hover:bg-white/10 hover:text-white"
+                className="cursor-pointer rounded-full p-1.5 text-white/70 hover:bg-white/10 hover:text-white transition"
               >
                 <X className="h-5 w-5" />
               </button>
