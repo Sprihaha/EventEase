@@ -579,7 +579,7 @@ export default function Community() {
       <nav
         id="main-tabs-nav"
         aria-label="Community Sections"
-        className="mb-8 rounded-2xl border border-brand-line bg-white/95 p-2 shadow-sm backdrop-blur-md"
+        className="mb-3.5 sm:mb-4 rounded-2xl border border-brand-line bg-white/95 p-2 shadow-sm backdrop-blur-md"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {/* Tab 1: EaseComms */}
@@ -923,7 +923,7 @@ export default function Community() {
           <div className="flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
               <h2 className="font-brand text-2xl font-bold tracking-tight text-brand-deep">
-                {tab === "feed" && "The conversation"}
+                {tab === "feed" && "Community"}
                 {tab === "views" && "EasePix & EaseExplore"}
               </h2>
               <p className="text-xs text-muted">
@@ -1754,7 +1754,19 @@ export default function Community() {
       </div>
       ) : (
         /* DEDICATED EASEEXCHANGE VIEW (Integrated from user design) */
-        <div id="exchange-view" className="max-w-5xl mx-auto py-4 space-y-8">
+        <div id="exchange-view" className="max-w-5xl mx-auto pt-0.5 pb-6 space-y-5">
+          {/* Section Header */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+            <div>
+              <h2 className="font-brand text-2xl font-bold tracking-tight text-brand-deep">
+                Ticket Swaps
+              </h2>
+              <p className="text-xs text-muted">
+                Face-value ticket swaps backed by community verification
+              </p>
+            </div>
+          </div>
+
           {/* Hero Section */}
           <div className="rounded-3xl border border-brand-line bg-white p-6 sm:p-10 lg:p-12 shadow-sm">
             <div className="grid grid-cols-1 lg:grid-cols-[1.12fr_1fr] gap-8 lg:gap-12 items-center">
