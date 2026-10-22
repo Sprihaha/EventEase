@@ -2049,14 +2049,6 @@ export default function Community() {
                                       <p className="text-xs text-muted mt-0.5">{sec.tier}</p>
                                     </div>
                                   </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenEaseExplore(sec.name)}
-                                    className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-brand-purple/20 bg-brand-lilac/40 px-3 py-1.5 text-xs font-bold text-brand-purple hover:bg-brand-purple hover:text-white transition shadow-xs"
-                                  >
-                                    <Rotate3d className="h-3.5 w-3.5" /> View in 360°
-                                  </button>
                                 </div>
 
                                 {/* Case 2: No pics found for the entire section */}
