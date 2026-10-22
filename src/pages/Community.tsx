@@ -1961,21 +1961,23 @@ export default function Community() {
               </div>
             </div>
 
-            {/* EaseXchange Platform */}
-            <div id="easexchange-app" className="pt-6 border-t border-brand-line">
-              <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <h3 className="font-brand text-2xl font-bold tracking-tight text-brand-deep flex items-center gap-2">
-                    <span className="font-feature italic font-black text-brand-purple">EaseXchange</span>
-                    <span>Platform</span>
-                  </h3>
-                  <p className="text-xs text-muted">
-                    Browse active face-value listings, create exchange requests, and swap tickets securely.
-                  </p>
+            {/* EaseXchange Platform: Only available to users who have signed in */}
+            {user && (
+              <div id="easexchange-app" className="pt-6 border-t border-brand-line">
+                <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h3 className="font-brand text-2xl font-bold tracking-tight text-brand-deep flex items-center gap-2">
+                      <span className="font-feature italic font-black text-brand-purple">EaseXchange</span>
+                      <span>Platform</span>
+                    </h3>
+                    <p className="text-xs text-muted">
+                      Browse active face-value listings, create exchange requests, and swap tickets securely.
+                    </p>
+                  </div>
                 </div>
+                <SecureExchange key={user.id} />
               </div>
-              <SecureExchange key={user?.id ?? "public"} />
-            </div>
+            )}
           </div>
         </div>
       )}
