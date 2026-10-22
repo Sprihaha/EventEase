@@ -73,11 +73,10 @@ const vantagePoints = [
 const allTabs = [
   { id: "feed", label: "EaseConnect", icon: Users, desc: "Discussions & fan forums" },
   { id: "views", label: "EasePix", icon: Camera, desc: "Share seat view" },
-  { id: "access", label: "EaseXplore", icon: Rotate3d, desc: "360° degree view" },
   { id: "exchange", label: "EaseExchange", icon: Repeat, desc: "Ticket swaps" },
 ] as const;
 
-type CommsChannelId = "feed" | "views" | "access";
+type CommsChannelId = "feed" | "views";
 
 type FilterType = "all" | "following" | "views" | "questions";
 
@@ -277,7 +276,7 @@ export default function Community() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
-  const tab = allTabs.find((item) => item.id === requestedTab)?.id ?? "feed";
+  const tab = requestedTab === "access" ? "views" : (allTabs.find((item) => item.id === requestedTab)?.id ?? "feed");
   const [lastCommsTab, setLastCommsTab] = useState<CommsChannelId>(
     tab === "exchange" ? "feed" : (tab as CommsChannelId)
   );
@@ -300,9 +299,15 @@ export default function Community() {
   const [likesCount, setLikesCount] = useState<Record<string, number>>({});
   const [activeVoicePlaying, setActiveVoicePlaying] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [preview360Photo, setPreview360Photo] = useState<{ url: string; title: string; section?: string } | null>(null);
+  const [preview360Photo, setPreview360Photo] = useState<{
+    url: string;
+    title: string;
+    section?: string;
+    elevation?: string;
+    fov?: string;
+  } | null>(null);
 
-  // EasePix & EaseXplore combined view states
+  // EasePix state & EaseExplore
   const [activeVantage, setActiveVantage] = useState<string>("stage");
   const [seatSectionInput, setSeatSectionInput] = useState("Section C");
   const [seatRowInput, setSeatRowInput] = useState("Row D");
@@ -310,6 +315,30 @@ export default function Community() {
   const [seatEventIdInput, setSeatEventIdInput] = useState("");
   const [gallerySearchFilter, setGallerySearchFilter] = useState<{ eventId?: string; section?: string } | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+  const handleOpenEaseExplore = () => {
+    const targetEventId = gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id || "";
+    const targetSection = gallerySearchFilter?.section || seatSectionInput || "Section C";
+    const ev = events.find((e) => e.id === targetEventId) ?? events[0];
+    const matched =
+      vantagePoints.find((v) =>
+        targetSection.toLowerCase().includes("balcony") || targetSection.toLowerCase().includes("c")
+          ? v.id === "balcony"
+          : targetSection.toLowerCase().includes("accessible")
+          ? v.id === "accessible"
+          : targetSection.toLowerCase().includes("vip") || targetSection.toLowerCase().includes("stage") || targetSection.toLowerCase().includes("floor")
+          ? v.id === "stage"
+          : v.id === "center"
+      ) ?? vantagePoints[1];
+
+    setPreview360Photo({
+      url: matched.image,
+      title: `${ev?.venue ?? "The National Stadium"} · ${ev?.title ?? "Venue View"}`,
+      section: targetSection,
+      elevation: matched.elevation,
+      fov: matched.fov,
+    });
+  };
 
   const composerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -697,71 +726,36 @@ export default function Community() {
                 </div>
               </button>
 
-              {/* Channel 2: Combined EasePix & EaseXplore */}
-              <div
+              {/* Channel 2: EasePix */}
+              <button
+                type="button"
+                onClick={() => setTab("views")}
                 className={cx(
-                  "rounded-2xl transition-all border",
-                  (tab === "views" || tab === "access")
-                    ? "border-brand-purple/30 bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange p-2.5 text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
-                    : "border-transparent bg-transparent p-1 hover:bg-brand-lilac/40 text-brand-deep",
+                  "cursor-pointer flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all border",
+                  tab === "views"
+                    ? "border-brand-purple/30 bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                    : "border-transparent bg-transparent hover:bg-brand-lilac/40 text-brand-deep",
                 )}
               >
-                <button
-                  type="button"
-                  onClick={() => setTab("views")}
-                  className="cursor-pointer flex w-full items-center gap-3 text-left"
+                <div
+                  className={cx(
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                    tab === "views"
+                      ? "bg-white/20 text-white"
+                      : "bg-brand-lilac/70 text-brand-purple",
+                  )}
                 >
-                  <div
-                    className={cx(
-                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
-                      (tab === "views" || tab === "access")
-                        ? "bg-white/20 text-white"
-                        : "bg-brand-lilac/70 text-brand-purple",
-                    )}
-                  >
-                    <Camera className="h-4.5 w-4.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
-                      EasePix & EaseXplore
-                    </b>
-                    <small className={cx("block text-[10px] truncate", (tab === "views" || tab === "access") ? "text-white/80" : "text-muted")}>
-                      Seat sharing & 360° views
-                    </small>
-                  </div>
-                </button>
-
-                {/* Sub-menu Pills */}
-                <div className={cx(
-                  "mt-2 grid grid-cols-2 gap-1.5 pt-2 border-t",
-                  (tab === "views" || tab === "access") ? "border-white/20" : "border-brand-line/60"
-                )}>
-                  <button
-                    type="button"
-                    onClick={() => setTab("views")}
-                    className={cx(
-                      "cursor-pointer rounded-lg px-2 py-1 text-[11px] font-bold text-center transition",
-                      tab === "views"
-                        ? "bg-white text-brand-deep shadow-sm font-black"
-                        : (tab === "access" ? "bg-white/20 text-white hover:bg-white/30" : "bg-brand-lilac/60 text-brand-deep hover:bg-brand-purple hover:text-white"),
-                    )}
-                  >
-                    📷 EasePix
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTab("access")}
-                    className={cx(
-                      "cursor-pointer rounded-lg px-2 py-1 text-[11px] font-bold text-center transition",
-                      tab === "access"
-                        ? "bg-white text-brand-deep shadow-sm font-black"
-                        : (tab === "views" ? "bg-white/20 text-white hover:bg-white/30" : "bg-brand-lilac/60 text-brand-deep hover:bg-brand-purple hover:text-white"),
-                    )}
-                  >
-                    🌐 EaseXplore
-                  </button>
+                  <Camera className="h-4.5 w-4.5" />
                 </div>
-              </div>
+                <div className="min-w-0 flex-1">
+                  <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
+                    EasePix
+                  </b>
+                  <small className={cx("block text-[10px] truncate", tab === "views" ? "text-white/80" : "text-muted")}>
+                    Seat sharing & photos
+                  </small>
+                </div>
+              </button>
             </div>
 
             <div className="my-3.5 h-px bg-brand-line" />
@@ -818,12 +812,11 @@ export default function Community() {
             <div>
               <h2 className="font-brand text-2xl font-bold tracking-tight text-brand-deep">
                 {tab === "feed" && "The conversation"}
-                {(tab === "views" || tab === "access") && "EasePix & EaseXplore"}
+                {tab === "views" && "EasePix"}
               </h2>
               <p className="text-xs text-muted">
                 {tab === "feed" && "What fans are talking about right now across Singapore"}
                 {tab === "views" && "Share your seat view and browse verified community photos before buying"}
-                {tab === "access" && "Interactive 360° venue angles, step-free access, and vantage point previews"}
               </p>
             </div>
 
@@ -846,51 +839,6 @@ export default function Community() {
               </div>
             )}
           </div>
-
-          {/* COMBINED EASEPIX & EASEXPLORE SWITCHER MENU */}
-          {(tab === "views" || tab === "access") && (
-            <div className="rounded-2xl border border-brand-purple/20 bg-white p-2 shadow-sm">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTab("views")}
-                  className={cx(
-                    "cursor-pointer flex items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all",
-                    tab === "views"
-                      ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/20"
-                      : "bg-brand-lilac/40 text-brand-deep hover:bg-brand-lilac hover:text-brand-purple"
-                  )}
-                >
-                  <Camera className="h-4 w-4 shrink-0" />
-                  <div className="text-left">
-                    <div className="leading-tight">EasePix</div>
-                    <div className={cx("text-[10px] font-medium", tab === "views" ? "text-white/80" : "text-muted")}>
-                      Share the seat & photos
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setTab("access")}
-                  className={cx(
-                    "cursor-pointer flex items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all",
-                    tab === "access"
-                      ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/20"
-                      : "bg-brand-lilac/40 text-brand-deep hover:bg-brand-lilac hover:text-brand-purple"
-                  )}
-                >
-                  <Rotate3d className="h-4 w-4 shrink-0" />
-                  <div className="text-left">
-                    <div className="leading-tight">EaseXplore</div>
-                    <div className={cx("text-[10px] font-medium", tab === "access" ? "text-white/80" : "text-muted")}>
-                      360° degree venue view
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* TAB 1: EASECONNECT FEED */}
           {tab === "feed" && (
@@ -1405,11 +1353,11 @@ export default function Community() {
                 </div>
               )}
 
-              {/* Gallery Header */}
+              {/* Gallery Header - Renamed to Results */}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="font-brand text-base font-bold text-brand-deep">
-                    Community Seat Photos
+                    Results
                   </h3>
                   <p className="text-xs text-muted">
                     {gallerySearchFilter
@@ -1417,21 +1365,33 @@ export default function Community() {
                       : "Real, unedited photos shared by fans who sat there"}
                   </p>
                 </div>
-                {gallerySearchFilter && (
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* EaseExplore 360° Venue View button for searched venue */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setGallerySearchFilter(null);
-                      showToast("Showing all seat photos");
-                    }}
-                    className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
+                    onClick={handleOpenEaseExplore}
+                    className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta px-4 py-2 text-xs font-bold text-white shadow-md shadow-brand-purple/20 transition-all hover:opacity-95 active:scale-95"
                   >
-                    <X className="h-3.5 w-3.5" /> Clear search filter
+                    <Rotate3d className="h-4 w-4 text-brand-orange animate-spin" />
+                    <span>EaseExplore 360° Venue View</span>
                   </button>
-                )}
+
+                  {gallerySearchFilter && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGallerySearchFilter(null);
+                        showToast("Showing all seat photos");
+                      }}
+                      className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
+                    >
+                      <X className="h-3.5 w-3.5" /> Clear search filter
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Photos Grid */}
+              {/* Photos Grid without 360 preview button on cards */}
               <div id="community-photos-gallery" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {posts
                   .filter((p) => p.photo)
@@ -1462,19 +1422,6 @@ export default function Community() {
                           <span className="rounded-full bg-brand-deep/80 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
                             {p.authorName}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPreview360Photo({
-                                url: p.photo!,
-                                title: eventName(p.eventId),
-                                section: p.section,
-                              })
-                            }
-                            className="cursor-pointer inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur hover:bg-brand-purple transition"
-                          >
-                            <Rotate3d className="h-3 w-3 text-brand-orange" /> 360° Preview
-                          </button>
                         </div>
 
                         <div className="text-white">
@@ -1489,171 +1436,35 @@ export default function Community() {
                     </div>
                   ))}
               </div>
-            </div>
-          )}
 
-          {/* TAB 4: EASEXPLORE - 360 DEGREE VIEW & ACCESSIBILITY */}
-          {tab === "access" && (
-            <div className="space-y-6">
-              {/* Interactive 360° Panoramic Simulation Viewport */}
-              <div className="overflow-hidden rounded-3xl border border-brand-purple/20 bg-white shadow-sm">
-                {/* Vantage Point Switcher Tabs */}
-                <div className="flex flex-wrap items-center gap-2 border-b border-brand-line bg-brand-warm/30 p-3">
-                  <div className="flex items-center gap-1.5 px-2 text-xs font-black uppercase tracking-wider text-brand-deep">
-                    <Compass className="h-4 w-4 text-brand-purple" />
-                    360° Vantage:
+              {/* EaseExplore Venue Banner Below Results Photos */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl border border-brand-purple/20 bg-gradient-to-r from-brand-deep via-[#311c59] to-brand-deep p-5 text-white shadow-lg">
+                <div className="flex items-center gap-3.5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-brand-orange shadow-inner border border-white/15">
+                    <Rotate3d className="h-6 w-6 animate-spin" />
                   </div>
-                  {vantagePoints.map((v) => (
-                    <button
-                      key={v.id}
-                      type="button"
-                      onClick={() => setActiveVantage(v.id)}
-                      className={cx(
-                        "cursor-pointer rounded-xl px-3 py-1.5 text-xs font-bold transition-all",
-                        activeVantage === v.id
-                          ? "bg-gradient-to-r from-brand-purple to-brand-magenta text-white shadow-sm"
-                          : "bg-white text-brand-deep border border-brand-line hover:border-brand-purple/50"
-                      )}
-                    >
-                      {v.label}
-                    </button>
-                  ))}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-brand text-base font-bold text-white">
+                        EaseExplore · {events.find((e) => e.id === (gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id))?.venue ?? "The National Stadium"}
+                      </span>
+                      <span className="rounded-full bg-brand-orange/20 px-2 py-0.5 text-[10px] font-extrabold text-brand-orange border border-brand-orange/30">
+                        360° Panoramic
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-white/80">
+                      View interactive 360° sightlines, step-free access, and vantage point elevations for this venue.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Simulated 360 Pan Display */}
-                {(() => {
-                  const currentVantage =
-                    vantagePoints.find((v) => v.id === activeVantage) ?? vantagePoints[0];
-                  return (
-                    <div>
-                      <div className="group relative h-80 w-full overflow-hidden bg-brand-deep">
-                        <img
-                          src={currentVantage.image}
-                          alt={currentVantage.label}
-                          className="h-full w-full object-cover transition-all duration-700 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/90 via-transparent to-brand-deep/40 pointer-events-none" />
-
-                        {/* Top floating indicators */}
-                        <div className="absolute left-4 top-4 flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep/80 px-3 py-1 text-xs font-bold text-white backdrop-blur border border-white/20">
-                            <Rotate3d className="h-3.5 w-3.5 animate-spin text-brand-orange" />
-                            360° Interactive Simulator
-                          </span>
-                          <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold text-white backdrop-blur">
-                            FOV: {currentVantage.fov}
-                          </span>
-                        </div>
-
-                        {/* Bottom action controls */}
-                        <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-end justify-between gap-3 text-white">
-                          <div className="max-w-md">
-                            <h3 className="font-brand text-lg font-bold text-white drop-shadow">
-                              {currentVantage.label}
-                            </h3>
-                            <p className="mt-0.5 text-xs text-white/90 drop-shadow">
-                              {currentVantage.desc}
-                            </p>
-                            <div className="mt-2 inline-flex items-center gap-2 text-[11px] font-semibold text-brand-orange">
-                              <span>Elevation: {currentVantage.elevation}</span>
-                              <span>•</span>
-                              <span>Sound Level: 98dB Direct</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPreview360Photo({
-                                  url: currentVantage.image,
-                                  title: currentVantage.label,
-                                  section: currentVantage.elevation,
-                                })
-                              }
-                              className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-purple to-brand-orange px-4 py-2 text-xs font-bold text-white shadow-lg transition-transform hover:scale-105"
-                            >
-                              <Rotate3d className="h-4 w-4" /> Fullscreen 360° View
-                            </button>
-                            <button
-                              type="button"
-                              onClick={toggleEaseVoice}
-                              className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-2 text-xs font-bold text-white backdrop-blur hover:bg-white/30 transition"
-                            >
-                              <Volume2 className="h-4 w-4" /> Voice Guide
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Venue Accessibility & Assistance Guides */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                {[
-                  {
-                    icon: Accessibility,
-                    h: "Companion assistance",
-                    p: "Request a trained companion to help you navigate the venue, from entrance to seat and back.",
-                    action: "Request companion",
-                    to: "/assistance",
-                  },
-                  {
-                    icon: Volume2,
-                    h: "In-built audio tour & voice guidance",
-                    p: "Turn-by-turn voice guidance around the venue plus an audio description of the event and facilities.",
-                    action: "Try audio demo",
-                    onClick: toggleEaseVoice,
-                  },
-                  {
-                    icon: ShieldCheck,
-                    h: "Accessible community",
-                    p: "Connect with others before booking to ask about ramps, lifts, sensory rooms, and quiet spaces.",
-                    action: "Join discussion",
-                    onClick: () => setTab("feed"),
-                  },
-                  {
-                    icon: Camera,
-                    h: "Share seat view",
-                    p: "Already have photos from your seat? Share them on EasePix to help fellow fans and earn EasePoints.",
-                    action: "Go to EasePix",
-                    onClick: () => setTab("views"),
-                  },
-                ].map((f) => (
-                  <Card
-                    key={f.h}
-                    className="flex flex-col justify-between rounded-3xl border border-brand-line bg-white p-6 shadow-sm"
-                  >
-                    <div>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-lilac text-brand-purple">
-                        <f.icon className="h-6 w-6" />
-                      </div>
-                      <h3 className="mt-4 font-brand text-base font-bold text-brand-deep">{f.h}</h3>
-                      <p className="mt-2 text-xs leading-relaxed text-muted">{f.p}</p>
-                    </div>
-
-                    <div className="mt-5 pt-3 border-t border-brand-line/60">
-                      {f.to ? (
-                        <Link
-                          to={f.to}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
-                        >
-                          {f.action}
-                        </Link>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={f.onClick}
-                          className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
-                        >
-                          {f.action}
-                        </button>
-                      )}
-                    </div>
-                  </Card>
-                ))}
+                <button
+                  type="button"
+                  onClick={handleOpenEaseExplore}
+                  className="cursor-pointer shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+                >
+                  <Rotate3d className="h-4 w-4" /> Open 360° Venue View
+                </button>
               </div>
             </div>
           )}
@@ -2024,11 +1835,17 @@ export default function Community() {
 
       {/* 5. 360° PHOTO PREVIEW MODAL */}
       {preview360Photo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-4 backdrop-blur-md">
-          <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-white/20 bg-brand-deep shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-4 backdrop-blur-md"
+          onClick={() => setPreview360Photo(null)}
+        >
+          <div
+            className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-white/20 bg-brand-deep shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 text-white">
               <div className="flex items-center gap-2">
-                <Rotate3d className="h-5 w-5 text-brand-orange" />
+                <Rotate3d className="h-5 w-5 text-brand-orange animate-spin" />
                 <span className="font-brand text-sm font-bold">
                   {preview360Photo.title} · Section {preview360Photo.section ?? "C"}
                 </span>
@@ -2041,20 +1858,61 @@ export default function Community() {
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            {/* Vantage Point Switcher inside 360 Modal */}
+            <div className="flex flex-wrap items-center gap-1.5 border-b border-white/10 bg-white/5 px-6 py-2.5 text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-white/70 mr-1">
+                <Compass className="h-3.5 w-3.5 text-brand-orange" />
+                <span>Vantage:</span>
+              </div>
+              {vantagePoints.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() =>
+                    setPreview360Photo((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            url: v.image,
+                            section: v.label,
+                            elevation: v.elevation,
+                            fov: v.fov,
+                          }
+                        : null
+                    )
+                  }
+                  className={cx(
+                    "cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition",
+                    preview360Photo.url === v.image
+                      ? "bg-gradient-to-r from-brand-purple to-brand-magenta text-white shadow-sm"
+                      : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
+                  )}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+
             <div className="relative h-96 w-full bg-black">
               <img
                 src={preview360Photo.url}
                 alt="360 view"
                 className="h-full w-full object-cover"
               />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
                 <div className="rounded-full bg-brand-deep/80 px-4 py-2 text-xs font-bold text-white backdrop-blur-md shadow-lg flex items-center gap-2">
                   <Rotate3d className="h-4 w-4 text-brand-orange animate-spin" /> Interactive 360° Simulation Active
                 </div>
               </div>
             </div>
-            <div className="p-4 text-center text-xs text-white/80">
-              Drag or rotate to inspect field-of-view, railings, and seat elevation before booking.
+            <div className="flex items-center justify-between p-4 text-xs text-white/80">
+              <span>Drag or rotate to inspect field-of-view, railings, and seat elevation before booking.</span>
+              {preview360Photo.elevation && (
+                <span className="font-bold text-brand-orange">
+                  {preview360Photo.elevation} · {preview360Photo.fov ?? "160° Panoramic"}
+                </span>
+              )}
             </div>
           </div>
         </div>
