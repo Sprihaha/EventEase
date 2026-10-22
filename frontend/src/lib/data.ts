@@ -25,11 +25,14 @@ export type EventItem = {
   organizerId: string;
   organizerName: string;
   status: EventStatus;
+  rejectionReason?: string | null;
   featured?: boolean;
   tiers: TicketTier[];
   rows: number;
   cols: number;
   earlyBird?: number; // percent off
+  priceFrom?: number;
+  purchasable?: boolean;
 };
 
 export type SeatBooking = { seat: string; tier: string };
@@ -42,7 +45,10 @@ export type Booking = {
   seats: SeatBooking[];
   total: number;
   purchasedAt: string;
-  status: "confirmed" | "cancelled" | "refunded" | "listed";
+  status: "confirmed" | "cancelled" | "refunded" | "listed" | "pending_payment";
+  cancellable?: boolean;
+  tickets?: { id: string; code: string; status: string; seatLabel: string | null; checkedInAt: string | null }[];
+  event?: { title: string; date: string; venue: string; image: string };
   promo?: string;
 };
 
@@ -66,17 +72,6 @@ export type AssistanceRequest = {
   assignedStaff?: string;
   status: AssistanceStatus;
   createdAt: string;
-};
-
-export type ExchangeListing = {
-  id: string;
-  bookingId: string;
-  eventId: string;
-  sellerName: string;
-  seat: string;
-  tier: string;
-  askPrice: number;
-  verified: boolean;
 };
 
 export type CommunityPost = {
@@ -384,12 +379,6 @@ export const seedAssistanceRequests: AssistanceRequest[] = [
     status: "Completed",
     createdAt: "2026-07-02T15:50:00",
   },
-];
-
-export const seedExchange: ExchangeListing[] = [
-  { id: "ex-1", bookingId: "x", eventId: "ev-aurora", sellerName: "Mei L.", seat: "D6", tier: "Standard", askPrice: 148, verified: true },
-  { id: "ex-2", bookingId: "x", eventId: "ev-aurora", sellerName: "Ravi K.", seat: "A2", tier: "VIP", askPrice: 320, verified: true },
-  { id: "ex-3", bookingId: "x", eventId: "ev-derby", sellerName: "Tan W.", seat: "F9", tier: "Standard", askPrice: 78, verified: true },
 ];
 
 export const seedPosts: CommunityPost[] = [

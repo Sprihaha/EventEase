@@ -16,10 +16,10 @@ export function EventCard({
   const { user } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const from = Math.min(...ev.tiers.map((t) => t.price));
+  const from = ev.priceFrom ?? (ev.tiers.length ? Math.min(...ev.tiers.map((t) => t.price)) : 0);
   const sold = ev.tiers.reduce((a, t) => a + t.sold, 0);
   const total = ev.tiers.reduce((a, t) => a + t.total, 0);
-  const pct = Math.round((sold / total) * 100);
+  const pct = total ? Math.round((sold / total) * 100) : 0;
   const nearly = pct >= 85;
   return (
     <article
@@ -83,7 +83,7 @@ export function EventCard({
           <div>
             <div className="text-xs font-semibold uppercase tracking-wider text-muted">From</div>
             <div className="font-brand text-xl font-bold text-brand-deep">
-              {currency(from)}
+              {ev.priceFrom === undefined && !ev.tiers.length ? "Price TBA" : currency(from)}
             </div>
           </div>
           <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-orange transition-transform group-hover:translate-x-1">

@@ -130,7 +130,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
 // Real, scannable QR code. `value` is encoded verbatim; ticket refs are wrapped
 // into a verification URL so a phone camera resolves to the check-in endpoint.
 export function ticketPayload(ref: string, seats?: string) {
-  const u = new URL("https://eventease.io/verify/" + encodeURIComponent(ref));
+  const u = new URL("/verify/" + encodeURIComponent(ref), window.location.origin);
   if (seats) u.searchParams.set("seats", seats);
   return u.toString();
 }

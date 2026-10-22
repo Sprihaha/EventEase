@@ -28,7 +28,7 @@ const promises = [
 ];
 
 export default function Home() {
-  const { events, eventsSource, user } = useStore();
+  const { publicEvents: events, eventsSource, user } = useStore();
   const navigate = useNavigate();
   const featured = events.filter((event) => event.featured && event.status === "published");
   const published = events.filter((event) => event.status === "published");
@@ -104,7 +104,7 @@ export default function Home() {
               <div className="flex items-center gap-2 text-xs font-semibold text-white">
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    eventsSource === "ticketmaster" || eventsSource === "backend"
+                    eventsSource === "backend"
                       ? "bg-live"
                       : "bg-brand-orange"
                   }`}
@@ -113,9 +113,9 @@ export default function Home() {
                   ? "Finding upcoming events…"
                   : eventsSource === "backend"
                     ? "Live via EventEase API"
-                    : eventsSource === "ticketmaster"
-                      ? "Live via Ticketmaster"
-                      : "Curated event preview"}
+                    : eventsSource === "error"
+                      ? "Event service unavailable"
+                      : "No events available"}
               </div>
             </div>
             <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2 sm:gap-6">

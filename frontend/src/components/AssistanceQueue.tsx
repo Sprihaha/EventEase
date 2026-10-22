@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, ClipboardList, X } from "lucide-react";
 import { useStore } from "../lib/store";
 import type { AssistanceRequest, AssistanceStatus } from "../lib/data";
 import { Badge, Button, Card, Field, Input, Select, cx } from "./ui";
+import ReportDownload from "./ReportDownload";
 
 const statuses: AssistanceStatus[] = [
   "Submitted",
@@ -31,10 +32,15 @@ const nextSteps: Partial<Record<AssistanceStatus, AssistanceStatus[]>> = {
 
 const pageSize = 5;
 
+// The backend uses SUBMITTED, IN_PROGRESS, ... for the statuses shown here as "Submitted", "In progress", ...
+const backendStatus = (status: AssistanceStatus) => status.toUpperCase().replace(/ /g, "_");
+
 export default function AssistanceQueue() {
   const { assistanceRequests, events, updateAssistanceRequest } = useStore();
   const [filter, setFilter] = useState<AssistanceStatus | "All">("All");
   const [page, setPage] = useState(1);
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = assistanceRequests.find((request) => request.id === selectedId) ?? null;
 
@@ -60,19 +66,61 @@ export default function AssistanceQueue() {
               Review EaseGuide requests and assign venue support staff.
             </p>
           </div>
-          <label className="min-w-48">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
-              Status filter
-            </span>
-            <Select
-              value={filter}
-              onChange={(event) => setFilter(event.target.value as AssistanceStatus | "All")}
-              aria-label="Filter assistance queue by status"
-            >
-              <option value="All">All statuses</option>
-              {statuses.map((status) => <option key={status}>{status}</option>)}
-            </Select>
-          </label>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="min-w-48">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
+                Status filter
+              </span>
+              <Select
+                value={filter}
+                onChange={(event) => setFilter(event.target.value as AssistanceStatus | "All")}
+                aria-label="Filter assistance queue by status"
+              >
+                <option value="All">All statuses</option>
+                {statuses.map((status) => <option key={status}>{status}</option>)}
+              </Select>
+            </label>
+            <label>
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
+                Report from
+              </span>
+              <Input
+                type="date"
+                value={createdFrom}
+                max={createdTo || undefined}
+                onChange={(event) => setCreatedFrom(event.target.value)}
+                aria-label="Audit report: first created date"
+              />
+            </label>
+            <label>
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
+                Report to
+              </span>
+              <Input
+                type="date"
+                value={createdTo}
+                min={createdFrom || undefined}
+                onChange={(event) => setCreatedTo(event.target.value)}
+                aria-label="Audit report: last created date"
+              />
+            </label>
+            <ReportDownload
+              label="Download audit report"
+              buildPath={(format) => {
+                const query = new URLSearchParams({ format });
+                if (filter !== "All") query.set("status", backendStatus(filter));
+                if (createdFrom) query.set("createdFrom", createdFrom);
+                if (createdTo) query.set("createdTo", createdTo);
+                return `/admin/assistance-requests/export?${query.toString()}`;
+              }}
+              fallbackName={(format) => `assistance-audit-report.${format}`}
+              validate={() =>
+                createdFrom && createdTo && createdFrom > createdTo
+                  ? "“Report from” must be on or before “Report to”."
+                  : null
+              }
+            />
+          </div>
         </div>
 
         <div className="overflow-x-auto">
