@@ -131,6 +131,38 @@ interface SectionSegment {
   photos: SectionSeatPhoto[];
 }
 
+function parseSeatKey(seatStr: string): { type: "letter" | "number" | "unknown"; val: number } {
+  const rowMatch = seatStr.match(/row\s*([a-z]+|[0-9]+)/i);
+  if (rowMatch) {
+    const raw = rowMatch[1];
+    if (/^[0-9]+$/.test(raw)) {
+      return { type: "number", val: parseInt(raw, 10) };
+    }
+    let score = 0;
+    for (let i = 0; i < raw.length; i++) {
+      score = score * 26 + (raw.toUpperCase().charCodeAt(i) - 64);
+    }
+    return { type: "letter", val: score };
+  }
+
+  const letterMatch = seatStr.match(/\b([A-Z]{1,2})\b/);
+  if (letterMatch) {
+    const raw = letterMatch[1];
+    let score = 0;
+    for (let i = 0; i < raw.length; i++) {
+      score = score * 26 + (raw.charCodeAt(i) - 64);
+    }
+    return { type: "letter", val: score };
+  }
+
+  const numMatch = seatStr.match(/\b([0-9]+)\b/);
+  if (numMatch) {
+    return { type: "number", val: parseInt(numMatch[1], 10) };
+  }
+
+  return { type: "unknown", val: 0 };
+}
+
 const sectionDataCatalog: SectionSegment[] = [
   {
     id: "section-a",
@@ -1710,6 +1742,8 @@ export default function Community() {
                       });
                     }
 
+                    const searchedSectionQuery = (gallerySearchFilter?.section || seatSectionInput || "").trim().toLowerCase();
+
                     // Build dynamic section catalog integrating user posts and seat rows
                     const dynamicSections = baseCatalog.map((sec) => {
                       const matchedUserPosts = userEventPhotos
@@ -1728,8 +1762,49 @@ export default function Community() {
                       if (searchedRow) {
                         const matchingPhotos = allSecPhotos.filter((p) => matchesSearchedSeat(p.seat));
                         const remainingPhotos = allSecPhotos.filter((p) => !matchesSearchedSeat(p.seat));
-                        // If matching photos exist, put them first; otherwise keep all section photos so users can view closest seats
-                        prioritizedPhotos = [...matchingPhotos, ...remainingPhotos];
+
+                        if (matchingPhotos.length > 0) {
+                          prioritizedPhotos = [...matchingPhotos, ...remainingPhotos];
+                        } else {
+                          const isTargetSection = Boolean(
+                            searchedSectionQuery &&
+                            (sec.name.toLowerCase() === searchedSectionQuery ||
+                             sec.name.toLowerCase().includes(searchedSectionQuery) ||
+                             searchedSectionQuery.includes(sec.name.toLowerCase()))
+                          );
+
+                          if (isTargetSection && allSecPhotos.length > 0) {
+                            const targetKey = parseSeatKey(searchedRow);
+                            let closestBeforePhoto: SectionSeatPhoto | null = null;
+                            let maxBeforeDiff = -Infinity;
+                            let closestAfterPhoto: SectionSeatPhoto | null = null;
+                            let minAfterDiff = Infinity;
+
+                            allSecPhotos.forEach((p) => {
+                              const pKey = parseSeatKey(p.seat);
+                              if (targetKey.type !== "unknown" && pKey.type === targetKey.type) {
+                                const diff = pKey.val - targetKey.val;
+                                if (diff < 0 && diff > maxBeforeDiff) {
+                                  maxBeforeDiff = diff;
+                                  closestBeforePhoto = p;
+                                } else if (diff > 0 && diff < minAfterDiff) {
+                                  minAfterDiff = diff;
+                                  closestAfterPhoto = p;
+                                }
+                              }
+                            });
+
+                            if (!closestBeforePhoto && !closestAfterPhoto && allSecPhotos.length > 0) {
+                              closestAfterPhoto = allSecPhotos[0];
+                            }
+
+                            const closestPair = [closestBeforePhoto, closestAfterPhoto].filter(Boolean) as SectionSeatPhoto[];
+                            const others = allSecPhotos.filter((p) => !closestPair.includes(p));
+                            prioritizedPhotos = [...closestPair, ...others];
+                          } else {
+                            prioritizedPhotos = allSecPhotos;
+                          }
+                        }
                       } else {
                         prioritizedPhotos = allSecPhotos;
                       }
@@ -1741,7 +1816,6 @@ export default function Community() {
                     });
 
                     // Order sections so the searched section is placed FIRST
-                    const searchedSectionQuery = (gallerySearchFilter?.section || seatSectionInput || "").trim().toLowerCase();
                     let orderedSections = dynamicSections;
                     if (searchedSectionQuery) {
                       orderedSections = [...dynamicSections].sort((a, b) => {
@@ -1838,8 +1912,44 @@ export default function Community() {
                         {/* Segmented Section Cards Grid */}
                         <div className="space-y-6">
                           {sectionsToDisplay.map((sec) => {
+                            const isTargetSection = Boolean(
+                              searchedSectionQuery &&
+                              (sec.name.toLowerCase() === searchedSectionQuery ||
+                               sec.name.toLowerCase().includes(searchedSectionQuery) ||
+                               searchedSectionQuery.includes(sec.name.toLowerCase()))
+                            );
+
                             const hasExactSeatMatch = Boolean(searchedRow && sec.photos.some((p) => matchesSearchedSeat(p.seat)));
-                            const isSectionWithNoSeatMatch = Boolean(searchedRow && sec.photos.length > 0 && !hasExactSeatMatch);
+                            // Crucial: Closest seat notices/highlights only apply to the searched section!
+                            const isSectionWithNoSeatMatch = Boolean(isTargetSection && searchedRow && sec.photos.length > 0 && !hasExactSeatMatch);
+
+                            // Determine single next row before and single next row after
+                            let nextRowBeforePhoto: SectionSeatPhoto | null = null;
+                            let nextRowAfterPhoto: SectionSeatPhoto | null = null;
+
+                            if (isSectionWithNoSeatMatch) {
+                              const targetKey = parseSeatKey(searchedRow);
+                              let maxBefore = -Infinity;
+                              let minAfter = Infinity;
+
+                              sec.photos.forEach((p) => {
+                                const pKey = parseSeatKey(p.seat);
+                                if (targetKey.type !== "unknown" && pKey.type === targetKey.type) {
+                                  const diff = pKey.val - targetKey.val;
+                                  if (diff < 0 && diff > maxBefore) {
+                                    maxBefore = diff;
+                                    nextRowBeforePhoto = p;
+                                  } else if (diff > 0 && diff < minAfter) {
+                                    minAfter = diff;
+                                    nextRowAfterPhoto = p;
+                                  }
+                                }
+                              });
+
+                              if (!nextRowBeforePhoto && !nextRowAfterPhoto && sec.photos.length > 0) {
+                                nextRowAfterPhoto = sec.photos[0];
+                              }
+                            }
 
                             return (
                               <div
@@ -1867,7 +1977,7 @@ export default function Community() {
                                         )}
                                         {isSectionWithNoSeatMatch && (
                                           <span className="rounded-full bg-amber-100 border border-amber-300 text-amber-800 px-2.5 py-0.5 text-[10px] font-bold flex items-center gap-1">
-                                            <Eye className="h-3 w-3" /> Showing Closest Seats
+                                            <Eye className="h-3 w-3" /> Showing Closest Seat Angle
                                           </span>
                                         )}
                                       </div>
@@ -1909,7 +2019,7 @@ export default function Community() {
                                         onClick={() => handleOpenEaseExplore(sec.name)}
                                         className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:opacity-95"
                                       >
-                                        <Rotate3d className="h-3.5 w-3.5" /> Open 360° View
+                                        <Rotate3d className="h-3.5 w-3.5" /> Open EaseExplore
                                       </button>
                                     </div>
                                   </div>
@@ -1928,11 +2038,11 @@ export default function Community() {
                                                 No EasePix found for &ldquo;{gallerySearchFilter?.row || seatRowInput}&rdquo; in {sec.name}
                                               </h5>
                                               <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-black uppercase text-amber-900">
-                                                Showing Closest Seats
+                                                Closest Seat Angle
                                               </span>
                                             </div>
                                             <p className="mt-0.5 text-xs text-amber-900/80">
-                                              No fan photos have been shared for that exact row or seat yet. Please look at the closest seat pictures below to preview your sightline angle!
+                                              No fan photos have been shared for that exact row or seat yet. Showing the closest seat pictures in {sec.name} to preview your sightline angle.
                                             </p>
                                           </div>
                                         </div>
@@ -1960,6 +2070,9 @@ export default function Community() {
                                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                       {sec.photos.map((p, pIdx) => {
                                         const isExactSeatMatch = Boolean(searchedRow && matchesSearchedSeat(p.seat));
+                                        const isNextBefore = Boolean(isSectionWithNoSeatMatch && nextRowBeforePhoto === p);
+                                        const isNextAfter = Boolean(isSectionWithNoSeatMatch && nextRowAfterPhoto === p);
+                                        const isClosestSeat = isNextBefore || isNextAfter;
 
                                         return (
                                           <div
@@ -1968,6 +2081,8 @@ export default function Community() {
                                               "group relative overflow-hidden rounded-2xl transition-all duration-300",
                                               isExactSeatMatch
                                                 ? "ring-4 ring-brand-orange ring-offset-2 ring-offset-white shadow-xl shadow-brand-orange/35 scale-[1.01] bg-gradient-to-b from-brand-orange/15 via-white to-white"
+                                                : isClosestSeat
+                                                ? "ring-3 ring-amber-400 ring-offset-2 ring-offset-white shadow-lg shadow-amber-500/20 scale-[1.005] bg-gradient-to-b from-amber-50/50 to-white"
                                                 : "border border-brand-line bg-white shadow-xs hover:shadow-md"
                                             )}
                                           >
@@ -1976,6 +2091,14 @@ export default function Community() {
                                               <div className="absolute top-2.5 right-2.5 z-20">
                                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-brand-orange via-amber-500 to-brand-orange px-3 py-1 text-[11px] font-black text-white shadow-lg shadow-brand-orange/40 animate-pulse tracking-wide uppercase">
                                                   <Sparkles className="h-3.5 w-3.5" /> Searched Seat Match
+                                                </span>
+                                              </div>
+                                            )}
+
+                                            {isClosestSeat && (
+                                              <div className="absolute top-2.5 right-2.5 z-20">
+                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2.5 py-0.5 text-[10px] font-black text-white shadow-md shadow-amber-500/30 tracking-wide uppercase">
+                                                  <Sparkles className="h-3 w-3" /> Closest Seat Angle
                                                 </span>
                                               </div>
                                             )}
@@ -1991,7 +2114,7 @@ export default function Community() {
                                                   <span className="rounded-full bg-brand-deep/85 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
                                                     {p.authorName}
                                                   </span>
-                                                  {isExactSeatMatch ? null : isSectionWithNoSeatMatch ? (
+                                                  {isExactSeatMatch ? null : isClosestSeat ? (
                                                     <span className="rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
                                                       Closest Seat Angle
                                                     </span>
@@ -2008,8 +2131,8 @@ export default function Community() {
                                                       "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-black text-white shadow-sm",
                                                       isExactSeatMatch
                                                         ? "bg-gradient-to-r from-brand-orange to-brand-amber ring-2 ring-white/70 shadow-md"
-                                                        : isSectionWithNoSeatMatch
-                                                        ? "bg-amber-600/90 ring-1 ring-white/40"
+                                                        : isClosestSeat
+                                                        ? "bg-amber-600/90 ring-1 ring-white/50"
                                                         : "bg-brand-orange"
                                                     )}
                                                   >
@@ -2019,9 +2142,9 @@ export default function Community() {
                                                         (Matched Seat)
                                                       </span>
                                                     )}
-                                                    {isSectionWithNoSeatMatch && (
+                                                    {isClosestSeat && (
                                                       <span className="text-[10px] uppercase font-bold text-white/90">
-                                                        (Closest Angle)
+                                                        (Closest Seat Angle)
                                                       </span>
                                                     )}
                                                   </div>
