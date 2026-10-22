@@ -525,13 +525,22 @@ export default function Community() {
             </p>
 
             <div className="mt-7 flex flex-wrap items-center gap-3.5">
-              <button
-                type="button"
-                onClick={() => navigate("/login")}
-                className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-orange/30 transition-transform hover:-translate-y-0.5 hover:shadow-brand-orange/45 active:translate-y-0"
-              >
-                Let me in!
-              </button>
+              {!user ? (
+                <button
+                  type="button"
+                  onClick={() => navigate("/login", { state: { returnTo: "/community" } })}
+                  className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-orange/30 transition-transform hover:-translate-y-0.5 hover:shadow-brand-orange/45 active:translate-y-0"
+                >
+                  Let me in!
+                </button>
+              ) : (
+                <div className="inline-flex items-center gap-2.5 text-base sm:text-lg font-bold text-white drop-shadow">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse" />
+                  <span className="font-feature italic font-black text-brand-warm tracking-wide text-lg sm:text-xl">
+                    ...and you&apos;re in!
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
