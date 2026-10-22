@@ -115,6 +115,149 @@ const defaultRowSeatOptions: SearchableOption[] = [
   { value: "Platform Bay 1", label: "Platform Bay 1", sublabel: "Step-free Companion Adjacent" },
 ];
 
+interface SectionSeatPhoto {
+  photo: string;
+  authorName: string;
+  section: string;
+  seat: string;
+  vibe: string;
+}
+
+interface SectionSegment {
+  id: string;
+  name: string;
+  tier: string;
+  rowRange: string;
+  photos: SectionSeatPhoto[];
+}
+
+const sectionDataCatalog: SectionSegment[] = [
+  {
+    id: "section-a",
+    name: "Section A",
+    tier: "Lower Bowl · Prime Stage Proximity",
+    rowRange: "Row A – Row F",
+    photos: [
+      {
+        photo: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Marcus T. (Verified Fan)",
+        section: "Section A",
+        seat: "Row A · Seat 12",
+        vibe: "Front row stage-level, zero head obstruction",
+      },
+      {
+        photo: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Sarah L. (Verified Fan)",
+        section: "Section A",
+        seat: "Row B · Seat 04",
+        vibe: "Clear view of center stage and lead vocalist",
+      },
+      {
+        photo: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Ken Tan (Verified Fan)",
+        section: "Section A",
+        seat: "Row D · Seat 18",
+        vibe: "Slight elevation over the pit, wide lighting view",
+      },
+    ],
+  },
+  {
+    id: "section-b",
+    name: "Section B",
+    tier: "Mid Tier · Soundboard Acoustics",
+    rowRange: "Row G – Row M",
+    photos: [
+      {
+        photo: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Elena W. (Verified Fan)",
+        section: "Section B",
+        seat: "Row G · Seat 15",
+        vibe: "Beside main sound mixing desk, audio is crystal clear",
+      },
+      {
+        photo: "https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Dylan R. (Verified Fan)",
+        section: "Section B",
+        seat: "Row H · Seat 08",
+        vibe: "Tiered step gives clear line of sight over seated fans",
+      },
+      {
+        photo: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Nadia K. (Verified Fan)",
+        section: "Section B",
+        seat: "Row J · Seat 22",
+        vibe: "Dead-center perspective with full stage LED backdrop",
+      },
+    ],
+  },
+  {
+    id: "section-c",
+    name: "Section C",
+    tier: "Upper Balcony · Panoramic Arena View",
+    rowRange: "Row N – Row V",
+    photos: [
+      {
+        photo: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Avery P. (Verified Fan)",
+        section: "Section C",
+        seat: "Row N · Seat 05",
+        vibe: "Bird's eye panoramic sightline across stage & arena lights",
+      },
+      {
+        photo: "https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Chloe M. (Verified Fan)",
+        section: "Section C",
+        seat: "Row P · Seat 14",
+        vibe: "Steep rake ensures no tall fans block the center stage",
+      },
+      {
+        photo: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Samir B. (Verified Fan)",
+        section: "Section C",
+        seat: "Row S · Seat 28",
+        vibe: "High angle view overlooking catwalk and pyro effects",
+      },
+    ],
+  },
+  {
+    id: "vip-floor",
+    name: "VIP Floor",
+    tier: "Standing Pen · Catwalk Barrier",
+    rowRange: "Pen A & Pen B",
+    photos: [
+      {
+        photo: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Liam O. (Verified Fan)",
+        section: "VIP Floor",
+        seat: "Pen A · Barrier Center",
+        vibe: "Right up against the runway barrier, intense energy",
+      },
+      {
+        photo: "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Rachel Z. (Verified Fan)",
+        section: "VIP Floor",
+        seat: "Pen B · Catwalk Left",
+        vibe: "Close proximity to side speakers and stage wings",
+      },
+    ],
+  },
+  {
+    id: "accessible",
+    name: "Accessible Platform",
+    tier: "Step-Free Elevated Bay · Wheelchair Accessible",
+    rowRange: "Bay 1 – Bay 4",
+    photos: [
+      {
+        photo: "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=85",
+        authorName: "Farah N. (Verified Fan)",
+        section: "Accessible Platform",
+        seat: "Bay 1 · Companion Aisle",
+        vibe: "Step-free ramp entry, raised deck over standing fans",
+      },
+    ],
+  },
+];
+
 function SearchableCombobox({
   label,
   placeholder,
@@ -325,6 +468,7 @@ export default function Community() {
   const [seatEventIdInput, setSeatEventIdInput] = useState("");
   const [gallerySearchFilter, setGallerySearchFilter] = useState<{ eventId?: string; section?: string } | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [selectedGallerySection, setSelectedGallerySection] = useState<string>("all");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareModalOrigin, setShareModalOrigin] = useState<"easepix" | "composer">("easepix");
   const [attachedEasePix, setAttachedEasePix] = useState<{
@@ -334,9 +478,9 @@ export default function Community() {
     eventId?: string;
   } | null>(null);
 
-  const handleOpenEaseExplore = () => {
+  const handleOpenEaseExplore = (sectionOverride?: string) => {
     const targetEventId = gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id || "";
-    const targetSection = gallerySearchFilter?.section || seatSectionInput || "Section C";
+    const targetSection = sectionOverride || (selectedGallerySection !== "all" ? selectedGallerySection : null) || gallerySearchFilter?.section || seatSectionInput || "Section C";
     const ev = events.find((e) => e.id === targetEventId) ?? events[0];
     const matched =
       vantagePoints.find((v) =>
@@ -1370,36 +1514,22 @@ export default function Community() {
                   </div>
 
                   <div className="flex flex-wrap items-center justify-end gap-2.5 pt-1">
-                    {/* Clear Filters Button (When any filter input is selected) */}
-                    {(seatEventIdInput || seatSectionInput || seatRowInput || hasSearched || gallerySearchFilter) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSeatEventIdInput("");
-                          setSeatSectionInput("");
-                          setSeatRowInput("");
-                          setGallerySearchFilter(null);
-                          setHasSearched(false);
-                          showToast("Search filters cleared");
-                        }}
-                        className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-brand-line bg-white/80 px-3.5 py-2.5 text-xs font-semibold text-muted hover:bg-brand-warm/60 hover:text-brand-deep transition-all"
-                      >
-                        <X className="h-3.5 w-3.5" /> Clear filters
-                      </button>
-                    )}
-
-                    {/* Search Button (Purple Gradient) */}
+                    {/* Search Button (Purple Gradient) - Requires Event minimally */}
                     <button
                       type="button"
                       onClick={() => {
-                        const targetEventId = seatEventIdInput || events[0]?.id || "";
+                        if (!seatEventIdInput) {
+                          showToast("Please select an event to search seat views");
+                          return;
+                        }
                         setHasSearched(true);
                         setGallerySearchFilter({
-                          eventId: targetEventId,
-                          section: seatSectionInput,
+                          eventId: seatEventIdInput,
+                          section: seatSectionInput || undefined,
                         });
-                        const evTitle = events.find((e) => e.id === targetEventId)?.title ?? "Selected Event";
-                        showToast(`Searching seat views for ${evTitle}`);
+                        setSelectedGallerySection(seatSectionInput || "all");
+                        const evTitle = events.find((e) => e.id === seatEventIdInput)?.title ?? "Selected Event";
+                        showToast(`Showing seat views for ${evTitle}`);
                         scrollToSection("seat-search-results");
                       }}
                       className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-purple/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
@@ -1450,8 +1580,8 @@ export default function Community() {
                         Results
                       </h3>
                       <p className="text-xs text-muted">
-                        {gallerySearchFilter
-                          ? `Showing results for ${events.find((e) => e.id === gallerySearchFilter.eventId)?.title ?? "Selected Event"}${gallerySearchFilter.section ? ` · ${gallerySearchFilter.section}` : ""}`
+                        {gallerySearchFilter?.eventId
+                          ? `Showing seat views for ${events.find((e) => e.id === gallerySearchFilter.eventId)?.title ?? "Selected Event"}${selectedGallerySection !== "all" ? ` · ${selectedGallerySection}` : (gallerySearchFilter.section ? ` · ${gallerySearchFilter.section}` : "")}`
                           : "Real, unedited photos shared by fans who sat there"}
                       </p>
                     </div>
@@ -1461,6 +1591,7 @@ export default function Community() {
                         onClick={() => {
                           setGallerySearchFilter(null);
                           setHasSearched(false);
+                          setSelectedGallerySection("all");
                           setSeatEventIdInput("");
                           setSeatSectionInput("");
                           setSeatRowInput("");
@@ -1473,134 +1604,227 @@ export default function Community() {
                     )}
                   </div>
 
-              {/* EaseExplore Venue Banner ("EaseExplore line") */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl border border-brand-purple/20 bg-gradient-to-r from-brand-deep via-[#311c59] to-brand-deep p-4.5 text-white shadow-lg">
-                <div className="flex items-center gap-3.5">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-brand-orange shadow-inner border border-white/15">
-                    <Rotate3d className="h-5 w-5 animate-spin" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-brand text-base font-bold text-white">
-                        {events.find((e) => e.id === (gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id))?.venue ?? "The National Stadium"}
-                      </span>
-                      <span className="rounded-full bg-brand-orange/20 px-2 py-0.5 text-[10px] font-extrabold text-brand-orange border border-brand-orange/30">
-                        360° Panoramic
-                      </span>
+                  {/* EaseExplore Venue Banner ("EaseExplore line") */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl border border-brand-purple/20 bg-gradient-to-r from-brand-deep via-[#311c59] to-brand-deep p-4.5 text-white shadow-lg">
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-brand-orange shadow-inner border border-white/15">
+                        <Rotate3d className="h-5 w-5 animate-spin" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-brand text-base font-bold text-white">
+                            {events.find((e) => e.id === (gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id))?.venue ?? "The National Stadium"}
+                          </span>
+                          <span className="rounded-full bg-brand-orange/20 px-2 py-0.5 text-[10px] font-extrabold text-brand-orange border border-brand-orange/30">
+                            360° Panoramic
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-xs text-white/80">
+                          View interactive 360° sightlines, step-free access, and vantage point elevations for this venue.
+                        </p>
+                      </div>
                     </div>
-                    <p className="mt-0.5 text-xs text-white/80">
-                      View interactive 360° sightlines, step-free access, and vantage point elevations for this venue.
-                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEaseExplore()}
+                      className="cursor-pointer shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+                    >
+                      <Rotate3d className="h-4 w-4" /> Open EaseExplore
+                    </button>
                   </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={handleOpenEaseExplore}
-                  className="cursor-pointer shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
-                >
-                  <Rotate3d className="h-4 w-4" /> Open EaseExplore
-                </button>
-              </div>
+                  {/* Section Segmentation & Options Selector */}
+                  {(() => {
+                    const targetEventId = gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id;
+                    const eventTitle = events.find((e) => e.id === targetEventId)?.title ?? "Selected Event";
 
-              {/* Seat Pix Photos Grid - Displayed AFTER the EaseExplore line */}
-              {(() => {
-                const targetEventId = gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id;
-                const targetSection = gallerySearchFilter?.section || seatSectionInput || "Section C";
+                    // User posts for this event that have photos
+                    const userEventPhotos = posts.filter((p) => p.photo && (!targetEventId || p.eventId === targetEventId));
 
-                const filteredPosts = posts
-                  .filter((p) => p.photo)
-                  .filter((p) => {
-                    if (!gallerySearchFilter) return true;
-                    if (gallerySearchFilter.eventId && p.eventId && p.eventId !== gallerySearchFilter.eventId) {
-                      return false;
-                    }
-                    if (gallerySearchFilter.section && p.section && !p.section.toLowerCase().includes(gallerySearchFilter.section.toLowerCase())) {
-                      return false;
-                    }
-                    return true;
-                  });
+                    // Build dynamic section catalog integrating user posts and seat rows
+                    const dynamicSections = sectionDataCatalog.map((sec) => {
+                      const matchedUserPosts = userEventPhotos
+                        .filter((p) => p.section && p.section.toLowerCase().includes(sec.name.toLowerCase().replace("section ", "")))
+                        .map((p) => ({
+                          photo: p.photo!,
+                          authorName: `${p.author} (Community)`,
+                          section: sec.name,
+                          seat: p.section ? `${sec.name} · Row ${p.section}` : `${sec.name} · Verified Seat`,
+                          vibe: p.body.slice(0, 75) + (p.body.length > 75 ? "…" : ""),
+                        }));
 
-                // Fallback verified seat photos if event or section has no uploads yet
-                const fallbackPhotos = [
-                  {
-                    photo: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
-                    authorName: "Sarah L. (Verified Fan)",
-                    section: targetSection,
-                    eventId: targetEventId,
-                  },
-                  {
-                    photo: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
-                    authorName: "Marcus T. (Verified Fan)",
-                    section: targetSection,
-                    eventId: targetEventId,
-                  },
-                  {
-                    photo: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=85",
-                    authorName: "Elena W. (Verified Fan)",
-                    section: targetSection,
-                    eventId: targetEventId,
-                  },
-                  {
-                    photo: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=85",
-                    authorName: "Ken Tan (Verified Fan)",
-                    section: targetSection,
-                    eventId: targetEventId,
-                  },
-                  {
-                    photo: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=85",
-                    authorName: "Nadia K. (Verified Fan)",
-                    section: targetSection,
-                    eventId: targetEventId,
-                  },
-                  {
-                    photo: "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=85",
-                    authorName: "Dylan R. (Verified Fan)",
-                    section: targetSection,
-                    eventId: targetEventId,
-                  },
-                ];
+                      const allSecPhotos = [...matchedUserPosts, ...sec.photos];
+                      const rowFilter = seatRowInput?.trim().toLowerCase();
+                      const photosFilteredByRow = rowFilter
+                        ? allSecPhotos.filter((p) => p.seat.toLowerCase().includes(rowFilter))
+                        : allSecPhotos;
 
-                const photosToShow = filteredPosts.length > 0
-                  ? filteredPosts.concat(filteredPosts).slice(0, 9)
-                  : fallbackPhotos;
+                      return {
+                        ...sec,
+                        photos: photosFilteredByRow.length > 0 ? photosFilteredByRow : allSecPhotos,
+                      };
+                    });
 
-                return (
-                  <div id="community-photos-gallery" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {photosToShow.map((p, i) => (
-                      <div
-                        key={i}
-                        className="group relative overflow-hidden rounded-2xl border border-brand-line bg-white shadow-sm transition hover:shadow-md"
-                      >
-                        <img
-                          src={p.photo}
-                          alt="Seat view"
-                          className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-brand-deep/90 via-brand-deep/30 to-transparent p-4">
-                          <div className="flex items-center justify-between">
-                            <span className="rounded-full bg-brand-deep/80 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                              {p.authorName}
-                            </span>
-                            <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                              Verified Sightline
+                    // Count total photos
+                    const totalPhotos = dynamicSections.reduce((sum, sec) => sum + sec.photos.length, 0);
+
+                    // Sections to display based on selectedGallerySection
+                    const sectionsToDisplay = selectedGallerySection === "all"
+                      ? dynamicSections
+                      : dynamicSections.filter((sec) =>
+                          sec.name.toLowerCase().includes(selectedGallerySection.toLowerCase()) ||
+                          selectedGallerySection.toLowerCase().includes(sec.name.toLowerCase())
+                        );
+
+                    return (
+                      <div className="space-y-6">
+                        {/* Section Selection Bar */}
+                        <div className="rounded-2xl border border-brand-line bg-white p-3.5 sm:p-4 shadow-xs">
+                          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-brand-line/60">
+                            <div>
+                              <span className="text-xs font-bold text-brand-deep">
+                                Sections for <span className="text-brand-purple">{eventTitle}</span>
+                              </span>
+                              <span className="ml-2 text-[11px] text-muted hidden sm:inline">
+                                Click a section to filter or view all sections segmented
+                              </span>
+                            </div>
+                            <span className="text-[11px] font-semibold text-muted">
+                              {selectedGallerySection === "all"
+                                ? "Auto-segmented by section"
+                                : `Viewing ${selectedGallerySection} (${sectionsToDisplay[0]?.photos.length ?? 0} views)`}
                             </span>
                           </div>
 
-                          <div className="text-white">
-                            <div className="font-brand text-sm font-bold">
-                              {p.section ? (p.section.toLowerCase().startsWith("section") ? p.section : `Section ${p.section}`) : "Section C · Row 14"}
-                            </div>
-                            <div className="text-xs text-white/80 line-clamp-1">
-                              {eventName(p.eventId)}
-                            </div>
+                          <div className="flex flex-wrap items-center gap-2 pt-3">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedGallerySection("all")}
+                              className={cx(
+                                "cursor-pointer inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all",
+                                selectedGallerySection === "all"
+                                  ? "bg-gradient-to-r from-brand-purple to-brand-magenta text-white shadow-md shadow-brand-purple/20"
+                                  : "bg-brand-warm/60 border border-brand-line text-brand-deep hover:bg-brand-lilac/40 hover:text-brand-purple"
+                              )}
+                            >
+                              All Sections
+                              <span
+                                className={cx(
+                                  "rounded-full px-1.5 py-0.2 text-[10px]",
+                                  selectedGallerySection === "all" ? "bg-white/25 text-white" : "bg-white text-muted"
+                                )}
+                              >
+                                {totalPhotos}
+                              </span>
+                            </button>
+
+                            {dynamicSections.map((sec) => {
+                              const isSelected = selectedGallerySection.toLowerCase() === sec.name.toLowerCase();
+                              return (
+                                <button
+                                  key={sec.id}
+                                  type="button"
+                                  onClick={() => setSelectedGallerySection(sec.name)}
+                                  className={cx(
+                                    "cursor-pointer inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all",
+                                    isSelected
+                                      ? "bg-gradient-to-r from-brand-orange to-brand-amber text-white shadow-md shadow-brand-orange/25"
+                                      : "bg-white border border-brand-line text-brand-deep hover:bg-orange-50 hover:text-brand-orange hover:border-brand-orange/30"
+                                  )}
+                                >
+                                  {sec.name}
+                                  <span
+                                    className={cx(
+                                      "rounded-full px-1.5 py-0.2 text-[10px]",
+                                      isSelected ? "bg-white/25 text-white" : "bg-brand-warm text-muted"
+                                    )}
+                                  >
+                                    {sec.photos.length}
+                                  </span>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
+
+                        {/* Segmented Section Cards Grid */}
+                        <div className="space-y-6">
+                          {sectionsToDisplay.map((sec) => (
+                            <div
+                              key={sec.id}
+                              className="rounded-3xl border border-brand-line bg-white/90 p-4.5 sm:p-5 shadow-xs transition hover:shadow-sm"
+                            >
+                              {/* Section Segment Header */}
+                              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-line pb-3.5 mb-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-lilac text-brand-purple shadow-xs">
+                                    <MapPin className="h-4.5 w-4.5" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-brand text-base font-extrabold text-brand-deep">
+                                        {sec.name}
+                                      </h4>
+                                      <span className="rounded-full bg-brand-orange/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-brand-orange">
+                                        {sec.rowRange}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-muted mt-0.5">{sec.tier}</p>
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEaseExplore(sec.name)}
+                                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl border border-brand-purple/20 bg-brand-lilac/40 px-3 py-1.5 text-xs font-bold text-brand-purple hover:bg-brand-purple hover:text-white transition shadow-xs"
+                                >
+                                  <Rotate3d className="h-3.5 w-3.5" /> View in 360°
+                                </button>
+                              </div>
+
+                              {/* Photos Grid for this section */}
+                              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {sec.photos.map((p, pIdx) => (
+                                  <div
+                                    key={pIdx}
+                                    className="group relative overflow-hidden rounded-2xl border border-brand-line bg-white shadow-xs transition hover:shadow-md"
+                                  >
+                                    <div className="relative h-52 w-full overflow-hidden bg-brand-deep">
+                                      <img
+                                        src={p.photo}
+                                        alt={p.seat}
+                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                      />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/90 via-brand-deep/30 to-transparent p-4 flex flex-col justify-between">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="rounded-full bg-brand-deep/85 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                                            {p.authorName}
+                                          </span>
+                                          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                                            Verified Sightline
+                                          </span>
+                                        </div>
+
+                                        <div className="text-white space-y-1">
+                                          <div className="inline-flex items-center gap-1.5 rounded-md bg-brand-orange px-2 py-0.5 text-xs font-black text-white shadow-sm">
+                                            <MapPin className="h-3.5 w-3.5" /> {p.seat}
+                                          </div>
+                                          <p className="text-[11px] text-white/85 line-clamp-1">
+                                            {p.vibe}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                );
-              })()}
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -2176,14 +2400,10 @@ export default function Community() {
                       setIsShareModalOpen(false);
                       showToast("EasePix attached! You're back to drafting your post.");
                       textareaRef.current?.focus();
-                    } else {
                       addPost({
-                        authorName: user?.name ?? "You",
-                        authorAvatar:
-                          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-                        authorBadge: "Verified Seat Sharer",
+                        author: user?.name ?? "You",
                         eventId: targetEventId,
-                        text: `View from ${seatSectionInput || "Section B"}, ${seatRowInput || "Row 12"}. Unobstructed sightline to the main stage and fantastic acoustics!`,
+                        body: `View from ${seatSectionInput || "Section B"}, ${seatRowInput || "Row 12"}. Unobstructed sightline to the main stage and fantastic acoustics!`,
                         photo: photoToUse,
                         section: seatSectionInput || "Section B",
                       });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, forwardRef } from "react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import QR from "qrcode";
 
@@ -118,14 +118,18 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={cx(inputCls, "appearance-none pr-8", props.className)} />;
 }
 
-export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      className={cx(inputCls, "h-auto py-2.5 leading-relaxed", props.className)}
-    />
-  );
-}
+export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
+  (props, ref) => {
+    return (
+      <textarea
+        ref={ref}
+        {...props}
+        className={cx(inputCls, "h-auto py-2.5 leading-relaxed", props.className)}
+      />
+    );
+  }
+);
+Textarea.displayName = "Textarea";
 
 // Real, scannable QR code. `value` is encoded verbatim; ticket refs are wrapped
 // into a verification URL so a phone camera resolves to the check-in endpoint.
