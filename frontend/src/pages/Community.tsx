@@ -189,9 +189,9 @@ export default function Community() {
           className="relative min-h-[360px] sm:min-h-[390px] lg:min-h-[420px] p-6 sm:p-10 lg:p-12 text-white flex flex-col justify-between"
           style={{
             backgroundImage: `
-              linear-gradient(90deg, rgba(27,7,44,0.95) 0%, rgba(50,19,79,0.85) 32%, rgba(50,19,79,0.52) 65%, rgba(216,61,165,0.25) 100%),
-              linear-gradient(0deg, rgba(20,7,31,0.55) 0%, transparent 50%),
-              url('https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1600&q=85')
+              linear-gradient(90deg, rgba(27,7,44,0.92) 0%, rgba(50,19,79,0.80) 30%, rgba(50,19,79,0.42) 60%, rgba(216,61,165,0.20) 100%),
+              linear-gradient(0deg, rgba(20,7,31,0.45) 0%, transparent 50%),
+              url('/Neon_Festival_Lights_and_Euphoria.png')
             `,
             backgroundSize: "cover",
             backgroundPosition: "center 48%",
