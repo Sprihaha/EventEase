@@ -1159,9 +1159,7 @@ export default function Community() {
                         });
                         const evTitle = events.find((e) => e.id === targetEventId)?.title ?? "Selected Event";
                         showToast(`Searching seat views for ${evTitle}`);
-                        setTimeout(() => {
-                          document.getElementById("community-photos-gallery")?.scrollIntoView({ behavior: "smooth" });
-                        }, 100);
+                        scrollToSection("seat-search-results");
                       }}
                       className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-purple/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
                     >
@@ -1354,7 +1352,7 @@ export default function Community() {
               )}
 
               {/* Gallery Header - Renamed to Results */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div id="seat-search-results" className="scroll-mt-24 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="font-brand text-base font-bold text-brand-deep">
                     Results
