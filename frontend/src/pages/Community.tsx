@@ -579,7 +579,7 @@ export default function Community() {
       <nav
         id="main-tabs-nav"
         aria-label="Community Sections"
-        className="mb-8 rounded-2xl border border-brand-line bg-white/95 p-2 shadow-sm backdrop-blur-md"
+        className="mb-3.5 sm:mb-4 rounded-2xl border border-brand-line bg-white/95 p-2 shadow-sm backdrop-blur-md"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {/* Tab 1: EaseComms */}
@@ -1754,7 +1754,7 @@ export default function Community() {
       </div>
       ) : (
         /* DEDICATED EASEEXCHANGE VIEW (Integrated from user design) */
-        <div id="exchange-view" className="max-w-5xl mx-auto py-4 space-y-6">
+        <div id="exchange-view" className="max-w-5xl mx-auto pt-0.5 pb-6 space-y-5">
           {/* Section Header */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
