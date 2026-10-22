@@ -31,6 +31,8 @@ import {
   Layers,
   Search,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { Button, Badge, Card, Textarea, cx } from "../components/ui";
@@ -308,6 +310,7 @@ export default function Community() {
   } | null>(null);
 
   // EasePix state & EaseExplore
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeVantage, setActiveVantage] = useState<string>("stage");
   const [seatSectionInput, setSeatSectionInput] = useState("Section C");
   const [seatRowInput, setSeatRowInput] = useState("Row D");
@@ -681,127 +684,225 @@ export default function Community() {
       <div
         id="community-grid"
         className={cx(
-          "grid gap-6",
-          tab === "feed"
-            ? "lg:grid-cols-[240px_minmax(0,1fr)_280px]"
-            : "lg:grid-cols-[240px_minmax(0,1fr)]",
+          "grid gap-6 transition-all duration-300",
+          isSidebarCollapsed
+            ? (tab === "feed" ? "lg:grid-cols-[72px_minmax(0,1fr)_280px]" : "lg:grid-cols-[72px_minmax(0,1fr)]")
+            : (tab === "feed" ? "lg:grid-cols-[240px_minmax(0,1fr)_280px]" : "lg:grid-cols-[240px_minmax(0,1fr)]"),
         )}
       >
         {/* LEFT RAIL: EXPLORE CHANNELS & YOUR SPACE */}
         <aside className="space-y-4">
-          <div className="rounded-3xl border border-brand-line bg-white p-4 shadow-sm lg:sticky lg:top-24">
-            <div className="px-2 pb-2 text-[10px] font-black uppercase tracking-wider text-muted">
-              EaseComms Channels
-            </div>
+          <div className={cx(
+            "rounded-3xl border border-brand-line bg-white shadow-sm lg:sticky lg:top-24 transition-all duration-300",
+            isSidebarCollapsed ? "p-2.5" : "p-4"
+          )}>
+            {/* Collapse/Expand Toggle Header */}
+            {isSidebarCollapsed ? (
+              <div className="flex flex-col items-center gap-1.5 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(false)}
+                  title="Expand EaseComms Channels"
+                  className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl bg-brand-lilac/70 text-brand-purple hover:bg-brand-purple hover:text-white transition shadow-sm"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+                <span className="text-[9px] font-black uppercase tracking-wider text-muted text-center leading-tight">
+                  Channels
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between px-2 pb-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-muted">
+                  EaseComms Channels
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(true)}
+                  title="Collapse EaseComms Channels"
+                  className="cursor-pointer inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold text-muted hover:bg-brand-lilac/60 hover:text-brand-purple transition"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span className="text-[10px]">Collapse</span>
+                </button>
+              </div>
+            )}
 
-            <div className="space-y-2" role="tablist" aria-label="EaseComms channels">
-              {/* Channel 1: EaseConnect */}
-              <button
-                type="button"
-                onClick={() => setTab("feed")}
-                className={cx(
-                  "cursor-pointer group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all",
-                  tab === "feed"
-                    ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
-                    : "text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple",
-                )}
-              >
-                <div
+            {/* Channels List */}
+            {isSidebarCollapsed ? (
+              <div className="flex flex-col items-center gap-2" role="tablist" aria-label="EaseComms channels">
+                {/* Channel 1: EaseConnect */}
+                <button
+                  type="button"
+                  onClick={() => setTab("feed")}
+                  title="EaseConnect: Discussions & fan forums"
                   className={cx(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                    "cursor-pointer flex h-10 w-10 items-center justify-center rounded-xl transition-all shadow-xs",
                     tab === "feed"
-                      ? "bg-white/20 text-white"
-                      : "bg-brand-lilac/70 text-brand-purple group-hover:bg-brand-purple group-hover:text-white",
+                      ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                      : "bg-brand-lilac/50 text-brand-deep hover:bg-brand-purple hover:text-white",
                   )}
                 >
-                  <Users className="h-4.5 w-4.5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
-                    EaseConnect
-                  </b>
-                  <small className={cx("block text-[10px] truncate", tab === "feed" ? "text-white/80" : "text-muted")}>
-                    Discussions & fan forums
-                  </small>
-                </div>
-              </button>
+                  <Users className="h-5 w-5" />
+                </button>
 
-              {/* Channel 2: EasePix */}
-              <button
-                type="button"
-                onClick={() => setTab("views")}
-                className={cx(
-                  "cursor-pointer flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all border",
-                  tab === "views"
-                    ? "border-brand-purple/30 bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
-                    : "border-transparent bg-transparent hover:bg-brand-lilac/40 text-brand-deep",
-                )}
-              >
-                <div
+                {/* Channel 2: EasePix */}
+                <button
+                  type="button"
+                  onClick={() => setTab("views")}
+                  title="EasePix: Seat sharing & photos"
                   className={cx(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                    "cursor-pointer flex h-10 w-10 items-center justify-center rounded-xl transition-all shadow-xs",
                     tab === "views"
-                      ? "bg-white/20 text-white"
-                      : "bg-brand-lilac/70 text-brand-purple",
+                      ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                      : "bg-brand-lilac/50 text-brand-deep hover:bg-brand-purple hover:text-white",
                   )}
                 >
-                  <Camera className="h-4.5 w-4.5" />
+                  <Camera className="h-5 w-5" />
+                </button>
+
+                <div className="my-2 h-px w-8 bg-brand-line" />
+
+                {/* Compact Your Space Icons */}
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => showToast("You have 4 saved posts.")}
+                    title="Saved posts"
+                    className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-brand-lilac/50 hover:text-brand-purple transition"
+                  >
+                    <Bookmark className="h-4 w-4 text-brand-purple" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => showToast("You are part of: Live Music Fans & Festival Crew")}
+                    title="My groups"
+                    className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-brand-lilac/50 hover:text-brand-purple transition"
+                  >
+                    <Users className="h-4 w-4 text-brand-magenta" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => showToast("All recent activity is up to date.")}
+                    title="Recent activity"
+                    className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-brand-lilac/50 hover:text-brand-purple transition"
+                  >
+                    <Clock className="h-4 w-4 text-brand-orange" />
+                  </button>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
-                    EasePix
-                  </b>
-                  <small className={cx("block text-[10px] truncate", tab === "views" ? "text-white/80" : "text-muted")}>
-                    Seat sharing & photos
-                  </small>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2" role="tablist" aria-label="EaseComms channels">
+                  {/* Channel 1: EaseConnect */}
+                  <button
+                    type="button"
+                    onClick={() => setTab("feed")}
+                    className={cx(
+                      "cursor-pointer group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all",
+                      tab === "feed"
+                        ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                        : "text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple",
+                    )}
+                  >
+                    <div
+                      className={cx(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                        tab === "feed"
+                          ? "bg-white/20 text-white"
+                          : "bg-brand-lilac/70 text-brand-purple group-hover:bg-brand-purple group-hover:text-white",
+                      )}
+                    >
+                      <Users className="h-4.5 w-4.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
+                        EaseConnect
+                      </b>
+                      <small className={cx("block text-[10px] truncate", tab === "feed" ? "text-white/80" : "text-muted")}>
+                        Discussions & fan forums
+                      </small>
+                    </div>
+                  </button>
+
+                  {/* Channel 2: EasePix */}
+                  <button
+                    type="button"
+                    onClick={() => setTab("views")}
+                    className={cx(
+                      "cursor-pointer flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all border",
+                      tab === "views"
+                        ? "border-brand-purple/30 bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                        : "border-transparent bg-transparent hover:bg-brand-lilac/40 text-brand-deep",
+                    )}
+                  >
+                    <div
+                      className={cx(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                        tab === "views"
+                          ? "bg-white/20 text-white"
+                          : "bg-brand-lilac/70 text-brand-purple",
+                      )}
+                    >
+                      <Camera className="h-4.5 w-4.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
+                        EasePix
+                      </b>
+                      <small className={cx("block text-[10px] truncate", tab === "views" ? "text-white/80" : "text-muted")}>
+                        Seat sharing & photos
+                      </small>
+                    </div>
+                  </button>
                 </div>
-              </button>
-            </div>
 
-            <div className="my-3.5 h-px bg-brand-line" />
+                <div className="my-3.5 h-px bg-brand-line" />
 
-            <div className="px-2 pb-1.5 text-[10px] font-black uppercase tracking-wider text-muted">
-              Your space
-            </div>
-            <nav className="space-y-1">
-              <button
-                type="button"
-                onClick={() => showToast("You have 4 saved posts.")}
-                className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
-              >
-                <Bookmark className="h-4 w-4 text-brand-purple" /> Saved posts
-              </button>
-              <button
-                type="button"
-                onClick={() => showToast("You are part of: Live Music Fans & Festival Crew")}
-                className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
-              >
-                <Users className="h-4 w-4 text-brand-magenta" /> My groups
-              </button>
-              <button
-                type="button"
-                onClick={() => showToast("All recent activity is up to date.")}
-                className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
-              >
-                <Clock className="h-4 w-4 text-brand-orange" /> Recent activity
-              </button>
-            </nav>
+                <div className="px-2 pb-1.5 text-[10px] font-black uppercase tracking-wider text-muted">
+                  Your space
+                </div>
+                <nav className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => showToast("You have 4 saved posts.")}
+                    className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
+                  >
+                    <Bookmark className="h-4 w-4 text-brand-purple" /> Saved posts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => showToast("You are part of: Live Music Fans & Festival Crew")}
+                    className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
+                  >
+                    <Users className="h-4 w-4 text-brand-magenta" /> My groups
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => showToast("All recent activity is up to date.")}
+                    className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
+                  >
+                    <Clock className="h-4 w-4 text-brand-orange" /> Recent activity
+                  </button>
+                </nav>
 
-            <div className="mt-4 rounded-2xl bg-gradient-to-br from-brand-lilac/70 via-brand-warm to-brand-lilac/40 p-3.5 border border-brand-purple/15">
-              <strong className="block font-brand text-xs font-bold text-brand-deep">
-                Make someone’s night ✨
-              </strong>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted">
-                Share a seat view or a useful tip to help another fan feel event-ready.
-              </p>
-              <button
-                type="button"
-                onClick={() => showToast("Every verified seat view earns +15 EasePoints!")}
-                className="cursor-pointer mt-2 text-[11px] font-extrabold text-brand-purple hover:underline"
-              >
-                How it works
-              </button>
-            </div>
+                <div className="mt-4 rounded-2xl bg-gradient-to-br from-brand-lilac/70 via-brand-warm to-brand-lilac/40 p-3.5 border border-brand-purple/15">
+                  <strong className="block font-brand text-xs font-bold text-brand-deep">
+                    Make someone’s night ✨
+                  </strong>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                    Share a seat view or a useful tip to help another fan feel event-ready.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => showToast("Every verified seat view earns +15 EasePoints!")}
+                    className="cursor-pointer mt-2 text-[11px] font-extrabold text-brand-purple hover:underline"
+                  >
+                    How it works
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </aside>
 
