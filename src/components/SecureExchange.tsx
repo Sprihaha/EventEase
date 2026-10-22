@@ -120,7 +120,7 @@ export default function SecureExchange() {
     <section aria-label="EaseXchange" className="space-y-5">
       <div className="rounded-2xl border border-brand-purple/20 bg-brand-lilac/60 p-4 text-sm text-brand-deep">
         <p className="flex items-center gap-2 font-semibold">
-          <Repeat className="h-5 w-5 shrink-0" /> EaseXchange · Secure ticket
+          <Repeat className="h-5 w-5 shrink-0" /> <span className="font-feature italic font-black text-brand-purple">EaseXchange</span> · Secure ticket
           exchange
         </p>
         <p className="mt-2">

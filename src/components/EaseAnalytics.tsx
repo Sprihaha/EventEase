@@ -98,7 +98,7 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <Badge tone="accent"><BarChart3 className="h-3 w-3" /> Read-only</Badge>
-          <h2 className="mt-3 font-brand text-3xl font-bold tracking-tight text-brand-deep">EaseAnalytics</h2>
+          <h2 className="mt-3 font-feature text-3xl font-black italic tracking-tight text-brand-deep">EaseAnalytics</h2>
           <p className="mt-1 text-sm text-muted">Sales performance across your EventEase events.</p>
         </div>
         <div className="flex flex-wrap items-end gap-3">

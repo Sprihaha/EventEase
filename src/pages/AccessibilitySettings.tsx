@@ -28,13 +28,13 @@ export default function AccessibilitySettings() {
   return (
     <div className="mx-auto max-w-3xl px-5 py-14">
       <Badge tone="neutral" className="border-0 bg-brand-orange text-white font-bold shadow-sm">
-        <Volume2 className="h-3 w-3" /> EaseVoice
+        <Volume2 className="h-3 w-3" /> <span className="font-feature italic font-black">EaseVoice</span>
       </Badge>
       <h1 className="mt-4 font-brand text-4xl sm:text-5xl font-bold tracking-tight text-brand-deep">
         Accessibility settings
       </h1>
       <p className="mt-3 max-w-xl text-sm sm:text-base leading-relaxed text-muted">
-        Choose how quickly EaseVoice reads and whether narration starts automatically.
+        Choose how quickly <span className="font-feature italic font-black text-brand-purple">EaseVoice</span> reads and whether narration starts automatically.
       </p>
 
       <Card className="mt-8 border border-brand-purple/15 bg-white p-6 shadow-sm sm:p-8 rounded-3xl">

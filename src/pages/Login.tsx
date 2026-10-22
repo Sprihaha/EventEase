@@ -61,24 +61,37 @@ export default function Login() {
     event.preventDefault();
     if (locked) return;
     setSigningIn(true);
-    setError("");
-    const account = await authenticate(username, password);
-    setSigningIn(false);
-    if (account) {
-      sessionStorage.removeItem("eventease-login-attempts");
-      sessionStorage.removeItem("eventease-login-locked");
-      navigate(account.role === "customer" && returnTo ? returnTo : `/dashboard/${account.role}`);
-      return;
-    }
-    const next = attempts + 1;
-    setAttempts(next);
-    sessionStorage.setItem("eventease-login-attempts", String(next));
-    if (next >= 5) {
-      setLocked(true);
-      sessionStorage.setItem("eventease-login-locked", "true");
-      setError("This account is locked after 5 unsuccessful attempts. Contact support to unlock it.");
-    } else {
-      setError(`Username or password doesn't match. ${5 - next} attempts remaining.`);
+    try {
+      const account = await authenticate(username, password);
+      setSigningIn(false);
+      if (account) {
+        sessionStorage.removeItem("eventease-login-attempts");
+        sessionStorage.removeItem("eventease-login-locked");
+        navigate(account.role === "customer" && returnTo ? returnTo : `/dashboard/${account.role}`);
+        return;
+      }
+    } catch (err: unknown) {
+      setSigningIn(false);
+      const msg = err instanceof Error ? err.message : "";
+      if (
+        msg.includes("Failed to fetch") ||
+        msg.includes("NetworkError") ||
+        msg.includes("Load failed") ||
+        msg.includes("404")
+      ) {
+        setError("Cannot reach the backend service. Ensure the FastAPI backend is running at http://localhost:8000.");
+        return;
+      }
+      const next = attempts + 1;
+      setAttempts(next);
+      sessionStorage.setItem("eventease-login-attempts", String(next));
+      if (next >= 5) {
+        setLocked(true);
+        sessionStorage.setItem("eventease-login-locked", "true");
+        setError("This account is locked after 5 unsuccessful attempts. Contact support to unlock it.");
+      } else {
+        setError(msg || `Username or password doesn't match. ${5 - next} attempts remaining.`);
+      }
     }
   };
 
@@ -94,32 +107,41 @@ export default function Login() {
     setSignUp((current) => ({ ...current, [key]: value }));
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-mist/50 px-5 py-12">
-      <div className="mx-auto grid max-w-5xl overflow-hidden rounded-[2.5rem] border border-line bg-paper shadow-[0_30px_100px_-60px_rgba(11,11,15,0.5)] lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="relative hidden overflow-hidden bg-ink p-10 text-white lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-accent/40 blur-3xl" />
+    <div className="min-h-[calc(100vh-4rem)] bg-brand-warm px-5 py-12">
+      <div className="mx-auto grid max-w-5xl overflow-hidden rounded-[2.5rem] border border-brand-purple/20 bg-white shadow-[0_30px_100px_-50px_rgba(50,19,79,0.35)] lg:grid-cols-[0.85fr_1.15fr]">
+        <div className="relative hidden overflow-hidden bg-brand-deep p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-brand-orange/25 blur-3xl" />
+          <div className="absolute -left-20 bottom-10 h-64 w-64 rounded-full bg-brand-magenta/20 blur-3xl" />
           <div className="relative">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white">
-              <Ticket className="h-5 w-5 text-ink" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-orange shadow-[0_2px_10px_rgba(255,101,0,0.4)]">
+              <Ticket className="h-5 w-5 text-white" />
             </div>
-            <p className="mt-8 font-display text-4xl leading-tight">
+            <p className="mt-8 font-brand text-4xl font-bold leading-tight text-white">
               Your next great night starts here.
             </p>
-            <p className="mt-4 text-sm leading-relaxed text-white/60">
+            <p className="mt-4 text-sm leading-relaxed text-white/75">
               Sign in to choose seats, join EaseComms, and keep every verified ticket in one place.
             </p>
           </div>
-          <div className="relative space-y-3 text-sm text-white/70">
-            <p className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-white" /> Secure sign-in and verified tickets</p>
-            <p className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-white" /> Transparent prices, always</p>
+          <div className="relative space-y-3 text-sm font-medium text-white/80">
+            <p className="flex items-center gap-2.5">
+              <ShieldCheck className="h-4 w-4 text-brand-orange" /> Secure sign-in and verified tickets
+            </p>
+            <p className="flex items-center gap-2.5">
+              <CheckCircle2 className="h-4 w-4 text-brand-orange" /> Transparent prices, always
+            </p>
           </div>
         </div>
 
-        <Card className="border-0 p-7 sm:p-12">
+        <Card className="border-0 bg-white p-7 sm:p-12 shadow-none">
           {mode === "signin" && (
             <>
-              <Badge tone="accent"><LockKeyhole className="h-3 w-3" /> Secure account access</Badge>
-              <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight">Welcome back</h1>
+              <Badge tone="accent">
+                <LockKeyhole className="h-3 w-3" /> Secure account access
+              </Badge>
+              <h1 className="mt-4 font-brand text-4xl font-bold tracking-tight text-brand-deep">
+                Welcome back
+              </h1>
               <p className="mt-2 text-sm text-muted">Enter your EventEase username and password.</p>
 
               <form className="mt-8 space-y-5" onSubmit={handleSignIn}>
@@ -128,7 +150,7 @@ export default function Login() {
                     autoComplete="username"
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
-                    placeholder="e.g. hcy001"
+                    placeholder="e.g. Janice, John, or Jay"
                     required
                     disabled={locked}
                   />
@@ -150,26 +172,26 @@ export default function Login() {
                       size="sm"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                       onClick={() => setShowPassword((shown) => !shown)}
-                      className="absolute right-1 top-1 h-9 w-9 px-0"
+                      className="absolute right-1 top-1 h-9 w-9 px-0 cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
                 </Field>
                 {error && (
-                  <div role="alert" className="rounded-xl bg-danger/10 p-3 text-sm text-danger">
+                  <div role="alert" className="rounded-xl border border-rose-200 bg-danger/10 p-3.5 text-sm font-medium text-danger">
                     {error}
                   </div>
                 )}
                 {!locked && attempts > 0 && (
-                  <p className="text-xs text-muted">{remaining} sign-in attempts remaining.</p>
+                  <p className="text-xs font-medium text-muted">{remaining} sign-in attempts remaining.</p>
                 )}
                 <Button className="w-full" size="lg" type="submit" disabled={locked || signingIn}>
                   {signingIn ? "Connecting…" : "Sign in"} {!signingIn && <ArrowRight className="h-4 w-4" />}
                 </Button>
               </form>
 
-              <div className="mt-6 border-t border-line pt-6 text-center">
+              <div className="mt-8 border-t border-brand-purple/10 pt-6 text-center">
                 <p className="text-sm text-muted">New to EventEase?</p>
                 <Button className="mt-3" variant="outline" onClick={() => { setMode("signup"); setError(""); }}>
                   <UserPlus className="h-4 w-4" /> Sign up as a new user
@@ -183,7 +205,9 @@ export default function Login() {
               <Button variant="ghost" size="sm" onClick={() => setMode("signin")} className="-ml-3">
                 <ArrowLeft className="h-4 w-4" /> Back to sign in
               </Button>
-              <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight">Create your account</h1>
+              <h1 className="mt-4 font-brand text-4xl font-bold tracking-tight text-brand-deep">
+                Create your account
+              </h1>
               <p className="mt-2 text-sm text-muted">Join as a customer. Verify your email to finish.</p>
               <form className="mt-7 grid gap-4 sm:grid-cols-2" onSubmit={handleSignUp}>
                 <Field label="User ID">
@@ -217,12 +241,14 @@ export default function Login() {
 
           {mode === "sent" && (
             <div className="py-12 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-live/10 text-live">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
                 <Mail className="h-6 w-6" />
               </div>
-              <h1 className="mt-5 font-display text-4xl font-semibold tracking-tight">Check your inbox</h1>
+              <h1 className="mt-5 font-brand text-4xl font-bold tracking-tight text-brand-deep">
+                Check your inbox
+              </h1>
               <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted">
-                A verification link has been prepared for <strong className="text-ink">{signUp.email}</strong>.
+                A verification link has been prepared for <strong className="text-brand-deep">{signUp.email}</strong>.
                 In this preview, use the button below to simulate opening the email.
               </p>
               <Button className="mt-7" size="lg" onClick={() => navigate(`/verify-email/${verificationCode}`)}>

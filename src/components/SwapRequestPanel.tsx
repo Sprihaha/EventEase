@@ -59,7 +59,7 @@ export default function SwapRequestPanel({ onCreated }: Props) {
   return (
     <Card className="p-5 sm:p-6">
       <Badge tone="accent">
-        <Repeat className="h-3 w-3" /> EaseXchange
+        <Repeat className="h-3 w-3" /> <span className="font-feature italic font-black">EaseXchange</span>
       </Badge>
       <h2 className="mt-3 font-brand text-2xl font-bold text-brand-deep">
         Create exchange request

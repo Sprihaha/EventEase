@@ -4,13 +4,11 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type Context,
   type ReactNode,
 } from "react";
 import {
-  seedEvents,
-  seedBookings,
-  seedExchange,
   seedPosts,
   seedFraud,
   seedOrganizers,
@@ -18,17 +16,15 @@ import {
   type Role,
   type EventItem,
   type Booking,
-  type ExchangeListing,
   type CommunityPost,
   type FraudAlert,
   type OrganizerAccount,
-  type SeatBooking,
   type AssistanceRequest,
   type AssistanceLevel,
 } from "./data";
-import { fetchLiveEvents } from "./eventsApi";
 import {
-  ApiError,
+  backendMe,
+  hasBackendSession,
   backendCancelBooking,
   backendCreateEvent,
   backendLogin,
@@ -38,35 +34,32 @@ import {
   fetchBackendRoleEvents,
 } from "./backendApi";
 
-export type User = { id: string; name: string; email: string; role: Role };
+import { fetchBookings, bookingForStore } from "./ticketingApi";
 
-const demoUsers: Record<Role, User> = {
-  customer: { id: "u-cust", name: "Alex Chen", email: "alex@eventease.io", role: "customer" },
-  organizer: { id: "org-livenation", name: "Live Nation Asia", email: "ops@livenation.asia", role: "organizer" },
-  admin: { id: "u-admin", name: "Sam Rivera", email: "sam@eventease.io", role: "admin" },
-};
+export type User = { id: string; name: string; email: string; role: Role };
 
 type Store = {
   user: User | null;
-  login: (role: Role) => void;
   authenticate: (username: string, password: string) => Promise<User | null>;
   logout: () => void;
 
   events: EventItem[];
-  eventsSource: "loading" | "backend" | "ticketmaster" | "curated";
+  publicEvents: EventItem[];
+  eventsSource: "loading" | "backend" | "error";
+  sessionLoading: boolean;
+  eventsError: string | null;
+  bookingsError: string | null;
+  refreshBookings: () => Promise<void>;
   bookings: Booking[];
-  exchange: ExchangeListing[];
   posts: CommunityPost[];
   fraud: FraudAlert[];
   organizers: OrganizerAccount[];
   assistanceRequests: AssistanceRequest[];
 
-  book: (eventId: string, seats: SeatBooking[], total: number, promo?: string) => Booking;
-  cancelBooking: (id: string) => void;
-  listForResale: (id: string, seat: string, ask: number) => void;
+  cancelBooking: (id: string) => Promise<void>;
   addPost: (p: Omit<CommunityPost, "id" | "when" | "likes">) => void;
-  createEvent: (e: EventItem) => void;
-  setEventStatus: (id: string, status: EventItem["status"]) => void;
+  createEvent: (e: EventItem) => Promise<void>;
+  setEventStatus: (id: string, status: EventItem["status"]) => Promise<void>;
   setOrganizerStatus: (id: string, status: OrganizerAccount["status"]) => void;
   resolveFraud: (id: string) => void;
   addAssistanceRequest: (
@@ -93,10 +86,23 @@ storeGlobal.__eventEaseStoreContext = Ctx;
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [events, setEvents] = useState<EventItem[]>(seedEvents);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [publicEvents, setPublicEvents] = useState<EventItem[]>([]);
   const [eventsSource, setEventsSource] = useState<Store["eventsSource"]>("loading");
-  const [bookings, setBookings] = useState<Booking[]>(seedBookings);
-  const [exchange, setExchange] = useState<ExchangeListing[]>(seedExchange);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  const [bookingsError, setBookingsError] = useState<string | null>(null);
+  const accountId = useRef<string | null>(null);
+  const accountRole = useRef<Role | null>(null);
+  const loadBookings = async (id: string) => {
+    try {
+      const result = await fetchBookings();
+      if (accountId.current === id) { setBookings(result.map(b => bookingForStore(b, id))); setBookingsError(null); }
+    } catch (cause) {
+      if (accountId.current === id) { setBookings([]); setBookingsError(cause instanceof Error ? cause.message : "Could not load bookings."); }
+    }
+  };
   const [posts, setPosts] = useState<CommunityPost[]>(seedPosts);
   const [fraud, setFraud] = useState<FraudAlert[]>(seedFraud);
   const [organizers, setOrganizers] = useState<OrganizerAccount[]>(seedOrganizers);
@@ -105,171 +111,94 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    fetchBackendEvents()
-      .then((backendEvents) => {
+    fetchBackendEvents().then(result => {
+      if (active) setPublicEvents(result);
+      if (active && accountRole.current !== "organizer" && accountRole.current !== "admin") { setEvents(result); setEventsSource("backend"); setEventsError(null); }
+    }).catch(cause => {
+      if (active) { setEvents([]); setEventsSource("error"); setEventsError(cause instanceof Error ? cause.message : "Could not load events."); }
+    });
+    if (hasBackendSession()) {
+      backendMe().then(account => {
         if (!active) return;
-        if (backendEvents.length) {
-          setEvents(backendEvents);
-          setEventsSource("backend");
-          return;
-        }
-        return fetchLiveEvents().then((live) => {
-          if (!active) return;
-          if (live.length) {
-            setEvents(live);
-            setEventsSource("ticketmaster");
-          } else {
-            setEventsSource("curated");
-          }
-        });
-      })
-      .catch(() =>
-        fetchLiveEvents()
-          .then((live) => {
-            if (!active) return;
-            if (live.length) setEvents(live);
-            setEventsSource(live.length ? "ticketmaster" : "curated");
-          })
-          .catch(() => active && setEventsSource("curated")),
-      );
-    return () => {
-      active = false;
-    };
+        const role = account.role === "ORGANISER" ? "organizer" : account.role.toLowerCase() as Role;
+        accountId.current = account.id;
+        accountRole.current = role;
+        setUser({ id: account.id, name: account.username, email: account.email ?? "", role });
+        if (role === "customer") void loadBookings(account.id);
+        else void fetchBackendRoleEvents(account.role, account.id).then(result => { if (active) { setEvents(result); setEventsSource("backend"); } }).catch(() => { if (active) { setEvents([]); setEventsError("Could not load managed events."); } });
+      }).catch(() => { if (active) { accountId.current = null; setUser(null); setBookings([]); void backendLogout(); } })
+        .finally(() => active && setSessionLoading(false));
+    } else setSessionLoading(false);
+    return () => { active = false; };
   }, []);
 
   const value = useMemo<Store>(() => {
     return {
       user,
-      login: (role) => setUser(demoUsers[role]),
+      sessionLoading, eventsError, bookingsError,
+      refreshBookings: async () => { if (user?.role === "customer") await loadBookings(user.id); },
       authenticate: async (username, password) => {
         const normalized = username.trim().toLowerCase();
-        try {
-          const auth = await backendLogin(normalized, password);
-          const role = auth.user.role === "ORGANISER" ? "organizer" : auth.user.role.toLowerCase() as Role;
-          const account = {
-            id: auth.user.id,
-            name: auth.user.username,
-            email: "",
-            role,
-          };
-          const roleEvents = await fetchBackendRoleEvents(auth.user.role).catch(() => []);
-          if (roleEvents.length) {
-            setEvents(roleEvents);
-            setEventsSource("backend");
-          }
-          setUser(account);
-          return account;
-        } catch (error) {
-          if (error instanceof ApiError && error.status < 500) return null;
-        }
-        const demoAccounts: Record<string, { password: string; user: User }> = {
-          hcy001: {
-            password: "try001",
-            user: { id: "u-cust", name: "HCY", email: "hcy001@eventease.demo", role: "customer" },
-          },
-          admin001: {
-            password: "try001",
-            user: { id: "u-admin", name: "EventEase Admin", email: "admin001@eventease.demo", role: "admin" },
-          },
-          event01: {
-            password: "try01",
-            user: { id: "org-livenation", name: "Event 01", email: "event01@eventease.demo", role: "organizer" },
-          },
+        const auth = await backendLogin(normalized, password);
+        const role = auth.user.role === "ORGANISER" ? "organizer" : (auth.user.role.toLowerCase() as Role);
+        const account = {
+          id: auth.user.id,
+          name: auth.user.username,
+          email: "",
+          role,
         };
-        const demo = demoAccounts[normalized];
-        if (demo?.password === password) {
-          setUser(demo.user);
-          return demo.user;
-        }
-        const saved = localStorage.getItem(`eventease-user-${normalized}`);
-        if (!saved) return null;
+        setEvents([]);
         try {
-          const account = JSON.parse(saved) as { userId: string; password: string; email: string };
-          if (account.password !== password) return null;
-          const customer = {
-            id: account.userId,
-            name: account.userId,
-            email: account.email,
-            role: "customer" as const,
-          };
-          setUser(customer);
-          return customer;
-        } catch {
-          return null;
+          const publicResult = await fetchBackendEvents();
+          setPublicEvents(publicResult);
+          setEvents(role === "customer" ? publicResult : await fetchBackendRoleEvents(auth.user.role, auth.user.id));
+          setEventsSource("backend");
+          setEventsError(null);
+        } catch (cause) {
+          setEventsSource("error");
+          setEventsError(cause instanceof Error ? cause.message : "Could not load events.");
         }
+        accountId.current = account.id;
+        accountRole.current = role;
+        setBookings([]);
+        setUser(account);
+        if (role === "customer") await loadBookings(account.id);
+        return account;
       },
       logout: () => {
         void backendLogout();
+        accountId.current = null;
+        accountRole.current = null;
         setUser(null);
+        setBookings([]);
+        setBookingsError(null);
+        void fetchBackendEvents().then(result => { setPublicEvents(result); setEvents(result); setEventsSource("backend"); }).catch(() => { setPublicEvents([]); setEvents([]); setEventsSource("error"); });
       },
       events,
+      publicEvents,
       eventsSource,
       bookings,
-      exchange,
       posts,
       fraud,
       organizers,
       assistanceRequests,
-      book: (eventId, seats, total, promo) => {
-        const ref = "EE-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-        const bk: Booking = {
-          id: "bk-" + Date.now(),
-          ref,
-          eventId,
-          userId: user?.id ?? "u-cust",
-          seats,
-          total,
-          purchasedAt: new Date().toISOString(),
-          status: "confirmed",
-          promo,
-        };
-        setBookings((b) => [bk, ...b]);
-        setEvents((evs) =>
-          evs.map((e) => {
-            if (e.id !== eventId) return e;
-            const tiers = e.tiers.map((t) => {
-              const n = seats.filter((s) => s.tier === t.name).length;
-              return n ? { ...t, sold: t.sold + n } : t;
-            });
-            return { ...e, tiers };
-          }),
-        );
-        return bk;
-      },
-      cancelBooking: (id) => {
-        void backendCancelBooking(id);
-        setBookings((b) => b.map((x) => (x.id === id ? { ...x, status: "refunded" } : x)));
-      },
-      listForResale: (id, seat, ask) => {
-        setBookings((b) => b.map((x) => (x.id === id ? { ...x, status: "listed" } : x)));
-        const bk = bookings.find((x) => x.id === id);
-        if (!bk) return;
-        setExchange((ex) => [
-          {
-            id: "ex-" + Date.now(),
-            bookingId: id,
-            eventId: bk.eventId,
-            sellerName: user?.name ?? "You",
-            seat,
-            tier: bk.seats.find((s) => s.seat === seat)?.tier ?? "Standard",
-            askPrice: ask,
-            verified: true,
-          },
-          ...ex,
-        ]);
+      cancelBooking: async (id) => {
+        if (!user) throw new Error("Please sign in.");
+        await backendCancelBooking(id);
+        await loadBookings(user.id);
       },
       addPost: (p) =>
         setPosts((all) => [
           { ...p, id: "p-" + Date.now(), when: "now", likes: 0 },
           ...all,
         ]),
-      createEvent: (e) => {
-        void backendCreateEvent(e);
-        setEvents((evs) => [{ ...e, status: "pending" }, ...evs]);
+      createEvent: async (e) => {
+        await backendCreateEvent(e);
+        if (user) setEvents(await fetchBackendRoleEvents("ORGANISER", user.id));
       },
-      setEventStatus: (id, status) => {
-        void backendSetEventStatus(id, status);
-        setEvents((evs) => evs.map((e) => (e.id === id ? { ...e, status } : e)));
+      setEventStatus: async (id, status) => {
+        await backendSetEventStatus(id, status);
+        if (user) setEvents(await fetchBackendRoleEvents("ADMIN", user.id));
       },
       setOrganizerStatus: (id, status) =>
         setOrganizers((o) => o.map((x) => (x.id === id ? { ...x, status } : x))),
@@ -303,10 +232,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [
     user,
+    sessionLoading, eventsError, bookingsError,
     events,
+    publicEvents,
     eventsSource,
     bookings,
-    exchange,
     posts,
     fraud,
     organizers,
@@ -322,7 +252,7 @@ export function useStore() {
   return s;
 }
 
-export const currency = (n: number) => "S$" + n.toLocaleString("en-SG");
+export const currency = (n: number) => "S$" + n.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-SG", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 export const fmtTime = (iso: string) =>

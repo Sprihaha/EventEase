@@ -232,7 +232,7 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
     <div className={embedded ? "" : "mx-auto max-w-4xl px-5 py-14"}>
       <Badge tone="accent"><Volume2 className="h-3 w-3" /> Admin only</Badge>
       <h1 className="mt-4 font-brand text-3xl sm:text-4xl font-bold tracking-tight text-brand-deep">
-        EaseVoice narration
+        <span className="font-feature italic font-black">EaseVoice</span> narration
       </h1>
       <p className="mt-2 max-w-2xl text-muted">
         Edit the spoken introduction for one EventEase page at a time.

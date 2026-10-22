@@ -3,7 +3,7 @@
 An accessible, modern web application for event discovery, ticket purchasing, and event operations, serving **Customers**, **Event Organizers**, and **Platform Administrators**.
 
 > [!NOTE]
-> This repository branch contains the **Frontend Client** application built with React, Vite, TypeScript, and Tailwind CSS. The backend API service is maintained and documented in its dedicated `backend` branch.
+> This directory contains the **Frontend Client** application built with React, Vite, TypeScript, and Tailwind CSS. The backend API service is maintained and documented in its dedicated `backend` branch.
 
 ---
 
@@ -42,49 +42,47 @@ An accessible, modern web application for event discovery, ticket purchasing, an
 ## 📂 Project Structure
 
 ```text
-EventEase/
-├── frontend/
-│   ├── public/             # Static public assets
-│   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   │   ├── AssistanceQueue.tsx     # Organizer assistance request queue
-│   │   │   ├── DashboardShell.tsx      # Dashboard layout wrapper
-│   │   │   ├── EaseAnalytics.tsx       # Admin analytics visualization
-│   │   │   ├── EaseVoice.tsx           # Voice narration component
-│   │   │   ├── EventCard.tsx           # Event listing card component
-│   │   │   ├── Layout.tsx              # Main navigation & footer shell
-│   │   │   ├── OperationsSeatMap.tsx   # Live venue seat occupancy map
-│   │   │   ├── SeatMap.tsx             # Interactive ticket seat selector
-│   │   │   └── ui.tsx                  # Core atomic UI primitives
-│   │   ├── lib/            # Utilities and services
-│   │   │   ├── accessibility.tsx       # Accessibility context & state
-│   │   │   ├── backendApi.ts           # REST API client for backend service
-│   │   │   ├── data.ts                 # Data models & mock catalog items
-│   │   │   ├── eventsApi.ts            # External events integration
-│   │   │   └── store.tsx               # Global application state management
-│   │   ├── pages/          # Application views & route handlers
-│   │   │   ├── AccessibilitySettings.tsx
-│   │   │   ├── AdminDashboard.tsx
-│   │   │   ├── AssistanceRequestForm.tsx
-│   │   │   ├── AssistanceRequests.tsx
-│   │   │   ├── Browse.tsx
-│   │   │   ├── CustomerDashboard.tsx
-│   │   │   ├── EaseVoiceNarration.tsx
-│   │   │   ├── EventDetail.tsx
-│   │   │   ├── Home.tsx
-│   │   │   ├── Login.tsx
-│   │   │   ├── OrganizerDashboard.tsx
-│   │   │   ├── Verify.tsx
-│   │   │   └── VerifyEmail.tsx
-│   │   ├── routes.tsx      # React Router route definitions
-│   │   ├── App.tsx         # Main application container
-│   │   ├── main.tsx        # Application root entry point
-│   │   └── index.css       # Global styles & Tailwind CSS imports
-│   ├── .env.example        # Environment variable template
-│   ├── package.json        # Dependencies & NPM scripts
-│   ├── tsconfig.json       # TypeScript configuration
-│   └── vite.config.ts      # Vite configuration & plugin setup
-└── README.md
+frontend/
+├── public/             # Static public assets
+├── src/
+│   ├── components/     # Reusable UI components
+│   │   ├── AssistanceQueue.tsx     # Organizer assistance request queue
+│   │   ├── DashboardShell.tsx      # Dashboard layout wrapper
+│   │   ├── EaseAnalytics.tsx       # Admin analytics visualization
+│   │   ├── EaseVoice.tsx           # Voice narration component
+│   │   ├── EventCard.tsx           # Event listing card component
+│   │   ├── Layout.tsx              # Main navigation & footer shell
+│   │   ├── OperationsSeatMap.tsx   # Live venue seat occupancy map
+│   │   ├── SeatMap.tsx             # Interactive ticket seat selector
+│   │   └── ui.tsx                  # Core atomic UI primitives
+│   ├── lib/            # Utilities and services
+│   │   ├── accessibility.tsx       # Accessibility context & state
+│   │   ├── backendApi.ts           # REST API client for backend service
+│   │   ├── data.ts                 # Data models & mock catalog items
+│   │   ├── eventsApi.ts            # External events integration
+│   │   └── store.tsx               # Global application state management
+│   ├── pages/          # Application views & route handlers
+│   │   ├── AccessibilitySettings.tsx
+│   │   ├── AdminDashboard.tsx
+│   │   ├── AssistanceRequestForm.tsx
+│   │   ├── AssistanceRequests.tsx
+│   │   ├── Browse.tsx
+│   │   ├── CustomerDashboard.tsx
+│   │   ├── EaseVoiceNarration.tsx
+│   │   ├── EventDetail.tsx
+│   │   ├── Home.tsx
+│   │   ├── Login.tsx
+│   │   ├── OrganizerDashboard.tsx
+│   │   ├── Verify.tsx
+│   │   └── VerifyEmail.tsx
+│   ├── routes.tsx      # React Router route definitions
+│   ├── App.tsx         # Main application container
+│   ├── main.tsx        # Application root entry point
+│   └── index.css       # Global styles & Tailwind CSS imports
+├── .env.example        # Environment variable template
+├── package.json        # Dependencies & NPM scripts
+├── tsconfig.json       # TypeScript configuration
+└── vite.config.ts      # Vite configuration & plugin setup
 ```
 
 ---
@@ -97,24 +95,15 @@ Ensure you have the following installed on your machine:
 - **Node.js** (v18.0.0 or later, v20+ recommended)
 - **npm** (v9+ or **pnpm**)
 
-### 1. Clone the Repository & Checkout Frontend Branch
+### 1. Install Dependencies
 
 ```bash
-git clone https://github.com/Sprihaha/EventEase.git
-cd EventEase
-git checkout frontend
-```
-
-### 2. Navigate to Frontend Directory & Install Dependencies
-
-```bash
-cd frontend
 npm install
 ```
 
-### 3. Configure Environment Variables
+### 2. Configure Environment Variables
 
-Create a `.env` file in the `frontend/` directory (or copy from `.env.example`):
+Create a `.env` file in this directory (or copy from `.env.example`):
 
 ```bash
 cp .env.example .env
@@ -124,14 +113,14 @@ Configure your environment settings:
 
 ```env
 # URL to EventEase FastAPI backend service
-# (Defaults to production backend https://eventease-backend-qkbl.onrender.com if omitted)
+# (Defaults to production backend https://eventease-backend-fbpd.onrender.com if omitted)
 VITE_API_BASE_URL=http://localhost:8000
 
 # Optional: Ticketmaster Discovery API key for live external events
 VITE_TICKETMASTER_API_KEY=
 ```
 
-### 4. Run the Development Server
+### 3. Run the Development Server
 
 Start the local Vite development server:
 
@@ -145,8 +134,6 @@ The application will be available at:
 ---
 
 ## 📜 Available NPM Scripts
-
-Within the `frontend/` directory, you can run the following scripts:
 
 | Command | Description |
 | :--- | :--- |
@@ -163,7 +150,7 @@ The frontend client communicates with the EventEase **FastAPI Backend Service**:
 
 - **API Base Route**: `/api/v1`
 - **Authentication**: JWT Bearer token authentication stored in browser `localStorage`.
-- **Default Deployed API**: `https://eventease-backend-qkbl.onrender.com`
+- **Default Deployed API**: `https://eventease-backend-fbpd.onrender.com`
 - **Local API Target**: Set `VITE_API_BASE_URL=http://localhost:8000` when running the backend locally.
 
 For backend setup, database migrations, and API endpoint documentation, refer to the **`README.md`** on the **`backend`** branch.

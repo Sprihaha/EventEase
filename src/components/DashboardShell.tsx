@@ -80,7 +80,7 @@ export function DashboardShell({
                   )}
                 >
                   <n.icon className={cx("h-4 w-4 shrink-0", active === n.id ? "text-brand-orange" : "text-brand-purple")} />
-                  <span className="flex-1 text-left">{n.label}</span>
+                  <span className={cx("flex-1 text-left", n.label.startsWith("Ease") ? "font-feature italic font-black tracking-tight" : "")}>{n.label}</span>
                   {n.badge ? (
                     <span
                       className={cx(

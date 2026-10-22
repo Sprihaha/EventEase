@@ -4,15 +4,22 @@ import type { EventItem } from "../lib/data";
 import { currency, fmtDate } from "../lib/store";
 import { Badge } from "./ui";
 import { useStore } from "../lib/store";
+import { cx } from "./ui";
 
-export function EventCard({ ev }: { ev: EventItem }) {
+export function EventCard({
+  ev,
+  presentation = "default",
+}: {
+  ev: EventItem;
+  presentation?: "default" | "home";
+}) {
   const { user } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const from = Math.min(...ev.tiers.map((t) => t.price));
+  const from = ev.priceFrom ?? (ev.tiers.length ? Math.min(...ev.tiers.map((t) => t.price)) : 0);
   const sold = ev.tiers.reduce((a, t) => a + t.sold, 0);
   const total = ev.tiers.reduce((a, t) => a + t.total, 0);
-  const pct = Math.round((sold / total) * 100);
+  const pct = total ? Math.round((sold / total) * 100) : 0;
   const nearly = pct >= 85;
   return (
     <article
@@ -31,45 +38,55 @@ export function EventCard({ ev }: { ev: EventItem }) {
           });
         }
       }}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-line bg-paper transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_-30px_rgba(11,11,15,0.4)]"
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-brand-purple/15 bg-white shadow-[0_10px_35px_-20px_rgba(50,19,79,0.12)] transition-all duration-300 hover:-translate-y-1.5 hover:border-brand-purple/35 hover:shadow-[0_20px_45px_-15px_rgba(50,19,79,0.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30"
     >
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div className="relative aspect-[16/11] overflow-hidden">
         <img
           src={ev.image}
           alt={ev.title}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-3">
-          <Badge tone="neutral" className="bg-white/90 backdrop-blur">
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-3.5">
+          <Badge
+            tone="neutral"
+            className="border-0 bg-white/95 text-brand-deep font-bold shadow-sm backdrop-blur"
+          >
             {ev.category}
           </Badge>
           {ev.earlyBird ? (
-            <Badge tone="accent" className="bg-accent text-white">
+            <Badge
+              tone="accent"
+              className="border-0 bg-brand-orange text-white font-bold shadow-sm"
+            >
               Early bird −{ev.earlyBird}%
             </Badge>
           ) : nearly ? (
-            <Badge tone="warn" className="bg-warn text-white">
+            <Badge tone="warn" className="border-0 bg-warn text-white font-bold shadow-sm">
               {100 - pct}% left
             </Badge>
           ) : null}
         </div>
       </div>
-      <div className="flex flex-1 flex-col p-5">
-        <h3 className="font-display text-xl font-semibold leading-snug tracking-tight">{ev.title}</h3>
+      <div className="flex flex-1 flex-col p-6">
+        <h3 className="font-brand text-xl font-bold leading-snug tracking-tight text-brand-deep transition-colors group-hover:text-brand-purple">
+          {ev.title}
+        </h3>
         <div className="mt-3 space-y-1.5 text-sm text-muted">
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" /> {fmtDate(ev.date)}
+            <Calendar className="h-4 w-4 text-brand-purple" /> {fmtDate(ev.date)}
           </div>
           <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4" /> {ev.venue}, {ev.city}
+            <MapPin className="h-4 w-4 text-brand-orange" /> {ev.venue}, {ev.city}
           </div>
         </div>
-        <div className="mt-4 flex items-end justify-between border-t border-line pt-4">
+        <div className="mt-5 flex items-end justify-between border-t border-brand-purple/10 pt-4">
           <div>
-            <div className="text-xs text-muted">From</div>
-            <div className="font-display text-lg font-semibold">{currency(from)}</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted">From</div>
+            <div className="font-brand text-xl font-bold text-brand-deep">
+              {ev.priceFrom === undefined && !ev.tiers.length ? "Price TBA" : currency(from)}
+            </div>
           </div>
-          <span className="text-sm font-medium text-accent group-hover:underline">
+          <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-orange transition-transform group-hover:translate-x-1">
             View seats →
           </span>
         </div>
