@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useNavigate, ScrollRestoration } from "react-router";
 import {
   Ticket,
   Search,
@@ -64,9 +64,15 @@ const navLinks = [
 export default function Layout() {
   const { user, logout } = useStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenu = useRef<HTMLDivElement>(null);
   const dash = user ? `/dashboard/${user.role}` : "/login";
+
+  // Always reset scroll to top on route change
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [location.pathname]);
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -210,6 +216,7 @@ export default function Layout() {
       </header>
 
       <main className="flex-1">
+        <ScrollRestoration />
         <Outlet />
       </main>
       <EaseVoice />
