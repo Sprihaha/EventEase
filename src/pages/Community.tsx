@@ -974,136 +974,154 @@ export default function Community() {
           {/* TAB 1: EASECONNECT FEED */}
           {tab === "feed" && (
             <div className="space-y-4">
-              {/* Interactive Post Composer */}
-              <div
-                ref={composerRef}
-                className="rounded-3xl border-2 border-brand-purple/20 bg-white p-5 shadow-sm transition-all focus-within:border-brand-purple focus-within:ring-4 focus-within:ring-brand-purple/10"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta font-bold text-white shadow-sm">
-                    {user?.name?.[0] ?? "Y"}
+              {/* Interactive Post Composer (Logged-in only) or Sign-in Prompt Button */}
+              {!user ? (
+                <div className="rounded-3xl border-2 border-dashed border-brand-purple/20 bg-gradient-to-r from-brand-lilac/30 via-white to-orange-50/40 p-5 sm:p-6 text-center shadow-xs">
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-orange to-brand-amber text-white shadow-md mb-3">
+                    <Flame className="h-5 w-5" />
                   </div>
-                  <div>
-                    <b className="block text-xs font-bold text-brand-deep">What’s the story?</b>
-                    <small className="block text-[11px] text-muted">
-                      Ask the crowd, share a tip, or post a seat view.
-                    </small>
-                  </div>
-                </div>
-
-                <div className="mt-3.5">
-                  <Textarea
-                    ref={textareaRef}
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    rows={3}
-                    placeholder="Drop a tip, ask the crowd, or share the moment…"
-                    className="border-brand-line bg-brand-warm/30 text-sm focus:border-brand-purple"
-                  />
-                </div>
-
-                {/* Photo URL Input Bar if toggled */}
-                {showPhotoInput && (
-                  <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-brand-line bg-brand-lilac/30 p-2">
-                    <ImageIcon className="h-4 w-4 text-brand-purple" />
-                    <input
-                      type="url"
-                      placeholder="Paste seat photo URL (e.g. Unsplash or direct image link)"
-                      value={photoUrl}
-                      onChange={(e) => setPhotoUrl(e.target.value)}
-                      className="flex-1 bg-transparent text-xs text-brand-deep outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPhotoInput(false)}
-                      className="text-muted hover:text-brand-deep"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-
-                {/* Attached EasePix Preview in Composer */}
-                {attachedEasePix && (
-                  <div className="mt-2.5 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/30 bg-brand-lilac/40 p-2.5">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-brand-line bg-black/10">
-                        <img
-                          src={attachedEasePix.photo}
-                          alt="Attached EasePix"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-brand-deep">
-                          <span className="text-brand-purple">📸 EasePix Attached</span>
-                          <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-brand-deep border border-brand-line">
-                            {attachedEasePix.section} · {attachedEasePix.row}
-                          </span>
-                        </div>
-                        <small className="block truncate text-[11px] text-muted">
-                          Will upload to EasePix and EaseComms when you share this post
-                        </small>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAttachedEasePix(null);
-                        setPhotoUrl("");
-                        showToast("EasePix detached from draft");
-                      }}
-                      className="cursor-pointer rounded-full p-1.5 text-muted hover:bg-white hover:text-red-500 transition"
-                      aria-label="Remove attached photo"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-
-                <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-brand-line/60">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShareModalOrigin("composer");
-                        setSeatPhotoInput(attachedEasePix?.photo || photoUrl || "");
-                        if (!seatEventIdInput) setSeatEventIdInput(selectedEventId || events[0]?.id || "");
-                        if (!seatSectionInput) setSeatSectionInput("Section B");
-                        if (!seatRowInput) setSeatRowInput("Row 12");
-                        setIsShareModalOpen(true);
-                      }}
-                      className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-brand-purple/40 bg-white px-3 py-1.5 text-xs font-bold text-brand-purple transition hover:bg-brand-purple hover:text-white"
-                    >
-                      <Camera className="h-3.5 w-3.5" /> Upload EasePix
-                    </button>
-
-                    <div className="inline-flex items-center gap-1.5 rounded-full border border-brand-line bg-white px-3 py-1 text-xs font-bold text-muted">
-                      <Tag className="h-3.5 w-3.5 text-brand-orange" />
-                      <select
-                        aria-label="Tag event"
-                        value={selectedEventId}
-                        onChange={(e) => setSelectedEventId(e.target.value)}
-                        className="cursor-pointer bg-transparent text-xs text-brand-deep outline-none"
-                      >
-                        {events.map((ev) => (
-                          <option key={ev.id} value={ev.id}>
-                            {ev.title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <Button
-                    size="sm"
-                    onClick={() => submitPost()}
-                    className="border-0 bg-gradient-to-r from-brand-orange to-brand-amber font-bold text-white shadow-md shadow-brand-orange/20 hover:shadow-brand-orange/35"
+                  <button
+                    type="button"
+                    onClick={() => navigate("/login", { state: { returnTo: "/community" } })}
+                    className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange via-brand-magenta to-brand-purple px-6 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-brand-orange/25 transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
                   >
-                    <Send className="h-4 w-4" /> Share post
-                  </Button>
+                    <Flame className="h-4 w-4" /> Got a hot take? We&apos;re listening
+                  </button>
+                  <p className="mt-2.5 text-xs text-muted">
+                    Sign in to share tips, ask questions, or upload EasePix seat views.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <div
+                  ref={composerRef}
+                  className="rounded-3xl border-2 border-brand-purple/20 bg-white p-5 shadow-sm transition-all focus-within:border-brand-purple focus-within:ring-4 focus-within:ring-brand-purple/10"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta font-bold text-white shadow-sm">
+                      {user?.name?.[0] ?? "Y"}
+                    </div>
+                    <div>
+                      <b className="block text-xs font-bold text-brand-deep">What’s the story?</b>
+                      <small className="block text-[11px] text-muted">
+                        Ask the crowd, share a tip, or post a seat view.
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="mt-3.5">
+                    <Textarea
+                      ref={textareaRef}
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      rows={3}
+                      placeholder="Drop a tip, ask the crowd, or share the moment…"
+                      className="border-brand-line bg-brand-warm/30 text-sm focus:border-brand-purple"
+                    />
+                  </div>
+
+                  {/* Photo URL Input Bar if toggled */}
+                  {showPhotoInput && (
+                    <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-brand-line bg-brand-lilac/30 p-2">
+                      <ImageIcon className="h-4 w-4 text-brand-purple" />
+                      <input
+                        type="url"
+                        placeholder="Paste seat photo URL (e.g. Unsplash or direct image link)"
+                        value={photoUrl}
+                        onChange={(e) => setPhotoUrl(e.target.value)}
+                        className="flex-1 bg-transparent text-xs text-brand-deep outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPhotoInput(false)}
+                        className="text-muted hover:text-brand-deep"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Attached EasePix Preview in Composer */}
+                  {attachedEasePix && (
+                    <div className="mt-2.5 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/30 bg-brand-lilac/40 p-2.5">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-brand-line bg-black/10">
+                          <img
+                            src={attachedEasePix.photo}
+                            alt="Attached EasePix"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-brand-deep">
+                            <span className="text-brand-purple">📸 EasePix Attached</span>
+                            <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-brand-deep border border-brand-line">
+                              {attachedEasePix.section} · {attachedEasePix.row}
+                            </span>
+                          </div>
+                          <small className="block truncate text-[11px] text-muted">
+                            Will upload to EasePix and EaseComms when you share this post
+                          </small>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachedEasePix(null);
+                          setPhotoUrl("");
+                          showToast("EasePix detached from draft");
+                        }}
+                        className="cursor-pointer rounded-full p-1.5 text-muted hover:bg-white hover:text-red-500 transition"
+                        aria-label="Remove attached photo"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-brand-line/60">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShareModalOrigin("composer");
+                          setSeatPhotoInput(attachedEasePix?.photo || photoUrl || "");
+                          if (!seatEventIdInput) setSeatEventIdInput(selectedEventId || events[0]?.id || "");
+                          if (!seatSectionInput) setSeatSectionInput("Section B");
+                          if (!seatRowInput) setSeatRowInput("Row 12");
+                          setIsShareModalOpen(true);
+                        }}
+                        className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-brand-purple/40 bg-white px-3 py-1.5 text-xs font-bold text-brand-purple transition hover:bg-brand-purple hover:text-white"
+                      >
+                        <Camera className="h-3.5 w-3.5" /> Upload EasePix
+                      </button>
+
+                      <div className="inline-flex items-center gap-1.5 rounded-full border border-brand-line bg-white px-3 py-1 text-xs font-bold text-muted">
+                        <Tag className="h-3.5 w-3.5 text-brand-orange" />
+                        <select
+                          aria-label="Tag event"
+                          value={selectedEventId}
+                          onChange={(e) => setSelectedEventId(e.target.value)}
+                          className="cursor-pointer bg-transparent text-xs text-brand-deep outline-none"
+                        >
+                          {events.map((ev) => (
+                            <option key={ev.id} value={ev.id}>
+                              {ev.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      onClick={() => submitPost()}
+                      className="border-0 bg-gradient-to-r from-brand-orange to-brand-amber font-bold text-white shadow-md shadow-brand-orange/20 hover:shadow-brand-orange/35"
+                    >
+                      <Send className="h-4 w-4" /> Share post
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Feed Filter Pills */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
