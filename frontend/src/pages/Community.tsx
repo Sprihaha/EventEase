@@ -377,7 +377,7 @@ export default function Community() {
     }, 50);
   };
 
-  const setTab = (id: (typeof allTabs)[number]["id"], shouldScroll = false) => {
+  const setTab = (id: (typeof allTabs)[number]["id"]) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       next.set("tab", id);
@@ -387,9 +387,6 @@ export default function Community() {
     const found = allTabs.find((t) => t.id === id);
     if (found) {
       showToast(`${found.label} selected`);
-    }
-    if (shouldScroll) {
-      scrollToSection("main-tabs-nav");
     }
   };
 
@@ -606,7 +603,7 @@ export default function Community() {
             type="button"
             id="tab-easecomms"
             onClick={() => {
-              setTab(lastCommsTab, true);
+              setTab(lastCommsTab);
             }}
             className={cx(
               "cursor-pointer group relative flex items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-left transition-all duration-200",
@@ -659,7 +656,7 @@ export default function Community() {
             type="button"
             id="tab-easeexchange"
             onClick={() => {
-              setTab("exchange", true);
+              setTab("exchange");
             }}
             className={cx(
               "cursor-pointer group relative flex items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-left transition-all duration-200",
