@@ -69,9 +69,11 @@ export default function Layout() {
   const userMenu = useRef<HTMLDivElement>(null);
   const dash = user ? `/dashboard/${user.role}` : "/login";
 
-  // Always reset scroll to top on route change
+  // Only reset scroll to top when navigating to /login
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    if (location.pathname === "/login") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
   }, [location.pathname]);
 
   useEffect(() => {
@@ -205,7 +207,10 @@ export default function Layout() {
             ) : (
               <Button
                 size="sm"
-                onClick={() => navigate("/login")}
+                onClick={() => {
+                  window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                  navigate("/login");
+                }}
                 className="bg-brand-orange text-white shadow-md hover:bg-brand-deep hover:text-white focus-visible:ring-4 focus-visible:ring-brand-orange/30"
               >
                 Sign in
@@ -216,7 +221,6 @@ export default function Layout() {
       </header>
 
       <main className="flex-1">
-        <ScrollRestoration />
         <Outlet />
       </main>
       <EaseVoice />

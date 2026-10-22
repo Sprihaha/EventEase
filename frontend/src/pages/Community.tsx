@@ -377,20 +377,18 @@ export default function Community() {
     }, 50);
   };
 
-  const scrollToTabsIfAtTop = () => {
-    setTimeout(() => {
-      const element = document.getElementById("main-tabs-nav");
-      if (element) {
-        const navBar = document.querySelector("header");
-        const navBarHeight = navBar ? navBar.getBoundingClientRect().height : 64;
-        const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
-        const targetY = Math.max(0, elementTop - navBarHeight - 12);
-        // Only auto-scroll down if user is currently near the top of the page (in the hero area above the tabs)
-        if (window.pageYOffset < targetY - 40) {
-          window.scrollTo({ top: targetY, behavior: "smooth" });
-        }
-      }
-    }, 50);
+  const scrollToTabsIfAbove = () => {
+    const element = document.getElementById("main-tabs-nav");
+    if (!element) return;
+    const navBar = document.querySelector("header");
+    const navBarHeight = navBar ? navBar.getBoundingClientRect().height : 64;
+    const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
+    const targetY = Math.max(0, Math.round(elementTop - navBarHeight - 12));
+
+    // Only scroll if currently above the header (from top of page, or scrolled back up / slightly up)
+    if (Math.round(window.pageYOffset) < targetY - 4) {
+      window.scrollTo({ top: targetY, behavior: "smooth" });
+    }
   };
 
   const setTab = (id: (typeof allTabs)[number]["id"]) => {
@@ -404,13 +402,13 @@ export default function Community() {
     if (found) {
       showToast(`${found.label} selected`);
     }
-    scrollToTabsIfAtTop();
+    scrollToTabsIfAbove();
   };
 
   // If user arrives specifically targeting exchange, auto-scroll to tabs from the top
   useEffect(() => {
     if (requestedTab === "exchange") {
-      scrollToTabsIfAtTop();
+      scrollToTabsIfAbove();
     }
   }, []);
 
@@ -446,6 +444,7 @@ export default function Community() {
     }
     if (!user) {
       showToast("Please sign in to join the conversation.");
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       navigate("/login");
       return;
     }
@@ -569,7 +568,10 @@ export default function Community() {
               {!user ? (
                 <button
                   type="button"
-                  onClick={() => navigate("/login", { state: { returnTo: "/community" } })}
+                  onClick={() => {
+                    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                    navigate("/login", { state: { returnTo: "/community" } });
+                  }}
                   className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-orange/30 transition-transform hover:-translate-y-0.5 hover:shadow-brand-orange/45 active:translate-y-0"
                 >
                   Let me in!
@@ -628,7 +630,7 @@ export default function Community() {
             id="tab-easecomms"
             onClick={() => {
               setTab(lastCommsTab);
-              scrollToTabsIfAtTop();
+              scrollToTabsIfAbove();
             }}
             className={cx(
               "cursor-pointer group relative flex items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-left transition-all duration-200",
@@ -682,7 +684,7 @@ export default function Community() {
             id="tab-easeexchange"
             onClick={() => {
               setTab("exchange");
-              scrollToTabsIfAtTop();
+              scrollToTabsIfAbove();
             }}
             className={cx(
               "cursor-pointer group relative flex items-center justify-between gap-3 rounded-xl px-5 py-3.5 text-left transition-all duration-200",
@@ -1005,7 +1007,10 @@ export default function Community() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigate("/login", { state: { returnTo: "/community" } })}
+                    onClick={() => {
+                      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                      navigate("/login", { state: { returnTo: "/community" } });
+                    }}
                     className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange via-brand-magenta to-brand-purple px-6 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-brand-orange/25 transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
                   >
                     <Flame className="h-4 w-4" /> Got a hot take? We&apos;re listening
