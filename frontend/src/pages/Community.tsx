@@ -17,7 +17,6 @@ import {
   VolumeX,
   Bookmark,
   Clock,
-  ArrowUpRight,
   Image as ImageIcon,
   Flame,
   CheckCircle2,
@@ -307,7 +306,7 @@ export default function Community() {
                 }}
                 className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-orange/30 transition-transform hover:-translate-y-0.5 hover:shadow-brand-orange/45 active:translate-y-0"
               >
-                Get in the mix <ArrowUpRight className="h-4 w-4" />
+                Get in the mix
               </button>
 
               <button
@@ -625,7 +624,7 @@ export default function Community() {
                 onClick={() => showToast("Every verified seat view earns +15 EasePoints!")}
                 className="cursor-pointer mt-2 text-[11px] font-extrabold text-brand-purple hover:underline"
               >
-                How it works ↗
+                How it works
               </button>
             </div>
           </div>
@@ -802,7 +801,7 @@ export default function Community() {
                     onClick={() => submitPost()}
                     className="border-0 bg-gradient-to-r from-brand-orange to-brand-amber font-bold text-white shadow-md shadow-brand-orange/20 hover:shadow-brand-orange/35"
                   >
-                    <Send className="h-4 w-4" /> Share post ↗
+                    <Send className="h-4 w-4" /> Share post
                   </Button>
                 </div>
               </div>
@@ -939,7 +938,7 @@ export default function Community() {
                               type="button"
                               onClick={() => {
                                 navigator.clipboard?.writeText(window.location.href);
-                                showToast("Post link copied to clipboard ↗");
+                                showToast("Post link copied to clipboard");
                               }}
                               className="cursor-pointer inline-flex items-center gap-1.5 hover:text-brand-purple transition-colors"
                             >
@@ -1098,7 +1097,7 @@ export default function Community() {
                       }}
                       className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-purple/20 transition-all hover:opacity-95"
                     >
-                      <Camera className="h-4 w-4" /> Share Seat View ↗
+                      <Camera className="h-4 w-4" /> Share Seat View
                     </button>
                   </div>
                 </div>
@@ -1346,7 +1345,7 @@ export default function Community() {
                           to={f.to}
                           className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
                         >
-                          {f.action} ↗
+                          {f.action}
                         </Link>
                       ) : (
                         <button
@@ -1354,7 +1353,7 @@ export default function Community() {
                           onClick={f.onClick}
                           className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
                         >
-                          {f.action} ↗
+                          {f.action}
                         </button>
                       )}
                     </div>
@@ -1376,7 +1375,7 @@ export default function Community() {
                   to="/events"
                   className="text-xs font-extrabold text-brand-purple hover:underline"
                 >
-                  See all ↗
+                  See all
                 </Link>
               </div>
 
@@ -1461,7 +1460,7 @@ export default function Community() {
                   onClick={() => showToast("Fan meetups feature activated for your area!")}
                   className="cursor-pointer mt-3 w-full rounded-xl bg-brand-purple py-2 text-center text-xs font-bold text-white shadow-md shadow-brand-purple/20 transition hover:bg-brand-deep"
                 >
-                  Find your people ↗
+                  Find your people
                 </button>
               </div>
             </section>
@@ -1515,7 +1514,7 @@ export default function Community() {
                       onClick={() => navigate("/login")}
                       className="cursor-pointer inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-purple/25 transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
                     >
-                      <LogIn className="h-4 w-4" /> Sign In to EventEase <span className="text-lg leading-none font-normal">↗</span>
+                      <LogIn className="h-4 w-4" /> Sign In to EventEase
                     </button>
                   ) : (
                     <button
@@ -1523,7 +1522,7 @@ export default function Community() {
                       onClick={() => navigate("/dashboard/customer")}
                       className="cursor-pointer inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-purple/25 transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
                     >
-                      <CheckCircle2 className="h-4 w-4" /> Signed in as {user.name} · View My Tickets <span className="text-lg leading-none font-normal">↗</span>
+                      <CheckCircle2 className="h-4 w-4" /> Signed in as {user.name} · View My Tickets
                     </button>
                   )}
                 </div>
