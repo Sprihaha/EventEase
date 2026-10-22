@@ -1223,7 +1223,10 @@ export default function Community() {
                     {/* Share Seat View Button (Orange Gradient) - Opens Pop-up Modal */}
                     <button
                       type="button"
-                      onClick={() => setIsShareModalOpen(true)}
+                      onClick={() => {
+                        setSeatPhotoInput("");
+                        setIsShareModalOpen(true);
+                      }}
                       className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
                     >
                       <Camera className="h-4 w-4" /> Share Seat View
@@ -1234,8 +1237,17 @@ export default function Community() {
 
               {/* Pop-up Modal: Share Your Seat View */}
               {isShareModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-4 backdrop-blur-md">
-                  <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-white p-6 shadow-2xl">
+                <div
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-4 backdrop-blur-md"
+                  onClick={() => {
+                    setSeatPhotoInput("");
+                    setIsShareModalOpen(false);
+                  }}
+                >
+                  <div
+                    className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-white p-6 shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {/* Header */}
                     <div className="flex items-center justify-between pb-4 border-b border-brand-line">
                       <div className="flex items-center gap-2.5">
@@ -1257,7 +1269,10 @@ export default function Community() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => setIsShareModalOpen(false)}
+                          onClick={() => {
+                            setSeatPhotoInput("");
+                            setIsShareModalOpen(false);
+                          }}
                           className="cursor-pointer rounded-full p-1.5 text-muted hover:bg-brand-lilac/50 hover:text-brand-deep transition"
                         >
                           <X className="h-4 w-4" />
@@ -1291,22 +1306,33 @@ export default function Community() {
                           <label className="text-xs font-bold text-brand-deep">
                             Seat Photo URL
                           </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const samples = [
-                                "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
-                                "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
-                                "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=85",
-                              ];
-                              const picked = samples[Math.floor(Math.random() * samples.length)];
-                              setSeatPhotoInput(picked);
-                              showToast("Loaded sample concert seat photo!");
-                            }}
-                            className="cursor-pointer text-[11px] font-bold text-brand-purple hover:underline"
-                          >
-                            ⚡ Use Sample Concert Photo
-                          </button>
+                          <div className="flex items-center gap-2.5">
+                            {seatPhotoInput && (
+                              <button
+                                type="button"
+                                onClick={() => setSeatPhotoInput("")}
+                                className="cursor-pointer text-[11px] font-bold text-muted hover:text-red-500 hover:underline"
+                              >
+                                Clear
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const samples = [
+                                  "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
+                                  "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
+                                  "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=85",
+                                ];
+                                const picked = samples[Math.floor(Math.random() * samples.length)];
+                                setSeatPhotoInput(picked);
+                                showToast("Loaded sample concert seat photo!");
+                              }}
+                              className="cursor-pointer text-[11px] font-bold text-brand-purple hover:underline"
+                            >
+                              ⚡ Use Sample Concert Photo
+                            </button>
+                          </div>
                         </div>
                         <input
                           type="url"
@@ -1340,7 +1366,10 @@ export default function Community() {
                       <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-brand-line">
                         <button
                           type="button"
-                          onClick={() => setIsShareModalOpen(false)}
+                          onClick={() => {
+                            setSeatPhotoInput("");
+                            setIsShareModalOpen(false);
+                          }}
                           className="cursor-pointer rounded-xl border border-brand-line bg-white px-4 py-2.5 text-xs font-bold text-muted hover:bg-brand-warm/50 hover:text-brand-deep transition"
                         >
                           Cancel
