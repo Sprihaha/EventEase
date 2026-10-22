@@ -309,6 +309,7 @@ export default function Community() {
   const [seatPhotoInput, setSeatPhotoInput] = useState("");
   const [seatEventIdInput, setSeatEventIdInput] = useState("");
   const [gallerySearchFilter, setGallerySearchFilter] = useState<{ eventId?: string; section?: string } | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const composerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1198,51 +1199,7 @@ export default function Community() {
                     />
                   </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-brand-deep">
-                        Seat Photo URL
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const samples = [
-                            "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
-                            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
-                            "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=85",
-                          ];
-                          const picked = samples[Math.floor(Math.random() * samples.length)];
-                          setSeatPhotoInput(picked);
-                          showToast("Loaded sample concert seat photo!");
-                        }}
-                        className="cursor-pointer text-[10px] font-bold text-brand-purple hover:underline"
-                      >
-                        ⚡ Use Sample Concert Photo
-                      </button>
-                    </div>
-                    <input
-                      type="url"
-                      value={seatPhotoInput}
-                      onChange={(e) => setSeatPhotoInput(e.target.value)}
-                      placeholder="Paste image URL (or click sample above)"
-                      className="w-full rounded-xl border border-brand-line bg-brand-warm/30 px-3 py-2 text-xs text-brand-deep outline-none focus:border-brand-purple"
-                    />
-                  </div>
-
-                  {seatPhotoInput && (
-                    <div className="relative h-32 w-full overflow-hidden rounded-xl border border-brand-line">
-                      <img
-                        src={seatPhotoInput}
-                        alt="Seat preview"
-                        className="h-full w-full object-cover"
-                      />
-                      <span className="absolute bottom-2 left-2 rounded-md bg-brand-deep/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                        Photo Preview: {seatSectionInput} {seatRowInput}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2.5 pt-1">
                     {/* Search Button (Purple Gradient) */}
                     <button
                       type="button"
@@ -1263,27 +1220,10 @@ export default function Community() {
                       <Search className="h-4 w-4" /> Search
                     </button>
 
-                    {/* Share Seat View Button (Orange Gradient) */}
+                    {/* Share Seat View Button (Orange Gradient) - Opens Pop-up Modal */}
                     <button
                       type="button"
-                      onClick={() => {
-                        const targetEventId = seatEventIdInput || events[0]?.id || "ev-1";
-                        const photoToUse =
-                          seatPhotoInput ||
-                          "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85";
-                        addPost({
-                          authorName: user?.name ?? "You",
-                          authorAvatar:
-                            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-                          authorBadge: "Verified Seat Sharer",
-                          eventId: targetEventId,
-                          text: `View from ${seatSectionInput || "Section B"}, ${seatRowInput || "Row 12"}. Unobstructed sightline to the main stage and fantastic acoustics!`,
-                          photo: photoToUse,
-                          section: seatSectionInput || "Section B",
-                        });
-                        setSeatPhotoInput("");
-                        showToast("Seat view shared successfully! You earned +15 EasePoints ✨");
-                      }}
+                      onClick={() => setIsShareModalOpen(true)}
                       className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
                     >
                       <Camera className="h-4 w-4" /> Share Seat View
@@ -1291,6 +1231,150 @@ export default function Community() {
                   </div>
                 </div>
               </div>
+
+              {/* Pop-up Modal: Share Your Seat View */}
+              {isShareModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-4 backdrop-blur-md">
+                  <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-white p-6 shadow-2xl">
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-4 border-b border-brand-line">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-orange to-brand-amber text-white shadow-sm">
+                          <Camera className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h3 className="font-brand text-base font-bold text-brand-deep">
+                            Share Your Seat View
+                          </h3>
+                          <p className="text-[11px] text-muted">
+                            Help fellow fans see real sightlines from your seat
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-2.5 py-1 text-[11px] font-black text-brand-orange">
+                          <Sparkles className="h-3 w-3" /> +15 EasePoints
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsShareModalOpen(false)}
+                          className="cursor-pointer rounded-full p-1.5 text-muted hover:bg-brand-lilac/50 hover:text-brand-deep transition"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Modal Body */}
+                    <div className="mt-4 space-y-4">
+                      {/* Event, Section & Seat Context Pills */}
+                      <div className="rounded-2xl border border-brand-line bg-brand-warm/30 p-3.5">
+                        <div className="text-[10px] font-black uppercase tracking-wider text-muted mb-1.5">
+                          Seat View Details
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-brand-deep">
+                          <span className="rounded-lg bg-white px-2.5 py-1 border border-brand-line shadow-xs">
+                            🎟️ {events.find((e) => e.id === (seatEventIdInput || events[0]?.id))?.title ?? "Selected Event"}
+                          </span>
+                          <span className="rounded-lg bg-white px-2.5 py-1 border border-brand-line shadow-xs">
+                            📍 {seatSectionInput || "Section B"}
+                          </span>
+                          <span className="rounded-lg bg-white px-2.5 py-1 border border-brand-line shadow-xs">
+                            💺 {seatRowInput || "Row 12"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Photo URL Input & Sample Picker */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-bold text-brand-deep">
+                            Seat Photo URL
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const samples = [
+                                "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
+                                "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
+                                "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=85",
+                              ];
+                              const picked = samples[Math.floor(Math.random() * samples.length)];
+                              setSeatPhotoInput(picked);
+                              showToast("Loaded sample concert seat photo!");
+                            }}
+                            className="cursor-pointer text-[11px] font-bold text-brand-purple hover:underline"
+                          >
+                            ⚡ Use Sample Concert Photo
+                          </button>
+                        </div>
+                        <input
+                          type="url"
+                          value={seatPhotoInput}
+                          onChange={(e) => setSeatPhotoInput(e.target.value)}
+                          placeholder="Paste image URL (or click sample above)"
+                          className="w-full rounded-xl border border-brand-line bg-brand-warm/30 px-3 py-2.5 text-xs text-brand-deep outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
+                        />
+                      </div>
+
+                      {/* Photo Preview */}
+                      {seatPhotoInput ? (
+                        <div className="relative h-44 w-full overflow-hidden rounded-2xl border border-brand-line">
+                          <img
+                            src={seatPhotoInput}
+                            alt="Seat preview"
+                            className="h-full w-full object-cover"
+                          />
+                          <span className="absolute bottom-2 left-2 rounded-md bg-brand-deep/80 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur">
+                            Photo Preview: {seatSectionInput} {seatRowInput}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex h-28 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-brand-line bg-brand-warm/20 text-center text-xs text-muted">
+                          <ImageIcon className="h-6 w-6 text-muted mb-1" />
+                          <span>Paste an image URL above or click sample to preview</span>
+                        </div>
+                      )}
+
+                      {/* Modal Footer Actions */}
+                      <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-brand-line">
+                        <button
+                          type="button"
+                          onClick={() => setIsShareModalOpen(false)}
+                          className="cursor-pointer rounded-xl border border-brand-line bg-white px-4 py-2.5 text-xs font-bold text-muted hover:bg-brand-warm/50 hover:text-brand-deep transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const targetEventId = seatEventIdInput || events[0]?.id || "ev-1";
+                            const photoToUse =
+                              seatPhotoInput ||
+                              "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85";
+                            addPost({
+                              authorName: user?.name ?? "You",
+                              authorAvatar:
+                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+                              authorBadge: "Verified Seat Sharer",
+                              eventId: targetEventId,
+                              text: `View from ${seatSectionInput || "Section B"}, ${seatRowInput || "Row 12"}. Unobstructed sightline to the main stage and fantastic acoustics!`,
+                              photo: photoToUse,
+                              section: seatSectionInput || "Section B",
+                            });
+                            setSeatPhotoInput("");
+                            setIsShareModalOpen(false);
+                            showToast("Seat view shared successfully! You earned +15 EasePoints ✨");
+                          }}
+                          className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+                        >
+                          <Camera className="h-4 w-4" /> Share Seat View
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Gallery Header */}
               <div className="flex flex-wrap items-center justify-between gap-3">
