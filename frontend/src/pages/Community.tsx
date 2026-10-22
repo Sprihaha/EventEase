@@ -27,22 +27,56 @@ import {
   Lock,
   LogIn,
   QrCode,
+  Eye,
+  Compass,
+  Layers,
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { Button, Badge, Card, Textarea, cx } from "../components/ui";
 
-const commsChannels = [
-  { id: "feed", label: "EaseConnect", icon: Users, desc: "Discussions & fan forums" },
-  { id: "views", label: "EasePix", icon: Camera, desc: "Real seat views" },
-  { id: "access", label: "EaseXplore", icon: Accessibility, desc: "Venue guides" },
+const vantagePoints = [
+  {
+    id: "stage",
+    label: "Stage Front · Row A",
+    desc: "Direct line of sight in front of the artist. Zero head obstruction.",
+    image: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
+    elevation: "Ground Level (0m)",
+    fov: "160° Panoramic",
+  },
+  {
+    id: "center",
+    label: "Lower Bowl · Section B",
+    desc: "Optimal acoustics directly beside the main soundboard and mixing desk.",
+    image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=85",
+    elevation: "+2.5m Tiered",
+    fov: "140° Panoramic",
+  },
+  {
+    id: "balcony",
+    label: "Elevated Balcony · Section C",
+    desc: "Bird’s-eye perspective overlooking the stage, crowd, and lighting effects.",
+    image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=85",
+    elevation: "+8.0m Tiered",
+    fov: "180° Panoramic",
+  },
+  {
+    id: "accessible",
+    label: "Accessible Platform · Step-Free",
+    desc: "Elevated wheelchair bay with unobstructed sightlines above standing fans.",
+    image: "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=85",
+    elevation: "+3.2m Platform",
+    fov: "150° Panoramic",
+  },
 ] as const;
-
-type CommsChannelId = (typeof commsChannels)[number]["id"];
 
 const allTabs = [
-  ...commsChannels,
+  { id: "feed", label: "EaseConnect", icon: Users, desc: "Discussions & fan forums" },
+  { id: "views", label: "EasePix", icon: Camera, desc: "Share seat view" },
+  { id: "access", label: "EaseXplore", icon: Rotate3d, desc: "360° degree view" },
   { id: "exchange", label: "EaseExchange", icon: Repeat, desc: "Ticket swaps" },
 ] as const;
+
+type CommsChannelId = "feed" | "views" | "access";
 
 type FilterType = "all" | "following" | "views" | "questions";
 
@@ -75,6 +109,14 @@ export default function Community() {
   const [activeVoicePlaying, setActiveVoicePlaying] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [preview360Photo, setPreview360Photo] = useState<{ url: string; title: string; section?: string } | null>(null);
+
+  // EasePix & EaseXplore combined view states
+  const [activeVantage, setActiveVantage] = useState<string>("stage");
+  const [seatSectionInput, setSeatSectionInput] = useState("Section C");
+  const [seatRowInput, setSeatRowInput] = useState("Row D");
+  const [seatPhotoInput, setSeatPhotoInput] = useState("");
+  const [seatEventIdInput, setSeatEventIdInput] = useState("");
+  const [selectedSeatSectionFilter, setSelectedSeatSectionFilter] = useState("all");
 
   const composerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -455,48 +497,103 @@ export default function Community() {
               EaseComms Channels
             </div>
 
-            <div className="space-y-1.5" role="tablist" aria-label="EaseComms channels">
-              {commsChannels.map((t) => {
-                const isSelected = tab === t.id;
-                const Icon = t.icon;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setTab(t.id)}
+            <div className="space-y-2" role="tablist" aria-label="EaseComms channels">
+              {/* Channel 1: EaseConnect */}
+              <button
+                type="button"
+                onClick={() => setTab("feed")}
+                className={cx(
+                  "cursor-pointer group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all",
+                  tab === "feed"
+                    ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                    : "text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple",
+                )}
+              >
+                <div
+                  className={cx(
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                    tab === "feed"
+                      ? "bg-white/20 text-white"
+                      : "bg-brand-lilac/70 text-brand-purple group-hover:bg-brand-purple group-hover:text-white",
+                  )}
+                >
+                  <Users className="h-4.5 w-4.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
+                    EaseConnect
+                  </b>
+                  <small className={cx("block text-[10px] truncate", tab === "feed" ? "text-white/80" : "text-muted")}>
+                    Discussions & fan forums
+                  </small>
+                </div>
+              </button>
+
+              {/* Channel 2: Combined EasePix & EaseXplore */}
+              <div
+                className={cx(
+                  "rounded-2xl transition-all border",
+                  (tab === "views" || tab === "access")
+                    ? "border-brand-purple/30 bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange p-2.5 text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                    : "border-transparent bg-transparent p-1 hover:bg-brand-lilac/40 text-brand-deep",
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => setTab("views")}
+                  className="cursor-pointer flex w-full items-center gap-3 text-left"
+                >
+                  <div
                     className={cx(
-                      "cursor-pointer group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all",
-                      isSelected
-                        ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
-                        : "text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple",
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                      (tab === "views" || tab === "access")
+                        ? "bg-white/20 text-white"
+                        : "bg-brand-lilac/70 text-brand-purple",
                     )}
                   >
-                    <div
-                      className={cx(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
-                        isSelected
-                          ? "bg-white/20 text-white"
-                          : "bg-brand-lilac/70 text-brand-purple group-hover:bg-brand-purple group-hover:text-white",
-                      )}
-                    >
-                      <Icon className="h-4.5 w-4.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
-                        {t.label}
-                      </b>
-                      <small
-                        className={cx(
-                          "block text-[10px] truncate",
-                          isSelected ? "text-white/80" : "text-muted",
-                        )}
-                      >
-                        {t.desc}
-                      </small>
-                    </div>
+                    <Camera className="h-4.5 w-4.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
+                      EasePix & EaseXplore
+                    </b>
+                    <small className={cx("block text-[10px] truncate", (tab === "views" || tab === "access") ? "text-white/80" : "text-muted")}>
+                      Seat sharing & 360° views
+                    </small>
+                  </div>
+                </button>
+
+                {/* Sub-menu Pills */}
+                <div className={cx(
+                  "mt-2 grid grid-cols-2 gap-1.5 pt-2 border-t",
+                  (tab === "views" || tab === "access") ? "border-white/20" : "border-brand-line/60"
+                )}>
+                  <button
+                    type="button"
+                    onClick={() => setTab("views")}
+                    className={cx(
+                      "cursor-pointer rounded-lg px-2 py-1 text-[11px] font-bold text-center transition",
+                      tab === "views"
+                        ? "bg-white text-brand-deep shadow-sm font-black"
+                        : (tab === "access" ? "bg-white/20 text-white hover:bg-white/30" : "bg-brand-lilac/60 text-brand-deep hover:bg-brand-purple hover:text-white"),
+                    )}
+                  >
+                    📷 EasePix
                   </button>
-                );
-              })}
+                  <button
+                    type="button"
+                    onClick={() => setTab("access")}
+                    className={cx(
+                      "cursor-pointer rounded-lg px-2 py-1 text-[11px] font-bold text-center transition",
+                      tab === "access"
+                        ? "bg-white text-brand-deep shadow-sm font-black"
+                        : (tab === "views" ? "bg-white/20 text-white hover:bg-white/30" : "bg-brand-lilac/60 text-brand-deep hover:bg-brand-purple hover:text-white"),
+                    )}
+                  >
+                    🌐 EaseXplore
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="my-3.5 h-px bg-brand-line" />
@@ -553,13 +650,12 @@ export default function Community() {
             <div>
               <h2 className="font-brand text-2xl font-bold tracking-tight text-brand-deep">
                 {tab === "feed" && "The conversation"}
-                {tab === "views" && "Real views, real seats"}
-                {tab === "access" && "Explore before you go"}
+                {(tab === "views" || tab === "access") && "EasePix & EaseXplore"}
               </h2>
               <p className="text-xs text-muted">
                 {tab === "feed" && "What fans are talking about right now across Singapore"}
-                {tab === "views" && "Explore 360° views and verified photos before buying"}
-                {tab === "access" && "Accessibility guides, companion assistance, and step-free navigation"}
+                {tab === "views" && "Share your seat view and browse verified community photos before buying"}
+                {tab === "access" && "Interactive 360° venue angles, step-free access, and vantage point previews"}
               </p>
             </div>
 
@@ -582,6 +678,51 @@ export default function Community() {
               </div>
             )}
           </div>
+
+          {/* COMBINED EASEPIX & EASEXPLORE SWITCHER MENU */}
+          {(tab === "views" || tab === "access") && (
+            <div className="rounded-2xl border border-brand-purple/20 bg-white p-2 shadow-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTab("views")}
+                  className={cx(
+                    "cursor-pointer flex items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all",
+                    tab === "views"
+                      ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/20"
+                      : "bg-brand-lilac/40 text-brand-deep hover:bg-brand-lilac hover:text-brand-purple"
+                  )}
+                >
+                  <Camera className="h-4 w-4 shrink-0" />
+                  <div className="text-left">
+                    <div className="leading-tight">EasePix</div>
+                    <div className={cx("text-[10px] font-medium", tab === "views" ? "text-white/80" : "text-muted")}>
+                      Share the seat & photos
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTab("access")}
+                  className={cx(
+                    "cursor-pointer flex items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all",
+                    tab === "access"
+                      ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/20"
+                      : "bg-brand-lilac/40 text-brand-deep hover:bg-brand-lilac hover:text-brand-purple"
+                  )}
+                >
+                  <Rotate3d className="h-4 w-4 shrink-0" />
+                  <div className="text-left">
+                    <div className="leading-tight">EaseXplore</div>
+                    <div className={cx("text-[10px] font-medium", tab === "access" ? "text-white/80" : "text-muted")}>
+                      360° degree venue view
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* TAB 1: EASECONNECT FEED */}
           {tab === "feed" && (
@@ -832,23 +973,198 @@ export default function Community() {
 
 
 
-          {/* TAB 3: EASEPIX SEAT VIEWS & 360° */}
+          {/* TAB 3: EASEPIX - SHARE THE SEAT & COMMUNITY PHOTOS */}
           {tab === "views" && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-3 rounded-2xl border border-brand-purple/20 bg-brand-lilac/70 p-4 text-sm font-medium text-brand-deep shadow-sm">
-                <Rotate3d className="h-5 w-5 shrink-0 text-brand-purple" />
-                <span>
-                  Explore 360° venue views and real, community-uploaded photos on{" "}
-                  <span className="font-feature italic font-black text-brand-purple">EasePix</span>{" "}
-                  so you know exactly what you’re paying for before you buy.
-                </span>
+            <div className="space-y-6">
+              {/* Share Your Seat View Card */}
+              <div className="rounded-3xl border-2 border-brand-purple/20 bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-brand-line">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-purple to-brand-orange text-white shadow-sm">
+                      <Camera className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-brand text-sm font-bold text-brand-deep">
+                        Share Your Seat View
+                      </h3>
+                      <p className="text-[11px] text-muted">
+                        Help other fans see real sightlines from your section before booking
+                      </p>
+                    </div>
+                  </div>
+                  <div className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-2.5 py-1 text-[11px] font-black text-brand-orange">
+                    <Sparkles className="h-3 w-3" /> +15 EasePoints
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3.5">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-[11px] font-bold text-brand-deep">
+                        Event
+                      </label>
+                      <select
+                        value={seatEventIdInput || (events[0]?.id ?? "")}
+                        onChange={(e) => setSeatEventIdInput(e.target.value)}
+                        className="cursor-pointer w-full rounded-xl border border-brand-line bg-brand-warm/30 px-3 py-2 text-xs font-semibold text-brand-deep outline-none focus:border-brand-purple"
+                      >
+                        {events.map((ev) => (
+                          <option key={ev.id} value={ev.id}>
+                            {ev.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-[11px] font-bold text-brand-deep">
+                        Section
+                      </label>
+                      <input
+                        type="text"
+                        value={seatSectionInput}
+                        onChange={(e) => setSeatSectionInput(e.target.value)}
+                        placeholder="e.g. Section B or Cat 1"
+                        className="w-full rounded-xl border border-brand-line bg-brand-warm/30 px-3 py-2 text-xs font-semibold text-brand-deep outline-none focus:border-brand-purple"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-[11px] font-bold text-brand-deep">
+                        Row & Seat
+                      </label>
+                      <input
+                        type="text"
+                        value={seatRowInput}
+                        onChange={(e) => setSeatRowInput(e.target.value)}
+                        placeholder="e.g. Row 14, Seat 22"
+                        className="w-full rounded-xl border border-brand-line bg-brand-warm/30 px-3 py-2 text-xs font-semibold text-brand-deep outline-none focus:border-brand-purple"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold text-brand-deep">
+                        Seat Photo URL
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const samples = [
+                            "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
+                            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
+                            "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=85",
+                          ];
+                          const picked = samples[Math.floor(Math.random() * samples.length)];
+                          setSeatPhotoInput(picked);
+                          showToast("Loaded sample concert seat photo!");
+                        }}
+                        className="cursor-pointer text-[10px] font-bold text-brand-purple hover:underline"
+                      >
+                        ⚡ Use Sample Concert Photo
+                      </button>
+                    </div>
+                    <input
+                      type="url"
+                      value={seatPhotoInput}
+                      onChange={(e) => setSeatPhotoInput(e.target.value)}
+                      placeholder="Paste image URL (or click sample above)"
+                      className="w-full rounded-xl border border-brand-line bg-brand-warm/30 px-3 py-2 text-xs text-brand-deep outline-none focus:border-brand-purple"
+                    />
+                  </div>
+
+                  {seatPhotoInput && (
+                    <div className="relative h-32 w-full overflow-hidden rounded-xl border border-brand-line">
+                      <img
+                        src={seatPhotoInput}
+                        alt="Seat preview"
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="absolute bottom-2 left-2 rounded-md bg-brand-deep/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                        Photo Preview: {seatSectionInput} {seatRowInput}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetEventId = seatEventIdInput || events[0]?.id || "ev-1";
+                        const photoToUse =
+                          seatPhotoInput ||
+                          "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85";
+                        addPost({
+                          authorName: user?.name ?? "You",
+                          authorAvatar:
+                            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+                          authorBadge: "Verified Seat Sharer",
+                          eventId: targetEventId,
+                          text: `View from ${seatSectionInput || "Section B"}, ${seatRowInput || "Row 12"}. Unobstructed sightline to the main stage and fantastic acoustics!`,
+                          photo: photoToUse,
+                          section: seatSectionInput || "Section B",
+                        });
+                        setSeatPhotoInput("");
+                        showToast("Seat view shared successfully! You earned +15 EasePoints ✨");
+                      }}
+                      className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-purple/20 transition-all hover:opacity-95"
+                    >
+                      <Camera className="h-4 w-4" /> Share Seat View ↗
+                    </button>
+                  </div>
+                </div>
               </div>
 
+              {/* Gallery Header & Filter Pills */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-brand text-base font-bold text-brand-deep">
+                    Community Seat Photos
+                  </h3>
+                  <p className="text-xs text-muted">
+                    Real, unedited photos shared by fans who sat there
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: "all", label: "All Seats" },
+                    { id: "vip", label: "VIP Floor" },
+                    { id: "section a", label: "Section A" },
+                    { id: "section b", label: "Section B" },
+                    { id: "section c", label: "Section C" },
+                  ].map((filterItem) => (
+                    <button
+                      key={filterItem.id}
+                      type="button"
+                      onClick={() => setSelectedSeatSectionFilter(filterItem.id)}
+                      className={cx(
+                        "cursor-pointer rounded-full px-3 py-1 text-xs font-bold transition-all",
+                        selectedSeatSectionFilter === filterItem.id
+                          ? "bg-brand-deep text-white shadow-sm"
+                          : "bg-brand-lilac/60 text-brand-deep hover:bg-brand-purple hover:text-white"
+                      )}
+                    >
+                      {filterItem.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Photos Grid */}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {posts
                   .filter((p) => p.photo)
                   .concat(posts.filter((p) => p.photo))
-                  .slice(0, 6)
+                  .filter((p) => {
+                    if (selectedSeatSectionFilter === "all") return true;
+                    if (selectedSeatSectionFilter === "vip") {
+                      return (p.section?.toLowerCase().includes("vip") || p.section?.toLowerCase().includes("floor"));
+                    }
+                    return p.section?.toLowerCase().includes(selectedSeatSectionFilter);
+                  })
+                  .slice(0, 9)
                   .map((p, i) => (
                     <div
                       key={i}
@@ -859,48 +1175,140 @@ export default function Community() {
                         alt="Seat view"
                         className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 flex items-end bg-gradient-to-t from-brand-deep/85 via-brand-deep/20 to-transparent p-4">
+                      <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-brand-deep/90 via-brand-deep/30 to-transparent p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="rounded-full bg-brand-deep/80 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                            {p.authorName}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreview360Photo({
+                                url: p.photo!,
+                                title: eventName(p.eventId),
+                                section: p.section,
+                              })
+                            }
+                            className="cursor-pointer inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur hover:bg-brand-purple transition"
+                          >
+                            <Rotate3d className="h-3 w-3 text-brand-orange" /> 360° Preview
+                          </button>
+                        </div>
+
                         <div className="text-white">
                           <div className="font-brand text-sm font-bold">
-                            Section {p.section ?? "C"}
+                            {p.section ? `Section ${p.section}` : "Section B · Row 14"}
                           </div>
-                          <div className="text-xs text-white/80">{eventName(p.eventId)}</div>
+                          <div className="text-xs text-white/80 line-clamp-1">
+                            {eventName(p.eventId)}
+                          </div>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreview360Photo({
-                            url: p.photo!,
-                            title: eventName(p.eventId),
-                            section: p.section,
-                          })
-                        }
-                        className="cursor-pointer absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-brand-deep/85 px-3 py-1 text-xs font-bold text-white backdrop-blur shadow-sm hover:bg-brand-purple transition"
-                      >
-                        <Rotate3d className="h-3.5 w-3.5 text-brand-orange" /> 360° View
-                      </button>
                     </div>
                   ))}
               </div>
             </div>
           )}
 
-          {/* TAB 4: EASEXPLORE ACCESSIBILITY GUIDES */}
+          {/* TAB 4: EASEXPLORE - 360 DEGREE VIEW & ACCESSIBILITY */}
           {tab === "access" && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-3 rounded-2xl border border-brand-purple/20 bg-brand-lilac/70 p-4 text-sm font-medium text-brand-deep shadow-sm">
-                <Accessibility className="h-5 w-5 shrink-0 text-brand-purple" />
-                <span>
-                  Explore venue accessibility, step-free navigation, and personalized companion
-                  assistance with{" "}
-                  <span className="font-feature italic font-black text-brand-purple">
-                    EaseXplore
-                  </span>
-                  .
-                </span>
+            <div className="space-y-6">
+              {/* Interactive 360° Panoramic Simulation Viewport */}
+              <div className="overflow-hidden rounded-3xl border border-brand-purple/20 bg-white shadow-sm">
+                {/* Vantage Point Switcher Tabs */}
+                <div className="flex flex-wrap items-center gap-2 border-b border-brand-line bg-brand-warm/30 p-3">
+                  <div className="flex items-center gap-1.5 px-2 text-xs font-black uppercase tracking-wider text-brand-deep">
+                    <Compass className="h-4 w-4 text-brand-purple" />
+                    360° Vantage:
+                  </div>
+                  {vantagePoints.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setActiveVantage(v.id)}
+                      className={cx(
+                        "cursor-pointer rounded-xl px-3 py-1.5 text-xs font-bold transition-all",
+                        activeVantage === v.id
+                          ? "bg-gradient-to-r from-brand-purple to-brand-magenta text-white shadow-sm"
+                          : "bg-white text-brand-deep border border-brand-line hover:border-brand-purple/50"
+                      )}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Simulated 360 Pan Display */}
+                {(() => {
+                  const currentVantage =
+                    vantagePoints.find((v) => v.id === activeVantage) ?? vantagePoints[0];
+                  return (
+                    <div>
+                      <div className="group relative h-80 w-full overflow-hidden bg-brand-deep">
+                        <img
+                          src={currentVantage.image}
+                          alt={currentVantage.label}
+                          className="h-full w-full object-cover transition-all duration-700 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/90 via-transparent to-brand-deep/40 pointer-events-none" />
+
+                        {/* Top floating indicators */}
+                        <div className="absolute left-4 top-4 flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep/80 px-3 py-1 text-xs font-bold text-white backdrop-blur border border-white/20">
+                            <Rotate3d className="h-3.5 w-3.5 animate-spin text-brand-orange" />
+                            360° Interactive Simulator
+                          </span>
+                          <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold text-white backdrop-blur">
+                            FOV: {currentVantage.fov}
+                          </span>
+                        </div>
+
+                        {/* Bottom action controls */}
+                        <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-end justify-between gap-3 text-white">
+                          <div className="max-w-md">
+                            <h3 className="font-brand text-lg font-bold text-white drop-shadow">
+                              {currentVantage.label}
+                            </h3>
+                            <p className="mt-0.5 text-xs text-white/90 drop-shadow">
+                              {currentVantage.desc}
+                            </p>
+                            <div className="mt-2 inline-flex items-center gap-2 text-[11px] font-semibold text-brand-orange">
+                              <span>Elevation: {currentVantage.elevation}</span>
+                              <span>•</span>
+                              <span>Sound Level: 98dB Direct</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreview360Photo({
+                                  url: currentVantage.image,
+                                  title: currentVantage.label,
+                                  section: currentVantage.elevation,
+                                })
+                              }
+                              className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-purple to-brand-orange px-4 py-2 text-xs font-bold text-white shadow-lg transition-transform hover:scale-105"
+                            >
+                              <Rotate3d className="h-4 w-4" /> Fullscreen 360° View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={toggleEaseVoice}
+                              className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-2 text-xs font-bold text-white backdrop-blur hover:bg-white/30 transition"
+                            >
+                              <Volume2 className="h-4 w-4" /> Voice Guide
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
+              {/* Venue Accessibility & Assistance Guides */}
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
                   {
@@ -926,9 +1334,9 @@ export default function Community() {
                   },
                   {
                     icon: Camera,
-                    h: "Verified access photos",
-                    p: "Community-shared photos of step-free routes, accessible seating, and companion facilities.",
-                    action: "Browse photos",
+                    h: "Share seat view",
+                    p: "Already have photos from your seat? Share them on EasePix to help fellow fans and earn EasePoints.",
+                    action: "Go to EasePix",
                     onClick: () => setTab("views"),
                   },
                 ].map((f) => (
