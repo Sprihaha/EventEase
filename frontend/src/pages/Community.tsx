@@ -29,7 +29,6 @@ import {
   QrCode,
 } from "lucide-react";
 import { useStore } from "../lib/store";
-import SecureExchange from "../components/SecureExchange";
 import { Button, Badge, Card, Textarea, cx } from "../components/ui";
 
 const commsChannels = [
@@ -1069,127 +1068,84 @@ export default function Community() {
         )}
       </div>
       ) : (
-        /* DEDICATED EASEEXCHANGE VIEW */
-        <div id="exchange-view" className="space-y-6">
-          {/* 1. Official Trust & What is EaseXchange Banner */}
-          <div className="relative overflow-hidden rounded-3xl border border-brand-orange/20 bg-gradient-to-r from-brand-deep via-brand-deep to-brand-purple p-6 sm:p-8 text-white shadow-xl">
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-              <div className="space-y-2.5 max-w-2xl">
-                <div className="inline-flex items-center gap-2 rounded-full bg-brand-orange/20 px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-brand-amber border border-brand-orange/30">
-                  <ShieldCheck className="h-3.5 w-3.5 text-brand-amber" /> Official Fan-to-Fan Ticket Exchange
-                </div>
-                <h2 className="font-brand text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight">
-                  What is <span className="font-feature italic text-brand-orange">EaseXchange</span>?
-                </h2>
-                <p className="text-xs sm:text-sm leading-relaxed text-brand-warm/90">
-                  <strong className="text-white">EaseXchange</strong> is EventEase’s official, community-driven ticket exchange platform designed to eradicate ticket scalping, predatory markups, and counterfeit scams.
-                  Whether your schedule changed, you wish to trade concert dates, or you want to upgrade sections, every exchange is strictly capped at face value and backed by direct barcode verification.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 shrink-0 text-left">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                  <div className="text-base font-extrabold text-brand-amber">100% Face Value</div>
-                  <div className="text-[11px] text-white/70">Zero scalping or markups</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                  <div className="text-base font-extrabold text-emerald-400">Dynamic QR</div>
-                  <div className="text-[11px] text-white/70">Old code voided instantly</div>
-                </div>
-                <div className="col-span-2 sm:col-span-1 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                  <div className="text-base font-extrabold text-brand-lilac">Verified Venues</div>
-                  <div className="text-[11px] text-white/70">Official ticketing integration</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. How EaseXchange Works: 3 Steps */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border border-brand-line bg-white p-5 shadow-sm">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-lilac text-brand-purple font-black text-sm">
-                1
-              </div>
-              <h3 className="mt-3.5 font-brand text-sm font-bold text-brand-deep">
-                Select or Request a Swap
-              </h3>
-              <p className="mt-1.5 text-xs text-muted leading-relaxed">
-                Choose a ticket from your confirmed EventEase bookings to list, or post a request for different seating tiers and event dates.
-              </p>
+        /* DEDICATED EASEEXCHANGE VIEW (Simplified & Clean) */
+        <div id="exchange-view" className="max-w-3xl mx-auto py-4">
+          <div className="rounded-3xl border border-brand-line bg-white p-6 sm:p-10 shadow-sm text-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-brand-lilac px-4 py-1.5 text-xs font-black uppercase tracking-wider text-brand-purple border border-brand-purple/20 mb-4">
+              <ShieldCheck className="h-4 w-4 text-brand-purple" /> Official Ticket Exchange
             </div>
 
-            <div className="rounded-2xl border border-brand-line bg-white p-5 shadow-sm">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-brand-orange font-black text-sm">
-                2
-              </div>
-              <h3 className="mt-3.5 font-brand text-sm font-bold text-brand-deep">
-                Verified Fan Match & Escrow
-              </h3>
-              <p className="mt-1.5 text-xs text-muted leading-relaxed">
-                Our smart matching pairs you with real attendees at exact purchase price. No bots, no scalpers, and no risky off-platform wire transfers.
-              </p>
-            </div>
+            <h2 className="font-brand text-2xl sm:text-3xl font-extrabold tracking-tight text-brand-deep">
+              What is <span className="font-feature italic text-brand-orange">EaseXchange</span>?
+            </h2>
 
-            <div className="rounded-2xl border border-brand-line bg-white p-5 shadow-sm">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 font-black text-sm">
-                3
-              </div>
-              <h3 className="mt-3.5 font-brand text-sm font-bold text-brand-deep">
-                Instant Re-Issue at Gate
-              </h3>
-              <p className="mt-1.5 text-xs text-muted leading-relaxed">
-                The seller’s barcode is automatically cancelled. A brand new, tamper-proof QR code is minted directly into the buyer’s account.
-              </p>
-            </div>
-          </div>
+            <p className="mt-3 max-w-xl mx-auto text-sm sm:text-base leading-relaxed text-muted">
+              <strong className="text-brand-deep">EaseXchange</strong> is EventEase’s fan-to-fan platform for swapping tickets at original face value with zero markups, zero scams, and automatic barcode re-issue at the gate.
+            </p>
 
-          {/* 3. SIGN IN CALL TO ACTION (Redirects to /login) */}
-          {!user ? (
-            <div className="relative overflow-hidden rounded-3xl border-2 border-brand-orange/30 bg-gradient-to-br from-brand-warm via-white to-brand-lilac/30 p-6 sm:p-8 shadow-md">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                <div className="space-y-1.5 max-w-xl">
-                  <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-brand-orange">
-                    <Lock className="h-4 w-4" /> Sign In Required to Exchange
-                  </div>
-                  <h3 className="font-brand text-xl sm:text-2xl font-extrabold text-brand-deep">
-                    Ready to list or swap your tickets?
-                  </h3>
-                  <p className="text-xs sm:text-sm text-muted leading-relaxed">
-                    Sign in to your EventEase account to view your confirmed tickets, create swap requests, and exchange securely with other attendees.
-                  </p>
+            {/* 3 Simple Pillars */}
+            <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+              <div className="rounded-2xl border border-brand-line bg-brand-warm/60 p-4">
+                <div className="text-xs font-extrabold text-brand-deep flex items-center gap-1.5">
+                  <span className="text-brand-orange">✦</span> Face-Value Cap
                 </div>
+                <p className="mt-1 text-[11px] text-muted">Strict price caps protect fans against scalpers and markups.</p>
+              </div>
 
-                <div className="shrink-0 flex flex-col sm:flex-row gap-3">
+              <div className="rounded-2xl border border-brand-line bg-brand-warm/60 p-4">
+                <div className="text-xs font-extrabold text-brand-deep flex items-center gap-1.5">
+                  <span className="text-brand-purple">✦</span> Verified QR Codes
+                </div>
+                <p className="mt-1 text-[11px] text-muted">Previous barcodes are voided instantly and re-minted for the buyer.</p>
+              </div>
+
+              <div className="rounded-2xl border border-brand-line bg-brand-warm/60 p-4">
+                <div className="text-xs font-extrabold text-brand-deep flex items-center gap-1.5">
+                  <span className="text-brand-magenta">✦</span> Fair Swaps
+                </div>
+                <p className="mt-1 text-[11px] text-muted">Easily exchange dates, seating tiers, or sections with real fans.</p>
+              </div>
+            </div>
+
+            {/* Sign In Redirect Card */}
+            <div className="mt-8 pt-6 border-t border-brand-line flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-left">
+                {!user ? (
+                  <>
+                    <h3 className="text-sm font-bold text-brand-deep">Ready to swap or list your tickets?</h3>
+                    <p className="text-xs text-muted">Sign in with your EventEase account to get started.</p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-sm font-bold text-brand-deep flex items-center gap-1.5 text-emerald-700">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Signed in as {user.name}
+                    </h3>
+                    <p className="text-xs text-muted">Your account is ready for ticket exchanges.</p>
+                  </>
+                )}
+              </div>
+
+              <div>
+                {!user ? (
                   <button
                     type="button"
                     onClick={() => navigate("/login")}
-                    className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-6 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-brand-orange/25 transition-transform hover:-translate-y-0.5 active:translate-y-0"
+                    className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-orange/25 transition-transform hover:-translate-y-0.5 active:translate-y-0"
                   >
-                    <LogIn className="h-4 w-4" /> Sign In to Start Swapping ↗
+                    <LogIn className="h-4 w-4" /> Sign In ↗
                   </button>
-                </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/dashboard/customer")}
+                    className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-brand-deep px-5 py-3 text-xs font-extrabold text-white shadow-md hover:bg-brand-purple transition"
+                  >
+                    View My Tickets ↗
+                  </button>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-emerald-900">
-              <div className="flex items-center gap-2.5 text-xs">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>
-                  Signed in as <strong>{user.name}</strong> ({user.role}) — Your account is verified and ready for ticket exchanges.
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard/customer")}
-                className="cursor-pointer text-xs font-bold text-emerald-800 underline hover:text-emerald-950"
-              >
-                View my tickets ↗
-              </button>
-            </div>
-          )}
-
-          {/* 4. SecureExchange Core Component */}
-          <SecureExchange key={user?.id ?? "public"} />
+          </div>
         </div>
       )}
 
