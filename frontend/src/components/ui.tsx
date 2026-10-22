@@ -16,18 +16,23 @@ export function Button({
   size?: "sm" | "md" | "lg";
 }) {
   const base =
-    "inline-flex items-center justify-center gap-2 font-medium rounded-full transition-all duration-200 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap";
+    "inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 disabled:opacity-40 disabled:pointer-events-none whitespace-nowrap cursor-pointer";
   const sizes = {
     sm: "text-sm px-4 h-9",
     md: "text-sm px-5 h-11",
     lg: "text-base px-7 h-13",
   };
   const variants = {
-    primary: "bg-accent text-white hover:bg-accent-ink shadow-[0_6px_20px_-6px_rgba(79,47,255,0.6)]",
-    dark: "bg-ink text-white hover:bg-ink/90",
-    outline: "border border-line text-ink hover:border-ink hover:bg-mist",
-    ghost: "text-ink hover:bg-mist",
-    danger: "bg-danger/10 text-danger hover:bg-danger hover:text-white",
+    primary:
+      "bg-brand-orange text-white hover:bg-[#eb5d00] active:scale-[0.98] shadow-[0_4px_18px_-4px_rgba(255,101,0,0.45)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-orange/30",
+    dark:
+      "bg-brand-deep text-white hover:bg-brand-purple active:scale-[0.98] shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30",
+    outline:
+      "border border-brand-purple/20 bg-white/80 text-brand-deep hover:border-brand-purple hover:bg-brand-lilac/50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/20",
+    ghost:
+      "text-brand-deep hover:bg-brand-lilac/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/20",
+    danger:
+      "bg-danger/10 text-danger hover:bg-danger hover:text-white border border-danger/20",
   };
   return <button className={cx(base, sizes[size], variants[variant], className)} {...props} />;
 }
@@ -42,11 +47,11 @@ export function Badge({
   className?: string;
 }) {
   const tones = {
-    neutral: "bg-mist text-muted",
-    accent: "bg-accent-soft text-accent-ink",
-    live: "bg-live/10 text-live",
-    warn: "bg-warn/10 text-warn",
-    danger: "bg-danger/10 text-danger",
+    neutral: "bg-brand-lilac/70 text-brand-deep border border-brand-purple/10",
+    accent: "bg-brand-lilac text-brand-purple border border-brand-purple/20",
+    live: "bg-live/10 text-live border border-live/20",
+    warn: "bg-warn/10 text-warn border border-warn/20",
+    danger: "bg-danger/10 text-danger border border-danger/20",
   };
   return (
     <span
@@ -67,7 +72,13 @@ export function Card({
   ...props
 }: HTMLAttributes<HTMLDivElement> & { children: ReactNode }) {
   return (
-    <div {...props} className={cx("rounded-3xl border border-line bg-paper", className)}>
+    <div
+      {...props}
+      className={cx(
+        "rounded-3xl border border-brand-purple/10 bg-white shadow-[0_4px_24px_-8px_rgba(50,19,79,0.06)]",
+        className,
+      )}
+    >
       {children}
     </div>
   );
@@ -75,7 +86,9 @@ export function Card({
 
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">{children}</div>
+    <div className="text-xs font-bold uppercase tracking-[0.2em] text-brand-orange">
+      {children}
+    </div>
   );
 }
 
@@ -88,14 +101,14 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-ink">{label}</span>
+      <span className="mb-1.5 block text-sm font-semibold text-brand-deep">{label}</span>
       {children}
     </label>
   );
 }
 
 const inputCls =
-  "w-full rounded-xl border border-line bg-paper px-3.5 h-11 text-sm outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/10 placeholder:text-muted";
+  "w-full rounded-xl border border-brand-purple/20 bg-white px-3.5 h-11 text-sm text-brand-text outline-none transition focus:border-brand-purple focus:ring-4 focus:ring-brand-purple/15 placeholder:text-muted/65";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cx(inputCls, props.className)} />;
@@ -117,7 +130,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
 // Real, scannable QR code. `value` is encoded verbatim; ticket refs are wrapped
 // into a verification URL so a phone camera resolves to the check-in endpoint.
 export function ticketPayload(ref: string, seats?: string) {
-  const u = new URL("https://eventease.io/verify/" + encodeURIComponent(ref));
+  const u = new URL("/verify/" + encodeURIComponent(ref), window.location.origin);
   if (seats) u.searchParams.set("seats", seats);
   return u.toString();
 }
@@ -130,7 +143,7 @@ export function QRCode({ value, size = 132 }: { value: string; size?: number }) 
       type: "svg",
       errorCorrectionLevel: "M",
       margin: 0,
-      color: { dark: "#0b0b0f", light: "#ffffff" },
+      color: { dark: "#1c1526", light: "#ffffff" },
     })
       .then((s) => alive && setSvg(s))
       .catch(() => alive && setSvg(""));
@@ -143,7 +156,7 @@ export function QRCode({ value, size = 132 }: { value: string; size?: number }) 
       role="img"
       aria-label="Scannable ticket QR code"
       style={{ width: size, height: size }}
-      className="rounded-md ring-2 ring-accent/20 [&>svg]:h-full [&>svg]:w-full"
+      className="rounded-md ring-2 ring-brand-purple/25 [&>svg]:h-full [&>svg]:w-full"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );

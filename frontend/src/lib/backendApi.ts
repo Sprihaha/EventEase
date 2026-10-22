@@ -1,9 +1,11 @@
 import type { Category, EventItem, EventStatus } from "./data";
 
 const API_ORIGIN =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ??
-  "https://eventease-backend-qkbl.onrender.com";
+  ((import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL) as string | undefined)?.replace(/\/$/, "") ??
+  "https://eventease-backend-fbpd.onrender.com";
+if ((import.meta.env.VITE_LOCAL_SANDBOX === "true" || import.meta.env.VITE_LOCAL_ONLY === "true") && !["localhost", "127.0.0.1", "[::1]"].includes(new URL(API_ORIGIN).hostname)) {
+  throw new Error("Local testing refuses a nonlocal API URL.");
+}
 const API_ROOT = `${API_ORIGIN}/api/v1`;
 const TOKEN_KEY = "eventease-access-token";
 
@@ -55,6 +57,7 @@ type BackendManagedEvent = {
   category: string;
   status: string;
   organiserUsername?: string | null;
+  organiserId?: string | null;
   shortDescription?: string | null;
   description?: string | null;
   venueName: string;
@@ -62,12 +65,21 @@ type BackendManagedEvent = {
   startAt: string;
   imageUrl?: string | null;
   capacity?: number | null;
+  rejectionReason?: string | null;
   ticketCategories?: BackendTicketCategory[];
 };
 
-type Page<T> = { items: T[]; total: number };
+type Page<T> = { items: T[]; total: number; totalPages: number };
+async function pages<T>(path: string, authenticated = false): Promise<T[]> {
+  const result: T[] = [];
+  for (let page = 1; ; page++) {
+    const response = await request<Page<T>>(`${path}${path.includes("?") ? "&" : "?"}page=${page}&pageSize=100`, {}, authenticated);
+    result.push(...response.items);
+    if (page >= response.totalPages) return result;
+  }
+}
 
-async function request<T>(path: string, init: RequestInit = {}, authenticated = false): Promise<T> {
+export async function request<T>(path: string, init: RequestInit = {}, authenticated = false): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (authenticated) {
@@ -96,8 +108,6 @@ function category(value: string): Category {
 }
 
 function mapEvent(event: BackendEvent, index: number): EventItem {
-  const min = Math.max(20, Math.round((event.priceRange?.minCents ?? 6800) / 100));
-  const max = Math.max(min, Math.round((event.priceRange?.maxCents ?? min * 180) / 100));
   return {
     id: event.id,
     title: event.title,
@@ -108,19 +118,17 @@ function mapEvent(event: BackendEvent, index: number): EventItem {
     city: event.area ?? "Singapore",
     image:
       event.imageUrl ??
-      "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80",
+      "/event-placeholder.svg",
     blurb: event.shortDescription ?? "An upcoming EventEase experience.",
-    organizerId: "org-livenation",
+    organizerId: "",
     organizerName: event.sourceName ?? "EventEase Organizer",
     status: "published",
     featured: index < 6,
-    rows: 8,
-    cols: 12,
-    tiers: [
-      { id: `${event.id}-vip`, name: "VIP", price: max, total: 24, sold: 0 },
-      { id: `${event.id}-standard`, name: "Standard", price: min, total: 56, sold: 0 },
-      { id: `${event.id}-concession`, name: "Concession", price: Math.round(min * 0.75), total: 16, sold: 0 },
-    ],
+    rows: 0,
+    cols: 0,
+    tiers: [],
+    priceFrom: event.priceRange ? event.priceRange.minCents / 100 : undefined,
+    purchasable: event.purchasable,
   };
 }
 
@@ -131,24 +139,17 @@ function managedStatus(status: string): EventStatus {
   return "draft";
 }
 
-function mapManagedEvent(event: BackendManagedEvent, index: number): EventItem {
+function mapManagedEvent(event: BackendManagedEvent, index: number, ownerId = ""): EventItem {
   const categories = event.ticketCategories ?? [];
-  const capacity =
-    event.capacity ?? (categories.reduce((sum, item) => sum + item.quantityTotal, 0) || 96);
-  const fallbackTotal = Math.max(1, Math.round(capacity / 3));
   const tiers = categories.length
     ? categories.map((item) => ({
         id: item.id,
         name: item.name,
-        price: Math.round(item.priceCents / 100),
+        price: item.priceCents / 100,
         total: item.quantityTotal,
         sold: item.quantitySold,
       }))
-    : [
-        { id: `${event.id}-vip`, name: "VIP", price: 180, total: fallbackTotal, sold: 0 },
-        { id: `${event.id}-standard`, name: "Standard", price: 88, total: fallbackTotal, sold: 0 },
-        { id: `${event.id}-concession`, name: "Concession", price: 48, total: fallbackTotal, sold: 0 },
-      ];
+    : [];
   return {
     id: event.id,
     title: event.title,
@@ -159,44 +160,36 @@ function mapManagedEvent(event: BackendManagedEvent, index: number): EventItem {
     city: event.area ?? "Singapore",
     image:
       event.imageUrl ??
-      "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80",
+      "/event-placeholder.svg",
     blurb: event.description ?? event.shortDescription ?? "An EventEase organizer event.",
-    organizerId: "org-livenation",
-    organizerName: event.organiserUsername ?? "Event 01",
+    organizerId: event.organiserId ?? ownerId,
+    organizerName: event.organiserUsername ?? "EventEase Organizer",
     status: managedStatus(event.status),
+    rejectionReason: event.rejectionReason,
     featured: index < 6,
-    rows: 8,
-    cols: 12,
+    rows: 0,
+    cols: 0,
     tiers,
   };
 }
 
 export async function fetchBackendEvents() {
-  const page = await request<Page<BackendEvent>>("/events?page=1&pageSize=100&sort=date");
-  return page.items.map(mapEvent);
+  return (await pages<BackendEvent>("/events?sort=date")).filter(event => !event.isSample).map(mapEvent);
 }
 
-export async function fetchBackendRoleEvents(role: BackendRole) {
+export async function fetchBackendRoleEvents(role: BackendRole, ownerId = "") {
   if (role === "ORGANISER") {
-    const page = await request<Page<BackendManagedEvent>>(
-      "/organiser/events?page=1&pageSize=100",
-      {},
-      true,
-    );
-    return page.items.map(mapManagedEvent);
+    const events = await pages<BackendManagedEvent>("/organiser/events", true);
+    return events.map((e, i) => mapManagedEvent(e, i, ownerId));
   }
   if (role === "ADMIN") {
-    const page = await request<Page<BackendManagedEvent>>(
-      "/admin/events?page=1&pageSize=100",
-      {},
-      true,
-    );
+    const events = await pages<BackendManagedEvent>("/admin/events", true);
     const detailed = await Promise.all(
-      page.items.map((event) =>
+      events.map((event) =>
         request<BackendManagedEvent>(`/admin/events/${event.id}`, {}, true).catch(() => event),
       ),
     );
-    return detailed.map(mapManagedEvent);
+    return detailed.map((e, i) => mapManagedEvent(e, i, ownerId));
   }
   return [];
 }
@@ -229,7 +222,6 @@ export function backendLogout() {
 }
 
 export function backendSetEventStatus(id: string, status: EventStatus) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return Promise.resolve();
   if (status === "published") {
     return request(`/admin/events/${id}/approve`, { method: "POST" }, true);
   }
@@ -240,7 +232,7 @@ export function backendSetEventStatus(id: string, status: EventStatus) {
       true,
     );
   }
-  return Promise.resolve();
+  throw new Error("Unsupported event status change.");
 }
 
 export function backendCreateEvent(event: EventItem) {
@@ -260,6 +252,8 @@ export function backendCreateEvent(event: EventItem) {
         endAt: new Date(new Date(event.date).getTime() + 3 * 60 * 60 * 1000).toISOString(),
         imageUrl: event.image,
         capacity,
+        initialCategories: event.tiers.map(t => ({ type: t.name.toUpperCase(), name: t.name,
+          priceCents: Math.round(t.price * 100), quantity: t.total, seatSection: t.name })),
       }),
     },
     true,
@@ -267,6 +261,135 @@ export function backendCreateEvent(event: EventItem) {
 }
 
 export function backendCancelBooking(id: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return Promise.resolve();
   return request(`/me/bookings/${id}/cancel`, { method: "POST" }, true);
+}
+
+export type DemoResetTarget = {
+  environment: string;
+  databaseHost: string;
+  databasePort: number | null;
+  databaseName: string;
+  databaseSchema: string;
+  requiresProductionOverride: boolean;
+  enabled: boolean;
+  targetId: string;
+};
+
+export async function getDemoResetTarget(signal?: AbortSignal): Promise<DemoResetTarget> {
+  const result = await request<DemoResetTarget>("/admin/reset-demo-data/target", { signal }, true);
+  if (!result || typeof result.environment !== "string" || !result.environment ||
+    typeof result.databaseHost !== "string" || !result.databaseHost ||
+    typeof result.databaseName !== "string" || !result.databaseName ||
+    typeof result.databaseSchema !== "string" || !result.databaseSchema ||
+    !(result.databasePort === null || (Number.isInteger(result.databasePort) && result.databasePort! > 0 && result.databasePort! <= 65535)) ||
+    typeof result.enabled !== "boolean" || typeof result.requiresProductionOverride !== "boolean" ||
+    typeof result.targetId !== "string" || !/^[0-9a-f]{64}$/.test(result.targetId)) {
+    throw new Error("Database target could not be verified. Reset is unavailable.");
+  }
+  return result;
+}
+
+export async function resetDemoData(input: { confirmation: string; username: string; password: string; acknowledged: boolean; targetId: string }) {
+  const result = await request<{ deleted: Record<string, number>; message: string }>(
+    "/admin/reset-demo-data",
+    { method: "POST", body: JSON.stringify(input) },
+    true,
+  );
+  if (!result || typeof result.message !== "string" || !result.deleted ||
+    typeof result.deleted !== "object" || Array.isArray(result.deleted) ||
+    !Object.values(result.deleted).every(value => Number.isInteger(value) && value >= 0)) {
+    throw new Error("Reset result was not confirmed. Check the application state before retrying.");
+  }
+  return result;
+}
+
+export function backendMe() {
+  return request<{ id: string; username: string; role: BackendRole; email: string | null }>("/auth/me", {}, true);
+}
+
+export function hasBackendSession() { return !!sessionStorage.getItem(TOKEN_KEY); }
+
+// ---------------------------------------------------------------------------
+// Package E: EaseVoice narration (text + MP3 recording) and report downloads
+// ---------------------------------------------------------------------------
+
+export type BackendNarration = {
+  pageKey: string;
+  transcript: string;
+  updatedAt: string;
+  hasAudio: boolean;
+  audioFilename: string | null;
+  audioSizeBytes: number | null;
+};
+
+export const MAX_NARRATION_AUDIO_BYTES = 5 * 1024 * 1024;
+
+/** Public narration for one page. Resolves to null when the admin has not written one yet. */
+export async function fetchBackendNarration(pageKey: string) {
+  try {
+    return await request<BackendNarration>(`/narration/${pageKey}`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/** Admin only: create or replace the narration text for a page. */
+export function saveBackendNarration(pageKey: string, transcript: string) {
+  return request<BackendNarration>(
+    `/admin/narration/${pageKey}`,
+    { method: "PUT", body: JSON.stringify({ transcript }) },
+    true,
+  );
+}
+
+/** Address of the admin-recorded MP3 for a page (public, so an <audio> tag can play it). */
+export function narrationAudioUrl(pageKey: string) {
+  return `${API_ROOT}/narration/${pageKey}/audio`;
+}
+
+/** Admin only: upload an MP3 for a page whose narration text is already saved. */
+export function uploadBackendNarrationAudio(pageKey: string, file: File) {
+  return request<BackendNarration>(
+    `/admin/narration/${pageKey}/audio?filename=${encodeURIComponent(file.name)}`,
+    { method: "PUT", body: file, headers: { "Content-Type": "audio/mpeg" } },
+    true,
+  );
+}
+
+/** Admin only: remove the MP3 for a page (the text narration stays). */
+export function deleteBackendNarrationAudio(pageKey: string) {
+  return request<void>(`/admin/narration/${pageKey}/audio`, { method: "DELETE" }, true);
+}
+
+/**
+ * Downloads a PDF/Excel report from the backend with the logged-in user's token and
+ * hands it to the browser as a normal file download. Resolves to the file name.
+ */
+export async function downloadBackendReport(path: string, fallbackName: string) {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (!token) throw new ApiError("Please log in to download reports.", 401);
+  const response = await fetch(`${API_ROOT}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as
+      | { error?: { message?: string }; detail?: string }
+      | null;
+    throw new ApiError(
+      body?.error?.message ?? body?.detail ?? `Backend request failed (${response.status})`,
+      response.status,
+    );
+  }
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const name = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return name;
 }

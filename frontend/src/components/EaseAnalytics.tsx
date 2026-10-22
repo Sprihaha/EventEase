@@ -2,8 +2,11 @@ import { useMemo, useState } from "react";
 import { BarChart3, CalendarDays, CircleDollarSign, Ticket, Users } from "lucide-react";
 import type { EventItem } from "../lib/data";
 import { Badge, Button, Card, Select, cx } from "./ui";
+import ReportDownload from "./ReportDownload";
 
 type Range = 7 | 30 | 90;
+
+const isLiveEventId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 type EventSales = {
   event: EventItem;
@@ -95,22 +98,37 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <Badge tone="accent"><BarChart3 className="h-3 w-3" /> Read-only</Badge>
-          <h2 className="mt-3 font-display text-3xl font-semibold">EaseAnalytics</h2>
+          <h2 className="mt-3 font-feature text-3xl font-black italic tracking-tight text-brand-deep">EaseAnalytics</h2>
           <p className="mt-1 text-sm text-muted">Sales performance across your EventEase events.</p>
         </div>
-        <label className="min-w-64">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
-            Event
-          </span>
-          <Select
-            value={eventId}
-            onChange={(event) => setEventId(event.target.value)}
-            aria-label="Filter EaseAnalytics by event"
-          >
-            <option value="all">All my events</option>
-            {events.map((event) => <option key={event.id} value={event.id}>{event.title}</option>)}
-          </Select>
-        </label>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="min-w-64">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
+              Event
+            </span>
+            <Select
+              value={eventId}
+              onChange={(event) => setEventId(event.target.value)}
+              aria-label="Filter EaseAnalytics by event"
+            >
+              <option value="all">All my events</option>
+              {events.map((event) => <option key={event.id} value={event.id}>{event.title}</option>)}
+            </Select>
+          </label>
+          <ReportDownload
+            label="Download report"
+            buildPath={(format) =>
+              `/organiser/analytics/export?format=${format}&days=${range}` +
+              (eventId !== "all" ? `&eventId=${eventId}` : "")
+            }
+            fallbackName={(format) => `easeanalytics-report.${format}`}
+            validate={() =>
+              eventId !== "all" && !isLiveEventId(eventId)
+                ? "This event has no live sales record yet. Choose “All my events” to download a report."
+                : null
+            }
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -126,8 +144,8 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
 
       {noSales ? (
         <Card className="p-16 text-center">
-          <BarChart3 className="mx-auto h-9 w-9 text-muted" />
-          <h3 className="mt-4 font-display text-2xl font-semibold">No sales yet</h3>
+          <BarChart3 className="mx-auto h-9 w-9 text-brand-orange" />
+          <h3 className="mt-4 font-brand text-2xl font-bold text-brand-deep">No sales yet</h3>
           <p className="mt-2 text-sm text-muted">
             Revenue and ticket-demand insights will appear after the first confirmed booking.
           </p>
@@ -137,7 +155,7 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
           <Card className="p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h3 className="font-display text-xl font-semibold">Revenue over time</h3>
+                <h3 className="font-brand text-xl font-bold text-brand-deep">Revenue over time</h3>
                 <p className="mt-1 text-sm text-muted">Daily revenue and cumulative running total.</p>
               </div>
               <div className="flex rounded-full border border-line bg-mist/50 p-1" aria-label="Revenue chart range">
@@ -160,7 +178,7 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
 
           <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
             <Card className="p-5 sm:p-6">
-              <h3 className="font-display text-xl font-semibold">Ticket tier demand</h3>
+              <h3 className="font-brand text-xl font-bold text-brand-deep">Ticket tier demand</h3>
               <p className="mt-1 text-sm text-muted">Share of tickets sold across every tier.</p>
               <div className="mt-7 space-y-5">
                 {tierDemand.map((tier) => {
@@ -168,14 +186,14 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
                   return (
                     <div key={tier.name}>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{tier.name}</span>
+                        <span className="font-medium text-brand-deep">{tier.name}</span>
                         <span className="text-muted">{tier.sold} sold · {share.toFixed(1)}%</span>
                       </div>
                       <div className="mt-2 h-3 overflow-hidden rounded-full bg-mist">
                         <div
                           className={cx(
                             "h-full rounded-full",
-                            tier.sold ? "bg-accent" : "bg-line",
+                            tier.sold ? "bg-gradient-to-r from-brand-purple to-brand-orange" : "bg-line",
                           )}
                           style={{ width: `${share}%` }}
                         />
@@ -188,12 +206,12 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
 
             <Card className="overflow-hidden">
               <div className="border-b border-line p-5 sm:p-6">
-                <h3 className="font-display text-xl font-semibold">Sales per event</h3>
+                <h3 className="font-brand text-xl font-bold text-brand-deep">Sales per event</h3>
                 <p className="mt-1 text-sm text-muted">Confirmed performance in Singapore dollars.</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[36rem] text-sm">
-                  <thead className="bg-mist/50 text-left text-xs uppercase tracking-wide text-muted">
+                  <thead className="bg-brand-purple/5 border-b border-brand-purple/10 text-left text-xs uppercase tracking-wide text-muted">
                     <tr>
                       <th className="p-4">Event</th>
                       <th className="p-4 text-right">Bookings</th>
@@ -203,11 +221,11 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
                   </thead>
                   <tbody>
                     {selected.map((sales) => (
-                      <tr key={sales.event.id} className="border-t border-line">
-                        <td className="p-4 font-medium">{sales.event.title}</td>
+                      <tr key={sales.event.id} className="border-t border-line hover:bg-brand-purple/5 transition-colors">
+                        <td className="p-4 font-medium text-brand-deep">{sales.event.title}</td>
                         <td className="p-4 text-right">{sales.confirmedBookings}</td>
                         <td className="p-4 text-right">{sales.ticketsSold}</td>
-                        <td className="p-4 text-right font-semibold">{money(sales.revenueCents)}</td>
+                        <td className="p-4 text-right font-bold text-brand-deep">{money(sales.revenueCents)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -236,7 +254,7 @@ function Metric({
     <Card className={cx("p-5", accent && "border-accent/30 bg-accent-soft/40")}>
       <Icon className="h-5 w-5 text-accent" />
       <div className="mt-5 text-sm text-muted">{label}</div>
-      <div className="mt-1 font-display text-2xl font-semibold">{value}</div>
+      <div className="mt-1 font-brand text-2xl font-bold text-brand-deep">{value}</div>
     </Card>
   );
 }

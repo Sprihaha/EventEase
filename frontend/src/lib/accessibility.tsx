@@ -6,6 +6,14 @@ import {
   type Context,
   type ReactNode,
 } from "react";
+import {
+  deleteBackendNarrationAudio,
+  fetchBackendNarration,
+  narrationAudioUrl,
+  saveBackendNarration,
+  uploadBackendNarrationAudio,
+  type BackendNarration,
+} from "./backendApi";
 
 export type AccessibilitySettings = {
   voiceSpeed: number;
@@ -68,11 +76,24 @@ const defaultNarrations: Narrations = {
   "accessibility-settings": "",
 };
 
+/** An MP3 recorded by an admin for one page. `url` can be played with an <audio> element. */
+export type NarrationAudio = { filename: string; sizeBytes: number; url: string };
+export type NarrationAudioMap = Partial<Record<NarrationPageId, NarrationAudio>>;
+
 type AccessibilityStore = {
   settings: AccessibilitySettings;
   narrations: Narrations;
+  /** Admin recordings, by page. A page without an entry is read aloud by the browser voice. */
+  audio: NarrationAudioMap;
   saveSettings: (settings: AccessibilitySettings) => void;
-  saveNarration: (page: NarrationPageId, text: string) => void;
+  /** Admin only: saves the text on the server (and in this browser). Rejects if the server refuses. */
+  saveNarration: (page: NarrationPageId, text: string) => Promise<void>;
+  /** Fetches the latest text and recording info from the server for these pages. Never rejects. */
+  loadNarrations: (pages: NarrationPageId[]) => Promise<void>;
+  /** Admin only: uploads an MP3 for a page whose text is already saved. */
+  uploadAudio: (page: NarrationPageId, file: File) => Promise<void>;
+  /** Admin only: removes the recording for a page. */
+  removeAudio: (page: NarrationPageId) => Promise<void>;
 };
 
 const accessibilityGlobal = globalThis as typeof globalThis & {
@@ -101,26 +122,104 @@ function initialNarrations() {
   }
 }
 
+type RemoteNarrations = [NarrationPageId, BackendNarration | null][];
+
+function toAudio(remote: BackendNarration): NarrationAudio | undefined {
+  if (!remote.hasAudio) return undefined;
+  return {
+    filename: remote.audioFilename ?? "recording.mp3",
+    sizeBytes: remote.audioSizeBytes ?? 0,
+    // The version in the address makes the browser fetch a replaced recording again.
+    url: `${narrationAudioUrl(remote.pageKey)}?v=${encodeURIComponent(
+      `${remote.updatedAt}-${remote.audioSizeBytes ?? 0}`,
+    )}`,
+  };
+}
+
+function mergeText(current: Narrations, remote: RemoteNarrations): Narrations {
+  let next = current;
+  for (const [id, item] of remote) {
+    // A page that only has a recording comes back with empty text: keep any text we already have.
+    if (item && item.transcript && next[id] !== item.transcript) next = { ...next, [id]: item.transcript };
+  }
+  return next;
+}
+
+function mergeAudio(current: NarrationAudioMap, remote: RemoteNarrations): NarrationAudioMap {
+  let next = current;
+  for (const [id, item] of remote) {
+    if (!item) continue;
+    const audio = toAudio(item);
+    if (audio?.url === next[id]?.url) continue;
+    next = { ...next };
+    if (audio) next[id] = audio;
+    else delete next[id];
+  }
+  return next;
+}
+
+function rememberNarrations(next: Narrations) {
+  try {
+    localStorage.setItem("eventease-page-narrations", JSON.stringify(next));
+  } catch {
+    /* storage unavailable: the server copy is still the source of truth */
+  }
+}
+
 export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AccessibilitySettings>(initialSettings);
   const [narrations, setNarrations] = useState<Narrations>(initialNarrations);
+  const [audio, setAudio] = useState<NarrationAudioMap>({});
   const value = useMemo(
     () => ({
       settings,
       narrations,
+      audio,
       saveSettings: (next: AccessibilitySettings) => {
         setSettings(next);
         localStorage.setItem("eventease-accessibility-settings", JSON.stringify(next));
       },
-      saveNarration: (page: NarrationPageId, text: string) => {
+      saveNarration: async (page: NarrationPageId, text: string) => {
+        const saved = await saveBackendNarration(page, text);
+        const remote: RemoteNarrations = [[page, saved]];
         setNarrations((current) => {
-          const next = { ...current, [page]: text };
-          localStorage.setItem("eventease-page-narrations", JSON.stringify(next));
+          const next = mergeText(current, remote);
+          rememberNarrations(next);
+          return next;
+        });
+        setAudio((current) => mergeAudio(current, remote));
+      },
+      loadNarrations: async (pages: NarrationPageId[]) => {
+        const remote: RemoteNarrations = await Promise.all(
+          pages.map(async (id) => {
+            try {
+              return [id, await fetchBackendNarration(id)] as [NarrationPageId, BackendNarration | null];
+            } catch {
+              return [id, null] as [NarrationPageId, BackendNarration | null]; // offline: keep what we have
+            }
+          }),
+        );
+        setNarrations((current) => {
+          const next = mergeText(current, remote);
+          if (next !== current) rememberNarrations(next);
+          return next;
+        });
+        setAudio((current) => mergeAudio(current, remote));
+      },
+      uploadAudio: async (page: NarrationPageId, file: File) => {
+        const saved = await uploadBackendNarrationAudio(page, file);
+        setAudio((current) => mergeAudio(current, [[page, saved]]));
+      },
+      removeAudio: async (page: NarrationPageId) => {
+        await deleteBackendNarrationAudio(page);
+        setAudio((current) => {
+          const next = { ...current };
+          delete next[page];
           return next;
         });
       },
     }),
-    [settings, narrations],
+    [settings, narrations, audio],
   );
   return <AccessibilityCtx.Provider value={value}>{children}</AccessibilityCtx.Provider>;
 }

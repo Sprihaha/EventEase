@@ -1,374 +1,116 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
-import {
-  Calendar,
-  Clock,
-  MapPin,
-  Eye,
-  Users,
-  ShieldCheck,
-  Accessibility,
-  Ticket,
-  CheckCircle2,
-  X,
-  Info,
-} from "lucide-react";
-import { useStore, currency, fmtDate, fmtTime } from "../lib/store";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useParams } from "react-router";
+import { Calendar, MapPin, Ticket, ShieldCheck } from "lucide-react";
+import { useStore, currency, fmtDate } from "../lib/store";
+import { fetchTicketingEvent, fetchSeats, holdSeats, holdCategories, payBooking, cancelHeldBooking,
+  type BackendBooking, type LiveSeat, type TicketingEvent } from "../lib/ticketingApi";
 import { SeatMap } from "../components/SeatMap";
-import { QRCode, ticketPayload, Button, Badge, Eyebrow, Card, Input, cx } from "../components/ui";
-
-type Sel = { seat: string; tier: string; price: number };
-
-const PROMOS: Record<string, number> = { EARLYBIRD: 15, WELCOME10: 10, FAN5: 5 };
+import { Badge, Button, Card, QRCode, ticketPayload } from "../components/ui";
 
 export default function EventDetail() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { events, user, book, posts } = useStore();
-  const ev = events.find((e) => e.id === id);
-  const [sel, setSel] = useState<Sel[]>([]);
-  const [companion, setCompanion] = useState(false);
-  const [step, setStep] = useState<"seats" | "pay" | "done">("seats");
-  const [promo, setPromo] = useState("");
-  const [applied, setApplied] = useState(0);
-  const [ref, setRef] = useState("");
-
+  const { id = "" } = useParams();
+  const { user, sessionLoading, refreshBookings } = useStore();
+  const [event, setEvent] = useState<TicketingEvent | null>(null);
+  const [seats, setSeats] = useState<LiveSeat[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [selected, setSelected] = useState<string[]>([]);
+  const [booking, setBooking] = useState<BackendBooking | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [failPayment, setFailPayment] = useState(false);
+  const [now, setNow] = useState(Date.now);
+  const submitting = useRef(false);
+  const key = useRef<string | null>(null);
+  const identity = useRef(`${id}:${user?.id}`);
+  identity.current = `${id}:${user?.id}`;
+  const loadSeats = useCallback(async (signal?: AbortSignal) => {
+    const result = await fetchSeats(id, signal);
+    if (!signal?.aborted) setSeats(result);
+  }, [id]);
   useEffect(() => {
-    const narrationPage =
-      step === "pay"
-        ? "checkout"
-        : step === "done"
-          ? "booking-confirmation"
-          : sel.length
-            ? "select-tickets"
-            : "event-details";
-    window.dispatchEvent(
-      new CustomEvent("eventease:narration-page", { detail: narrationPage }),
-    );
-  }, [sel.length, step]);
-
-  if (!ev) {
-    return (
-      <div className="mx-auto max-w-3xl px-5 py-24 text-center">
-        <h1 className="font-display text-3xl">Event not found</h1>
-        <Button className="mt-6" onClick={() => navigate("/events")}>
-          Back to browse
-        </Button>
-      </div>
-    );
-  }
-
-  const eventPosts = posts.filter((p) => p.eventId === ev.id);
-  const subtotal = sel.reduce((a, s) => a + s.price, 0);
-  const fee = Math.round(subtotal * 0.05);
-  const discount = Math.round((subtotal * applied) / 100);
-  const total = Math.max(0, subtotal + fee - discount);
-
-  const toggle = (seat: string, tier: string, price: number) =>
-    setSel((cur) =>
-      cur.some((s) => s.seat === seat)
-        ? cur.filter((s) => s.seat !== seat)
-        : [...cur, { seat, tier, price }],
-    );
-
-  const applyPromo = () => setApplied(PROMOS[promo.toUpperCase().trim()] ?? 0);
-
-  const startCheckout = () => {
-    if (!user) return navigate("/login");
-    setStep("pay");
+    setEvent(null); setBooking(null); setSelected([]); setQuantities({}); setError(""); key.current = null;
+    if (!user) { setLoading(false); return; }
+    const controller = new AbortController();
+    setLoading(true);
+    Promise.all([fetchTicketingEvent(id, controller.signal), loadSeats(controller.signal)])
+      .then(([result]) => { if (!controller.signal.aborted) setEvent(result); })
+      .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not load event."); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    const interval = window.setInterval(() => { void loadSeats(controller.signal).catch(() => setError("Seat availability could not be refreshed. Try refreshing before booking.")); }, 5000);
+    return () => { controller.abort(); window.clearInterval(interval); };
+  }, [id, user?.id, loadSeats]);
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("eventease:narration-page", { detail: booking?.status === "CONFIRMED" ? "booking-confirmation" : booking ? "checkout" : "select-tickets" }));
+  }, [booking?.status]);
+  const chosen = seats.filter(s => selected.includes(s.id));
+  const categoryItems = (event?.ticketCategories ?? []).filter(c => (quantities[c.id] ?? 0) > 0).map(c => ({ ticketCategoryId: c.id, quantity: quantities[c.id] }));
+  const count = seats.length ? chosen.length : categoryItems.reduce((sum, item) => sum + item.quantity, 0);
+  const estimated = seats.length ? chosen.reduce((total, s) => total + s.priceCents, 0) / 100 : (event?.ticketCategories ?? []).reduce((sum, c) => sum + c.priceCents * (quantities[c.id] ?? 0), 0) / 100;
+  const expired = !!booking?.holdExpiresAt && Date.parse(booking.holdExpiresAt) <= now;
+  const run = async (operation: () => Promise<void>) => {
+    if (submitting.current) return;
+    submitting.current = true; setBusy(true); setError("");
+    const account = identity.current;
+    try { await operation(); }
+    catch (cause) { if (identity.current === account) setError(cause instanceof Error ? cause.message : "The action was not confirmed. Refresh your dashboard to check its status."); }
+    finally { submitting.current = false; setBusy(false); }
   };
-
-  const confirm = () => {
-    const bk = book(
-      ev.id,
-      sel.map((s) => ({ seat: s.seat, tier: s.tier })),
-      total,
-      applied ? promo.toUpperCase() : undefined,
-    );
-    setRef(bk.ref);
-    setStep("done");
-  };
-
-  return (
-    <div>
-      {/* Hero banner */}
-      <div className="relative h-[42vh] min-h-[320px] w-full overflow-hidden">
-        <img src={ev.image} alt={ev.title} className="h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/30 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 mx-auto max-w-7xl px-5 pb-8 text-white">
-          <Badge tone="accent" className="bg-white/90 text-accent-ink">
-            {ev.category}
-          </Badge>
-          <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight md:text-6xl">
-            {ev.title}
-          </h1>
-          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/85">
-            <span className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" /> {fmtDate(ev.date)}
-            </span>
-            <span className="flex items-center gap-2">
-              <Clock className="h-4 w-4" /> Doors {ev.doors} · Show {fmtTime(ev.date)}
-            </span>
-            <span className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" /> {ev.venue}, {ev.city}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 lg:grid-cols-[1fr_380px]">
-        {/* Left */}
-        <div>
-          <p className="max-w-2xl text-lg leading-relaxed text-muted">{ev.blurb}</p>
-
-          {/* Transparency + amenities */}
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="flex items-start gap-3 rounded-2xl border border-line p-4">
-              <Eye className="mt-0.5 h-5 w-5 text-accent" />
-              <div>
-                <div className="text-sm font-semibold">360° venue view</div>
-                <div className="text-sm text-muted">Preview sightlines from every section.</div>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 rounded-2xl border border-line p-4">
-              <Accessibility className="mt-0.5 h-5 w-5 text-accent" />
-              <div>
-                <div className="text-sm font-semibold">Accessible booking</div>
-                <div className="text-sm text-muted">Companion seats & on-site support available.</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Seat map */}
-          <div className="mt-10">
-            <Eyebrow>Choose your seats</Eyebrow>
-            <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight">
-              Interactive seating chart
-            </h2>
-            <p className="mt-2 text-sm text-muted">
-              Real-time availability. Front rows are VIP, middle Standard, back Concession.
-            </p>
-            <Card className="mt-5 p-6">
-              <SeatMap
-                ev={ev}
-                selected={sel.map((s) => s.seat)}
-                onToggle={toggle}
-              />
-            </Card>
-          </div>
-
-          {/* Community */}
-          <div className="mt-12">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-2xl font-semibold tracking-tight">From the community</h2>
-              <Link to="/community" className="flex items-center gap-1 text-sm text-accent hover:underline">
-                <Users className="h-4 w-4" /> Join the conversation
-              </Link>
-            </div>
-            <div className="mt-4 space-y-3">
-              {eventPosts.length ? (
-                eventPosts.map((p) => (
-                  <div key={p.id} className="flex gap-3 rounded-2xl border border-line p-4">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-ink">
-                      {p.author[0]}
-                    </div>
-                    <div>
-                      <div className="text-sm">
-                        <span className="font-semibold">{p.author}</span>{" "}
-                        {p.section && <Badge tone="neutral">Sec {p.section}</Badge>}{" "}
-                        <span className="text-muted">· {p.when}</span>
-                      </div>
-                      <p className="mt-1 text-sm text-muted">{p.body}</p>
-                      {p.photo && (
-                        <img src={p.photo} alt="Seat view" className="mt-3 h-40 w-full max-w-sm rounded-xl object-cover" />
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="rounded-2xl border border-dashed border-line p-6 text-sm text-muted">
-                  No posts yet — be the first to share the view.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right — booking summary */}
-        <div className="lg:sticky lg:top-24 lg:h-max">
-          <Card className="overflow-hidden">
-            <div className="border-b border-line p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Your selection</span>
-                <Badge tone={sel.length ? "accent" : "neutral"}>{sel.length} seats</Badge>
-              </div>
-              {sel.length ? (
-                <div className="mt-3 space-y-2">
-                  {sel.map((s) => (
-                    <div key={s.seat} className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded bg-accent text-[10px] font-semibold text-white">
-                          {s.seat}
-                        </span>
-                        {s.tier}
-                      </span>
-                      <span className="flex items-center gap-2 font-medium">
-                        {currency(s.price)}
-                        <button onClick={() => toggle(s.seat, s.tier, s.price)}>
-                          <X className="h-3.5 w-3.5 text-muted hover:text-danger" />
-                        </button>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-muted">Tap seats on the chart to add them.</p>
-              )}
-            </div>
-
-            <div className="space-y-2.5 p-5 text-sm">
-              <label className="flex items-center gap-2 text-muted">
-                <input
-                  type="checkbox"
-                  checked={companion}
-                  onChange={(e) => setCompanion(e.target.checked)}
-                  className="h-4 w-4 accent-accent"
-                />
-                Request companion assistance (free)
-              </label>
-              <div className="flex justify-between">
-                <span className="text-muted">Subtotal</span>
-                <span>{currency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="flex items-center gap-1 text-muted">
-                  Booking fee <Info className="h-3 w-3" />
-                </span>
-                <span>{currency(fee)}</span>
-              </div>
-              {applied > 0 && (
-                <div className="flex justify-between text-live">
-                  <span>Promo ({applied}% off)</span>
-                  <span>−{currency(discount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between border-t border-line pt-2.5 text-base font-semibold">
-                <span>Total</span>
-                <span className="font-display">{currency(total)}</span>
-              </div>
-              <p className="text-xs text-live">✓ No hidden charges. This is the final price.</p>
-              <Button className="mt-2 w-full" disabled={!sel.length} onClick={startCheckout}>
-                {user ? "Continue to payment" : "Sign in to book"}
-              </Button>
-            </div>
-          </Card>
-
-          <div className="mt-4 flex items-center gap-2 rounded-2xl bg-mist/60 p-4 text-xs text-muted">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-live" />
-            Every ticket carries a unique, tamper-checked QR verified at the gate.
-          </div>
-        </div>
-      </div>
-
-      {/* Checkout modal */}
-      {step !== "seats" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
-          <Card className="w-full max-w-md p-6 ee-rise">
-            {step === "pay" && (
-              <>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-display text-2xl font-semibold">Checkout</h3>
-                  <button onClick={() => setStep("seats")}>
-                    <X className="h-5 w-5 text-muted" />
-                  </button>
-                </div>
-                <p className="mt-1 text-sm text-muted">
-                  {sel.length} seats · {ev.title}
-                </p>
-
-                <div className="mt-5">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted">Promo code</div>
-                  <div className="mt-2 flex gap-2">
-                    <Input
-                      value={promo}
-                      onChange={(e) => setPromo(e.target.value)}
-                      placeholder="EARLYBIRD"
-                    />
-                    <Button variant="outline" onClick={applyPromo}>
-                      Apply
-                    </Button>
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {Object.entries(PROMOS).map(([code, pct]) => (
-                      <button
-                        key={code}
-                        onClick={() => {
-                          setPromo(code);
-                          setApplied(pct);
-                        }}
-                        className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent-ink"
-                      >
-                        {code} −{pct}%
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-5">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted">Payment method</div>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {["Card", "PayPal", "PayNow"].map((m, i) => (
-                      <div
-                        key={m}
-                        className={cx(
-                          "cursor-pointer rounded-xl border p-3 text-center text-sm font-medium",
-                          i === 0 ? "border-accent bg-accent-soft text-accent-ink" : "border-line text-muted",
-                        )}
-                      >
-                        {m}
-                      </div>
-                    ))}
-                  </div>
-                  <Input className="mt-2" placeholder="Card number (simulation)" />
-                </div>
-
-                <div className="mt-5 flex items-center justify-between rounded-xl bg-mist/60 p-3 text-sm">
-                  <span className="text-muted">Total due</span>
-                  <span className="font-display text-lg font-semibold">{currency(total)}</span>
-                </div>
-                <Button className="mt-4 w-full" onClick={confirm}>
-                  Pay {currency(total)}
-                </Button>
-              </>
-            )}
-
-            {step === "done" && (
-              <div className="text-center">
-                <CheckCircle2 className="mx-auto h-12 w-12 text-live" />
-                <h3 className="mt-3 font-display text-2xl font-semibold">You're going!</h3>
-                <p className="mt-1 text-sm text-muted">
-                  Booking <span className="font-semibold text-ink">{ref}</span> confirmed. Your
-                  digital tickets are ready.
-                </p>
-                <div className="mx-auto mt-5 w-max rounded-2xl border border-line p-4">
-                  <QRCode value={ticketPayload(ref, sel.map((s) => s.seat).join(","))} />
-                  <div className="mt-2 flex items-center justify-center gap-1 text-xs text-muted">
-                    <Ticket className="h-3 w-3" /> {sel.map((s) => s.seat).join(", ")}
-                  </div>
-                </div>
-                <div className="mt-6 flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => setStep("seats")}>
-                    Close
-                  </Button>
-                  <Button className="flex-1" onClick={() => navigate("/dashboard/customer")}>
-                    My tickets
-                  </Button>
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
+  const reserve = () => run(async () => {
+    key.current ??= crypto.randomUUID();
+    const result = seats.length ? await holdSeats(id, chosen, key.current) : await holdCategories(id, categoryItems, key.current);
+    setBooking(result); await refreshBookings(); await loadSeats();
+  });
+  const pay = () => run(async () => {
+    if (!booking) return;
+    const result = await payBooking(booking.id, failPayment);
+    setBooking(result); await refreshBookings(); await loadSeats();
+  });
+  const release = () => run(async () => {
+    if (!booking) return;
+    await cancelHeldBooking(booking.id); setBooking(null); setSelected([]); setQuantities({}); key.current = null;
+    await refreshBookings(); await loadSeats();
+  });
+  if (sessionLoading) return <p className="p-12" role="status">Restoring your session…</p>;
+  if (!user) return <div className="mx-auto max-w-xl p-12 text-center"><h1 className="font-brand text-3xl">Sign in to book tickets</h1><Link to="/login" state={{ returnTo: `/events/${id}` }}><Button className="mt-5">Sign in</Button></Link></div>;
+  if (loading) return <p className="p-12" role="status">Loading event and seats…</p>;
+  if (!event) return <div className="p-12"><p role="alert">{error || "Event not found."}</p><Link to="/events">Back to events</Link></div>;
+  return <div className="mx-auto max-w-7xl px-5 py-10">
+    <div className="relative mb-8 h-64 overflow-hidden rounded-3xl">
+      <img src={event.imageUrl ?? "/event-placeholder.svg"} alt={event.title} className="h-full w-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/70 to-transparent" />
     </div>
-  );
+    <Badge tone="accent">Ticketing & checkout</Badge>
+    <h1 className="mt-3 font-brand text-4xl font-bold text-brand-deep">{event.title}</h1>
+    <p className="mt-3 flex flex-wrap gap-5 text-sm text-muted"><span className="flex gap-2"><Calendar className="h-4 w-4"/>{fmtDate(event.startAt)}</span><span className="flex gap-2"><MapPin className="h-4 w-4"/>{event.venueName}</span></p>
+    <p className="mt-4 max-w-3xl text-muted">{event.description}</p>
+    <div className="mt-5 flex flex-wrap gap-3"><Link to="/community"><Button variant="outline">Event community & venue views</Button></Link></div>
+    {error && <div role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-danger">{error}</div>}
+    {booking?.status === "CONFIRMED" ? <Card className="mt-8 p-7">
+      <ShieldCheck className="h-8 w-8 text-emerald-600"/><h2 className="mt-3 font-brand text-2xl font-bold">Booking confirmed</h2>
+      <p className="mt-2 text-sm">Reference: {booking.id} · Paid {currency(booking.totalCents/100)}</p>
+      <div className="mt-6 grid gap-5 sm:grid-cols-3">{booking.tickets.map(t => <div key={t.id} className="rounded-xl border p-5 text-center"><h3 className="mb-4 font-bold">Seat {t.seatLabel ?? "General Admission"}</h3><div className="mx-auto w-max"><QRCode value={ticketPayload(t.code)}/></div><Link className="mt-3 inline-block text-sm text-brand-purple underline" to={`/verify/${encodeURIComponent(t.code)}`}>Verify ticket</Link></div>)}</div>
+      <Link to="/dashboard/customer"><Button className="mt-6"><Ticket className="h-4 w-4"/> My tickets</Button></Link>
+      <Link to="/community?tab=exchange&view=create"><Button className="ml-3 mt-6" variant="outline">Exchange a ticket</Button></Link>
+    </Card> : <div className="mt-8 grid gap-7 lg:grid-cols-[1fr_360px]">
+      <Card className="p-6"><h2 className="font-brand text-2xl font-bold">Choose your seats</h2><p className="my-4 text-sm text-muted">Availability refreshes every 5 seconds. Your selection is reserved when you continue to checkout.</p>
+        {seats.length ? <SeatMap seats={seats} selected={selected} disabled={busy || !!booking || user.role !== "customer"} onToggle={s => {
+          setSelected(current => current.includes(s.id) ? current.filter(i => i !== s.id) : current.length < event.purchaseLimitPerEvent ? [...current,s.id] : current); key.current = null;
+        }}/> : event.purchasable ? <div className="space-y-4"><p className="text-sm text-muted">This event sells tickets by category. No assigned seats are configured.</p>{event.ticketCategories.map(c => <label key={c.id} className="flex items-center justify-between gap-4 rounded-xl border p-4"><span>{c.name} · {currency(c.priceCents / 100)}<span className="block text-xs text-muted">{c.remaining} remaining</span></span><input aria-label={`${c.name} quantity`} className="w-20 rounded border p-2" type="number" min={0} max={Math.min(c.remaining, event.purchaseLimitPerEvent)} value={quantities[c.id] ?? 0} disabled={!c.onSale || busy || !!booking || user.role !== "customer"} onChange={e => { setQuantities(current => ({ ...current, [c.id]: Math.max(0, Math.min(Math.floor(Number(e.target.value)), c.remaining, event.purchaseLimitPerEvent)) })); key.current = null; }} /></label>)}</div> : <p>Tickets for this event are sold by the event provider. {event.externalUrl && <a className="text-brand-purple underline" href={event.externalUrl} target="_blank" rel="noreferrer">Visit official ticket site</a>}</p>}
+      </Card>
+      <Card className="h-max space-y-4 p-6"><h2 className="font-brand text-2xl font-bold">{booking ? "Checkout" : "Your selection"}</h2>
+        <ul className="space-y-2 text-sm">{chosen.map(s => <li key={s.id}>{s.label} · {s.categoryName} · {currency(s.priceCents/100)}</li>)}</ul>
+        {!seats.length && <ul className="text-sm">{categoryItems.map(item => <li key={item.ticketCategoryId}>{event.ticketCategories.find(c => c.id === item.ticketCategoryId)?.name} × {item.quantity}</li>)}</ul>}
+        <p className="flex justify-between font-bold"><span>{booking ? "Total" : "Estimated total"}</span><span>{currency(booking ? booking.totalCents/100 : estimated)}</span></p>
+        <p className="text-xs text-muted">Prices include all configured charges.</p>
+        {booking ? <>
+          <p className="text-sm" role="status">{expired ? "Your hold expired. Release it and select seats again." : `Reserved for ${Math.max(0, Math.ceil((Date.parse(booking.holdExpiresAt ?? "") - now)/1000))} seconds.`}</p>
+          <label className="block text-sm">Simulated payment result<select className="mt-2 w-full rounded-lg border p-2" value={failPayment ? "fail" : "success"} onChange={e => setFailPayment(e.target.value === "fail")}><option value="success">Success — no real charge</option><option value="fail">Declined — test retry</option></select></label>
+          <Button className="w-full" disabled={busy || expired} onClick={pay}>{busy ? "Processing…" : "Confirm simulated payment"}</Button>
+          <Button className="w-full" variant="outline" disabled={busy} onClick={release}>Release reservation</Button>
+        </> : <><p className="text-xs text-muted">Up to {event.purchaseLimitPerEvent} tickets per customer for this event.</p><Button className="w-full" disabled={busy || !count || count > event.purchaseLimitPerEvent || user.role !== "customer"} onClick={reserve}>{busy ? "Reserving…" : "Reserve & continue"}</Button></>}
+      </Card>
+    </div>}
+  </div>;
 }

@@ -52,9 +52,9 @@ export default function AssistanceRequestForm() {
   if (!booking || !event || !eligible || openRequest) {
     return (
       <div className="mx-auto max-w-xl px-5 py-20 text-center">
-        <Accessibility className="mx-auto h-10 w-10 text-accent" />
-        <h1 className="mt-4 font-display text-4xl font-semibold">Request unavailable</h1>
-        <p className="mt-3 text-muted">
+        <Accessibility className="mx-auto h-12 w-12 text-brand-orange" />
+        <h1 className="mt-4 font-brand text-4xl font-bold text-brand-deep">Request unavailable</h1>
+        <p className="mt-3 text-sm sm:text-base text-muted">
           {!eligible
             ? "Assistance can only be requested for confirmed, upcoming bookings."
             : "This booking already has an open assistance request."}
@@ -68,20 +68,24 @@ export default function AssistanceRequestForm() {
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-14">
-      <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/customer")} className="-ml-3">
+      <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/customer")} className="-ml-3 cursor-pointer">
         <ArrowLeft className="h-4 w-4" /> Back to my tickets
       </Button>
-      <Badge tone="accent" className="mt-5"><Accessibility className="h-3 w-3" /> EaseGuide</Badge>
-      <h1 className="mt-4 font-display text-5xl font-semibold tracking-tight">Request assistance</h1>
+      <Badge tone="neutral" className="mt-5 border-0 bg-brand-orange text-white font-bold shadow-sm">
+        <Accessibility className="h-3 w-3" /> EaseGuide
+      </Badge>
+      <h1 className="mt-4 font-brand text-4xl sm:text-5xl font-bold tracking-tight text-brand-deep">
+        Request assistance
+      </h1>
 
-      <Card className="mt-8 overflow-hidden">
-        <div className="border-b border-line bg-mist/50 p-6">
-          <h2 className="font-display text-2xl font-semibold">{event.title}</h2>
+      <Card className="mt-8 overflow-hidden border border-brand-purple/15 bg-white shadow-sm rounded-3xl">
+        <div className="border-b border-brand-purple/10 bg-brand-lilac/30 p-6">
+          <h2 className="font-brand text-2xl font-bold text-brand-deep">{event.title}</h2>
           <p className="mt-2 flex items-center gap-2 text-sm text-muted">
-            <Calendar className="h-4 w-4" /> {fmtDate(event.date)} · {event.venue}
+            <Calendar className="h-4 w-4 text-brand-purple" /> {fmtDate(event.date)} · {event.venue}
           </p>
         </div>
-        <form onSubmit={submit} className="space-y-7 p-6">
+        <form onSubmit={submit} className="space-y-7 p-6 sm:p-8">
           <div>
             <Field label="Support needs">
               <Textarea
@@ -96,24 +100,26 @@ export default function AssistanceRequestForm() {
                 aria-invalid={Boolean(error)}
                 aria-describedby={error ? "support-needs-error support-needs-count" : "support-needs-count"}
                 placeholder="Tell us what would make your event journey easier."
-                className="focus-visible:ring-4 focus-visible:ring-accent/20"
+                className="focus-visible:ring-4 focus-visible:ring-brand-purple/20"
               />
             </Field>
-            <div className="mt-2 flex justify-between gap-4 text-xs">
-              {error ? <span id="support-needs-error" className="font-medium text-danger">{error}</span> : <span />}
+            <div className="mt-2 flex justify-between gap-4 text-xs font-medium">
+              {error ? <span id="support-needs-error" className="font-semibold text-danger">{error}</span> : <span />}
               <span id="support-needs-count" className="text-muted">{supportNeeds.length}/{maxLength}</span>
             </div>
           </div>
 
           <fieldset>
-            <legend className="text-sm font-medium">Assistance level</legend>
+            <legend className="text-sm font-bold text-brand-deep">Assistance level</legend>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {levels.map((option) => (
                 <label
                   key={option.value}
                   className={cx(
-                    "cursor-pointer rounded-2xl border p-4 transition focus-within:ring-4 focus-within:ring-accent/20",
-                    level === option.value ? "border-accent bg-accent-soft/60" : "border-line hover:border-accent/40",
+                    "cursor-pointer rounded-2xl border p-4 transition focus-within:ring-4 focus-within:ring-brand-purple/20",
+                    level === option.value
+                      ? "border-brand-purple bg-brand-lilac/60 shadow-sm"
+                      : "border-brand-purple/15 bg-brand-warm/60 hover:border-brand-purple hover:bg-brand-lilac/30",
                   )}
                 >
                   <input
@@ -124,9 +130,9 @@ export default function AssistanceRequestForm() {
                     onChange={() => setLevel(option.value)}
                     className="sr-only"
                   />
-                  <span className="flex items-center justify-between font-semibold">
+                  <span className="flex items-center justify-between font-bold text-brand-deep">
                     {option.value}
-                    {level === option.value && <Check className="h-4 w-4 text-accent" />}
+                    {level === option.value && <Check className="h-4 w-4 text-brand-purple" />}
                   </span>
                   <span className="mt-2 block text-xs leading-relaxed text-muted">{option.copy}</span>
                 </label>
@@ -134,7 +140,7 @@ export default function AssistanceRequestForm() {
             </div>
           </fieldset>
 
-          <div className="flex flex-wrap gap-3 border-t border-line pt-6">
+          <div className="flex flex-wrap gap-3 border-t border-brand-purple/10 pt-6">
             <Button type="submit">Submit request</Button>
             <Button type="button" variant="outline" onClick={() => navigate("/dashboard/customer")}>
               Cancel

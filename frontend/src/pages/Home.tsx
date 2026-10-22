@@ -28,7 +28,7 @@ const promises = [
 ];
 
 export default function Home() {
-  const { events, eventsSource, user } = useStore();
+  const { publicEvents: events, eventsSource, user } = useStore();
   const navigate = useNavigate();
   const featured = events.filter((event) => event.featured && event.status === "published");
   const published = events.filter((event) => event.status === "published");
@@ -104,7 +104,7 @@ export default function Home() {
               <div className="flex items-center gap-2 text-xs font-semibold text-white">
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    eventsSource === "ticketmaster" || eventsSource === "backend"
+                    eventsSource === "backend"
                       ? "bg-live"
                       : "bg-brand-orange"
                   }`}
@@ -113,9 +113,9 @@ export default function Home() {
                   ? "Finding upcoming events…"
                   : eventsSource === "backend"
                     ? "Live via EventEase API"
-                    : eventsSource === "ticketmaster"
-                      ? "Live via Ticketmaster"
-                      : "Curated event preview"}
+                    : eventsSource === "error"
+                      ? "Event service unavailable"
+                      : "No events available"}
               </div>
             </div>
             <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2 sm:gap-6">
@@ -186,14 +186,14 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 py-20 md:grid-cols-[0.9fr_1.1fr] md:py-24">
           <div>
             <Badge tone="accent" className="bg-brand-orange text-white">
-              <Users className="h-3 w-3" /> EaseComms
+              <Users className="h-3 w-3" /> <span className="font-feature italic font-black">EaseComms</span>
             </Badge>
             <h2 className="mt-6 max-w-xl font-brand text-4xl font-bold leading-tight tracking-tight md:text-5xl">
-              EaseComms, a community for event discussion and sharing
+              <span className="font-feature italic font-black text-brand-orange">EaseComms</span>, a community for event discussion and sharing
             </h2>
             <p className="mt-5 max-w-lg leading-relaxed text-white/65">
-              Meet fellow fans, share real venue views with EasePix, earn points for useful photos,
-              and exchange eligible tickets securely through EaseXchange.
+              Meet fellow fans, share real venue views with <span className="font-feature italic font-black text-brand-orange">EasePix</span>, earn points for useful photos,
+              and exchange eligible tickets securely through <span className="font-feature italic font-black text-brand-magenta">EaseXchange</span>.
             </p>
             <Button
               className="mt-8 bg-brand-purple text-white shadow-none hover:bg-brand-orange"
@@ -210,14 +210,14 @@ export default function Home() {
             />
             <div className="relative border-l-2 border-brand-orange bg-white/5 p-7">
               <Camera className="h-7 w-7 text-brand-orange" />
-              <div className="mt-10 font-brand text-2xl font-bold">EasePix</div>
+              <div className="mt-10 font-feature text-3xl font-black italic tracking-tight text-brand-orange">EasePix</div>
               <p className="mt-3 text-sm leading-relaxed text-white/60">
                 Upload relevant venue-seat photos and earn community points.
               </p>
             </div>
             <div className="relative border-l-2 border-brand-magenta bg-white/10 p-7 sm:translate-y-8">
               <Repeat className="h-7 w-7 text-brand-magenta" />
-              <div className="mt-10 font-brand text-2xl font-bold">EaseXchange</div>
+              <div className="mt-10 font-feature text-3xl font-black italic tracking-tight text-brand-magenta">EaseXchange</div>
               <p className="mt-3 text-sm leading-relaxed text-white/60">
                 Exchange eligible tickets with verified users under fair criteria.
               </p>
@@ -234,10 +234,10 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl gap-14 px-5 py-20 md:grid-cols-[0.8fr_1.2fr] md:py-24">
           <div className="md:sticky md:top-28 md:h-max">
             <Badge tone="accent" className="bg-brand-lilac text-brand-deep">
-              <Route className="h-3 w-3" /> EaseGuide
+              <Route className="h-3 w-3" /> <span className="font-feature italic font-black">EaseGuide</span>
             </Badge>
             <h2 className="mt-6 font-brand text-4xl font-bold tracking-tight text-brand-deep md:text-5xl">
-              EaseGuide, make your journey seamless
+              <span className="font-feature italic font-black text-brand-purple">EaseGuide</span>, make your journey seamless
             </h2>
             <p className="mt-5 max-w-md leading-relaxed text-muted">
               From planning your route to finding the right entrance and seat, get helpful guidance

@@ -1,277 +1,62 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
-import {
-  Ticket,
-  History,
-  Repeat,
-  Heart,
-  Calendar,
-  MapPin,
-  QrCode,
-  X,
-  Gift,
-  Accessibility,
-} from "lucide-react";
+import { Ticket, History, Repeat, QrCode, X } from "lucide-react";
 import { useStore, currency, fmtDate } from "../lib/store";
-import type { Booking } from "../lib/data";
+import { fetchOwnedTickets, payBooking, type OwnedTicket } from "../lib/ticketingApi";
 import { DashboardShell, StatCard, type NavItem } from "../components/DashboardShell";
-import { QRCode, ticketPayload, Button, Badge, Card, Input, cx } from "../components/ui";
+import { QRCode, ticketPayload, Button, Badge, Card } from "../components/ui";
 
 const nav: NavItem[] = [
   { id: "tickets", label: "My tickets", icon: Ticket },
   { id: "history", label: "Booking history", icon: History },
-  { id: "resale", label: "Refund & resale", icon: Repeat },
-  { id: "rewards", label: "Loyalty rewards", icon: Gift },
+  { id: "refund", label: "Refund & exchange", icon: Repeat },
 ];
-
 export default function CustomerDashboard() {
-  const { bookings, events, assistanceRequests, cancelBooking, listForResale } = useStore();
-  const mine = bookings.filter((b) => b.userId === "u-cust");
-  const [qr, setQr] = useState<Booking | null>(null);
-  const [resell, setResell] = useState<Booking | null>(null);
-  const [ask, setAsk] = useState("");
-
-  const evOf = (id: string) => events.find((e) => e.id === id);
-  const upcoming = mine.filter((b) => b.status === "confirmed");
-  const spent = mine.filter((b) => b.status !== "refunded").reduce((a, b) => a + b.total, 0);
-
-  return (
-    <DashboardShell role="customer" title="My dashboard" nav={nav}>
-      {(active) => (
-        <>
-          <div className="mb-8 grid gap-4 sm:grid-cols-3">
-            <StatCard label="Upcoming events" value={String(upcoming.length)} tone="accent" />
-            <StatCard label="Total tickets" value={String(mine.reduce((a, b) => a + b.seats.length, 0))} />
-            <StatCard label="Lifetime spend" value={currency(spent)} sub="Across all bookings" />
-          </div>
-
-          {active === "tickets" && (
-            <div className="space-y-4">
-              <div className="flex justify-end">
-                <Link to="/assistance">
-                  <Button variant="outline" size="sm">
-                    <Accessibility className="h-4 w-4" /> My assistance requests
-                  </Button>
-                </Link>
-              </div>
-              {upcoming.length ? (
-                upcoming.map((b) => {
-                  const ev = evOf(b.eventId)!;
-                  const openRequest = assistanceRequests.find(
-                    (request) =>
-                      request.bookingId === b.id &&
-                      ["Submitted", "Assigned", "In progress"].includes(request.status),
-                  );
-                  const canRequest = new Date(ev.date).getTime() > Date.now();
-                  return (
-                    <Card key={b.id} className="flex flex-col overflow-hidden sm:flex-row">
-                      <img src={ev.image} alt={ev.title} className="h-32 w-full object-cover sm:h-auto sm:w-40" />
-                      <div className="flex flex-1 flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <Badge tone="live">Confirmed</Badge>
-                          <h3 className="mt-2 font-display text-xl font-semibold">{ev.title}</h3>
-                          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-                            <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{fmtDate(ev.date)}</span>
-                            <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{ev.venue}</span>
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {b.seats.map((s) => (
-                              <span key={s.seat} className="rounded-md bg-mist px-2 py-1 text-xs font-medium">
-                                {s.seat} · {s.tier}
-                              </span>
-                            ))}
-                          </div>
-                          <div className="mt-2 text-xs text-muted">Ref {b.ref}</div>
-                        </div>
-                        <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                          <Button variant="dark" onClick={() => setQr(b)}>
-                            <QrCode className="h-4 w-4" /> Show ticket
-                          </Button>
-                          {openRequest ? (
-                            <Link
-                              to={`/assistance?request=${openRequest.id}`}
-                              className="text-center text-xs font-medium text-accent hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
-                            >
-                              Request already open, view it
-                            </Link>
-                          ) : canRequest ? (
-                            <Link to={`/assistance/request/${b.id}`}>
-                              <Button variant="outline" size="sm" className="w-full">
-                                <Accessibility className="h-4 w-4" /> Request assistance
-                              </Button>
-                            </Link>
-                          ) : null}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })
-              ) : (
-                <EmptyState />
-              )}
-            </div>
-          )}
-
-          {active === "history" && (
-            <Card className="overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="border-b border-line bg-mist/50 text-left text-xs uppercase tracking-wide text-muted">
-                  <tr>
-                    <th className="p-4">Event</th>
-                    <th className="p-4">Booked</th>
-                    <th className="p-4">Seats</th>
-                    <th className="p-4">Total</th>
-                    <th className="p-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mine.map((b) => (
-                    <tr key={b.id} className="border-b border-line last:border-0">
-                      <td className="p-4 font-medium">{evOf(b.eventId)?.title}</td>
-                      <td className="p-4 text-muted">{fmtDate(b.purchasedAt)}</td>
-                      <td className="p-4 text-muted">{b.seats.length}</td>
-                      <td className="p-4">{currency(b.total)}</td>
-                      <td className="p-4">
-                        <Badge
-                          tone={
-                            b.status === "confirmed" ? "live" : b.status === "refunded" ? "warn" : b.status === "listed" ? "accent" : "neutral"
-                          }
-                        >
-                          {b.status}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          )}
-
-          {active === "resale" && (
-            <div className="space-y-4">
-              <div className="rounded-2xl bg-accent-soft p-4 text-sm text-accent-ink">
-                Change of plans? Get a full refund up to 48h before the show, or list your seat for a
-                secure, verified one-to-one transfer at face value.
-              </div>
-              {upcoming.map((b) => {
-                const ev = evOf(b.eventId)!;
-                return (
-                  <Card key={b.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h3 className="font-display text-lg font-semibold">{ev.title}</h3>
-                      <div className="text-sm text-muted">
-                        {b.seats.map((s) => s.seat).join(", ")} · Paid {currency(b.total)} · Ref {b.ref}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="danger" size="sm" onClick={() => cancelBooking(b.id)}>
-                        Cancel & refund
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => { setResell(b); setAsk(String(b.total)); }}>
-                        <Repeat className="h-4 w-4" /> List for resale
-                      </Button>
-                    </div>
-                  </Card>
-                );
-              })}
-              {!upcoming.length && <EmptyState />}
-            </div>
-          )}
-
-          {active === "rewards" && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Card className="p-6">
-                <Heart className="h-6 w-6 text-accent" />
-                <div className="mt-3 font-display text-3xl font-semibold">1,240 pts</div>
-                <p className="text-sm text-muted">Earn 1 point per S$1. Redeem for fee-free bookings and early access.</p>
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-mist">
-                  <div className="h-full w-3/4 rounded-full bg-accent" />
-                </div>
-                <p className="mt-2 text-xs text-muted">260 pts to Gold tier</p>
-              </Card>
-              <Card className="p-6">
-                <Gift className="h-6 w-6 text-accent" />
-                <div className="mt-3 font-semibold">Your referral code</div>
-                <div className="mt-2 flex items-center gap-2">
-                  <code className="rounded-lg bg-mist px-3 py-2 font-mono text-sm">ALEX-FAN5</code>
-                  <Button size="sm" variant="outline">Copy</Button>
-                </div>
-                <p className="mt-3 text-sm text-muted">Friends get 5% off their first booking; you earn 200 points each.</p>
-              </Card>
-            </div>
-          )}
-
-          {/* QR modal */}
-          {qr && (
-            <Modal onClose={() => setQr(null)}>
-              <div className="text-center">
-                <Badge tone="live">Valid ticket</Badge>
-                <h3 className="mt-3 font-display text-2xl font-semibold">{evOf(qr.eventId)?.title}</h3>
-                <p className="text-sm text-muted">{fmtDate(evOf(qr.eventId)!.date)} · {evOf(qr.eventId)?.venue}</p>
-                <div className="mx-auto mt-5 w-max rounded-2xl border border-line p-4">
-                  <QRCode value={ticketPayload(qr.ref, qr.seats.map((s) => s.seat).join(","))} size={160} />
-                </div>
-                <p className="mt-3 text-sm">Seats <b>{qr.seats.map((s) => s.seat).join(", ")}</b></p>
-                <p className="text-xs text-muted">Ref {qr.ref} · Present at the gate for scanning</p>
-              </div>
-            </Modal>
-          )}
-
-          {/* Resale modal */}
-          {resell && (
-            <Modal onClose={() => setResell(null)}>
-              <h3 className="font-display text-2xl font-semibold">List for secure resale</h3>
-              <p className="mt-1 text-sm text-muted">
-                {evOf(resell.eventId)?.title} · {resell.seats.map((s) => s.seat).join(", ")}
-              </p>
-              <div className="mt-4">
-                <div className="text-sm font-medium">Asking price (max face value {currency(resell.total)})</div>
-                <Input
-                  className="mt-2"
-                  value={ask}
-                  onChange={(e) => setAsk(e.target.value)}
-                  type="number"
-                  max={resell.total}
-                />
-              </div>
-              <Button
-                className="mt-4 w-full"
-                onClick={() => {
-                  listForResale(resell.id, resell.seats[0].seat, Math.min(+ask, resell.total));
-                  setResell(null);
-                }}
-              >
-                List on secure exchange
-              </Button>
-            </Modal>
-          )}
-        </>
-      )}
-    </DashboardShell>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="rounded-3xl border border-dashed border-line p-16 text-center">
-      <Ticket className="mx-auto h-8 w-8 text-muted" />
-      <p className="mt-3 text-muted">No upcoming events yet.</p>
-      <Link to="/events">
-        <Button className="mt-4">Discover events</Button>
-      </Link>
-    </div>
-  );
-}
-
-function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
-      <Card className={cx("relative w-full max-w-md p-6 ee-rise")}>
-        <button onClick={onClose} className="absolute right-4 top-4 text-muted hover:text-ink">
-          <X className="h-5 w-5" />
-        </button>
-        {children}
-      </Card>
-    </div>
-  );
+  const { user, sessionLoading, bookings, bookingsError, cancelBooking, refreshBookings } = useStore();
+  const [tickets, setTickets] = useState<OwnedTicket[]>([]);
+  const [qr, setQr] = useState<OwnedTicket | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = useCallback(async (signal?: AbortSignal) => {
+    if (!user || user.role !== "customer") return;
+    const result = await fetchOwnedTickets(signal);
+    if (!signal?.aborted) { setTickets(result); setQr(current => current ? result.find(t => t.id === current.id) ?? null : null); }
+  }, [user?.id]);
+  useEffect(() => {
+    setTickets([]); setQr(null); setError("");
+    if (!user || user.role !== "customer") { setLoading(false); return; }
+    const controller = new AbortController(); setLoading(true);
+    load(controller.signal).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not load tickets."); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [user?.id, load]);
+  const act = async (id: string, operation: () => Promise<unknown>) => {
+    if (busy) return;
+    setBusy(id); setError("");
+    try { await operation(); await Promise.all([refreshBookings(), load()]); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Action not confirmed. Refresh to check the current state."); }
+    finally { setBusy(null); }
+  };
+  if (sessionLoading) return <p className="p-10" role="status">Restoring your session…</p>;
+  if (!user || user.role !== "customer") return <div className="p-10"><p>Sign in as a customer to view your tickets.</p><Link to="/login"><Button className="mt-4">Sign in</Button></Link></div>;
+  const mine = bookings.filter(b => b.userId === user.id);
+  const valid = tickets.filter(t => t.status === "VALID" && t.bookingStatus === "CONFIRMED" && !t.checkedInAt);
+  const spent = mine.filter(b => b.status === "confirmed").reduce((sum,b) => sum+b.total,0);
+  return <DashboardShell role="customer" title="My dashboard" nav={nav}>{active => <>
+    <div className="mb-6 flex justify-end"><Button variant="outline" disabled={!!busy} onClick={() => act("refresh", async () => {})}>Refresh tickets & bookings</Button></div>
+    <div className="mb-7 grid gap-4 sm:grid-cols-3"><StatCard label="Valid owned tickets" value={String(valid.length)} tone="accent"/><StatCard label="Bookings" value={String(mine.length)}/><StatCard label="Confirmed purchases" value={currency(spent)}/></div>
+    {(error || bookingsError) && <p role="alert" className="mb-5 rounded-xl bg-rose-50 p-4 text-danger">{error || bookingsError}</p>}
+    {loading && <p role="status">Loading tickets…</p>}
+    {active === "tickets" && <div className="space-y-4">{!loading && !tickets.length && <Card className="p-8"><p>No tickets yet.</p><Link to="/events"><Button className="mt-4">Browse events</Button></Link></Card>}
+      {tickets.map(t => <Card key={t.id} className="flex flex-wrap items-center justify-between gap-4 p-6">
+        <div><Badge tone={t.status === "VALID" && !t.checkedInAt ? "live" : "neutral"}>{t.checkedInAt ? "Admitted" : t.status}</Badge><h2 className="mt-2 font-brand text-xl font-bold">{t.event.title}</h2><p className="mt-1 text-sm text-muted">{fmtDate(t.event.startAt)} · {t.event.venueName}</p><p className="mt-2 font-semibold">{t.seatLabel ?? "General Admission"} · {t.categoryName} · {t.seatSection}</p><p className="mt-1 text-sm">Purchase price: {currency(t.unitPriceCents/100)}</p></div>
+        <div className="flex flex-wrap gap-2"><Button disabled={t.status !== "VALID" || t.bookingStatus !== "CONFIRMED" || !!t.checkedInAt} onClick={() => setQr(t)}><QrCode className="h-4 w-4"/> Show ticket</Button>
+        {t.status === "VALID" && !t.checkedInAt && <Link to={`/community?tab=exchange&view=create&ticket=${encodeURIComponent(t.id)}`}><Button variant="outline">Exchange ticket</Button></Link>}</div>
+      </Card>)}
+    </div>}
+    {active === "history" && <Card className="overflow-x-auto p-4"><table className="w-full text-left text-sm"><thead><tr><th className="p-3">Event</th><th className="p-3">Booked</th><th className="p-3">Total</th><th className="p-3">Status</th><th className="p-3">Action</th></tr></thead><tbody>{mine.map(b => <tr key={b.id} className="border-t"><td className="p-3">{b.event?.title}<p className="text-xs text-muted">{b.id}</p></td><td className="p-3">{fmtDate(b.purchasedAt)}</td><td className="p-3">{currency(b.total)}</td><td className="p-3">{b.status.replace(/_/g," ")}</td><td className="p-3">{b.status === "confirmed" && <Link className="text-brand-purple underline" to={`/assistance/request/${b.id}`}>Request assistance</Link>}{b.status === "pending_payment" && <Button size="sm" disabled={!!busy} onClick={() => act(b.id, () => payBooking(b.id))}>Resume simulated payment</Button>}</td></tr>)}</tbody></table>{!mine.length && <p className="p-3">No bookings yet.</p>}</Card>}
+    {active === "refund" && <div className="space-y-4"><p className="text-sm text-muted">Refund eligibility comes from the backend. Tickets already admitted or exchanged cannot be refunded as part of their original booking.</p>{mine.map(b => <Card key={b.id} className="flex flex-wrap items-center justify-between gap-4 p-6"><div><h2 className="font-bold">{b.event?.title}</h2><p className="text-sm text-muted">{b.status.replace(/_/g," ")} · {currency(b.total)}</p></div><Button variant="danger" disabled={!!busy || !b.cancellable} onClick={() => act(b.id, () => cancelBooking(b.id))}>{busy === b.id ? "Processing…" : b.status === "pending_payment" ? "Release hold" : "Cancel & refund"}</Button></Card>)}<Link to="/community?tab=exchange"><Button variant="outline" className="mt-3">Open <span className="font-feature italic font-black ml-1">EaseXchange</span></Button></Link></div>}
+    {qr && <div role="dialog" aria-modal="true" aria-label="Digital ticket" className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-5"><Card className="relative w-full max-w-md p-7 text-center"><button aria-label="Close ticket" className="absolute right-4 top-4" onClick={() => setQr(null)}><X className="h-5 w-5"/></button><h2 className="font-brand text-2xl font-bold">{qr.event.title}</h2><p className="my-4">Seat {qr.seatLabel ?? "General Admission"} · {qr.categoryName}</p><div className="mx-auto w-max"><QRCode value={ticketPayload(qr.code)} size={180}/></div><Link className="mt-5 block text-brand-purple underline" to={`/verify/${encodeURIComponent(qr.code)}`}>Open verification page</Link><p className="mt-3 break-all text-xs text-muted">{qr.code}</p></Card></div>}
+  </>}</DashboardShell>;
 }

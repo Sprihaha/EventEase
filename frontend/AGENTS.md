@@ -1,6 +1,6 @@
-# figma-make-app
+# EventEase
 
-React + Vite + Tailwind CSS project running inside Figma Make.
+React + Vite + Tailwind CSS project for the EventEase platform.
 
 ## Development Server
 
