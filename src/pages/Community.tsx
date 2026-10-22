@@ -145,12 +145,12 @@ function parseSeatKey(seatStr: string): { type: "letter" | "number" | "unknown";
     return { type: "letter", val: score };
   }
 
-  const letterMatch = seatStr.match(/\b([A-Z]{1,2})\b/);
+  const letterMatch = seatStr.match(/\b([a-z]{1,2})\b/i);
   if (letterMatch) {
     const raw = letterMatch[1];
     let score = 0;
     for (let i = 0; i < raw.length; i++) {
-      score = score * 26 + (raw.charCodeAt(i) - 64);
+      score = score * 26 + (raw.toUpperCase().charCodeAt(i) - 64);
     }
     return { type: "letter", val: score };
   }
@@ -161,6 +161,85 @@ function parseSeatKey(seatStr: string): { type: "letter" | "number" | "unknown";
   }
 
   return { type: "unknown", val: 0 };
+}
+
+function parseSeatParts(str: string): { row: string | null; seat: string | null; norm: string } {
+  const norm = str.toLowerCase().trim();
+  const rowMatch = norm.match(/\brow\s*([a-z0-9]+)\b/i);
+  const seatMatch = norm.match(/\bseat\s*([0-9]+|[a-z0-9]+)\b/i);
+
+  let standaloneRow: string | null = null;
+  let standaloneNum: string | null = null;
+
+  if (!rowMatch && !seatMatch) {
+    const singleLetterMatch = norm.match(/\b([a-z]{1,2})\b/i);
+    if (singleLetterMatch) standaloneRow = singleLetterMatch[1].toLowerCase();
+    const numMatch = norm.match(/\b([0-9]+)\b/);
+    if (numMatch) standaloneNum = numMatch[1].replace(/^0+/, "");
+  }
+
+  const row = (rowMatch ? rowMatch[1] : standaloneRow)?.toLowerCase() ?? null;
+  const rawSeat = seatMatch ? seatMatch[1] : standaloneNum;
+  const seat = rawSeat ? rawSeat.replace(/^0+/, "") : null;
+
+  return { row, seat, norm };
+}
+
+function isSeatMatch(searchedStr: string, seatStr: string): boolean {
+  if (!searchedStr || !seatStr) return false;
+  const search = parseSeatParts(searchedStr);
+  const target = parseSeatParts(seatStr);
+
+  // If user searched for both row and seat (e.g., "Row A Seat 12")
+  if (search.row && search.seat) {
+    return target.row === search.row && target.seat === search.seat;
+  }
+
+  // If user searched for specific row (e.g., "Row A" or "A")
+  if (search.row && !search.seat) {
+    return target.row === search.row;
+  }
+
+  // If user searched for specific seat number (e.g., "Seat 12" or "12")
+  if (!search.row && search.seat) {
+    return target.seat === search.seat || target.row === search.seat;
+  }
+
+  // Fallback for custom descriptive strings: check word-level token match with stop words excluded
+  const stopWords = new Set(["row", "seat", "seats", "section", "sec"]);
+  const searchTokens = search.norm
+    .replace(/[^a-z0-9]/g, " ")
+    .split(/\s+/)
+    .filter((tok) => tok && !stopWords.has(tok));
+
+  if (searchTokens.length === 0) return false;
+
+  const targetTokens = new Set(
+    target.norm
+      .replace(/[^a-z0-9]/g, " ")
+      .split(/\s+/)
+      .map((t) => t.replace(/^0+/, ""))
+  );
+
+  return searchTokens.every((tok) => targetTokens.has(tok.replace(/^0+/, "")));
+}
+
+function matchesSectionQuery(sectionName: string, query: string): boolean {
+  if (!query) return false;
+  const sName = sectionName.toLowerCase().trim();
+  const q = query.toLowerCase().trim();
+  if (sName === q) return true;
+
+  const cleanS = sName.replace(/^section\s+/i, "").trim();
+  const cleanQ = q.replace(/^section\s+/i, "").trim();
+  if (cleanS === cleanQ) return true;
+
+  if (q.includes("section") && !sName.includes("section")) return false;
+  if (sName.includes("section") && !q.includes("section")) {
+    return cleanS === cleanQ;
+  }
+
+  return false;
 }
 
 const sectionDataCatalog: SectionSegment[] = [
@@ -1571,10 +1650,9 @@ export default function Community() {
                         // If section was not provided, but row was provided, deduce section if possible
                         let deducedSection = "";
                         if (!searchedSec && searchedRow) {
-                          const rLower = searchedRow.toLowerCase();
                           const found = sectionDataCatalog.find((sec) =>
-                            sec.photos.some((p) => p.seat.toLowerCase().includes(rLower)) ||
-                            sec.rowRange.toLowerCase().includes(rLower)
+                            sec.photos.some((p) => isSeatMatch(searchedRow, p.seat)) ||
+                            isSeatMatch(searchedRow, sec.rowRange)
                           );
                           if (found) deducedSection = found.name;
                         }
@@ -1708,17 +1786,9 @@ export default function Community() {
                     // User posts for this event that have photos
                     const userEventPhotos = posts.filter((p) => p.photo && (!targetEventId || p.eventId === targetEventId));
 
-                    const searchedRow = (gallerySearchFilter?.row || seatRowInput || "").trim().toLowerCase();
+                    const searchedRow = (gallerySearchFilter?.row || seatRowInput || "").trim();
 
-                    const matchesSearchedSeat = (seatStr: string) => {
-                      if (!searchedRow) return false;
-                      const s = seatStr.toLowerCase();
-                      if (s.includes(searchedRow) || searchedRow.includes(s)) return true;
-                      const cleanSearch = searchedRow.replace(/[^a-z0-9]/g, " ");
-                      const cleanSeat = s.replace(/[^a-z0-9]/g, " ");
-                      const searchTokens = cleanSearch.split(/\s+/).filter(Boolean);
-                      return searchTokens.length > 0 && searchTokens.every((tok) => cleanSeat.includes(tok));
-                    };
+                    const matchesSearchedSeat = (seatStr: string) => isSeatMatch(searchedRow, seatStr);
 
                     // Include preset catalog and any custom searched section that has no preset photos
                     const searchedSecTrimmed = (gallerySearchFilter?.section || seatSectionInput || "").trim();
@@ -1726,12 +1796,7 @@ export default function Community() {
 
                     if (
                       searchedSecTrimmed &&
-                      !baseCatalog.some(
-                        (sec) =>
-                          sec.name.toLowerCase() === searchedSecTrimmed.toLowerCase() ||
-                          sec.name.toLowerCase().includes(searchedSecTrimmed.toLowerCase()) ||
-                          searchedSecTrimmed.toLowerCase().includes(sec.name.toLowerCase())
-                      )
+                      !baseCatalog.some((sec) => matchesSectionQuery(sec.name, searchedSecTrimmed))
                     ) {
                       baseCatalog.push({
                         id: `sec-${searchedSecTrimmed.toLowerCase().replace(/\s+/g, "-")}`,
@@ -1758,52 +1823,47 @@ export default function Community() {
 
                       const allSecPhotos = [...matchedUserPosts, ...sec.photos];
 
+                      const isTargetSection = Boolean(
+                        searchedSectionQuery ? matchesSectionQuery(sec.name, searchedSectionQuery) : true
+                      );
+
                       let prioritizedPhotos: SectionSeatPhoto[];
-                      if (searchedRow) {
+                      if (searchedRow && isTargetSection) {
                         const matchingPhotos = allSecPhotos.filter((p) => matchesSearchedSeat(p.seat));
                         const remainingPhotos = allSecPhotos.filter((p) => !matchesSearchedSeat(p.seat));
 
                         if (matchingPhotos.length > 0) {
                           prioritizedPhotos = [...matchingPhotos, ...remainingPhotos];
-                        } else {
-                          const isTargetSection = Boolean(
-                            searchedSectionQuery &&
-                            (sec.name.toLowerCase() === searchedSectionQuery ||
-                             sec.name.toLowerCase().includes(searchedSectionQuery) ||
-                             searchedSectionQuery.includes(sec.name.toLowerCase()))
-                          );
+                        } else if (allSecPhotos.length > 0) {
+                          const targetKey = parseSeatKey(searchedRow);
+                          let closestBeforePhoto: SectionSeatPhoto | null = null;
+                          let maxBeforeDiff = -Infinity;
+                          let closestAfterPhoto: SectionSeatPhoto | null = null;
+                          let minAfterDiff = Infinity;
 
-                          if (isTargetSection && allSecPhotos.length > 0) {
-                            const targetKey = parseSeatKey(searchedRow);
-                            let closestBeforePhoto: SectionSeatPhoto | null = null;
-                            let maxBeforeDiff = -Infinity;
-                            let closestAfterPhoto: SectionSeatPhoto | null = null;
-                            let minAfterDiff = Infinity;
-
-                            allSecPhotos.forEach((p) => {
-                              const pKey = parseSeatKey(p.seat);
-                              if (targetKey.type !== "unknown" && pKey.type === targetKey.type) {
-                                const diff = pKey.val - targetKey.val;
-                                if (diff < 0 && diff > maxBeforeDiff) {
-                                  maxBeforeDiff = diff;
-                                  closestBeforePhoto = p;
-                                } else if (diff > 0 && diff < minAfterDiff) {
-                                  minAfterDiff = diff;
-                                  closestAfterPhoto = p;
-                                }
+                          allSecPhotos.forEach((p) => {
+                            const pKey = parseSeatKey(p.seat);
+                            if (targetKey.type !== "unknown" && pKey.type === targetKey.type) {
+                              const diff = pKey.val - targetKey.val;
+                              if (diff < 0 && diff > maxBeforeDiff) {
+                                maxBeforeDiff = diff;
+                                closestBeforePhoto = p;
+                              } else if (diff > 0 && diff < minAfterDiff) {
+                                minAfterDiff = diff;
+                                closestAfterPhoto = p;
                               }
-                            });
-
-                            if (!closestBeforePhoto && !closestAfterPhoto && allSecPhotos.length > 0) {
-                              closestAfterPhoto = allSecPhotos[0];
                             }
+                          });
 
-                            const closestPair = [closestBeforePhoto, closestAfterPhoto].filter(Boolean) as SectionSeatPhoto[];
-                            const others = allSecPhotos.filter((p) => !closestPair.includes(p));
-                            prioritizedPhotos = [...closestPair, ...others];
-                          } else {
-                            prioritizedPhotos = allSecPhotos;
+                          if (!closestBeforePhoto && !closestAfterPhoto && allSecPhotos.length > 0) {
+                            closestAfterPhoto = allSecPhotos[0];
                           }
+
+                          const closestPair = [closestBeforePhoto, closestAfterPhoto].filter(Boolean) as SectionSeatPhoto[];
+                          const others = allSecPhotos.filter((p) => !closestPair.includes(p));
+                          prioritizedPhotos = [...closestPair, ...others];
+                        } else {
+                          prioritizedPhotos = allSecPhotos;
                         }
                       } else {
                         prioritizedPhotos = allSecPhotos;
@@ -1819,8 +1879,8 @@ export default function Community() {
                     let orderedSections = dynamicSections;
                     if (searchedSectionQuery) {
                       orderedSections = [...dynamicSections].sort((a, b) => {
-                        const aMatch = a.name.toLowerCase().includes(searchedSectionQuery) || searchedSectionQuery.includes(a.name.toLowerCase());
-                        const bMatch = b.name.toLowerCase().includes(searchedSectionQuery) || searchedSectionQuery.includes(b.name.toLowerCase());
+                        const aMatch = matchesSectionQuery(a.name, searchedSectionQuery);
+                        const bMatch = matchesSectionQuery(b.name, searchedSectionQuery);
                         if (aMatch && !bMatch) return -1;
                         if (!aMatch && bMatch) return 1;
                         return 0;
@@ -1913,15 +1973,20 @@ export default function Community() {
                         <div className="space-y-6">
                           {sectionsToDisplay.map((sec) => {
                             const isTargetSection = Boolean(
-                              searchedSectionQuery &&
-                              (sec.name.toLowerCase() === searchedSectionQuery ||
-                               sec.name.toLowerCase().includes(searchedSectionQuery) ||
-                               searchedSectionQuery.includes(sec.name.toLowerCase()))
+                              searchedSectionQuery && matchesSectionQuery(sec.name, searchedSectionQuery)
                             );
 
-                            const hasExactSeatMatch = Boolean(searchedRow && sec.photos.some((p) => matchesSearchedSeat(p.seat)));
+                            // Crucial: If a section was searched, seat matching ONLY applies to that section!
+                            const canMatchSeat = !searchedSectionQuery || isTargetSection;
+
+                            const hasExactSeatMatch = Boolean(
+                              canMatchSeat && searchedRow && sec.photos.some((p) => matchesSearchedSeat(p.seat))
+                            );
+
                             // Crucial: Closest seat notices/highlights only apply to the searched section!
-                            const isSectionWithNoSeatMatch = Boolean(isTargetSection && searchedRow && sec.photos.length > 0 && !hasExactSeatMatch);
+                            const isSectionWithNoSeatMatch = Boolean(
+                              isTargetSection && searchedRow && sec.photos.length > 0 && !hasExactSeatMatch
+                            );
 
                             // Determine single next row before and single next row after
                             let nextRowBeforePhoto: SectionSeatPhoto | null = null;
@@ -2069,7 +2134,7 @@ export default function Community() {
                                     {/* Photos Grid for this section */}
                                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                       {sec.photos.map((p, pIdx) => {
-                                        const isExactSeatMatch = Boolean(searchedRow && matchesSearchedSeat(p.seat));
+                                        const isExactSeatMatch = Boolean(canMatchSeat && searchedRow && matchesSearchedSeat(p.seat));
                                         const isNextBefore = Boolean(isSectionWithNoSeatMatch && nextRowBeforePhoto === p);
                                         const isNextAfter = Boolean(isSectionWithNoSeatMatch && nextRowAfterPhoto === p);
                                         const isClosestSeat = isNextBefore || isNextAfter;
