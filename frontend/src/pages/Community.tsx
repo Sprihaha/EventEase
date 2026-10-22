@@ -1391,7 +1391,7 @@ export default function Community() {
                           window.scrollTo({ top: 0, left: 0, behavior: "instant" });
                           navigate("/login", { state: { returnTo: "/community?tab=views" } });
                         }}
-                        className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange via-brand-magenta to-brand-purple px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+                        className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
                       >
                         <Camera className="h-4 w-4" /> Don&apos;t gatekeep the view, show us what we&apos;re missing!
                       </button>
