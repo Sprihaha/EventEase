@@ -20,6 +20,7 @@ from app.db.models import LoginAttempt, PasswordResetToken, RefreshToken, Role, 
 from app.rules.contact import EMAIL_TAKEN, normalise_email, normalise_sg_phone
 from app.rules.errors import RuleError
 from app.rules.password import check_password
+from app.rules.protected_accounts import check_not_protected, is_protected_username
 from app.rules.username import USERNAME_TAKEN
 from app.services import audit, fraud
 from app.services.mail.base import send_safely
@@ -251,6 +252,7 @@ def _set_password(db: Session, user: User, new_password: str) -> None:
 
 
 def change_password(db: Session, settings: Settings, user: User, current: str, new: str, ip: str | None) -> Session_:
+    check_not_protected(user.username)
     if not verify_password(current, user.password_hash):
         raise AppError(400, "INVALID_CURRENT_PASSWORD", "current password is incorrect")
     check_password(new)
@@ -266,9 +268,10 @@ def change_password(db: Session, settings: Settings, user: User, current: str, n
 
 
 def forgot_password(db: Session, settings: Settings, identifier: str) -> None:
-    """Always succeeds silently; only users with an email (never the admin) get a link."""
+    """Always succeeds silently; only users with an email (never the admin or a protected account) get a link."""
     user = _find_by_identifier(db, identifier)
-    if user is None or user.email is None or user.role == Role.ADMIN or user.status != UserStatus.ACTIVE:
+    if (user is None or user.email is None or user.role == Role.ADMIN or user.status != UserStatus.ACTIVE
+            or is_protected_username(user.username)):
         return
     now = utcnow()
     db.execute(
@@ -297,6 +300,7 @@ def reset_password(db: Session, token: str, new_password: str) -> None:
         raise AppError(400, "RESET_TOKEN_INVALID", "reset link is invalid or has expired")
     check_password(new_password)
     user = db.get(User, record.user_id)
+    check_not_protected(user.username)
     record.used_at = utcnow()
     _set_password(db, user, new_password)
     db.commit()

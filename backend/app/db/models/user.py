@@ -1,11 +1,12 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Uuid, func, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Uuid, event, func, inspect, text
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.db.base import Base, Timestamps, UUIDPk, str_enum
 from app.db.models.enums import Role, UserStatus
+from app.rules.protected_accounts import PROTECTED_FIELDS, check_not_protected
 
 
 class User(UUIDPk, Timestamps, Base):
@@ -35,6 +36,23 @@ class User(UUIDPk, Timestamps, Base):
     suspended_reason: Mapped[str | None] = mapped_column(String(500))
     # Kept for fraud detection only; purged after DATA_RETENTION_DAYS (PDPA).
     signup_ip: Mapped[str | None] = mapped_column(String(64))
+
+
+@event.listens_for(Session, "before_flush")
+def _guard_protected_accounts(session: Session, _flush_context, _instances) -> None:
+    """Refuse any ORM change to a protected account's username, password or role.
+
+    Bulk update() statements and raw SQL bypass the ORM; none target these columns.
+    """
+    for obj in session.dirty:
+        if not isinstance(obj, User):
+            continue
+        state = inspect(obj)
+        changed = [field for field in PROTECTED_FIELDS if state.attrs[field].history.has_changes()]
+        if not changed:
+            continue
+        renamed_from = state.attrs.username.history.deleted
+        check_not_protected(renamed_from[0] if renamed_from else obj.username)
 
 
 class RefreshToken(UUIDPk, Base):
