@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { Button, Badge, Card, Textarea, cx } from "../components/ui";
+import SecureExchange from "../components/SecureExchange";
 
 const vantagePoints = [
   {
@@ -1756,12 +1757,12 @@ export default function Community() {
                   Your next great night shouldn’t come with a markup. Swap tickets or pass them on to another fan, all at original face value.
                 </p>
 
-                {/* Sign In Action Button (replaces Find/List ticket buttons) */}
+                {/* Sign In / Visit Action Button */}
                 <div className="mt-7 flex flex-wrap items-center gap-3">
                   {!user ? (
                     <button
                       type="button"
-                      onClick={() => navigate("/login")}
+                      onClick={() => navigate("/login", { state: { returnTo: "/community?tab=exchange" } })}
                       className="cursor-pointer inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-purple/25 transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
                     >
                       <LogIn className="h-4 w-4" /> Sign In to EventEase
@@ -1769,17 +1770,29 @@ export default function Community() {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => navigate("/dashboard/customer")}
+                      id="visit-easexchange-btn"
+                      onClick={() => {
+                        const el = document.getElementById("easexchange-app");
+                        if (el) {
+                          el.scrollIntoView({ behavior: "smooth" });
+                        } else {
+                          navigate("/community?tab=exchange");
+                        }
+                      }}
                       className="cursor-pointer inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-purple/25 transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
                     >
-                      <CheckCircle2 className="h-4 w-4" /> Signed in as {user.name} · View My Tickets
+                      <Repeat className="h-4 w-4" /> Visit EaseXchange
                     </button>
                   )}
                 </div>
 
                 <p className="mt-4 flex items-center gap-2 text-xs text-muted">
                   <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Use your EventEase account to get started.</span>
+                  <span>
+                    {!user
+                      ? "Use your EventEase account to get started."
+                      : `Signed in as ${user.name}. Ready to exchange.`}
+                  </span>
                 </p>
               </div>
 
@@ -1946,6 +1959,22 @@ export default function Community() {
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* EaseXchange Platform */}
+            <div id="easexchange-app" className="pt-6 border-t border-brand-line">
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h3 className="font-brand text-2xl font-bold tracking-tight text-brand-deep flex items-center gap-2">
+                    <span className="font-feature italic font-black text-brand-purple">EaseXchange</span>
+                    <span>Platform</span>
+                  </h3>
+                  <p className="text-xs text-muted">
+                    Browse active face-value listings, create exchange requests, and swap tickets securely.
+                  </p>
+                </div>
+              </div>
+              <SecureExchange key={user?.id ?? "public"} />
             </div>
           </div>
         </div>
