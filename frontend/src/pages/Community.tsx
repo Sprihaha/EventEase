@@ -300,23 +300,10 @@ export default function Community() {
             <div className="mt-7 flex flex-wrap items-center gap-3.5">
               <button
                 type="button"
-                onClick={() => {
-                  composerRef.current?.scrollIntoView({ behavior: "smooth" });
-                  setTimeout(() => textareaRef.current?.focus(), 400);
-                }}
+                onClick={() => navigate("/login")}
                 className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber px-6 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-orange/30 transition-transform hover:-translate-y-0.5 hover:shadow-brand-orange/45 active:translate-y-0"
               >
-                Get in the mix
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  scrollToSection("main-tabs-nav");
-                }}
-                className="cursor-pointer inline-flex items-center gap-1.5 rounded-2xl border border-white/25 bg-white/10 px-4.5 py-3 text-xs font-bold text-white backdrop-blur-md transition hover:bg-white/20"
-              >
-                Explore the community ↓
+                Let me in!
               </button>
             </div>
           </div>
