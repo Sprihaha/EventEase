@@ -30,9 +30,11 @@ from app.db.models import (
     TicketCategory,
     TicketStatus,
     User,
+    EventSeat,
+    SeatClaim,
 )
 from app.schemas.bookings import BookingCreate
-from app.services import audit, fraud, inventory
+from app.services import audit, fraud, inventory, seating
 from app.services.mail.base import send_safely
 from app.services.payments.base import get_payment_provider
 
@@ -121,6 +123,8 @@ def create_booking(db: Session, settings: Settings, user: User, data: BookingCre
             raise AppError(409, "SALES_CLOSED", "sales are not open for this ticket category",
                            {"ticketCategoryId": str(category.id)})
 
+    seats = seating.validate_selection(db, event.id, data.items, data.seat_ids)
+
     for item in sorted(data.items, key=lambda i: str(i.ticket_category_id)):  # fixed order avoids deadlocks
         if not inventory.try_hold(db, item.ticket_category_id, item.quantity):
             db.rollback()
@@ -135,6 +139,15 @@ def create_booking(db: Session, settings: Settings, user: User, data: BookingCre
                       idempotency_key=idempotency_key, created_ip=ip)
     db.add(booking)
     db.flush()
+    for seat in seats:
+        db.add(SeatClaim(seat_id=seat.id, booking_id=booking.id))
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        if getattr(getattr(exc.orig, "diag", None), "constraint_name", None) == "pk_seat_claims":
+            raise AppError(409, "SEAT_UNAVAILABLE", "a selected seat was just reserved; refresh the seat map") from exc
+        raise
     for item in data.items:
         db.add(BookingItem(booking_id=booking.id, ticket_category_id=item.ticket_category_id, quantity=item.quantity,
                            unit_price_cents=categories[item.ticket_category_id].price_cents))
@@ -175,9 +188,19 @@ def _pending_charge(booking: Booking) -> Payment | None:
 def _finalise(db: Session, booking: Booking, payment: Payment | None) -> None:
     """Held seats become sold, tickets are issued, booking is CONFIRMED (same transaction)."""
     inventory.convert_holds_to_sold(db, booking)
+    claims = list(db.execute(select(SeatClaim, EventSeat).join(EventSeat)
+                            .where(SeatClaim.booking_id == booking.id).order_by(EventSeat.label)))
     for item in booking.items:
-        for _ in range(item.quantity):
-            db.add(Ticket(booking_id=booking.id, booking_item_id=item.id, code=new_ticket_code(), status=TicketStatus.VALID))
+        item_claims = [claim for claim, seat in claims if seat.ticket_category_id == item.ticket_category_id]
+        for n in range(item.quantity):
+            claim = item_claims[n] if item_claims else None
+            ticket = Ticket(booking_id=booking.id, booking_item_id=item.id, code=new_ticket_code(),
+                            status=TicketStatus.VALID, owner_user_id=booking.user_id,
+                            seat_id=claim.seat_id if claim else None)
+            db.add(ticket)
+            db.flush()
+            if claim:
+                claim.ticket_id = ticket.id
     if payment is not None:
         payment.status = PaymentStatus.SUCCEEDED
     booking.status = BookingStatus.CONFIRMED
@@ -189,6 +212,7 @@ def _finalise(db: Session, booking: Booking, payment: Payment | None) -> None:
 def _expire(db: Session, booking: Booking, reason: str = "HOLD_EXPIRED", actor: User | None = None,
             ip: str | None = None) -> None:
     inventory.release_holds(db, booking)
+    seating.release(db, booking)
     for payment in booking.payments:
         if payment.kind == PaymentKind.CHARGE and payment.status == PaymentStatus.PENDING:
             payment.status = PaymentStatus.CANCELLED
@@ -217,6 +241,12 @@ def pay_booking(db: Session, user: User, raw_id: str, payment_method: str | None
         _expire(db, booking)
         db.commit()
         raise AppError(409, "BOOKING_EXPIRED", "your seat hold expired; please book again")
+
+    event = db.get(Event, booking.event_id)
+    if event.status != EventStatus.APPROVED or event.start_at <= utcnow():
+        _expire(db, booking, reason="EVENT_NOT_ON_SALE")
+        db.commit()
+        raise AppError(409, "EVENT_NOT_ON_SALE", "this event is no longer on sale; your reservation has been released")
 
     provider = get_payment_provider()
     payment = _pending_charge(booking)
@@ -257,6 +287,12 @@ def handle_payment_webhook(db: Session, provider_ref: str, succeeded: bool, fail
             db.commit()
             fraud.on_payment_failed(db, user=db.get(User, booking.user_id), booking=booking)
         return
+    event = db.get(Event, booking.event_id)
+    if booking.status == BookingStatus.PENDING_PAYMENT and (
+        (booking.hold_expires_at and booking.hold_expires_at <= utcnow())
+        or event.status != EventStatus.APPROVED or event.start_at <= utcnow()
+    ):
+        _expire(db, booking, reason="PAYMENT_AFTER_HOLD_OR_SALES_CLOSED")
     if booking.status == BookingStatus.PENDING_PAYMENT and payment.status == PaymentStatus.PENDING:
         _finalise(db, booking, payment)
         db.commit()
@@ -301,6 +337,9 @@ def cancel_booking(db: Session, settings: Settings, user: User, raw_id: str, ip:
     if booking.status != BookingStatus.CONFIRMED:
         raise AppError(409, "BOOKING_NOT_CANCELLABLE", "this booking cannot be cancelled", {"status": booking.status.value})
 
+    if any(t.checked_in_at or t.exchanged_at or (t.owner_user_id and t.owner_user_id != booking.user_id) for t in booking.tickets):
+        raise AppError(409, "TICKETS_USED_OR_EXCHANGED", "bookings with admitted or exchanged tickets cannot be refunded")
+
     event = db.get(Event, booking.event_id)
     cutoff = cancellation_cutoff(event, settings)
     if utcnow() > cutoff:
@@ -325,6 +364,7 @@ def cancel_booking(db: Session, settings: Settings, user: User, raw_id: str, ip:
         booking.status = BookingStatus.CANCELLED
         ticket_status = TicketStatus.CANCELLED
     inventory.restore_sold(db, booking)
+    seating.release(db, booking)
     for ticket in booking.tickets:
         ticket.status = ticket_status
     booking.cancelled_at, booking.cancel_reason = now, "CUSTOMER_CANCELLED"
@@ -356,7 +396,10 @@ def booking_view(db: Session, booking: Booking, settings: Settings | None = None
                    "name": categories[i.ticket_category_id].name, "quantity": i.quantity,
                    "unit_price_cents": i.unit_price_cents} for i in booking.items],
         "tickets": [{"id": t.id, "code": t.code, "status": t.status,
-                     "ticket_category_id": item_category[t.booking_item_id]} for t in booking.tickets],
+                     "seat_label": db.get(EventSeat, t.seat_id).label if t.seat_id else None,
+                     "checked_in_at": t.checked_in_at,
+                     "ticket_category_id": item_category[t.booking_item_id]} for t in booking.tickets
+                    if t.owner_user_id is None or t.owner_user_id == booking.user_id],
         "total_cents": booking.total_cents,
         "currency": booking.currency,
         "hold_expires_at": booking.hold_expires_at,
@@ -367,7 +410,8 @@ def booking_view(db: Session, booking: Booking, settings: Settings | None = None
         "payment": {"provider": latest.provider, "provider_ref": latest.provider_ref, "status": latest.status,
                     "client_secret": getattr(booking, "_client_secret", None)} if latest else None,
         "cancellable": booking.status == BookingStatus.PENDING_PAYMENT
-        or (booking.status == BookingStatus.CONFIRMED and utcnow() <= cutoff),
+        or (booking.status == BookingStatus.CONFIRMED and utcnow() <= cutoff
+            and not any(t.checked_in_at or t.exchanged_at or (t.owner_user_id and t.owner_user_id != booking.user_id) for t in booking.tickets)),
         "cancellation_cutoff_at": cutoff,
     }
 
@@ -400,9 +444,12 @@ def ticket_history(db: Session, user: User) -> list[dict]:
         .join(BookingItem, BookingItem.id == Ticket.booking_item_id)
         .join(TicketCategory, TicketCategory.id == BookingItem.ticket_category_id)
         .join(Event, Event.id == Booking.event_id)
-        .where(Booking.user_id == user.id)
+        .where(func.coalesce(Ticket.owner_user_id, Booking.user_id) == user.id)
         .order_by(Ticket.issued_at.desc(), Ticket.id)
     ).all()
     return [{"id": t.id, "code": t.code, "status": t.status, "issued_at": t.issued_at, "booking_id": b.id,
              "booking_status": b.status, "event": e, "category_type": c.type, "category_name": c.name,
-             "unit_price_cents": i.unit_price_cents} for t, b, i, c, e in rows]
+             "unit_price_cents": i.unit_price_cents,
+             "seat_label": db.get(EventSeat, t.seat_id).label if t.seat_id else None,
+             "seat_section": c.seat_section or "General Admission", "checked_in_at": t.checked_in_at}
+            for t, b, i, c, e in rows]

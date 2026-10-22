@@ -16,6 +16,12 @@ from app.services.timeparse import parse_bound
 router = APIRouter(prefix="/events", tags=["Events"])
 
 
+@router.get("/{event_id}/seats", summary="Database-backed individual seat availability")
+def seats(event_id: str, db: Session = Depends(get_db)):
+    from app.services.seating import list_seats
+    return list_seats(db, event_service.parse_event_id(event_id))
+
+
 def _cents(value: Decimal | None) -> int | None:
     return None if value is None else int((value * 100).to_integral_value())
 

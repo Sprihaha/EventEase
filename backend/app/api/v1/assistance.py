@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, Query, Request, status
+from datetime import date
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import client_ip, require_admin, require_customer
@@ -7,6 +10,7 @@ from app.db.session import get_db
 from app.schemas.assistance import AdminAssistanceOut, AssistanceCreate, AssistanceOut, AssistanceUpdate
 from app.schemas.common import Page
 from app.services import assistance as service
+from app.services.reports import EXPORT_RESPONSES, MEDIA_TYPES, attachment_headers
 
 router = APIRouter(tags=["Assistance (EaseGuide)"])
 
@@ -50,6 +54,21 @@ def admin_list_assistance_requests(admin: User = Depends(require_admin), db: Ses
                                    page: int = Query(1, ge=1),
                                    page_size: int = Query(20, ge=1, le=100, alias="pageSize")):
     return service.list_all(db, status_filter, page, page_size)
+
+
+@router.get("/admin/assistance-requests/export", response_class=Response, responses=EXPORT_RESPONSES,
+            summary="Download the assistance requests as a PDF or Excel audit report (admin only)",
+            description="PDF: charts, summary, request register and status history. Excel: the same with every row. "
+                        "Dates are Singapore calendar days. Each download is itself recorded in the audit log.")
+def admin_export_assistance_requests(
+        request: Request, file_format: Literal["pdf", "xlsx"] = Query("pdf", alias="format"),
+        status_filter: AssistanceStatus | None = Query(None, alias="status"),
+        created_from: date | None = Query(None, alias="createdFrom"),
+        created_to: date | None = Query(None, alias="createdTo"),
+        admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    content, filename = service.export_report(db, admin, file_format, status_filter, created_from, created_to,
+                                              client_ip(request))
+    return Response(content=content, media_type=MEDIA_TYPES[file_format], headers=attachment_headers(filename))
 
 
 @router.patch("/admin/assistance-requests/{request_id}", response_model=AdminAssistanceOut,

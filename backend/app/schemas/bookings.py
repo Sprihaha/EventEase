@@ -15,6 +15,7 @@ class BookingItemIn(CamelModel):
 class BookingCreate(CamelModel):
     event_id: uuid.UUID
     items: list[BookingItemIn] = Field(..., min_length=1, max_length=10)
+    seat_ids: list[uuid.UUID] = Field(default_factory=list, max_length=100)
 
 
 class PayRequest(CamelModel):
@@ -44,6 +45,8 @@ class TicketOut(CamelModel):
     code: str
     status: TicketStatus
     ticket_category_id: uuid.UUID
+    seat_label: str | None = None
+    checked_in_at: datetime | None = None
 
 
 class PaymentInfo(CamelModel):
@@ -82,3 +85,6 @@ class TicketHistoryItem(CamelModel):
     category_type: TicketCategoryType
     category_name: str
     unit_price_cents: int
+    seat_label: str | None = None
+    seat_section: str | None = None
+    checked_in_at: datetime | None = None

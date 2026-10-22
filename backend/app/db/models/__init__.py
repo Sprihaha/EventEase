@@ -1,4 +1,6 @@
 from app.db.models.booking import Booking, BookingItem, Payment, Ticket
+from app.db.models.exchange import ExchangeMatch, ExchangeMatchStatus, ExchangeRequest, ExchangeRequestStatus, ExchangeSettlement
+from app.db.models.seating import EventSeat, SeatClaim
 from app.db.models.assistance import (
     ACTIVE_ASSISTANCE_STATUSES,
     AccessibilitySettings,
@@ -28,6 +30,11 @@ from app.db.models.monitoring import AuditLog, FraudSignal
 from app.db.models.user import LoginAttempt, PasswordResetToken, RefreshToken, User
 
 __all__ = [
+    "EventSeat", "SeatClaim", "ExchangeSettlement",
+    "ExchangeMatch",
+    "ExchangeMatchStatus",
+    "ExchangeRequest",
+    "ExchangeRequestStatus",
     "AuditLog",
     "Booking",
     "BookingItem",

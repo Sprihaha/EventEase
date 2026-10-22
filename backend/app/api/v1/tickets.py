@@ -14,8 +14,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError
+from app.core.config import get_settings
+from app.core.deps import require_customer, require_roles
 from app.core.security import utcnow
-from app.db.models import Booking, BookingItem, BookingStatus, Event, Ticket, TicketCategory, TicketStatus, User
+from app.db.models import Booking, BookingItem, BookingStatus, Event, EventStatus, EventSeat, Role, Ticket, TicketCategory, TicketStatus, User
 from app.db.session import get_db
 from app.schemas.common import CamelModel
 
@@ -106,7 +108,7 @@ def get_ticket_qr(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    payload = f"https://eventease.io/verify/{code}"
+    payload = f"{get_settings().FRONTEND_URL}/verify/{code}"
 
     if fmt == "svg":
         svg_content = generate_qr_svg(payload)
@@ -119,72 +121,73 @@ def get_ticket_qr(
         return {"code": code, "payload": payload, "dataUrl": f"data:image/png;base64,{png_b64}"}
 
 
-@router.post("/tickets/{code}/checkin", response_model=CheckInResponse, summary="Gate scanner check-in verification")
-def check_in_ticket(code: str, body: CheckInRequest | None = None, db: Session = Depends(get_db)):
+@router.get("/tickets/{code}/verify", summary="Read-only QR validity; does not admit a guest")
+def verify_ticket(code: str, db: Session = Depends(get_db)):
+    ticket = db.scalar(select(Ticket).where(Ticket.code == code).options(selectinload(Ticket.booking)))
+    if not ticket:
+        raise AppError(404, "TICKET_NOT_FOUND", "ticket not found or its QR code has been replaced")
+    event = db.get(Event, ticket.booking.event_id)
+    seat = db.get(EventSeat, ticket.seat_id) if ticket.seat_id else None
+    valid = (ticket.status == TicketStatus.VALID and ticket.booking.status == BookingStatus.CONFIRMED
+             and event.status == EventStatus.APPROVED and event.end_at > utcnow() and not ticket.checked_in_at)
+    return {"valid": valid, "status": ticket.status.value, "eventTitle": event.title,
+            "seatLabel": seat.label if seat else None, "checkedInAt": ticket.checked_in_at,
+            "message": "Valid ticket. Staff can check in this guest." if valid else "Ticket has been admitted or is no longer valid."}
+
+
+@router.post("/tickets/{code}/checkin", response_model=CheckInResponse, summary="Staff-only atomic gate check-in")
+def check_in_ticket(code: str, body: CheckInRequest | None = None, db: Session = Depends(get_db),
+                    user: User = Depends(require_roles(Role.ADMIN, Role.ORGANISER))):
     req = body or CheckInRequest()
     now = utcnow()
-
-    ticket = db.scalar(
-        select(Ticket)
-        .where(Ticket.code == code)
-        .options(selectinload(Ticket.booking))
-    )
+    initial = db.scalar(select(Ticket).where(Ticket.code == code))
+    if not initial:
+        raise AppError(404, "TICKET_NOT_FOUND", "ticket not found")
+    # Same lock order as refunds and exchanges. Recheck code after waiting:
+    # settlement may have replaced it while the scanner waited for the lock.
+    db.execute(select(Booking.id).where(Booking.id == initial.booking_id).with_for_update()).all()
+    ticket = db.scalar(select(Ticket).where(Ticket.id == initial.id, Ticket.code == code).with_for_update()
+                       .execution_options(populate_existing=True))
     if not ticket:
-        return CheckInResponse(
-            success=False,
-            result="NOT_FOUND",
-            code=code,
-            message=f"No ticket found matching code {code}",
-            scanned_at=now,
-        )
-
-    event = db.get(Event, ticket.booking.event_id)
-    ev_title = event.title if event else "Event"
-    ev_venue = event.venue_name if event else "Venue"
-
-    # Verify validity
-    if ticket.status != TicketStatus.VALID or ticket.booking.status != BookingStatus.CONFIRMED:
-        return CheckInResponse(
-            success=False,
-            result="INVALID_STATUS",
-            code=code,
-            event_title=ev_title,
-            venue_name=ev_venue,
-            message=f"Ticket cannot be used: status is {ticket.status.value}",
-            scanned_at=now,
-        )
-
-    return CheckInResponse(
-        success=True,
-        result="ADMITTED",
-        code=code,
-        event_title=ev_title,
-        venue_name=ev_venue,
-        message="Admit this guest. QR authenticity confirmed.",
-        scanned_at=now,
-    )
+        raise AppError(404, "TICKET_NOT_FOUND", "ticket QR has been replaced")
+    booking = db.get(Booking, ticket.booking_id, populate_existing=True)
+    event = db.get(Event, booking.event_id)
+    if user.role == Role.ORGANISER and event.organiser_id != user.id:
+        raise AppError(403, "FORBIDDEN", "this event belongs to another organiser")
+    result, message = "ADMITTED", "Admit this guest. Check-in recorded."
+    if ticket.checked_in_at:
+        result, message = "DUPLICATE_SCAN", "This ticket has already been admitted."
+    elif ticket.status != TicketStatus.VALID or booking.status != BookingStatus.CONFIRMED or event.status != EventStatus.APPROVED or event.end_at <= now:
+        result, message = "INVALID_STATUS", "This ticket is not valid for admission."
+    else:
+        ticket.checked_in_at = now
+        from app.services import audit
+        audit.record(db, actor=user, action="TICKET_CHECKED_IN", entity_type="Ticket", entity_id=ticket.id,
+                     after={"gate": req.gate})
+    response = CheckInResponse(success=result == "ADMITTED", result=result, code=code, event_title=event.title,
+        venue_name=event.venue_name, message=message, scanned_at=now, first_scanned_at=ticket.checked_in_at)
+    db.commit()
+    return response
 
 
 @router.get("/tickets/{code}/exchange-metadata", response_model=TicketExchangeMetadata,
             summary="Handover Contract for Package D: verify eligibility and price for ticket exchange")
-def get_exchange_metadata(code: str, db: Session = Depends(get_db)):
+def get_exchange_metadata(code: str, db: Session = Depends(get_db), user: User = Depends(require_customer)):
     ticket = db.scalar(
         select(Ticket)
         .where(Ticket.code == code)
         .options(selectinload(Ticket.booking))
     )
-    if not ticket:
+    if not ticket or (ticket.owner_user_id or ticket.booking.user_id) != user.id:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
     event = db.get(Event, ticket.booking.event_id)
     item = db.get(BookingItem, ticket.booking_item_id)
     category = db.get(TicketCategory, item.ticket_category_id) if item else None
 
-    is_eligible = (
-        ticket.status == TicketStatus.VALID
-        and ticket.booking.status == BookingStatus.CONFIRMED
-        and (event.start_at > utcnow() if event else False)
-    )
+    from app.services.exchange_ticketing import get_exchange_ticketing
+    from app.services.exchanges import eligible_tickets
+    is_eligible = any(t["id"] == str(ticket.id) and t["eligible"] for t in eligible_tickets(db, get_exchange_ticketing(), user))
 
     return TicketExchangeMetadata(
         code=ticket.code,
@@ -194,49 +197,20 @@ def get_exchange_metadata(code: str, db: Session = Depends(get_db)):
         event_title=event.title if event else "Event",
         category_name=category.name if category else "General Admission",
         price_cents=item.unit_price_cents if item else 0,
-        owner_user_id=ticket.booking.user_id,
+        owner_user_id=ticket.owner_user_id or ticket.booking.user_id,
         status=ticket.status,
         is_eligible=is_eligible,
     )
 
 
 @router.post("/tickets/{code}/transfer", response_model=TicketTransferResponse,
-             summary="Handover Contract for Package D: reassign ticket ownership to buyer upon exchange settlement")
-def transfer_ticket(code: str, req: TicketTransferRequest, db: Session = Depends(get_db)):
-    from app.core.security import new_ticket_code
-
-    ticket = db.scalar(
-        select(Ticket)
-        .where(Ticket.code == code)
-        .options(selectinload(Ticket.booking))
-        .with_for_update()
-    )
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
-
-    if ticket.status != TicketStatus.VALID:
-        raise AppError(409, "TICKET_NOT_VALID", f"cannot transfer ticket with status {ticket.status.value}")
-
-    new_user = db.get(User, req.new_user_id)
-    if not new_user:
-        raise HTTPException(status_code=404, detail="New owner user not found")
-
-    old_user_id = ticket.booking.user_id
-
-    # Create new ticket code for security and invalidate old one
-    new_code = new_ticket_code()
-    ticket.code = new_code
-    ticket.booking.user_id = req.new_user_id
-    db.commit()
-
-    return TicketTransferResponse(
-        success=True,
-        code=code,
-        new_code=new_code,
-        previous_user_id=old_user_id,
-        new_user_id=req.new_user_id,
-        message="Ticket ownership transferred successfully. New secure QR code issued.",
-    )
+             summary="Disabled legacy transfer; use mutually accepted exchange settlement")
+def transfer_ticket(code: str, req: TicketTransferRequest, db: Session = Depends(get_db),
+                    user: User = Depends(require_customer)):
+    # The old implementation changed booking.user_id, transferring every ticket
+    # in a multi-ticket booking. Do not expose that as individual settlement.
+    raise AppError(501, "TICKET_SETTLEMENT_UNAVAILABLE",
+                   "use the EaseXchange match settlement endpoint after mutual acceptance")
 
 
 @router.get("/bookings/{booking_id}/assistance-context", response_model=AssistanceContextResponse,

@@ -1,8 +1,9 @@
 import os
 
+if not os.getenv("TEST_DATABASE_URL"):
+    raise RuntimeError("Integration tests require TEST_DATABASE_URL pointing to a disposable database. Use scripts/run_isolated_tests.py.")
+
 import pytest
-from alembic import command
-from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
@@ -12,17 +13,15 @@ from app.db.session import SessionLocal, engine
 
 SCHEMA = get_settings().DB_SCHEMA
 assert SCHEMA != "public"
+from sqlalchemy.engine import make_url
+url = make_url(os.environ["TEST_DATABASE_URL"])
+if not os.getenv("EVENTEASE_DISPOSABLE_TEST") or not (url.host in ("localhost", "127.0.0.1", "::1") or str(url.query.get("host", "")).startswith("/")):
+    raise RuntimeError("Tests require the fresh local database created by scripts/run_isolated_checks.py")
 
 
 def _drop_schema() -> None:
     with engine.begin() as conn:
         conn.execute(text(f'DROP SCHEMA IF EXISTS "{SCHEMA}" CASCADE'))
-
-
-def _alembic_config() -> Config:
-    cfg = Config(os.path.join(os.path.dirname(__file__), "..", "..", "alembic.ini"))
-    cfg.attributes["configure_logger"] = False
-    return cfg
 
 
 def _assert_isolated() -> None:
@@ -40,7 +39,10 @@ def _assert_isolated() -> None:
 def migrated_schema():
     _assert_isolated()
     _drop_schema()
-    command.upgrade(_alembic_config(), "head")
+    # No Alembic commands: fresh disposable test schema from model metadata.
+    with engine.begin() as conn:
+        conn.execute(text(f'CREATE SCHEMA "{SCHEMA}"'))
+        Base.metadata.create_all(conn)
     yield
     if not os.getenv("KEEP_TEST_SCHEMA"):
         _drop_schema()
@@ -79,4 +81,4 @@ def client():
 
 @pytest.fixture
 def alembic_config():
-    return _alembic_config()
+    pytest.skip("Migration execution is forbidden for this task; prepared files only.")
