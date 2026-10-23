@@ -59,7 +59,7 @@ export default function Login() {
   // send them to their dashboard and drop this page from history.
   useEffect(() => {
     if (!sessionLoading && user) {
-      navigate(user.role === "customer" && returnTo ? returnTo : `/dashboard/${user.role}`, { replace: true });
+      navigate(user.mustChangePassword ? "/change-password" : user.role === "customer" && returnTo ? returnTo : `/dashboard/${user.role}`, { replace: true });
     }
   }, [sessionLoading, user, returnTo, navigate]);
 
@@ -153,7 +153,7 @@ export default function Login() {
       const account = await authenticate(username, password);
       setSigningIn(false);
       if (account) {
-        navigate(account.role === "customer" && returnTo ? returnTo : `/dashboard/${account.role}`, { replace: true });
+        navigate(account.mustChangePassword ? "/change-password" : account.role === "customer" && returnTo ? returnTo : `/dashboard/${account.role}`, { replace: true });
         return;
       }
     } catch (err: unknown) {

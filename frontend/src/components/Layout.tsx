@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ChevronDown,
   Settings,
+  KeyRound,
   Route,
 } from "lucide-react";
 import { useStore } from "../lib/store";
@@ -176,6 +177,19 @@ export default function Layout() {
                       <Settings className="h-4 w-4 text-brand-purple" />
                       Accessibility settings
                     </button>
+                    {user.canChangePassword !== false && (
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigate("/change-password");
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30"
+                      >
+                        <KeyRound className="h-4 w-4 text-brand-purple" />
+                        Change password
+                      </button>
+                    )}
                     {user.role === "customer" && (
                       <button
                         role="menuitem"

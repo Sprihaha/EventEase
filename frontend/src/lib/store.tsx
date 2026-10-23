@@ -37,7 +37,16 @@ import {
 
 import { fetchBookings, bookingForStore } from "./ticketingApi";
 
-export type User = { id: string; name: string; email: string; role: Role };
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  // Set when the backend requires a new password before anything else (e.g. after an admin reset).
+  mustChangePassword?: boolean;
+  // False for the protected shared accounts, whose password can never change.
+  canChangePassword?: boolean;
+};
 
 type Store = {
   user: User | null;
@@ -125,7 +134,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const role = account.role === "ORGANISER" ? "organizer" : account.role.toLowerCase() as Role;
         accountId.current = account.id;
         accountRole.current = role;
-        setUser({ id: account.id, name: account.username, email: account.email ?? "", role });
+        setUser({
+          id: account.id,
+          name: account.username,
+          email: account.email ?? "",
+          role,
+          mustChangePassword: account.mustChangePassword,
+          canChangePassword: account.passwordChangeable,
+        });
         if (role === "customer") void loadBookings(account.id);
         else void fetchBackendRoleEvents(account.role, account.id).then(result => { if (active) { setEvents(result); setEventsSource("backend"); } }).catch(() => { if (active) { setEvents([]); setEventsError("Could not load managed events."); } });
       }).catch(() => { if (active) { accountId.current = null; setUser(null); setBookings([]); void backendLogout(); } })
@@ -138,11 +154,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // Loads the signed-in user's data from a backend session (after login or a password reset).
     const startSession = async (auth: BackendAuth): Promise<User> => {
       const role = auth.user.role === "ORGANISER" ? "organizer" : (auth.user.role.toLowerCase() as Role);
-      const account = {
+      const account: User = {
         id: auth.user.id,
         name: auth.user.username,
         email: "",
         role,
+        mustChangePassword: auth.mustChangePassword,
+        canChangePassword: auth.user.passwordChangeable,
       };
       setEvents([]);
       try {

@@ -20,6 +20,7 @@ from app.schemas.auth import (
     VerifyEmailRequest,
 )
 from app.rules.contact import mask_email
+from app.rules.protected_accounts import is_protected_username
 from app.schemas.common import Message
 from app.services import auth as auth_service
 from app.services import email_verification
@@ -147,7 +148,8 @@ def logout(request: Request, db: Session = Depends(get_db)):
 def me(user: User = Depends(get_current_user)):
     return MeResponse(id=user.id, username=user.username, role=user.role, email=user.email, phone=user.phone_e164,
                       must_change_password=user.must_change_password,
-                      email_verified=user.email_verified_at is not None, created_at=user.created_at)
+                      email_verified=user.email_verified_at is not None,
+                      password_changeable=not is_protected_username(user.username), created_at=user.created_at)
 
 
 @router.post("/change-password", response_model=AuthResponse)

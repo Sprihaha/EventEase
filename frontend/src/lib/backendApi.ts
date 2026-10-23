@@ -24,8 +24,9 @@ type BackendRole = "CUSTOMER" | "ORGANISER" | "ADMIN";
 
 export type BackendAuth = {
   accessToken: string;
-  user: { id: string; username: string; role: BackendRole };
+  user: { id: string; username: string; role: BackendRole; passwordChangeable: boolean };
   redirectTo: string;
+  mustChangePassword: boolean;
 };
 
 type BackendEvent = {
@@ -341,7 +342,25 @@ export async function resetDemoData(input: { confirmation: string; username: str
 }
 
 export function backendMe() {
-  return request<{ id: string; username: string; role: BackendRole; email: string | null }>("/auth/me", {}, true);
+  return request<{
+    id: string;
+    username: string;
+    role: BackendRole;
+    email: string | null;
+    mustChangePassword: boolean;
+    passwordChangeable: boolean;
+  }>("/auth/me", {}, true);
+}
+
+export async function backendChangePassword(currentPassword: string, newPassword: string) {
+  // Other devices are signed out; this browser gets a fresh session.
+  const auth = await request<BackendAuth>(
+    "/auth/change-password",
+    { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) },
+    true,
+  );
+  sessionStorage.setItem(TOKEN_KEY, auth.accessToken);
+  return auth;
 }
 
 export function hasBackendSession() { return !!sessionStorage.getItem(TOKEN_KEY); }

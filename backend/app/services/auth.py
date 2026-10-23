@@ -61,7 +61,8 @@ class Session_:
         return {
             "access_token": self.access_token,
             "expires_in": self.expires_in,
-            "user": {"id": self.user.id, "username": self.user.username, "role": self.user.role},
+            "user": {"id": self.user.id, "username": self.user.username, "role": self.user.role,
+                     "password_changeable": not is_protected_username(self.user.username)},
             "redirect_to": redirect_for(self.user),
             "must_change_password": self.user.must_change_password,
         }
@@ -275,9 +276,33 @@ def _set_password(db: Session, user: User, new_password: str) -> None:
 
 
 def change_password(db: Session, settings: Settings, user: User, current: str, new: str, ip: str | None) -> Session_:
+    """Change a signed-in user's password.
+
+    A wrong current password counts towards the same per-account limit as sign-in: at
+    LOGIN_MAX_FAILURES the account locks for LOCKOUT_MINUTES and every session is signed out.
+    On success other devices are signed out and a notice goes to the verified email.
+    """
     check_not_protected(user.username)
+    db.refresh(user, with_for_update=True)
+    now = utcnow()
+    if user.locked_until is not None and user.locked_until > now:
+        raise AppError(423, "ACCOUNT_LOCKED", "account temporarily locked after repeated failed attempts",
+                       {"lockedUntil": user.locked_until.isoformat()})
     if not verify_password(current, user.password_hash):
-        raise AppError(400, "INVALID_CURRENT_PASSWORD", "current password is incorrect")
+        user.failed_login_count += 1
+        if user.failed_login_count >= settings.LOGIN_MAX_FAILURES:
+            user.locked_until = now + timedelta(minutes=settings.LOCKOUT_MINUTES)
+            user.failed_login_count = 0
+            user.token_version += 1
+            revoke_all_refresh_tokens(db, user.id)
+            db.commit()
+            fraud.on_account_locked(db, user=user, ip=ip)
+            raise AppError(423, "ACCOUNT_LOCKED", "account temporarily locked after repeated failed attempts",
+                           {"lockedUntil": user.locked_until.isoformat(), "signedOut": True})
+        remaining = settings.LOGIN_MAX_FAILURES - user.failed_login_count
+        db.commit()
+        raise AppError(400, "INVALID_CURRENT_PASSWORD", "current password is incorrect",
+                       {"attemptsRemaining": remaining})
     check_password(new)
     if verify_password(new, user.password_hash):
         raise AppError(400, "PASSWORD_REUSED", "new password must be different from the current password")
@@ -287,6 +312,15 @@ def change_password(db: Session, settings: Settings, user: User, current: str, n
                      after={"mustChangePassword": False}, ip=ip)
     session = _start_session(db, settings, user)
     db.commit()
+    if user.email_verified_at is not None:
+        send_safely(
+            user.email,
+            "Your EventEase password was changed",
+            f"Hi {user.username},\n\nThe password for your EventEase account was just changed, and you were "
+            f"signed out on your other devices.\n\nIf you made this change, no action is needed.\n\n"
+            f"If you did not, reset your password now using \"Forgot password?\" on the sign-in page:\n"
+            f"{settings.FRONTEND_URL.rstrip('/')}/login",
+        )
     return session
 
 

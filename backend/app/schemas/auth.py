@@ -54,6 +54,7 @@ class UserSummary(CamelModel):
     id: uuid.UUID
     username: str
     role: Role
+    password_changeable: bool = True
 
 
 class AuthResponse(CamelModel):
@@ -73,6 +74,7 @@ class MeResponse(CamelModel):
     phone: str | None
     must_change_password: bool
     email_verified: bool
+    password_changeable: bool = True
     created_at: datetime
 
 

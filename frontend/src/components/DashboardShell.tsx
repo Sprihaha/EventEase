@@ -47,6 +47,7 @@ export function DashboardShell({
 
   if (sessionLoading) return <p role="status" className="p-10">Restoring session…</p>;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
   if (user.role !== role) return <Navigate to={`/dashboard/${user.role}`} replace />;
 
   return (
