@@ -58,6 +58,8 @@ class Event(UUIDPk, Timestamps, Base):
     short_description: Mapped[str | None] = mapped_column(String(300))
     description: Mapped[str | None] = mapped_column(Text)
     venue_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    # The organiser venue whose layout the seats were made from; empty for older and external events.
+    venue_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("venues.id", ondelete="SET NULL"), index=True)
     area: Mapped[str | None] = mapped_column(String(100))
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

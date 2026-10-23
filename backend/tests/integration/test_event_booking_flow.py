@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from app.core.security import utcnow
-from tests.helpers import auth_header, make_user
+from tests.helpers import auth_header, make_user, make_venue
 from app.db.models import Role
 
 
@@ -9,10 +9,11 @@ def test_organiser_submission_admin_approval_customer_booking(client,db):
     organiser,admin,customer=make_user(db,Role.ORGANISER),make_user(db,Role.ADMIN),make_user(db)
     ho,ha,hc=(auth_header(client,u.username) for u in (organiser,admin,customer))
     start=utcnow()+timedelta(days=30)
+    venue=make_venue(db,organiser,("Hall","A",1,10),name="Test Hall")
     response=client.post("/api/v1/organiser/events",headers=ho,json={
-        "title":"Created through organiser API","category":"CONCERT","venueName":"Test Hall","area":"Singapore",
+        "title":"Created through organiser API","category":"CONCERT","venueId":str(venue.id),
         "startAt":start.isoformat(),"endAt":(start+timedelta(hours=3)).isoformat(),"capacity":10,
-        "initialCategories":[{"type":"STANDARD","name":"Standard","priceCents":6549,"quantity":10}]})
+        "initialCategories":[{"type":"STANDARD","name":"Standard","priceCents":6549,"sectionIds":[str(venue.sections[0].id)]}]})
     assert response.status_code==201,response.text
     event=response.json(); assert event["status"]=="REVIEW_IN_PROGRESS"
     assert event["id"] not in {e["id"] for e in client.get("/api/v1/events").json()["items"]}

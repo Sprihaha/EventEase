@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+import uuid
+
+from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.deps import client_ip, require_organiser
-from app.db.models import EventStatus, User
+from app.db.models import EventStatus, TicketCategoryType, User
 from app.db.session import get_db
 from app.schemas.common import Page
 from app.schemas.organiser import (
@@ -13,8 +16,11 @@ from app.schemas.organiser import (
     TicketCategoryCreate,
     TicketCategoryOut,
     TicketCategoryUpdate,
+    VenueOut,
 )
 from app.services import organiser as service
+from app.services import venues as venue_service
+from app.services.venue_layout import COLUMNS, SUPPORTED_EXTENSIONS, template_workbook
 from app.services.sales import sales_report
 
 router = APIRouter(prefix="/organiser", tags=["Organiser"], dependencies=[Depends(require_organiser)])
@@ -75,3 +81,40 @@ def delete_category(event_id: str, category_id: str, user: User = Depends(requir
 def sales(event_id: str, user: User = Depends(require_organiser), db: Session = Depends(get_db)):
     event = service.get_own_event(db, user, event_id)
     return sales_report(db, event.id)
+
+
+@router.get("/ticket-category-types", response_model=list[str], summary="Ticket category types an organiser can choose")
+def ticket_category_types():
+    return [t.value for t in TicketCategoryType]
+
+
+@router.get("/venues/template", summary="Download the empty venue layout template (.xlsx)",
+            response_class=Response)
+def venue_template():
+    return Response(content=template_workbook(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="venue-layout-template.xlsx"'})
+
+
+@router.post("/venues/import", response_model=VenueOut, status_code=status.HTTP_201_CREATED,
+             summary=f"Create a venue from a seat layout file ({', '.join(SUPPORTED_EXTENSIONS)})")
+def import_venue(request: Request,
+                 name: str = Form(..., min_length=2, max_length=200),
+                 area: str = Form(..., min_length=2, max_length=100),
+                 address: str | None = Form(None, max_length=300),
+                 file: UploadFile = File(..., description=f"Columns: {', '.join(COLUMNS)}"),
+                 user: User = Depends(require_organiser), db: Session = Depends(get_db)):
+    content = file.file.read(get_settings().IMPORT_MAX_BYTES + 1)
+    venue = venue_service.import_venue(db, user, name=name, area=area, address=address,
+                                       filename=file.filename or "", content=content, ip=client_ip(request))
+    return venue_service.venue_out(venue)
+
+
+@router.get("/venues", response_model=list[VenueOut], summary="List your venues")
+def list_venues(user: User = Depends(require_organiser), db: Session = Depends(get_db)):
+    return [venue_service.venue_out(v) for v in venue_service.list_own_venues(db, user)]
+
+
+@router.get("/venues/{venue_id}", response_model=VenueOut)
+def get_venue(venue_id: uuid.UUID, user: User = Depends(require_organiser), db: Session = Depends(get_db)):
+    return venue_service.venue_out(venue_service.get_own_venue(db, user, venue_id))

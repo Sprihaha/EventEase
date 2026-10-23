@@ -21,7 +21,7 @@ def list_seats(db: Session, event_id):
         .where(EventSeat.event_id == event_id).order_by(EventSeat.row_label, EventSeat.number)).all()
     return [{"id": s.id, "label": s.label, "row": s.row_label, "number": s.number,
              "ticketCategoryId": c.id, "categoryType": c.type.value, "categoryName": c.name,
-             "seatSection": c.seat_section or "General Admission", "priceCents": c.price_cents,
+             "seatSection": s.section_name or c.seat_section or "General Admission", "priceCents": c.price_cents,
              "status": ("SOLD" if claim and b.status == BookingStatus.CONFIRMED else
                         "HELD" if claim and b.status == BookingStatus.PENDING_PAYMENT else
                         "AVAILABLE" if category_on_sale(c, event, now) else "UNAVAILABLE")}
