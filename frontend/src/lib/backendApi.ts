@@ -286,25 +286,32 @@ export function backendSetEventStatus(id: string, status: EventStatus) {
   throw new Error("Unsupported event status change.");
 }
 
-export function backendCreateEvent(event: EventItem) {
-  const capacity = event.tiers.reduce((sum, tier) => sum + tier.total, 0);
+export type NewEventTier = { name: string; type: string; priceCents: number; sectionIds: string[] };
+export type NewEventInput = {
+  title: string;
+  category: string;
+  description: string;
+  venueId: string;
+  startAt: string;
+  endAt: string;
+  imageUrl: string;
+  tiers: NewEventTier[];
+};
+
+export function backendCreateEvent(input: NewEventInput) {
   return request(
     "/organiser/events",
     {
       method: "POST",
       body: JSON.stringify({
-        title: event.title,
-        category: event.category.toUpperCase(),
-        shortDescription: event.blurb.slice(0, 300),
-        description: event.blurb,
-        venueName: event.venue,
-        area: event.city,
-        startAt: event.date,
-        endAt: new Date(new Date(event.date).getTime() + 3 * 60 * 60 * 1000).toISOString(),
-        imageUrl: event.image,
-        capacity,
-        initialCategories: event.tiers.map(t => ({ type: t.name.toUpperCase(), name: t.name,
-          priceCents: Math.round(t.price * 100), quantity: t.total, seatSection: t.name })),
+        title: input.title,
+        category: input.category,
+        description: input.description || undefined,
+        venueId: input.venueId,
+        startAt: input.startAt,
+        endAt: input.endAt,
+        imageUrl: input.imageUrl || undefined,
+        initialCategories: input.tiers,
       }),
     },
     true,
