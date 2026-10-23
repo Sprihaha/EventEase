@@ -6,6 +6,7 @@ export interface LiveSeat {
   ticketCategoryId: string; categoryType: string; categoryName: string;
   seatSection: string; priceCents: number;
   status: "AVAILABLE" | "HELD" | "SOLD" | "UNAVAILABLE";
+  isAccessible?: boolean;
 }
 export interface TicketCategory {
   id: string; type: string; name: string; seatSection: string | null;

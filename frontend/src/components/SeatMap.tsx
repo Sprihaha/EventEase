@@ -1,3 +1,4 @@
+import { Accessibility } from "lucide-react";
 import type { LiveSeat } from "../lib/ticketingApi";
 import { cx } from "./ui";
 
@@ -41,17 +42,19 @@ export function SeatMap({ seats, selected, onToggle, disabled = false }: {
                     aria-pressed={selected.includes(s.id)}
                     disabled={disabled || (s.status !== "AVAILABLE" && !selected.includes(s.id))}
                     onClick={() => onToggle(s)}
-                    title={`${s.label} · ${s.categoryName} · S$${(s.priceCents / 100).toFixed(2)} · ${s.status}`}
+                    title={`${s.label} · ${s.categoryName}${s.isAccessible ? " (Wheelchair accessible)" : ""} · S$${(s.priceCents / 100).toFixed(2)} · ${s.status}`}
                     className={cx(
                       "h-10 w-10 rounded-lg border text-xs font-bold transition disabled:cursor-not-allowed cursor-pointer",
                       selected.includes(s.id)
                         ? "bg-brand-orange text-white border-brand-orange shadow-md"
                         : s.status === "AVAILABLE"
-                          ? "bg-brand-lilac text-brand-purple border-brand-purple/20 hover:ring-2 hover:ring-brand-purple"
+                          ? s.isAccessible
+                            ? "bg-brand-purple text-white border-brand-purple/40 hover:ring-2 hover:ring-brand-purple shadow-sm"
+                            : "bg-brand-lilac text-brand-purple border-brand-purple/20 hover:ring-2 hover:ring-brand-purple"
                           : "bg-stone-200 text-stone-500 opacity-60",
                     )}
                   >
-                    {s.number}
+                    {s.isAccessible ? <Accessibility className="mx-auto h-4 w-4" /> : s.number}
                   </button>
                 ))}
               </div>
@@ -59,9 +62,27 @@ export function SeatMap({ seats, selected, onToggle, disabled = false }: {
           </section>
         ))}
       </div>
-      <p className="mt-5 text-center text-xs text-muted">
-        Purple: available · Orange: selected · Grey: held, sold or unavailable
-      </p>
+      {/* Blueprint Legend with visual icons matching VenueSeatMap */}
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-6 border-t border-line pt-5 text-xs text-muted">
+        <span className="flex items-center gap-2">
+          <span className="h-4 w-4 rounded-md border border-brand-purple/20 bg-brand-lilac"></span>
+          Available
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="h-4 w-4 rounded-md border border-brand-orange bg-brand-orange"></span>
+          Selected
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="h-4 w-4 rounded-md bg-stone-200"></span>
+          Held / Sold
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="flex h-4 w-4 items-center justify-center rounded-md bg-brand-purple text-white">
+            <Accessibility className="h-3 w-3" />
+          </span>
+          Accessible (Wheelchair)
+        </span>
+      </div>
       <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs text-muted">
         {[...new Set(seats.map((s) => [s.categoryName, s.seatSection === s.categoryName ? null : s.seatSection,
           `S$${(s.priceCents / 100).toFixed(2)}`].filter(Boolean).join(" · ")))].map((t) => (

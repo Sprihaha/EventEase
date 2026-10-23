@@ -178,74 +178,67 @@ export default function VenueSeatMap({
         {!loadingLayout && layout && (
           <div>
             {/* Visual Stage */}
-            <div className="mx-auto mb-8 w-2/3 rounded-t-[100%] border-t-2 border-brand-purple/40 py-2.5 text-center font-brand text-xs font-bold uppercase tracking-widest text-brand-purple">
-              Stage / Performance Area
+            <div className="mx-auto mb-6 w-2/3 rounded-t-[100%] border-t-2 border-brand-purple/40 py-2 text-center font-brand text-xs font-bold uppercase tracking-widest text-brand-purple">
+              Stage
             </div>
 
-            {/* Sections & Rows */}
-            <div className="space-y-8 overflow-x-auto">
+            {/* Sections & Rows - identical styling to Event SeatMap */}
+            <div className="overflow-x-auto space-y-6">
               {layout.sections.map((section) => (
-                <section
-                  key={section.id}
-                  aria-label={section.name}
-                  className="rounded-2xl border border-brand-purple/15 bg-mist/20 p-5"
-                >
-                  <div className="mb-4 flex items-center justify-between">
-                    <h4 className="font-brand text-base font-bold text-brand-deep">
-                      Section: {section.name}
-                    </h4>
-                    <span className="text-xs font-medium text-muted">
-                      {section.rows.reduce((sum, r) => sum + r.seats.length, 0)} seats · {section.rows.length} rows
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {section.rows.map((row) => (
-                      <div key={row.label} className="flex items-center justify-center gap-2">
-                        <span className="w-8 text-right font-mono text-xs font-bold text-muted">
-                          {row.label}
-                        </span>
-                        <div className="flex flex-wrap items-center justify-center gap-1.5">
-                          {row.seats.map((seat) => (
-                            <div
-                              key={seat.id}
-                              title={`Section ${section.name} · Row ${row.label} · Seat ${seat.number}${
-                                seat.isAccessible ? " (Wheelchair accessible)" : ""
-                              }`}
-                              className={cx(
-                                "flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-bold transition-all shadow-sm",
-                                seat.isAccessible
-                                  ? "border-brand-purple/40 bg-brand-purple text-white shadow-brand-purple/20"
-                                  : "border-brand-purple/20 bg-brand-lilac/70 text-brand-deep hover:scale-105 hover:bg-brand-purple hover:text-white",
-                              )}
-                            >
-                              {seat.isAccessible ? (
-                                <Accessibility className="h-4 w-4" />
-                              ) : (
-                                seat.number
-                              )}
-                            </div>
-                          ))}
+                <section key={section.id} aria-label={section.name} className="space-y-3">
+                  {layout.sections.length > 1 && (
+                    <h3 className="text-center text-xs font-bold uppercase tracking-widest text-muted">
+                      {section.name}
+                    </h3>
+                  )}
+                  {section.rows.map((row) => (
+                    <div key={row.label} className="flex items-center justify-center gap-2">
+                      <span className="w-6 text-sm font-bold text-muted">{row.label}</span>
+                      {row.seats.map((seat) => (
+                        <div
+                          key={seat.id}
+                          title={`Section ${section.name} · Row ${row.label} · Seat ${seat.number}${
+                            seat.isAccessible ? " (Wheelchair accessible)" : ""
+                          }`}
+                          className={cx(
+                            "flex h-10 w-10 items-center justify-center rounded-lg border text-xs font-bold transition shadow-sm",
+                            seat.isAccessible
+                              ? "border-brand-purple/40 bg-brand-purple text-white shadow-brand-purple/20"
+                              : "border-brand-purple/20 bg-brand-lilac text-brand-purple hover:ring-2 hover:ring-brand-purple",
+                          )}
+                        >
+                          {seat.isAccessible ? (
+                            <Accessibility className="h-4 w-4" />
+                          ) : (
+                            seat.number
+                          )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ))}
                 </section>
               ))}
             </div>
 
-            {/* Blueprint Legend */}
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-6 border-t border-line pt-6 text-xs text-muted">
+            {/* Blueprint Legend with visual icons */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-6 border-t border-line pt-5 text-xs text-muted">
               <span className="flex items-center gap-2">
-                <span className="h-4 w-4 rounded-md border border-brand-purple/20 bg-brand-lilac/70"></span>
+                <span className="h-4 w-4 rounded-md border border-brand-purple/20 bg-brand-lilac"></span>
                 Standard physical seat
               </span>
               <span className="flex items-center gap-2">
                 <span className="flex h-4 w-4 items-center justify-center rounded-md bg-brand-purple text-white">
                   <Accessibility className="h-3 w-3" />
                 </span>
-                Accessible seat (Wheelchair)
+                Accessible seat (wheelchair)
               </span>
+            </div>
+            <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs text-muted">
+              {layout.sections.map((sec) => (
+                <span key={sec.id}>
+                  {sec.name} · {sec.rows.reduce((sum, r) => sum + r.seats.length, 0)} seats
+                </span>
+              ))}
             </div>
           </div>
         )}
