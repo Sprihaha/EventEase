@@ -21,11 +21,13 @@ import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/
 import { Button, Badge, Card, Field, Input, Select, Textarea, Eyebrow, cx } from "../components/ui";
 import { OperationsSeatMap } from "../components/OperationsSeatMap";
 import EaseAnalytics from "../components/EaseAnalytics";
+import VenueSetup from "../components/VenueSetup";
 
 const nav: NavItem[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "sales", label: "Ticket sales", icon: CircleDollarSign },
   { id: "venues", label: "Venue status", icon: Building2 },
+  { id: "venue-setup", label: "Venue setup", icon: MapPin },
   { id: "seats", label: "Seat maps", icon: Armchair },
   { id: "events", label: "My events", icon: Ticket },
   { id: "create", label: "Create event", icon: CalendarPlus },
@@ -55,6 +57,7 @@ export default function OrganizerDashboard() {
           {active === "overview" && <Overview mine={mine} />}
           {active === "sales" && <TicketSales mine={mine} />}
           {active === "venues" && <VenueStatus mine={mine} />}
+          {active === "venue-setup" && <VenueSetup />}
           {active === "seats" && <OperationsSeatMap events={mine} eyebrow="Organizer seat maps" />}
           {active === "events" && <EventsTable mine={mine} />}
           {active === "create" && <CreateEvent onCreate={createEvent} organizer={{ id: user!.id, name: user!.name }} />}

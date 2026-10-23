@@ -468,3 +468,43 @@ export async function downloadBackendReport(path: string, fallbackName: string) 
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   return name;
 }
+
+// ---------- Organiser venues ----------
+export type VenueSection = { id: string; name: string; seatCount: number; rows: string[] };
+export type Venue = {
+  id: string;
+  name: string;
+  area: string | null;
+  address: string | null;
+  seatCount: number;
+  sections: VenueSection[];
+};
+
+export function backendListVenues() {
+  return request<Venue[]>("/organiser/venues", {}, true);
+}
+
+export function backendGetVenue(id: string) {
+  return request<Venue>(`/organiser/venues/${id}`, {}, true);
+}
+
+export function backendImportVenue(input: { name: string; area: string; address: string; file: File }) {
+  const body = new FormData();
+  body.append("name", input.name);
+  body.append("area", input.area);
+  if (input.address) body.append("address", input.address);
+  body.append("file", input.file);
+  return request<Venue>("/organiser/venues/import", { method: "POST", body }, true);
+}
+
+export function backendDownloadVenueTemplate() {
+  return downloadBackendReport("/organiser/venues/template", "venue-layout-template.xlsx");
+}
+
+export function backendEventCategories() {
+  return request<string[]>("/events/categories");
+}
+
+export function backendTicketCategoryTypes() {
+  return request<string[]>("/organiser/ticket-category-types", {}, true);
+}
