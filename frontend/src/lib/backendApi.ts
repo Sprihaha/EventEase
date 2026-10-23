@@ -84,7 +84,7 @@ async function pages<T>(path: string, authenticated = false): Promise<T[]> {
 
 export async function request<T>(path: string, init: RequestInit = {}, authenticated = false): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (authenticated) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {
