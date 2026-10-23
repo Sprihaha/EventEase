@@ -32,15 +32,27 @@ import {
   backendSetEventStatus,
   fetchBackendEvents,
   fetchBackendRoleEvents,
+  type BackendAuth,
 } from "./backendApi";
+import { isTokenExpired, getTokenExpirationMs, notifySessionExpired, onSessionExpired, clearSavedExpiredReturnTo } from "./session";
 
 import { fetchBookings, bookingForStore } from "./ticketingApi";
 
-export type User = { id: string; name: string; email: string; role: Role };
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  // Set when the backend requires a new password before anything else (e.g. after an admin reset).
+  mustChangePassword?: boolean;
+  // False for the protected shared accounts, whose password can never change.
+  canChangePassword?: boolean;
+};
 
 type Store = {
   user: User | null;
   authenticate: (username: string, password: string) => Promise<User | null>;
+  startSession: (auth: BackendAuth) => Promise<User>;
   logout: () => void;
 
   events: EventItem[];
@@ -118,12 +130,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (active) { setEvents([]); setEventsSource("error"); setEventsError(cause instanceof Error ? cause.message : "Could not load events."); }
     });
     if (hasBackendSession()) {
+      if (isTokenExpired()) {
+        notifySessionExpired();
+        setSessionLoading(false);
+        return;
+      }
       backendMe().then(account => {
         if (!active) return;
         const role = account.role === "ORGANISER" ? "organizer" : account.role.toLowerCase() as Role;
         accountId.current = account.id;
         accountRole.current = role;
-        setUser({ id: account.id, name: account.username, email: account.email ?? "", role });
+        setUser({
+          id: account.id,
+          name: account.username,
+          email: account.email ?? "",
+          role,
+          mustChangePassword: account.mustChangePassword,
+          canChangePassword: account.passwordChangeable,
+        });
         if (role === "customer") void loadBookings(account.id);
         else void fetchBackendRoleEvents(account.role, account.id).then(result => { if (active) { setEvents(result); setEventsSource("backend"); } }).catch(() => { if (active) { setEvents([]); setEventsError("Could not load managed events."); } });
       }).catch(() => { if (active) { accountId.current = null; setUser(null); setBookings([]); void backendLogout(); } })
@@ -132,41 +156,90 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => { active = false; };
   }, []);
 
+  // Active session expiration timer & watcher
+  useEffect(() => {
+    if (!user) return;
+    const checkExpiry = () => {
+      if (isTokenExpired()) {
+        notifySessionExpired();
+      }
+    };
+
+    const expMs = getTokenExpirationMs();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (expMs) {
+      const remaining = expMs - Date.now();
+      if (remaining <= 0) {
+        notifySessionExpired();
+      } else {
+        timer = setTimeout(() => {
+          notifySessionExpired();
+        }, Math.max(0, remaining));
+      }
+    }
+
+    const interval = setInterval(checkExpiry, 5000);
+    window.addEventListener("focus", checkExpiry);
+    document.addEventListener("visibilitychange", checkExpiry);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      clearInterval(interval);
+      window.removeEventListener("focus", checkExpiry);
+      document.removeEventListener("visibilitychange", checkExpiry);
+    };
+  }, [user]);
+
+  // Handle session expired broadcast: clean up local store state
+  useEffect(() => {
+    return onSessionExpired(() => {
+      accountId.current = null;
+      accountRole.current = null;
+      setUser(null);
+      setBookings([]);
+      setBookingsError(null);
+    });
+  }, []);
+
   const value = useMemo<Store>(() => {
+    // Loads the signed-in user's data from a backend session (after login or a password reset).
+    const startSession = async (auth: BackendAuth): Promise<User> => {
+      const role = auth.user.role === "ORGANISER" ? "organizer" : (auth.user.role.toLowerCase() as Role);
+      const account: User = {
+        id: auth.user.id,
+        name: auth.user.username,
+        email: "",
+        role,
+        mustChangePassword: auth.mustChangePassword,
+        canChangePassword: auth.user.passwordChangeable,
+      };
+      setEvents([]);
+      try {
+        const publicResult = await fetchBackendEvents();
+        setPublicEvents(publicResult);
+        setEvents(role === "customer" ? publicResult : await fetchBackendRoleEvents(auth.user.role, auth.user.id));
+        setEventsSource("backend");
+        setEventsError(null);
+      } catch (cause) {
+        setEventsSource("error");
+        setEventsError(cause instanceof Error ? cause.message : "Could not load events.");
+      }
+      accountId.current = account.id;
+      accountRole.current = role;
+      setBookings([]);
+      setUser(account);
+      if (role === "customer") await loadBookings(account.id);
+      return account;
+    };
     return {
       user,
       sessionLoading, eventsError, bookingsError,
       refreshBookings: async () => { if (user?.role === "customer") await loadBookings(user.id); },
-      authenticate: async (username, password) => {
-        const normalized = username.trim().toLowerCase();
-        const auth = await backendLogin(normalized, password);
-        const role = auth.user.role === "ORGANISER" ? "organizer" : (auth.user.role.toLowerCase() as Role);
-        const account = {
-          id: auth.user.id,
-          name: auth.user.username,
-          email: "",
-          role,
-        };
-        setEvents([]);
-        try {
-          const publicResult = await fetchBackendEvents();
-          setPublicEvents(publicResult);
-          setEvents(role === "customer" ? publicResult : await fetchBackendRoleEvents(auth.user.role, auth.user.id));
-          setEventsSource("backend");
-          setEventsError(null);
-        } catch (cause) {
-          setEventsSource("error");
-          setEventsError(cause instanceof Error ? cause.message : "Could not load events.");
-        }
-        accountId.current = account.id;
-        accountRole.current = role;
-        setBookings([]);
-        setUser(account);
-        if (role === "customer") await loadBookings(account.id);
-        return account;
-      },
+      authenticate: async (username, password) => startSession(await backendLogin(username.trim().toLowerCase(), password)),
+      startSession,
       logout: () => {
         void backendLogout();
+        clearSavedExpiredReturnTo();
         accountId.current = null;
         accountRole.current = null;
         setUser(null);

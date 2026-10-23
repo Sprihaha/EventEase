@@ -7,12 +7,14 @@ if ((import.meta.env.VITE_LOCAL_SANDBOX === "true" || import.meta.env.VITE_LOCAL
   throw new Error("Local testing refuses a nonlocal API URL.");
 }
 const API_ROOT = `${API_ORIGIN}/api/v1`;
-const TOKEN_KEY = "eventease-access-token";
+import { TOKEN_KEY, isTokenExpired, notifySessionExpired } from "./session";
 
 export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    public code = "",
+    public details: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -22,8 +24,9 @@ type BackendRole = "CUSTOMER" | "ORGANISER" | "ADMIN";
 
 export type BackendAuth = {
   accessToken: string;
-  user: { id: string; username: string; role: BackendRole };
+  user: { id: string; username: string; role: BackendRole; passwordChangeable: boolean };
   redirectTo: string;
+  mustChangePassword: boolean;
 };
 
 type BackendEvent = {
@@ -84,16 +87,31 @@ export async function request<T>(path: string, init: RequestInit = {}, authentic
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (authenticated) {
     const token = sessionStorage.getItem(TOKEN_KEY);
-    if (token) headers.set("Authorization", `Bearer ${token}`);
+    if (token) {
+      if (isTokenExpired(token)) {
+        notifySessionExpired();
+        throw new ApiError("Session expired, please login again", 401, "TOKEN_EXPIRED");
+      }
+      headers.set("Authorization", `Bearer ${token}`);
+    }
   }
   const response = await fetch(`${API_ROOT}${path}`, { ...init, headers });
   if (!response.ok) {
     const body = await response.json().catch(() => null) as
-      | { error?: { message?: string }; detail?: string }
+      | { error?: { code?: string; message?: string; details?: Record<string, unknown> }; detail?: string }
       | null;
+    if (
+      response.status === 401 &&
+      (authenticated || body?.error?.code === "TOKEN_EXPIRED") &&
+      path !== "/auth/login"
+    ) {
+      notifySessionExpired();
+    }
     throw new ApiError(
       body?.error?.message ?? body?.detail ?? `Backend request failed (${response.status})`,
       response.status,
+      body?.error?.code,
+      body?.error?.details,
     );
   }
   if (response.status === 204) return undefined as T;
@@ -209,9 +227,42 @@ export async function backendSignup(account: {
   email: string;
   phone: string;
 }) {
-  return request<BackendAuth>("/auth/signup", {
+  // Creates an unverified account; the backend emails a link to /verify-email/:token.
+  return request<{ message: string; email: string; verificationRequired: boolean }>("/auth/signup", {
     method: "POST",
     body: JSON.stringify({ ...account, role: "CUSTOMER" }),
+  });
+}
+
+export async function backendVerifyEmail(token: string) {
+  return request<{ message: string }>("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function backendForgotPassword(username: string, email: string) {
+  // The email must be the account's verified address; errors are USER_NOT_FOUND / INVALID_EMAIL.
+  return request<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ username, email }),
+  });
+}
+
+export async function backendResetPassword(token: string, newPassword: string) {
+  // A successful reset signs this browser in, like a login.
+  const auth = await request<BackendAuth>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, newPassword }),
+  });
+  sessionStorage.setItem(TOKEN_KEY, auth.accessToken);
+  return auth;
+}
+
+export async function backendResendVerification(identifier: string) {
+  return request<{ message: string }>("/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ identifier }),
   });
 }
 
@@ -304,7 +355,25 @@ export async function resetDemoData(input: { confirmation: string; username: str
 }
 
 export function backendMe() {
-  return request<{ id: string; username: string; role: BackendRole; email: string | null }>("/auth/me", {}, true);
+  return request<{
+    id: string;
+    username: string;
+    role: BackendRole;
+    email: string | null;
+    mustChangePassword: boolean;
+    passwordChangeable: boolean;
+  }>("/auth/me", {}, true);
+}
+
+export async function backendChangePassword(currentPassword: string, newPassword: string) {
+  // Other devices are signed out; this browser gets a fresh session.
+  const auth = await request<BackendAuth>(
+    "/auth/change-password",
+    { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) },
+    true,
+  );
+  sessionStorage.setItem(TOKEN_KEY, auth.accessToken);
+  return auth;
 }
 
 export function hasBackendSession() { return !!sessionStorage.getItem(TOKEN_KEY); }
@@ -368,11 +437,17 @@ export function deleteBackendNarrationAudio(pageKey: string) {
  */
 export async function downloadBackendReport(path: string, fallbackName: string) {
   const token = sessionStorage.getItem(TOKEN_KEY);
-  if (!token) throw new ApiError("Please log in to download reports.", 401);
+  if (!token || isTokenExpired(token)) {
+    if (token) notifySessionExpired();
+    throw new ApiError("Please log in to download reports.", 401);
+  }
   const response = await fetch(`${API_ROOT}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
+    if (response.status === 401) {
+      notifySessionExpired();
+    }
     const body = (await response.json().catch(() => null)) as
       | { error?: { message?: string }; detail?: string }
       | null;
