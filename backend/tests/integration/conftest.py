@@ -58,6 +58,10 @@ def clean_tables(migrated_schema):
         limiter.reset()
     except ImportError:
         pass
+    # The console mailer keeps only the last 100 messages; start each test with an empty
+    # outbox so tests that count sent mail are not affected by earlier tests.
+    from app.services.mail.base import get_mailer
+    get_mailer().outbox.clear()
     yield
 
 

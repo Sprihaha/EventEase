@@ -32,8 +32,17 @@ const emptySignUp: SignUp = {
   billingAddress: "",
 };
 
+// Messages for the forgot-password errors returned by the backend.
+const FORGOT_ERRORS: Record<string, string> = {
+  USER_NOT_FOUND: "User not found.",
+  INVALID_EMAIL: "Invalid email address.",
+  TOO_MANY_RESET_REQUESTS: "Too many attempts, please try again tomorrow.",
+  RESET_NOT_AVAILABLE: "Password reset by email isn't available for this account.",
+  ACCOUNT_SUSPENDED: "This account is suspended.",
+};
+
 export default function Login() {
-  const { authenticate } = useStore();
+  const { authenticate, user, sessionLoading } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const navState = location.state as { returnTo?: string; mode?: "forgot" } | null;
@@ -46,12 +55,23 @@ export default function Login() {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [mode]);
 
-  // The old preview sign-up kept plain-text passwords in localStorage; remove any leftovers.
+  // Signed-in users never see this page (e.g. pressing Back after a password reset):
+  // send them to their dashboard and drop this page from history.
+  useEffect(() => {
+    if (!sessionLoading && user) {
+      navigate(user.role === "customer" && returnTo ? returnTo : `/dashboard/${user.role}`, { replace: true });
+    }
+  }, [sessionLoading, user, returnTo, navigate]);
+
+  // The old preview sign-up kept plain-text passwords in localStorage, and an older
+  // per-tab attempt counter lived in sessionStorage; remove any leftovers.
   useEffect(() => {
     try {
       Object.keys(localStorage)
         .filter((key) => key.startsWith("eventease-pending-") || key.startsWith("eventease-user-"))
         .forEach((key) => localStorage.removeItem(key));
+      sessionStorage.removeItem("eventease-login-attempts");
+      sessionStorage.removeItem("eventease-login-locked");
     } catch {
       // Storage unavailable (private mode); nothing to clean up.
     }
@@ -61,24 +81,21 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [signingIn, setSigningIn] = useState(false);
-  const [attempts, setAttempts] = useState(() =>
-    Number(sessionStorage.getItem("eventease-login-attempts") ?? 0),
-  );
-  const [locked, setLocked] = useState(
-    () => sessionStorage.getItem("eventease-login-locked") === "true",
-  );
   const [signUp, setSignUp] = useState<SignUp>(emptySignUp);
   const [signingUp, setSigningUp] = useState(false);
   const [signUpError, setSignUpError] = useState("");
   // Set when the account exists but its email has not been verified yet.
   const [unverified, setUnverified] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
-  const [forgotIdentifier, setForgotIdentifier] = useState("");
+  // Set when sign-in used a username or email that has no account.
+  const [signUpPrompt, setSignUpPrompt] = useState<{ username?: string; email?: string } | null>(null);
+  const [fromUnknownLogin, setFromUnknownLogin] = useState(false);
+  const [forgotUsername, setForgotUsername] = useState("");
+  const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSending, setForgotSending] = useState(false);
-  const remaining = Math.max(0, 5 - attempts);
 
   const openForgot = () => {
-    setForgotIdentifier(username);
+    setForgotUsername(username);
     setError("");
     setMode("forgot");
   };
@@ -88,9 +105,13 @@ export default function Login() {
     setForgotSending(true);
     setError("");
     try {
-      await backendForgotPassword(forgotIdentifier.trim());
+      await backendForgotPassword(forgotUsername.trim(), forgotEmail.trim());
       setMode("forgotSent");
     } catch (err: unknown) {
+      if (err instanceof ApiError && FORGOT_ERRORS[err.code]) {
+        setError(FORGOT_ERRORS[err.code]);
+        return;
+      }
       setError(err instanceof Error ? err.message : "Could not send the reset link. Please try again.");
     } finally {
       setForgotSending(false);
@@ -111,17 +132,28 @@ export default function Login() {
     return signUp.password.length >= 8 ? "Password strength: ready" : "Use at least 8 characters";
   }, [signUp.password]);
 
+  const goToSignUp = (prefill: { username?: string; email?: string }) => {
+    setSignUp((current) => ({
+      ...current,
+      userId: prefill.username ?? current.userId,
+      email: prefill.email ?? current.email,
+    }));
+    setSignUpPrompt(null);
+    setFromUnknownLogin(true);
+    setError("");
+    setMode("signup");
+  };
+
   const handleSignIn = async (event: FormEvent) => {
     event.preventDefault();
-    if (locked) return;
+    setSignUpPrompt(null);
+    setError("");
     setSigningIn(true);
     try {
       const account = await authenticate(username, password);
       setSigningIn(false);
       if (account) {
-        sessionStorage.removeItem("eventease-login-attempts");
-        sessionStorage.removeItem("eventease-login-locked");
-        navigate(account.role === "customer" && returnTo ? returnTo : `/dashboard/${account.role}`);
+        navigate(account.role === "customer" && returnTo ? returnTo : `/dashboard/${account.role}`, { replace: true });
         return;
       }
     } catch (err: unknown) {
@@ -134,6 +166,12 @@ export default function Login() {
         return;
       }
       setUnverified(false);
+      if (err instanceof ApiError && err.code === "SIGNUP_REQUIRED") {
+        // Unknown username or email: not a sign-in attempt, so nothing is counted.
+        setError("");
+        setSignUpPrompt((err.details.prefill as { username?: string; email?: string } | undefined) ?? {});
+        return;
+      }
       const msg = err instanceof Error ? err.message : "";
       if (
         msg.includes("Failed to fetch") ||
@@ -144,16 +182,22 @@ export default function Login() {
         setError("Cannot reach the backend service. Ensure the FastAPI backend is running at http://localhost:8000.");
         return;
       }
-      const next = attempts + 1;
-      setAttempts(next);
-      sessionStorage.setItem("eventease-login-attempts", String(next));
-      if (next >= 5) {
-        setLocked(true);
-        sessionStorage.setItem("eventease-login-locked", "true");
-        setError("This account is locked after 5 unsuccessful attempts. Reset your password below to unlock it.");
-      } else {
-        setError(msg || `Username or password doesn't match. ${5 - next} attempts remaining.`);
+      const lockedMessage =
+        "This account is locked after 5 unsuccessful attempts. Try again in 15 minutes, or use Forgot password? to reset it.";
+      if (err instanceof ApiError && err.code === "ACCOUNT_LOCKED") {
+        setError(lockedMessage);
+        return;
       }
+      // Attempts left are shown only after a wrong password for a registered account,
+      // and come from that account's own counter on the backend.
+      if (err instanceof ApiError && err.code === "INVALID_CREDENTIALS") {
+        const left = Number(err.details.attemptsRemaining);
+        setError(left > 0
+          ? `Username or password doesn't match. ${left} ${left === 1 ? "attempt" : "attempts"} remaining.`
+          : lockedMessage);
+        return;
+      }
+      setError(msg ? `${msg[0].toUpperCase()}${msg.slice(1)}.` : "Sign-in failed. Please try again.");
     }
   };
 
@@ -227,7 +271,6 @@ export default function Login() {
                     onChange={(event) => setUsername(event.target.value)}
                     placeholder="e.g. Janice, John, or Jay"
                     required
-                    disabled={locked}
                   />
                 </Field>
                 <Field label="Password">
@@ -238,7 +281,6 @@ export default function Login() {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       required
-                      disabled={locked}
                       className="pr-12"
                     />
                     <Button
@@ -283,10 +325,16 @@ export default function Login() {
                     )}
                   </div>
                 )}
-                {!locked && attempts > 0 && (
-                  <p className="text-xs font-medium text-muted">{remaining} sign-in attempts remaining.</p>
+                {signUpPrompt && (
+                  <div role="alert" className="rounded-xl border border-brand-orange/30 bg-brand-orange/10 p-3.5 text-sm font-medium text-brand-deep">
+                    <p>Sign up as new user.</p>
+                    <p className="mt-0.5 font-normal text-muted">We couldn't find an EventEase account for that username or email.</p>
+                    <Button className="mt-3" size="sm" type="button" onClick={() => goToSignUp(signUpPrompt)}>
+                      <UserPlus className="h-4 w-4" /> Sign up
+                    </Button>
+                  </div>
                 )}
-                <Button className="w-full" size="lg" type="submit" disabled={locked || signingIn}>
+                <Button className="w-full" size="lg" type="submit" disabled={signingIn}>
                   {signingIn ? "Connecting…" : "Sign in"} {!signingIn && <ArrowRight className="h-4 w-4" />}
                 </Button>
               </form>
@@ -302,9 +350,12 @@ export default function Login() {
 
           {mode === "signup" && (
             <>
-              <Button variant="ghost" size="sm" onClick={() => setMode("signin")} className="-ml-3">
+              <Button variant="ghost" size="sm" onClick={() => { setMode("signin"); setFromUnknownLogin(false); }} className="-ml-3">
                 <ArrowLeft className="h-4 w-4" /> Back to sign in
               </Button>
+              {fromUnknownLogin && (
+                <p className="mt-4 font-brand text-lg font-bold text-brand-orange">New to EventEase? Sign up now</p>
+              )}
               <h1 className="mt-4 font-brand text-4xl font-bold tracking-tight text-brand-deep">
                 Create your account
               </h1>
@@ -353,14 +404,24 @@ export default function Login() {
                 Reset your password
               </h1>
               <p className="mt-2 text-sm text-muted">
-                Enter your username or email. We'll email you a link to choose a new password.
+                Enter your username and the verified email address on your account. We'll email you a link to
+                choose a new password.
               </p>
               <form className="mt-8 space-y-5" onSubmit={handleForgot}>
-                <Field label="Username or email">
+                <Field label="Username">
                   <Input
                     autoComplete="username"
-                    value={forgotIdentifier}
-                    onChange={(e) => setForgotIdentifier(e.target.value)}
+                    value={forgotUsername}
+                    onChange={(e) => setForgotUsername(e.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="Verified email address">
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
                     required
                   />
                 </Field>
@@ -385,13 +446,10 @@ export default function Login() {
                 Check your inbox
               </h1>
               <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted">
-                If an account matches <strong className="text-brand-deep">{forgotIdentifier.trim()}</strong>, we've
-                emailed it a link to reset the password. The link works once and expires in 30 minutes.
+                We've sent a password reset link to <strong className="text-brand-deep">{forgotEmail.trim()}</strong>.
+                The link works once and expires in 30 minutes.
               </p>
-              <p className="mx-auto mt-3 max-w-sm text-xs text-muted">
-                No email? Check your spam folder. New accounts must verify their email first, and administrator
-                passwords can't be reset by email.
-              </p>
+              <p className="mx-auto mt-3 max-w-sm text-xs text-muted">No email? Check your spam folder.</p>
               <Button className="mt-7" size="lg" onClick={() => { setMode("signin"); setError(""); }}>
                 Back to sign in <ArrowRight className="h-4 w-4" />
               </Button>

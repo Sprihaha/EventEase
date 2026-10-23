@@ -103,20 +103,28 @@ def username_available(request: Request, username: str = Query(..., max_length=1
     return {"username": username, "available": True}
 
 
-@router.post("/forgot-password", response_model=Message)
+@router.post("/forgot-password", response_model=Message,
+             responses={404: {"description": "USER_NOT_FOUND"},
+                        400: {"description": "INVALID_EMAIL (not this account's verified email)"},
+                        403: {"description": "RESET_NOT_AVAILABLE / ACCOUNT_SUSPENDED"},
+                        429: {"description": "TOO_MANY_RESET_REQUESTS (daily limit) / RATE_LIMITED (per IP)"}})
 def forgot_password(body: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
     settings = get_settings()
-    enforce("forgot-ip", client_ip(request), settings.RATE_FORGOT_IP)
-    enforce("forgot-id", body.identifier.strip(), settings.RATE_FORGOT_IDENTIFIER)
-    auth_service.forgot_password(db, settings, body.identifier)
-    return {"message": "If an account with an email address matches, a password reset link has been sent."}
+    ip = client_ip(request)
+    enforce("forgot-ip", ip, settings.RATE_FORGOT_IP)
+    auth_service.forgot_password(db, settings, body.username, body.email, ip)
+    return {"message": "A password reset link has been sent to your verified email address."}
 
 
-@router.post("/reset-password", response_model=Message)
-def reset_password(body: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
-    enforce("reset-ip", client_ip(request), get_settings().RATE_RESET_IP)
-    auth_service.reset_password(db, body.token, body.new_password)
-    return {"message": "Password updated. Please log in with your new password."}
+@router.post("/reset-password", response_model=AuthResponse,
+             responses={400: {"description": "RESET_TOKEN_INVALID / WEAK_PASSWORD"},
+                        403: {"description": "ACCOUNT_SUSPENDED / ACCOUNT_PROTECTED"}})
+def reset_password(body: ResetPasswordRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    """Sets the new password, signs out every other session and signs this browser in."""
+    settings = get_settings()
+    enforce("reset-ip", client_ip(request), settings.RATE_RESET_IP)
+    session = auth_service.reset_password(db, settings, body.token, body.new_password)
+    return _respond(response, session)
 
 
 @router.post("/refresh", response_model=AuthResponse, dependencies=[Depends(check_origin)])

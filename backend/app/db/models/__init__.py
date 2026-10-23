@@ -27,7 +27,14 @@ from app.db.models.enums import (
 )
 from app.db.models.event import Event, EventSource, TicketCategory
 from app.db.models.monitoring import AuditLog, FraudSignal
-from app.db.models.user import EmailVerificationToken, LoginAttempt, PasswordResetToken, RefreshToken, User
+from app.db.models.user import (
+    EmailVerificationToken,
+    LoginAttempt,
+    PasswordResetRequest,
+    PasswordResetToken,
+    RefreshToken,
+    User,
+)
 
 __all__ = [
     "EventSeat", "SeatClaim", "ExchangeSettlement",
@@ -50,6 +57,7 @@ __all__ = [
     "FraudSignalType",
     "FraudStatus",
     "LoginAttempt",
+    "PasswordResetRequest",
     "PasswordResetToken",
     "Payment",
     "PaymentKind",

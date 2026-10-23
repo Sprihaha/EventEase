@@ -5,11 +5,11 @@ from sqlalchemy import select
 
 from app.cli import main as cli_main
 from app.core.config import get_settings
-from app.core.security import utcnow
-from app.db.models import EmailVerificationToken, Role, User, UserStatus
+from app.core.security import new_opaque_token, sha256, utcnow
+from app.db.models import EmailVerificationToken, PasswordResetToken, Role, User, UserStatus
 from app.services.email_verification import reminder_recipients, send_verification_reminders
 from app.services.mail.base import get_mailer
-from tests.helpers import PASSWORD, auth_header, error_of, login, make_user
+from tests.helpers import PASSWORD, auth_header, error_of, forgot_password, login, make_user
 
 
 def _signup(client, username="newfan", email="newfan@gmail.com"):
@@ -112,7 +112,7 @@ def test_resend_is_generic_and_silent_when_nothing_to_send(client, db):
 def test_forgot_password_waits_for_verification(client, db):
     _signup(client)
     before = len(get_mailer().outbox)
-    assert client.post("/api/v1/auth/forgot-password", json={"identifier": "newfan"}).status_code == 200
+    assert error_of(forgot_password(client, "newfan", "newfan@gmail.com"))["code"] == "INVALID_EMAIL"
     assert len(get_mailer().outbox) == before
 
 
@@ -124,25 +124,48 @@ def test_existing_accounts_log_in_without_verifying(client, db):
     assert not user.email_verification_required and user.email_verified_at is None
     me = client.get("/api/v1/auth/me", headers=auth_header(client, user.username)).json()
     assert me["emailVerified"] is False
-    assert client.post("/api/v1/auth/forgot-password", json={"identifier": user.username}).status_code == 200
+
+
+def test_reset_link_is_only_sent_to_a_verified_email(client, db):
+    older = make_user(db, email="older@gmail.com")
+    verified = make_user(db, email="verified@gmail.com", email_verified_at=utcnow())
+    assert error_of(forgot_password(client, older.username, older.email))["code"] == "INVALID_EMAIL"
+    assert get_mailer().outbox == []
+    assert forgot_password(client, verified.username, verified.email).status_code == 200
+    assert [m.to for m in get_mailer().outbox] == ["verified@gmail.com"]
+
+
+def test_another_accounts_verified_email_is_invalid(client, db):
+    user = make_user(db, email="owner@gmail.com", email_verified_at=utcnow())
+    other = make_user(db, email="other@gmail.com", email_verified_at=utcnow())
+    assert error_of(forgot_password(client, user.username, other.email))["code"] == "INVALID_EMAIL"
+    assert get_mailer().outbox == []
+
+
+def test_reset_link_for_an_unverified_email_is_refused(client, db):
+    # E.g. a link issued before reset links required a verified address.
+    user = make_user(db, email="older@gmail.com")
+    token = new_opaque_token()
+    db.add(PasswordResetToken(user_id=user.id, token_hash=sha256(token), expires_at=utcnow() + timedelta(minutes=30)))
+    db.commit()
+    response = client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": "Fresh-pass1"})
+    assert error_of(response)["code"] == "RESET_TOKEN_INVALID"
+    login(client, user.username)
+
+
+def test_verifying_the_email_enables_password_reset(client, db):
+    user = make_user(db, email="older@gmail.com")
+    send_verification_reminders(db, get_settings())
+    assert _verify(client, _link_token(user.email)).status_code == 200
+    assert forgot_password(client, user.username, user.email).status_code == 200
     assert "token=" in get_mailer().outbox[-1].body
 
 
-def test_password_reset_link_also_verifies_the_email(client, db):
-    user = make_user(db, email="resetfan@gmail.com")
-    client.post("/api/v1/auth/forgot-password", json={"identifier": user.email})
-    token = get_mailer().outbox[-1].body.split("token=")[1].split()[0]
-    response = client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": "Fresh-pass1"})
-    assert response.status_code == 200
-    assert _user(db, user.username).email_verified_at is not None
-    login(client, user.username, "Fresh-pass1")
-
-
 def test_reset_password_unlocks_a_locked_account(client, db):
-    user = make_user(db, email="lockedfan@gmail.com", failed_login_count=0,
+    user = make_user(db, email="lockedfan@gmail.com", failed_login_count=0, email_verified_at=utcnow(),
                      locked_until=utcnow() + timedelta(minutes=15))
     assert error_of(_login(client, user.username))["code"] == "ACCOUNT_LOCKED"
-    client.post("/api/v1/auth/forgot-password", json={"identifier": user.username})
+    forgot_password(client, user.username, user.email)
     token = get_mailer().outbox[-1].body.split("token=")[1].split()[0]
     assert client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": "Fresh-pass1"}).status_code == 200
     login(client, user.username, "Fresh-pass1")

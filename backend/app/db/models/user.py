@@ -97,6 +97,21 @@ class PasswordResetToken(UUIDPk, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class PasswordResetRequest(UUIDPk, Base):
+    """One row per accepted forgot-password request; drives the daily request limit."""
+
+    __tablename__ = "password_reset_requests"
+    __table_args__ = (
+        Index("ix_password_reset_requests_user_id_created_at", "user_id", "created_at"),
+        Index("ix_password_reset_requests_identifier_created_at", "identifier_lower", "created_at"),
+    )
+
+    identifier_lower: Mapped[str] = mapped_column(String(254), nullable=False)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    ip: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class EmailVerificationToken(UUIDPk, Base):
     __tablename__ = "email_verification_tokens"
 

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.security import utcnow
-from app.db.models import LoginAttempt, PasswordResetToken, RefreshToken, User
+from app.db.models import LoginAttempt, PasswordResetRequest, PasswordResetToken, RefreshToken, User
 
 
 def purge_old_data(db: Session) -> dict[str, int]:
@@ -22,6 +22,8 @@ def purge_old_data(db: Session) -> dict[str, int]:
             or_(RefreshToken.expires_at < now, RefreshToken.revoked_at < cutoff))).rowcount,
         "resetTokens": db.execute(delete(PasswordResetToken).where(
             or_(PasswordResetToken.expires_at < cutoff, PasswordResetToken.used_at < cutoff))).rowcount,
+        "resetRequests": db.execute(
+            delete(PasswordResetRequest).where(PasswordResetRequest.created_at < cutoff)).rowcount,
     }
     db.commit()
     return result

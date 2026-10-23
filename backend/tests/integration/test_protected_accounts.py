@@ -7,7 +7,7 @@ from app.db.models import PasswordResetToken, Role, User, UserStatus
 from app.rules.errors import RuleError
 from app.services.admin_accounts import SeedError, reset_admin_password
 from app.services.mail.base import get_mailer
-from tests.helpers import PASSWORD, auth_header, error_of, login, make_user
+from tests.helpers import PASSWORD, auth_header, error_of, forgot_password, login, make_user
 
 PROTECTED = [("Janice", Role.ADMIN), ("John", Role.CUSTOMER), ("Jay", Role.ORGANISER)]
 
@@ -81,13 +81,16 @@ def test_protected_account_can_log_in_but_not_change_password(client, db, john):
 
 
 def test_forgot_password_sends_nothing_for_protected_account(client, db, john):
+    john.email_verified_at = utcnow()
+    db.commit()
     before = len(get_mailer().outbox)
-    response = client.post("/api/v1/auth/forgot-password", json={"identifier": john.email})
-    assert response.status_code == 200
+    response = forgot_password(client, "John", john.email)
+    assert response.status_code == 403 and error_of(response)["code"] == "RESET_NOT_AVAILABLE"
     assert len(get_mailer().outbox) == before
 
 
 def test_reset_token_cannot_change_protected_password(client, db, john):
+    john.email_verified_at = utcnow()
     token = new_opaque_token()
     db.add(PasswordResetToken(user_id=john.id, token_hash=sha256(token), expires_at=utcnow() + timedelta(minutes=30)))
     db.commit()

@@ -38,14 +38,22 @@ def signals(db, type_=None):
 
 
 def test_credential_stuffing_from_one_ip(client, db):
-    for i in range(5):
-        client.post("/api/v1/auth/login", json={"identifier": f"victim{i}", "password": "Guess1!xx"})
+    victims = [make_user(db, username=f"victim{i}") for i in range(6)]
+    for victim in victims[:5]:
+        client.post("/api/v1/auth/login", json={"identifier": victim.username, "password": "Guess1!xx"})
     [signal] = signals(db, FraudSignalType.CREDENTIAL_STUFFING)
     assert signal.severity == FraudSeverity.HIGH and signal.ip == "testclient"
     assert signal.details["distinctIdentifiers"] == 5
-    client.post("/api/v1/auth/login", json={"identifier": "victim9x", "password": "Guess1!xx"})
+    client.post("/api/v1/auth/login", json={"identifier": victims[5].username, "password": "Guess1!xx"})
     [signal] = signals(db, FraudSignalType.CREDENTIAL_STUFFING)  # de-duplicated while open
     assert signal.occurrences == 2
+
+
+def test_unknown_usernames_are_not_counted_as_failed_logins(client, db):
+    for i in range(12):
+        response = client.post("/api/v1/auth/login", json={"identifier": f"ghost{i}", "password": "Guess1!xx"})
+        assert error_of(response)["code"] == "SIGNUP_REQUIRED"
+    assert signals(db) == []
 
 
 def test_repeated_failed_logins_on_one_account(client, db):

@@ -227,19 +227,22 @@ export async function backendVerifyEmail(token: string) {
   });
 }
 
-export async function backendForgotPassword(identifier: string) {
-  // Always succeeds with the same message, so it never reveals which accounts exist.
+export async function backendForgotPassword(username: string, email: string) {
+  // The email must be the account's verified address; errors are USER_NOT_FOUND / INVALID_EMAIL.
   return request<{ message: string }>("/auth/forgot-password", {
     method: "POST",
-    body: JSON.stringify({ identifier }),
+    body: JSON.stringify({ username, email }),
   });
 }
 
 export async function backendResetPassword(token: string, newPassword: string) {
-  return request<{ message: string }>("/auth/reset-password", {
+  // A successful reset signs this browser in, like a login.
+  const auth = await request<BackendAuth>("/auth/reset-password", {
     method: "POST",
     body: JSON.stringify({ token, newPassword }),
   });
+  sessionStorage.setItem(TOKEN_KEY, auth.accessToken);
+  return auth;
 }
 
 export async function backendResendVerification(identifier: string) {

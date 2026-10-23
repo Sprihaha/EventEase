@@ -36,7 +36,8 @@ class ResendVerificationRequest(CamelModel):
 
 
 class ForgotPasswordRequest(CamelModel):
-    identifier: str = Field(..., min_length=1, max_length=254)
+    username: str = Field(..., min_length=1, max_length=254)
+    email: str = Field(..., min_length=1, max_length=320, description="Must be the account's verified email")
 
 
 class ResetPasswordRequest(CamelModel):

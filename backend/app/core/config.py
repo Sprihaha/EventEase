@@ -56,7 +56,8 @@ class Settings(BaseSettings):
     RATE_LOGIN_IDENTIFIER: str = "10/60"
     RATE_SIGNUP_IP: str = "10/3600"
     RATE_FORGOT_IP: str = "5/900"
-    RATE_FORGOT_IDENTIFIER: str = "3/3600"
+    # Per account (or unknown identifier) per Singapore calendar day, stored in the database.
+    PASSWORD_RESET_DAILY_LIMIT: int = Field(default=3, ge=1, le=50)
     RATE_RESET_IP: str = "10/900"
     RATE_USERNAME_CHECK_IP: str = "60/60"
     RATE_REFRESH_IP: str = "30/60"

@@ -4,6 +4,7 @@ import { CheckCircle2, Circle, Eye, EyeOff, KeyRound, XCircle } from "lucide-rea
 import { Button, Card, Field, Input } from "../components/ui";
 import { ApiError, backendResetPassword } from "../lib/backendApi";
 import { PASSWORD_RULES, isStrongPassword } from "../lib/passwordRules";
+import { useStore } from "../lib/store";
 
 export default function ResetPassword() {
   const [params] = useSearchParams();
@@ -15,11 +16,18 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [state, setState] = useState<"form" | "done" | "invalid">(token ? "form" : "invalid");
+  const [state, setState] = useState<"form" | "invalid">(token ? "form" : "invalid");
+  const { startSession, user, sessionLoading } = useStore();
 
   useEffect(() => {
     if (params.has("token")) navigate("/reset-password", { replace: true });
   }, [params, navigate]);
+
+  // Once signed in (including straight after a successful reset) this page is never shown
+  // again: Back or a reopened link goes to the dashboard and this entry leaves history.
+  useEffect(() => {
+    if (!sessionLoading && user) navigate(`/dashboard/${user.role}`, { replace: true });
+  }, [sessionLoading, user, navigate]);
 
   const mismatch = confirm.length > 0 && confirm !== password;
 
@@ -29,11 +37,9 @@ export default function ResetPassword() {
     setSaving(true);
     setError("");
     try {
-      await backendResetPassword(token, password);
-      // Any lockout shown on the sign-in page no longer applies.
-      sessionStorage.removeItem("eventease-login-attempts");
-      sessionStorage.removeItem("eventease-login-locked");
-      setState("done");
+      const account = await startSession(await backendResetPassword(token, password));
+      // Replace this page in history so Back never returns to the now-used link.
+      navigate(`/dashboard/${account.role}`, { replace: true });
     } catch (err: unknown) {
       if (err instanceof ApiError && err.code === "RESET_TOKEN_INVALID") {
         setState("invalid");
@@ -50,18 +56,7 @@ export default function ResetPassword() {
   return (
     <div className="mx-auto flex min-h-[65vh] max-w-lg items-center px-5 py-16">
       <Card className="w-full p-8 sm:p-10">
-        {state === "done" ? (
-          <div className="text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-live/10 text-live ring-8 ring-live/5">
-              <CheckCircle2 className="h-10 w-10" />
-            </div>
-            <h1 className="mt-6 font-brand text-3xl font-bold tracking-tight text-brand-deep">Password updated</h1>
-            <p className="mt-3 text-sm text-brand-ink/70">
-              You've been signed out on all devices. Sign in with your new password.
-            </p>
-            <Button className="mt-8 w-full" onClick={() => navigate("/login")}>Continue to sign in</Button>
-          </div>
-        ) : state === "invalid" ? (
+        {state === "invalid" ? (
           <div className="text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-danger/10 text-danger ring-8 ring-danger/5">
               <XCircle className="h-10 w-10" />
@@ -79,7 +74,9 @@ export default function ResetPassword() {
               <KeyRound className="h-6 w-6" />
             </div>
             <h1 className="mt-5 font-brand text-3xl font-bold tracking-tight text-brand-deep">Choose a new password</h1>
-            <p className="mt-2 text-sm text-muted">This will sign you out on every device.</p>
+            <p className="mt-2 text-sm text-muted">
+              You'll be signed in here and signed out on every other device.
+            </p>
             <form className="mt-7 space-y-5" onSubmit={submit}>
               <Field label="New password">
                 <div className="relative">
@@ -135,7 +132,7 @@ export default function ResetPassword() {
                 type="submit"
                 disabled={saving || !isStrongPassword(password) || password !== confirm}
               >
-                {saving ? "Saving…" : "Update password"}
+                {saving ? "Updating and signing you in…" : "Update password"}
               </Button>
             </form>
           </>

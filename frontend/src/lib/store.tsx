@@ -32,6 +32,7 @@ import {
   backendSetEventStatus,
   fetchBackendEvents,
   fetchBackendRoleEvents,
+  type BackendAuth,
 } from "./backendApi";
 
 import { fetchBookings, bookingForStore } from "./ticketingApi";
@@ -41,6 +42,7 @@ export type User = { id: string; name: string; email: string; role: Role };
 type Store = {
   user: User | null;
   authenticate: (username: string, password: string) => Promise<User | null>;
+  startSession: (auth: BackendAuth) => Promise<User>;
   logout: () => void;
 
   events: EventItem[];
@@ -133,38 +135,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<Store>(() => {
+    // Loads the signed-in user's data from a backend session (after login or a password reset).
+    const startSession = async (auth: BackendAuth): Promise<User> => {
+      const role = auth.user.role === "ORGANISER" ? "organizer" : (auth.user.role.toLowerCase() as Role);
+      const account = {
+        id: auth.user.id,
+        name: auth.user.username,
+        email: "",
+        role,
+      };
+      setEvents([]);
+      try {
+        const publicResult = await fetchBackendEvents();
+        setPublicEvents(publicResult);
+        setEvents(role === "customer" ? publicResult : await fetchBackendRoleEvents(auth.user.role, auth.user.id));
+        setEventsSource("backend");
+        setEventsError(null);
+      } catch (cause) {
+        setEventsSource("error");
+        setEventsError(cause instanceof Error ? cause.message : "Could not load events.");
+      }
+      accountId.current = account.id;
+      accountRole.current = role;
+      setBookings([]);
+      setUser(account);
+      if (role === "customer") await loadBookings(account.id);
+      return account;
+    };
     return {
       user,
       sessionLoading, eventsError, bookingsError,
       refreshBookings: async () => { if (user?.role === "customer") await loadBookings(user.id); },
-      authenticate: async (username, password) => {
-        const normalized = username.trim().toLowerCase();
-        const auth = await backendLogin(normalized, password);
-        const role = auth.user.role === "ORGANISER" ? "organizer" : (auth.user.role.toLowerCase() as Role);
-        const account = {
-          id: auth.user.id,
-          name: auth.user.username,
-          email: "",
-          role,
-        };
-        setEvents([]);
-        try {
-          const publicResult = await fetchBackendEvents();
-          setPublicEvents(publicResult);
-          setEvents(role === "customer" ? publicResult : await fetchBackendRoleEvents(auth.user.role, auth.user.id));
-          setEventsSource("backend");
-          setEventsError(null);
-        } catch (cause) {
-          setEventsSource("error");
-          setEventsError(cause instanceof Error ? cause.message : "Could not load events.");
-        }
-        accountId.current = account.id;
-        accountRole.current = role;
-        setBookings([]);
-        setUser(account);
-        if (role === "customer") await loadBookings(account.id);
-        return account;
-      },
+      authenticate: async (username, password) => startSession(await backendLogin(username.trim().toLowerCase(), password)),
+      startSession,
       logout: () => {
         void backendLogout();
         accountId.current = null;

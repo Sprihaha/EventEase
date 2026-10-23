@@ -44,6 +44,10 @@ def auth_header(client, identifier: str, password: str = PASSWORD) -> dict:
     return {"Authorization": f"Bearer {login(client, identifier, password)['accessToken']}"}
 
 
+def forgot_password(client, username: str, email: str):
+    return client.post("/api/v1/auth/forgot-password", json={"username": username, "email": email})
+
+
 def error_of(response) -> dict:
     return response.json()["error"]
 
