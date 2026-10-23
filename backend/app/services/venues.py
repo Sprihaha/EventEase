@@ -88,3 +88,18 @@ def event_layout(db: Session, event_id: uuid.UUID) -> dict:
         sections.append({"id": section.id, "name": section.name,
                          "rows": [{"label": label, "seats": seats} for label, seats in rows.items()]})
     return {"event_id": event.id, "venue_id": venue.id, "venue_name": venue.name, "sections": sections}
+
+
+def get_venue_layout(db: Session, organiser: User, venue_id: uuid.UUID) -> dict:
+    """The physical seat layout of an organiser's venue."""
+    venue = get_own_venue(db, organiser, venue_id)
+    sections = []
+    for section in venue.sections:
+        rows: dict[str, list[dict]] = {}
+        for seat in section.seats:
+            rows.setdefault(seat.row_label, []).append(
+                {"id": seat.id, "number": seat.number, "is_accessible": seat.is_accessible})
+        sections.append({"id": section.id, "name": section.name,
+                         "rows": [{"label": label, "seats": seats} for label, seats in rows.items()]})
+    return {"id": venue.id, "name": venue.name, "area": venue.area, "address": venue.address,
+            "seat_count": venue.seat_count, "sections": sections}

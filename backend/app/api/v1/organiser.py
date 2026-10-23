@@ -17,6 +17,7 @@ from app.schemas.organiser import (
     TicketCategoryOut,
     TicketCategoryUpdate,
     VenueOut,
+    VenueLayoutOut,
 )
 from app.services import organiser as service
 from app.services import venues as venue_service
@@ -118,3 +119,9 @@ def list_venues(user: User = Depends(require_organiser), db: Session = Depends(g
 @router.get("/venues/{venue_id}", response_model=VenueOut)
 def get_venue(venue_id: uuid.UUID, user: User = Depends(require_organiser), db: Session = Depends(get_db)):
     return venue_service.venue_out(venue_service.get_own_venue(db, user, venue_id))
+
+
+@router.get("/venues/{venue_id}/layout", response_model=VenueLayoutOut, summary="Physical seat layout of the venue")
+def get_venue_layout(venue_id: uuid.UUID, user: User = Depends(require_organiser), db: Session = Depends(get_db)):
+    return venue_service.get_venue_layout(db, user, venue_id)
+

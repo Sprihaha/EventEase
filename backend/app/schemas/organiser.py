@@ -180,3 +180,13 @@ class EventLayoutOut(CamelModel):
     venue_id: uuid.UUID
     venue_name: str
     sections: list[LayoutSectionOut]
+
+
+class VenueLayoutOut(CamelModel):
+    """Physical seat blueprint of a venue, showing sections, rows, and seats."""
+    id: uuid.UUID
+    name: str
+    area: str
+    address: str | None
+    seat_count: int
+    sections: list[LayoutSectionOut]

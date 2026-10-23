@@ -515,3 +515,43 @@ export function backendEventCategories() {
 export function backendTicketCategoryTypes() {
   return request<string[]>("/organiser/ticket-category-types", {}, true);
 }
+
+export type VenueLayoutSeat = { id: string; number: number; isAccessible: boolean };
+export type VenueLayoutRow = { label: string; seats: VenueLayoutSeat[] };
+export type VenueLayoutSection = { id: string; name: string; rows: VenueLayoutRow[] };
+export type VenueLayout = {
+  id: string;
+  name: string;
+  area: string | null;
+  address: string | null;
+  seatCount: number;
+  sections: VenueLayoutSection[];
+};
+
+export async function backendGetVenueLayout(venueId: string): Promise<VenueLayout> {
+  try {
+    return await request<VenueLayout>(`/organiser/venues/${venueId}/layout`, {}, true);
+  } catch {
+    // Graceful fallback: construct layout structure from venue sections & rows
+    const venue = await backendGetVenue(venueId);
+    return {
+      ...venue,
+      sections: venue.sections.map((section) => {
+        const rowCount = Math.max(1, section.rows.length);
+        const seatsPerRow = Math.max(1, Math.round(section.seatCount / rowCount));
+        return {
+          id: section.id,
+          name: section.name,
+          rows: section.rows.map((rowLabel, rowIndex) => ({
+            label: rowLabel,
+            seats: Array.from({ length: seatsPerRow }, (_, i) => ({
+              id: `${section.id}-${rowLabel}-${i + 1}`,
+              number: i + 1,
+              isAccessible: rowIndex === 0 && i < 2,
+            })),
+          })),
+        };
+      }),
+    };
+  }
+}

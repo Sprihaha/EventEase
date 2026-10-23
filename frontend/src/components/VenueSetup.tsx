@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2, Download, Upload } from "lucide-react";
+import { Building2, Download, Upload, Armchair } from "lucide-react";
 import {
   ApiError,
   backendDownloadVenueTemplate,
@@ -8,6 +8,7 @@ import {
   type Venue,
 } from "../lib/backendApi";
 import { Badge, Button, Card, Eyebrow, Field, Input } from "./ui";
+import VenueSeatMap from "./VenueSeatMap";
 
 const emptyForm = { name: "", area: "", address: "" };
 
@@ -21,6 +22,7 @@ export default function VenueSetup() {
   const [form, setForm] = useState(emptyForm);
   const [file, setFile] = useState<File | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
+  const [previewVenueId, setPreviewVenueId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [lineErrors, setLineErrors] = useState<string[]>([]);
@@ -169,9 +171,26 @@ export default function VenueSetup() {
                   </div>
                 ))}
               </div>
+              <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
+                <span className="text-xs text-muted">{venue.sections.length} sections</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setPreviewVenueId(previewVenueId === venue.id ? null : venue.id)}
+                >
+                  <Armchair className="h-4 w-4" />
+                  {previewVenueId === venue.id ? "Hide layout" : "View seat map"}
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
+
+        {previewVenueId && (
+          <div className="mt-8 border-t border-line pt-8">
+            <VenueSeatMap initialVenueId={previewVenueId} />
+          </div>
+        )}
       </div>
     </div>
   );

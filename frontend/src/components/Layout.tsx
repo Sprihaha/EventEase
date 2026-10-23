@@ -72,6 +72,7 @@ const navLinks = [
 
 export default function Layout() {
   const { user, logout } = useStore();
+  const isCustomerOrAdmin = !user || user.role === "customer" || user.role === "admin";
   const navigate = useNavigate();
   const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -155,26 +156,28 @@ export default function Layout() {
             />
           </Link>
 
-          <nav className="ml-4 hidden items-center gap-1 md:flex">
-            {navLinks.map((l) => (
-              <NavLink
-                key={l.to}
-                to={l.to}
-                className={({ isActive }) =>
-                  cx(
-                    "rounded-full px-4 py-2 text-sm font-semibold transition",
-                    isActive
-                      ? "bg-brand-purple text-white shadow-sm font-bold"
-                      : "text-brand-deep/70 hover:bg-brand-lilac/60 hover:text-brand-deep",
-                  )
-                }
-              >
-                <span className={l.label.startsWith("Ease") ? "font-feature italic font-black tracking-tight" : ""}>
-                  {l.label}
-                </span>
-              </NavLink>
-            ))}
-          </nav>
+          {isCustomerOrAdmin && (
+            <nav className="ml-4 hidden items-center gap-1 md:flex">
+              {navLinks.map((l) => (
+                <NavLink
+                  key={l.to}
+                  to={l.to}
+                  className={({ isActive }) =>
+                    cx(
+                      "rounded-full px-4 py-2 text-sm font-semibold transition",
+                      isActive
+                        ? "bg-brand-purple text-white shadow-sm font-bold"
+                        : "text-brand-deep/70 hover:bg-brand-lilac/60 hover:text-brand-deep",
+                    )
+                  }
+                >
+                  <span className={l.label.startsWith("Ease") ? "font-feature italic font-black tracking-tight" : ""}>
+                    {l.label}
+                  </span>
+                </NavLink>
+              ))}
+            </nav>
+          )}
 
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden lg:block">
@@ -332,11 +335,14 @@ export default function Layout() {
                 </div>
               </div>
             </div>
-            {[
-              { h: "Discover", items: ["Concerts", "Theatre", "Sports", "Cultural"] },
-              { h: "Platform", items: ["EaseComms", "Secure Exchange", "Accessibility", "Fraud Shield"] },
-              { h: "For Organizers", items: ["Create events", "Analytics", "Pricing tools", "Apply to sell"] },
-            ].map((col) => (
+            {(user?.role === "organizer"
+              ? [{ h: "For Organizers", items: ["Create events", "Analytics", "Pricing tools", "Apply to sell"] }]
+              : [
+                  { h: "Discover", items: ["Concerts", "Theatre", "Sports", "Cultural"] },
+                  { h: "Platform", items: ["EaseComms", "Secure Exchange", "Accessibility", "Fraud Shield"] },
+                  { h: "For Organizers", items: ["Create events", "Analytics", "Pricing tools", "Apply to sell"] },
+                ]
+            ).map((col) => (
               <div key={col.h}>
                 <div className="font-brand text-sm font-bold tracking-wide text-white">{col.h}</div>
                 <ul className="mt-4 space-y-2.5 text-sm text-white/65">
