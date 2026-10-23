@@ -102,8 +102,17 @@ class Settings(BaseSettings):
     STRIPE_WEBHOOK_SECRET: str | None = None
 
     # Mail
-    MAIL_TRANSPORT: Literal["console"] = "console"
+    MAIL_TRANSPORT: Literal["console", "resend", "sendgrid", "smtp"] = "console"
     MAIL_FROM: str = "EventEase <no-reply@eventease.local>"
+    RESEND_API_KEY: str | None = None
+    SENDGRID_API_KEY: str | None = None
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_USE_TLS: bool = True
+    SMTP_USE_SSL: bool = False
+    SMTP_TIMEOUT_SECONDS: int = 10
 
     # Fraud thresholds
     FRAUD_FAILED_LOGINS_PER_IP: int = 10
