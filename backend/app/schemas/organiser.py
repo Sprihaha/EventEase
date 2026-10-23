@@ -155,6 +155,11 @@ class VenueOut(CamelModel):
     accessible_seat_count: int
     sections: list[VenueSectionOut]
     created_at: datetime
+    easeexplore_360_url: str | None = None
+
+
+class VenueEaseExploreUpdate(CamelModel):
+    easeexplore_360_url: str | None = None
 
 
 class LayoutSeatOut(CamelModel):
@@ -180,6 +185,7 @@ class EventLayoutOut(CamelModel):
     venue_id: uuid.UUID
     venue_name: str
     sections: list[LayoutSectionOut]
+    easeexplore_360_url: str | None = None
 
 
 class VenueLayoutOut(CamelModel):
@@ -190,3 +196,4 @@ class VenueLayoutOut(CamelModel):
     address: str | None
     seat_count: int
     sections: list[LayoutSectionOut]
+    easeexplore_360_url: str | None = None

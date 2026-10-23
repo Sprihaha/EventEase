@@ -18,6 +18,7 @@ from app.schemas.organiser import (
     TicketCategoryUpdate,
     VenueOut,
     VenueLayoutOut,
+    VenueEaseExploreUpdate,
 )
 from app.services import organiser as service
 from app.services import venues as venue_service
@@ -104,10 +105,12 @@ def import_venue(request: Request,
                  area: str = Form(..., min_length=2, max_length=100),
                  address: str | None = Form(None, max_length=300),
                  file: UploadFile = File(..., description=f"Columns: {', '.join(COLUMNS)}"),
+                 easeexplore_360_url: str | None = Form(None),
                  user: User = Depends(require_organiser), db: Session = Depends(get_db)):
     content = file.file.read(get_settings().IMPORT_MAX_BYTES + 1)
     venue = venue_service.import_venue(db, user, name=name, area=area, address=address,
-                                       filename=file.filename or "", content=content, ip=client_ip(request))
+                                       filename=file.filename or "", content=content, ip=client_ip(request),
+                                       easeexplore_360_url=easeexplore_360_url)
     return venue_service.venue_out(venue)
 
 
@@ -119,6 +122,13 @@ def list_venues(user: User = Depends(require_organiser), db: Session = Depends(g
 @router.get("/venues/{venue_id}", response_model=VenueOut)
 def get_venue(venue_id: uuid.UUID, user: User = Depends(require_organiser), db: Session = Depends(get_db)):
     return venue_service.venue_out(venue_service.get_own_venue(db, user, venue_id))
+
+
+@router.patch("/venues/{venue_id}/easeexplore", response_model=VenueOut, summary="Update venue EaseXplore 360 tour URL")
+def update_venue_easeexplore(venue_id: uuid.UUID, body: VenueEaseExploreUpdate,
+                             user: User = Depends(require_organiser), db: Session = Depends(get_db)):
+    venue = venue_service.update_venue_easeexplore(db, user, venue_id, body.easeexplore_360_url)
+    return venue_service.venue_out(venue)
 
 
 @router.get("/venues/{venue_id}/layout", response_model=VenueLayoutOut, summary="Physical seat layout of the venue")

@@ -18,7 +18,8 @@ def _with_layout():
 
 
 def import_venue(db: Session, organiser: User, *, name: str, area: str, address: str | None,
-                 filename: str, content: bytes, ip: str | None) -> Venue:
+                 filename: str, content: bytes, ip: str | None,
+                 easeexplore_360_url: str | None = None) -> Venue:
     settings = get_settings()
     if len(content) > settings.IMPORT_MAX_BYTES:
         raise AppError(413, "FILE_TOO_LARGE", f"layout files must be {settings.IMPORT_MAX_BYTES // 1000} KB or smaller")
@@ -27,7 +28,13 @@ def import_venue(db: Session, organiser: User, *, name: str, area: str, address:
         raise AppError(409, "VENUE_EXISTS", "you already have a venue with this name")
     sections = parse_layout(filename, content, settings.VENUE_MAX_SEATS)
 
-    venue = Venue(organiser_id=organiser.id, name=name, area=area, address=address)
+    venue = Venue(
+        organiser_id=organiser.id,
+        name=name,
+        area=area,
+        address=address,
+        easeexplore_360_url=(easeexplore_360_url or "").strip() or None,
+    )
     for section_position, parsed in enumerate(sections):
         section = VenueSection(name=parsed.name, position=section_position)
         section.seats = [VenueSeat(row_label=s.row, number=s.number, is_accessible=s.accessible, position=i)
@@ -66,7 +73,8 @@ def venue_out(venue: Venue) -> dict:
     return {"id": venue.id, "name": venue.name, "area": venue.area, "address": venue.address,
             "seat_count": sum(s["seat_count"] for s in sections),
             "accessible_seat_count": sum(s["accessible_seat_count"] for s in sections),
-            "sections": sections, "created_at": venue.created_at}
+            "sections": sections, "created_at": venue.created_at,
+            "easeexplore_360_url": venue.easeexplore_360_url}
 
 
 def event_layout(db: Session, event_id: uuid.UUID) -> dict:
@@ -87,7 +95,8 @@ def event_layout(db: Session, event_id: uuid.UUID) -> dict:
                 {"id": seat.id, "number": seat.number, "is_accessible": seat.is_accessible})
         sections.append({"id": section.id, "name": section.name,
                          "rows": [{"label": label, "seats": seats} for label, seats in rows.items()]})
-    return {"event_id": event.id, "venue_id": venue.id, "venue_name": venue.name, "sections": sections}
+    return {"event_id": event.id, "venue_id": venue.id, "venue_name": venue.name,
+            "sections": sections, "easeexplore_360_url": venue.easeexplore_360_url}
 
 
 def get_venue_layout(db: Session, organiser: User, venue_id: uuid.UUID) -> dict:
@@ -102,4 +111,13 @@ def get_venue_layout(db: Session, organiser: User, venue_id: uuid.UUID) -> dict:
         sections.append({"id": section.id, "name": section.name,
                          "rows": [{"label": label, "seats": seats} for label, seats in rows.items()]})
     return {"id": venue.id, "name": venue.name, "area": venue.area, "address": venue.address,
-            "seat_count": venue.seat_count, "sections": sections}
+            "seat_count": venue.seat_count, "sections": sections,
+            "easeexplore_360_url": venue.easeexplore_360_url}
+
+
+def update_venue_easeexplore(db: Session, organiser: User, venue_id: uuid.UUID, url: str | None) -> Venue:
+    venue = get_own_venue(db, organiser, venue_id)
+    venue.easeexplore_360_url = (url or "").strip() or None
+    db.commit()
+    db.refresh(venue)
+    return venue

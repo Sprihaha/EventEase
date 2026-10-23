@@ -85,7 +85,7 @@ export default function EventDetail() {
     <h1 className="mt-3 font-brand text-4xl font-bold text-brand-deep">{event.title}</h1>
     <p className="mt-3 flex flex-wrap gap-5 text-sm text-muted"><span className="flex gap-2"><Calendar className="h-4 w-4"/>{fmtDate(event.startAt)}</span><span className="flex gap-2"><MapPin className="h-4 w-4"/>{event.venueName}</span></p>
     <p className="mt-4 max-w-3xl text-muted">{event.description}</p>
-    <div className="mt-5 flex flex-wrap gap-3"><Link to="/community"><Button variant="outline">Event community & venue views</Button></Link></div>
+    <div className="mt-5 flex flex-wrap gap-3"><Link to={`/community?tab=views&event=${encodeURIComponent(event.id)}`}><Button variant="outline">Event community & venue views</Button></Link></div>
     {error && <div role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-danger">{error}</div>}
     {booking?.status === "CONFIRMED" ? <Card className="mt-8 p-7">
       <ShieldCheck className="h-8 w-8 text-emerald-600"/><h2 className="mt-3 font-brand text-2xl font-bold">Booking confirmed</h2>

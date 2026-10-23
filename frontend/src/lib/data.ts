@@ -80,6 +80,7 @@ export type CommunityPost = {
   author: string;
   body: string;
   section?: string;
+  seatLabel?: string;
   photo?: string;
   when: string;
   likes: number;

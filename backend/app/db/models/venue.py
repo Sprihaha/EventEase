@@ -1,7 +1,7 @@
 """Organiser venues: a venue has sections, a section has seats. Events reuse a venue's layout."""
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint, Uuid
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, Timestamps, UUIDPk
@@ -16,6 +16,7 @@ class Venue(UUIDPk, Timestamps, Base):
     name: Mapped[str] = mapped_column(String(200))
     area: Mapped[str] = mapped_column(String(100))
     address: Mapped[str | None] = mapped_column(String(300))
+    easeexplore_360_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     sections: Mapped[list["VenueSection"]] = relationship(
         back_populates="venue", order_by="VenueSection.position", cascade="all, delete-orphan"
