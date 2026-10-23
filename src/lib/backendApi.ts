@@ -1,4 +1,4 @@
-import type { Category, EventItem, EventStatus } from "./data";
+﻿import type { Category, EventItem, EventStatus } from "./data";
 
 const API_ORIGIN =
   ((import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL) as string | undefined)?.replace(/\/$/, "") ??
@@ -697,4 +697,107 @@ export function formatMediaEmbedUrl(url: string | null | undefined): FormattedMe
     isIframe: true,
     originalUrl: trimmed,
   };
+}
+
+export type BackendEasePix = {
+  id: string;
+  userId?: string | null;
+  authorName: string;
+  eventId: string;
+  venueId?: string | null;
+  section: string;
+  rowLabel?: string | null;
+  seatNumber?: number | null;
+  photoUrl: string;
+  caption?: string | null;
+  elevation?: string | null;
+  fov?: string | null;
+  isVerified: boolean;
+  likesCount: number;
+  createdAt: string;
+};
+
+export type BackendEasePixCreate = {
+  eventId: string;
+  venueId?: string | null;
+  section: string;
+  rowLabel?: string | null;
+  seatNumber?: number | null;
+  photoUrl: string;
+  caption?: string | null;
+  elevation?: string | null;
+  fov?: string | null;
+  authorName?: string | null;
+};
+
+export type BackendCommunityPost = {
+  id: string;
+  userId?: string | null;
+  authorName: string;
+  eventId?: string | null;
+  content: string;
+  easepixId?: string | null;
+  easepix?: BackendEasePix | null;
+  parentId?: string | null;
+  likesCount: number;
+  createdAt: string;
+  replies?: BackendCommunityPost[];
+};
+
+export type BackendCommunityPostCreate = {
+  content: string;
+  eventId?: string | null;
+  authorName?: string | null;
+  parentId?: string | null;
+  easepixId?: string | null;
+  easepix?: BackendEasePixCreate | null;
+};
+
+export async function backendListPosts(params?: { eventId?: string; limit?: number }): Promise<BackendCommunityPost[]> {
+  const q = new URLSearchParams();
+  if (params?.eventId) q.set("event_id", params.eventId);
+  if (params?.limit) q.set("limit", String(params.limit));
+  const query = q.toString() ? `?${q.toString()}` : "";
+  return request<BackendCommunityPost[]>(`/community/posts${query}`);
+}
+
+export async function backendCreatePost(data: BackendCommunityPostCreate): Promise<BackendCommunityPost> {
+  return request<BackendCommunityPost>("/community/posts", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }, true);
+}
+
+export async function backendLikePost(postId: string): Promise<BackendCommunityPost> {
+  return request<BackendCommunityPost>(`/community/posts/${postId}/like`, {
+    method: "POST",
+  });
+}
+
+export async function backendListEasePix(params?: {
+  eventId?: string;
+  section?: string;
+  rowLabel?: string;
+  limit?: number;
+}): Promise<BackendEasePix[]> {
+  const q = new URLSearchParams();
+  if (params?.eventId) q.set("event_id", params.eventId);
+  if (params?.section) q.set("section", params.section);
+  if (params?.rowLabel) q.set("row_label", params.rowLabel);
+  if (params?.limit) q.set("limit", String(params.limit));
+  const query = q.toString() ? `?${q.toString()}` : "";
+  return request<BackendEasePix[]>(`/community/easepix${query}`);
+}
+
+export async function backendCreateEasePix(data: BackendEasePixCreate): Promise<BackendEasePix> {
+  return request<BackendEasePix>("/community/easepix", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }, true);
+}
+
+export async function backendLikeEasePix(easepixId: string): Promise<BackendEasePix> {
+  return request<BackendEasePix>(`/community/easepix/${easepixId}/like`, {
+    method: "POST",
+  });
 }

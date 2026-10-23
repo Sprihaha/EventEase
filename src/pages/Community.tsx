@@ -1,8 +1,21 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+﻿import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router";
 import { fetchSeats, type LiveSeat } from "../lib/ticketingApi";
-import { backendGetEventLayout, formatMediaEmbedUrl } from "../lib/backendApi";
 import {
+  backendGetEventLayout,
+  formatMediaEmbedUrl,
+  backendListPosts,
+  backendCreatePost,
+  backendLikePost,
+  backendListEasePix,
+  backendCreateEasePix,
+  backendLikeEasePix,
+  type BackendCommunityPost,
+  type BackendEasePix,
+  type BackendEasePixCreate,
+} from "../lib/backendApi";
+import {
+
   Users,
   Repeat,
   Camera,
@@ -49,7 +62,7 @@ const vantagePoints = [
     desc: "Direct line of sight in front of the artist. Zero head obstruction.",
     image: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
     elevation: "Ground Level (0m)",
-    fov: "160° Panoramic",
+    fov: "160┬░ Panoramic",
   },
   {
     id: "center",
@@ -57,29 +70,29 @@ const vantagePoints = [
     desc: "Optimal acoustics and balanced sightlines facing the main performance area.",
     image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=85",
     elevation: "+2.5m Tiered",
-    fov: "140° Panoramic",
+    fov: "140┬░ Panoramic",
   },
   {
     id: "balcony",
     label: "Elevated Tier Perspective",
-    desc: "Bird’s-eye perspective overlooking the stage, venue crowd, and lighting effects.",
+    desc: "BirdΓÇÖs-eye perspective overlooking the stage, venue crowd, and lighting effects.",
     image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=85",
     elevation: "+8.0m Tiered",
-    fov: "180° Panoramic",
+    fov: "180┬░ Panoramic",
   },
   {
     id: "accessible",
-    label: "Accessible Platform · Step-Free",
+    label: "Accessible Platform ┬╖ Step-Free",
     desc: "Elevated wheelchair bay with unobstructed sightlines above standing fans.",
     image: "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1200&q=85",
     elevation: "+3.2m Platform",
-    fov: "150° Panoramic",
+    fov: "150┬░ Panoramic",
   },
 ] as const;
 
 const allTabs = [
   { id: "feed", label: "EaseConnect", icon: Users, desc: "Discussions & fan forums" },
-  { id: "views", label: "EasePix & EaseXplore", icon: Camera, desc: "Seat sharing & 360° views" },
+  { id: "views", label: "EasePix & EaseXplore", icon: Camera, desc: "Seat sharing & 360┬░ views" },
   { id: "exchange", label: "EaseExchange", icon: Repeat, desc: "Ticket swaps" },
 ] as const;
 
@@ -99,6 +112,9 @@ interface SectionSeatPhoto {
   section: string;
   seat: string;
   vibe: string;
+  isVerified?: boolean;
+  pixId?: string;
+  likesCount?: number;
 }
 
 interface SectionSegment {
@@ -396,6 +412,49 @@ function SearchableCombobox({
   );
 }
 
+interface PostReplyItem {
+  id: string;
+  author: string;
+  body: string;
+  when: string;
+  isVerified?: boolean;
+}
+
+interface DisplayPost {
+  id: string;
+  eventId: string;
+  author: string;
+  body: string;
+  section?: string;
+  seatLabel?: string;
+  photo?: string;
+  when: string;
+  likes: number;
+  isBackend: boolean;
+  isVerified?: boolean;
+  replies: PostReplyItem[];
+}
+
+function formatRelativeWhen(dateStr?: string): string {
+  if (!dateStr) return "Just now";
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    if (isNaN(diffMs)) return dateStr;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString("en-SG", { month: "short", day: "numeric" });
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function Community() {
   const { posts, events, user, addPost } = useStore();
   const navigate = useNavigate();
@@ -405,6 +464,29 @@ export default function Community() {
   const [lastCommsTab, setLastCommsTab] = useState<CommsChannelId>(
     tab === "exchange" ? "feed" : (tab as CommsChannelId)
   );
+
+  const [backendPosts, setBackendPosts] = useState<BackendCommunityPost[]>([]);
+  const [backendEasePixList, setBackendEasePixList] = useState<BackendEasePix[]>([]);
+  const [openCommentsForPost, setOpenCommentsForPost] = useState<Record<string, boolean>>({});
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [submittingReply, setSubmittingReply] = useState<Record<string, boolean>>({});
+
+  const reloadCommunityData = async () => {
+    try {
+      const [fetchedPosts, fetchedPix] = await Promise.all([
+        backendListPosts().catch(() => []),
+        backendListEasePix().catch(() => []),
+      ]);
+      setBackendPosts(fetchedPosts);
+      setBackendEasePixList(fetchedPix);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    reloadCommunityData();
+  }, []);
 
   useEffect(() => {
     if (tab !== "exchange") {
@@ -498,11 +580,11 @@ export default function Community() {
         const rows = Array.from(new Set(secSeats.map((s) => s.row))).sort();
         const minRow = rows[0];
         const maxRow = rows[rows.length - 1];
-        const rowRange = rows.length > 1 ? `Rows ${minRow}–${maxRow}` : `Row ${minRow}`;
+        const rowRange = rows.length > 1 ? `Rows ${minRow}ΓÇô${maxRow}` : `Row ${minRow}`;
         return {
           value: sec,
           label: sec,
-          sublabel: `${secSeats.length} seats · ${rowRange}`,
+          sublabel: `${secSeats.length} seats ┬╖ ${rowRange}`,
         };
       });
     }
@@ -511,7 +593,7 @@ export default function Community() {
       return selectedEvent.tiers.map((t) => ({
         value: t.name,
         label: t.name,
-        sublabel: `S$${t.price.toFixed(2)} · ${t.total} seats`,
+        sublabel: `S$${t.price.toFixed(2)} ┬╖ ${t.total} seats`,
       }));
     }
 
@@ -537,16 +619,16 @@ export default function Community() {
         return {
           value: `Row ${r}`,
           label: `Row ${r}`,
-          sublabel: `Seats ${minSeat}–${maxSeat}${secName ? ` (${secName})` : ""}`,
+          sublabel: `Seats ${minSeat}ΓÇô${maxSeat}${secName ? ` (${secName})` : ""}`,
         };
       });
 
       const specificSeatOptions: SearchableOption[] = filteredSeats.map((s) => {
         const secName = s.seatSection || s.categoryName;
         return {
-          value: `Row ${s.row} · Seat ${s.number}`,
-          label: `Row ${s.row} · Seat ${s.number}`,
-          sublabel: `${secName ? `${secName} · ` : ""}${s.categoryName}${s.isAccessible ? " (Wheelchair)" : ""}`,
+          value: `Row ${s.row} ┬╖ Seat ${s.number}`,
+          label: `Row ${s.row} ┬╖ Seat ${s.number}`,
+          sublabel: `${secName ? `${secName} ┬╖ ` : ""}${s.categoryName}${s.isAccessible ? " (Wheelchair)" : ""}`,
         };
       });
 
@@ -560,7 +642,7 @@ export default function Community() {
         generated.push({
           value: `Row ${rowLetter}`,
           label: `Row ${rowLetter}`,
-          sublabel: `Seats 1–${selectedEvent.cols ?? 10}`,
+          sublabel: `Seats 1ΓÇô${selectedEvent.cols ?? 10}`,
         });
       }
       return generated;
@@ -572,7 +654,7 @@ export default function Community() {
   const handleOpenEaseExplore = async (sectionOverride?: string) => {
     const targetEventId = gallerySearchFilter?.eventId || seatEventIdInput;
     if (!targetEventId) {
-      showToast("Please select an event to open EaseXplore 360° views");
+      showToast("Please select an event to open EaseXplore 360┬░ views");
       return;
     }
     const ev = events.find((e) => e.id === targetEventId);
@@ -617,7 +699,7 @@ export default function Community() {
 
     setPreview360Photo({
       url: matched.image,
-      title: `${finalVenueName} · ${ev.title}`,
+      title: `${finalVenueName} ┬╖ ${ev.title}`,
       section: targetSection,
       elevation: matched.elevation,
       fov: matched.fov,
@@ -695,21 +777,109 @@ export default function Community() {
     }
   }, [events, selectedEventId]);
 
-  // Handle post likes
-  const toggleLike = (postId: string, initialLikes: number) => {
+  // Build unified list of posts combining backend posts with mock posts
+  const displayPosts: DisplayPost[] = useMemo(() => {
+    const bPosts: DisplayPost[] = backendPosts.map((p) => {
+      const sec = p.easepix?.section;
+      const seat = p.easepix?.rowLabel
+        ? p.easepix?.seatNumber
+          ? `${p.easepix.rowLabel} ┬╖ Seat ${p.easepix.seatNumber}`
+          : p.easepix.rowLabel
+        : undefined;
+
+      return {
+        id: p.id,
+        eventId: p.eventId || events[0]?.id || "",
+        author: p.authorName,
+        body: p.content,
+        section: sec,
+        seatLabel: seat,
+        photo: p.easepix?.photoUrl,
+        when: formatRelativeWhen(p.createdAt),
+        likes: p.likesCount,
+        isBackend: true,
+        isVerified: p.easepix?.isVerified ?? false,
+        replies: (p.replies || []).map((r) => ({
+          id: r.id,
+          author: r.authorName,
+          body: r.content,
+          when: formatRelativeWhen(r.createdAt),
+          isVerified: r.easepix?.isVerified ?? false,
+        })),
+      };
+    });
+
+    const sPosts: DisplayPost[] = posts.map((p) => ({
+      ...p,
+      isBackend: false,
+      isVerified: true,
+      replies: [],
+    }));
+
+    return bPosts.length > 0 ? [...bPosts, ...sPosts] : sPosts;
+  }, [backendPosts, posts, events]);
+
+  // Handle post likes (persists to backend if isBackend is true)
+  const toggleLike = (postId: string, initialLikes: number, isBackend = false) => {
     setLikedPosts((prev) => {
       const isLiked = !prev[postId];
       setLikesCount((prevCounts) => ({
         ...prevCounts,
         [postId]: (prevCounts[postId] ?? initialLikes) + (isLiked ? 1 : -1),
       }));
-      showToast(isLiked ? "Added to your liked posts ❤️" : "Unliked post");
+      showToast(isLiked ? "Added to your liked posts Γ¥ñ∩╕Å" : "Unliked post");
       return { ...prev, [postId]: isLiked };
     });
+
+    if (isBackend) {
+      backendLikePost(postId).catch(() => {});
+    }
+  };
+
+  // Like an individual EasePix photo
+  const handleLikeEasePix = async (pixId: string) => {
+    try {
+      await backendLikeEasePix(pixId);
+      await reloadCommunityData();
+      showToast("Liked EasePix photo! Γ¥ñ∩╕Å");
+    } catch {
+      showToast("Liked EasePix photo! Γ¥ñ∩╕Å");
+    }
+  };
+
+  // Submit reply / comment on a post (comments only for a post)
+  const submitReply = async (postId: string, eventId: string) => {
+    const text = (replyDrafts[postId] || "").trim();
+    if (!text) {
+      showToast("Write a reply before sending");
+      return;
+    }
+    if (!user) {
+      showToast("Please sign in to leave a comment.");
+      navigate("/login");
+      return;
+    }
+
+    setSubmittingReply((prev) => ({ ...prev, [postId]: true }));
+    try {
+      await backendCreatePost({
+        content: text,
+        eventId,
+        parentId: postId,
+        authorName: user.name,
+      });
+      setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
+      await reloadCommunityData();
+      showToast("Comment posted! ≡ƒÆ¼");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to post comment");
+    } finally {
+      setSubmittingReply((prev) => ({ ...prev, [postId]: false }));
+    }
   };
 
   // Submit new post
-  const submitPost = (e?: React.FormEvent) => {
+  const submitPost = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!draft.trim()) {
       showToast("Write a little something before sharing.");
@@ -726,29 +896,56 @@ export default function Community() {
     const targetEventId = selectedEventId || attachedEasePix?.eventId || events[0]?.id || "";
     const photoToSubmit = attachedEasePix?.photo || photoUrl.trim() || undefined;
     const sectionToSubmit = attachedEasePix?.section || undefined;
+    const rowToSubmit = attachedEasePix?.row || undefined;
 
-    addPost({
-      eventId: targetEventId,
-      author: user.name.split(" ")[0] || "You",
-      body: draft.trim(),
-      section: sectionToSubmit,
-      seatLabel: attachedEasePix?.row || undefined,
-      photo: photoToSubmit,
-    });
+    try {
+      let easepixPayload: BackendEasePixCreate | undefined = undefined;
+      if (photoToSubmit && sectionToSubmit) {
+        const parts = rowToSubmit ? parseSeatParts(rowToSubmit) : null;
+        easepixPayload = {
+          eventId: targetEventId,
+          section: sectionToSubmit,
+          rowLabel: parts?.row || rowToSubmit || undefined,
+          seatNumber: parts?.seat ? parseInt(parts.seat, 10) : undefined,
+          photoUrl: photoToSubmit,
+          caption: `View from ${sectionToSubmit} ${rowToSubmit || ""}`.trim(),
+          authorName: user.name,
+        };
+      }
 
-    if (photoToSubmit) {
-      setHasSearched(true);
-      setGallerySearchFilter({
+      await backendCreatePost({
+        content: draft.trim(),
         eventId: targetEventId,
-        section: sectionToSubmit,
+        authorName: user.name,
+        easepix: easepixPayload,
       });
-    }
 
-    setDraft("");
-    setPhotoUrl("");
-    setAttachedEasePix(null);
-    setShowPhotoInput(false);
-    showToast("Your post and EasePix seat view have been shared to EaseComms! ✨");
+      addPost({
+        eventId: targetEventId,
+        author: user.name.split(" ")[0] || "You",
+        body: draft.trim(),
+        section: sectionToSubmit,
+        seatLabel: rowToSubmit,
+        photo: photoToSubmit,
+      });
+
+      if (photoToSubmit) {
+        setHasSearched(true);
+        setGallerySearchFilter({
+          eventId: targetEventId,
+          section: sectionToSubmit,
+        });
+      }
+
+      await reloadCommunityData();
+      setDraft("");
+      setPhotoUrl("");
+      setAttachedEasePix(null);
+      setShowPhotoInput(false);
+      showToast("Your post and EasePix seat view have been shared to EaseConnect! Γ£¿");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to share post");
+    }
   };
 
   // EaseVoice narration toggle
@@ -763,7 +960,7 @@ export default function Community() {
       setActiveVoicePlaying(false);
       showToast("EaseVoice audio paused.");
     } else {
-      const topPost = posts[0];
+      const topPost = displayPosts[0];
       const textToSpeak = topPost
         ? `EaseVoice narration. Community post by ${topPost.author} on ${eventName(topPost.eventId)}. ${topPost.body}`
         : "Welcome to EaseComms. The night is better together. Discover real seat views, trade tickets securely, and find your people.";
@@ -777,7 +974,7 @@ export default function Community() {
 
       window.speechSynthesis.speak(utterance);
       setActiveVoicePlaying(true);
-      showToast("Playing EaseVoice feed narration ▷");
+      showToast("Playing EaseVoice feed narration Γû╖");
     }
   };
 
@@ -791,7 +988,7 @@ export default function Community() {
   }, []);
 
   // Filtered posts
-  const filteredPosts = posts.filter((p) => {
+  const filteredPosts = displayPosts.filter((p) => {
     if (filter === "views") return Boolean(p.photo);
     if (filter === "questions") return p.body.includes("?") || p.body.toLowerCase().includes("ask");
     if (filter === "following") return p.author === "Nadia" || p.author === "Jules";
@@ -818,7 +1015,7 @@ export default function Community() {
           {/* Subtle Concentric Rings & Sparkle Overlay */}
           <div className="pointer-events-none absolute -top-40 -right-20 h-96 w-96 rounded-full border border-white/10 shadow-[0_0_0_35px_rgba(255,255,255,0.03),0_0_0_70px_rgba(255,255,255,0.02)]" />
           <div className="pointer-events-none absolute right-8 bottom-6 text-7xl sm:text-8xl lg:text-9xl font-black text-brand-orange/90 opacity-90 select-none drop-shadow-[0_0_40px_rgba(255,101,0,0.5)]">
-            ✦
+            Γ£ª
           </div>
 
           {/* Hero Content */}
@@ -947,7 +1144,7 @@ export default function Community() {
                     mainSection === "comms" ? "text-white/85" : "text-muted",
                   )}
                 >
-                  Discussions, 360° seat views & venue accessibility
+                  Discussions, 360┬░ seat views & venue accessibility
                 </p>
               </div>
             </div>
@@ -1080,7 +1277,7 @@ export default function Community() {
                 <button
                   type="button"
                   onClick={() => setTab("views")}
-                  title="EasePix & EaseXplore: Seat sharing & 360° views"
+                  title="EasePix & EaseXplore: Seat sharing & 360┬░ views"
                   className={cx(
                     "cursor-pointer flex h-10 w-10 items-center justify-center rounded-xl transition-all shadow-xs",
                     tab === "views"
@@ -1181,7 +1378,7 @@ export default function Community() {
                         EasePix & EaseXplore
                       </b>
                       <small className={cx("block text-[10px] truncate", tab === "views" ? "text-white/80" : "text-muted")}>
-                        Seat sharing & 360° views
+                        Seat sharing & 360┬░ views
                       </small>
                     </div>
                   </button>
@@ -1218,7 +1415,7 @@ export default function Community() {
 
                 <div className="mt-4 rounded-2xl bg-gradient-to-br from-brand-lilac/70 via-brand-warm to-brand-lilac/40 p-3.5 border border-brand-purple/15">
                   <strong className="block font-brand text-xs font-bold text-brand-deep">
-                    Make someone’s night ✨
+                    Make someoneΓÇÖs night Γ£¿
                   </strong>
                   <p className="mt-1 text-[11px] leading-relaxed text-muted">
                     Share a seat view or a useful tip to help another fan feel event-ready.
@@ -1304,7 +1501,7 @@ export default function Community() {
                       {user?.name?.[0] ?? "Y"}
                     </div>
                     <div>
-                      <b className="block text-xs font-bold text-brand-deep">What’s the story?</b>
+                      <b className="block text-xs font-bold text-brand-deep">WhatΓÇÖs the story?</b>
                       <small className="block text-[11px] text-muted">
                         Ask the crowd, share a tip, or post a seat view.
                       </small>
@@ -1317,7 +1514,7 @@ export default function Community() {
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       rows={3}
-                      placeholder="Drop a tip, ask the crowd, or share the moment…"
+                      placeholder="Drop a tip, ask the crowd, or share the momentΓÇª"
                       className="border-brand-line bg-brand-warm/30 text-sm focus:border-brand-purple"
                     />
                   </div>
@@ -1356,9 +1553,9 @@ export default function Community() {
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 text-xs font-bold text-brand-deep">
-                            <span className="text-brand-purple">📸 EasePix Attached</span>
+                            <span className="text-brand-purple">≡ƒô╕ EasePix Attached</span>
                             <span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-brand-deep border border-brand-line">
-                              {attachedEasePix.section} · {attachedEasePix.row}
+                              {attachedEasePix.section} ┬╖ {attachedEasePix.row}
                             </span>
                           </div>
                           <small className="block truncate text-[11px] text-muted">
@@ -1473,14 +1670,14 @@ export default function Community() {
                             <div>
                               <b className="text-xs font-bold text-brand-deep">
                                 {p.author}{" "}
-                                <span className="font-normal text-muted">· Live Music Fans</span>
+                                <span className="font-normal text-muted">┬╖ Live Music Fans</span>
                               </b>
                               <div className="text-[11px] text-muted">
                                 {p.when} on{" "}
                                 <span className="font-semibold text-brand-deep">
                                   {eventName(p.eventId)}
                                 </span>{" "}
-                                ·{" "}
+                                ┬╖{" "}
                                 <span className="font-bold text-brand-purple">
                                   {p.photo ? "EasePix contributor" : "Community tip"}
                                 </span>
@@ -1512,7 +1709,7 @@ export default function Community() {
                                 <span className="rounded bg-brand-orange px-2 py-0.5 text-[10px] uppercase font-black tracking-wider">
                                   SEAT VIEW
                                 </span>
-                                <span>{eventName(p.eventId)} · Section {p.section ?? "C"}</span>
+                                <span>{eventName(p.eventId)} ┬╖ Section {p.section ?? "C"}</span>
                               </div>
                               <button
                                 type="button"
@@ -1525,7 +1722,7 @@ export default function Community() {
                                 }
                                 className="cursor-pointer absolute right-3.5 bottom-3.5 inline-flex items-center gap-1.5 rounded-full bg-brand-deep/85 px-3 py-1 text-xs font-bold text-white backdrop-blur-md transition hover:bg-brand-purple"
                               >
-                                <Rotate3d className="h-3.5 w-3.5 text-brand-orange" /> Preview 360°
+                                <Rotate3d className="h-3.5 w-3.5 text-brand-orange" /> Preview 360┬░
                               </button>
                             </div>
                           )}
@@ -1534,7 +1731,7 @@ export default function Community() {
                           <div className="mt-4 flex items-center gap-4 pt-3 border-t border-brand-line/60 text-xs text-muted font-bold">
                             <button
                               type="button"
-                              onClick={() => toggleLike(p.id, p.likes)}
+                              onClick={() => toggleLike(p.id, p.likes, p.isBackend)}
                               className={cx(
                                 "cursor-pointer inline-flex items-center gap-1.5 transition-colors",
                                 isLiked ? "text-brand-magenta" : "hover:text-brand-magenta",
@@ -1546,10 +1743,25 @@ export default function Community() {
 
                             <button
                               type="button"
-                              onClick={() => showToast("Comments section preview: 8 fans replied")}
-                              className="cursor-pointer inline-flex items-center gap-1.5 hover:text-brand-purple transition-colors"
+                              onClick={() =>
+                                setOpenCommentsForPost((prev) => ({
+                                  ...prev,
+                                  [p.id]: !prev[p.id],
+                                }))
+                              }
+                              className={cx(
+                                "cursor-pointer inline-flex items-center gap-1.5 transition-colors",
+                                openCommentsForPost[p.id]
+                                  ? "text-brand-purple font-extrabold"
+                                  : "hover:text-brand-purple"
+                              )}
                             >
-                              <MessageSquare className="h-4 w-4" /> 8 comments
+                              <MessageSquare className="h-4 w-4" />
+                              <span>
+                                {p.replies.length > 0
+                                  ? `${p.replies.length} ${p.replies.length === 1 ? "comment" : "comments"}`
+                                  : "Comment"}
+                              </span>
                             </button>
 
                             <button
@@ -1567,6 +1779,78 @@ export default function Community() {
                               <Sparkles className="h-3 w-3" /> +15 EasePoints
                             </div>
                           </div>
+
+                          {/* Expandable Comments / Replies Section for this post */}
+                          {openCommentsForPost[p.id] && (
+                            <div className="mt-3.5 space-y-3 rounded-2xl border border-brand-line/80 bg-brand-warm/30 p-3.5 sm:p-4">
+                              <div className="flex items-center justify-between text-xs font-bold text-brand-deep">
+                                <span>Comments & Replies ({p.replies.length})</span>
+                                <span className="text-[11px] text-muted">Join the discussion</span>
+                              </div>
+
+                              {/* Comment List */}
+                              {p.replies.length > 0 ? (
+                                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                  {p.replies.map((reply) => (
+                                    <div
+                                      key={reply.id}
+                                      className="rounded-xl border border-brand-line/60 bg-white p-3 text-xs shadow-xs"
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="font-bold text-brand-deep">
+                                            {reply.author}
+                                          </span>
+                                          {reply.isVerified && (
+                                            <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-[9px] font-bold">
+                                              Verified Attendee
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="text-[10px] text-muted">{reply.when}</span>
+                                      </div>
+                                      <p className="mt-1 leading-relaxed text-brand-deep/90">
+                                        {reply.body}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="py-2.5 text-center text-xs text-muted">
+                                  No comments on this post yet. Be the first to reply!
+                                </div>
+                              )}
+
+                              {/* Inline Reply Composer */}
+                              <div className="flex items-center gap-2 pt-2 border-t border-brand-line/60">
+                                <input
+                                  type="text"
+                                  placeholder={user ? "Write a comment..." : "Sign in to leave a comment..."}
+                                  disabled={!user || submittingReply[p.id]}
+                                  value={replyDrafts[p.id] || ""}
+                                  onChange={(e) =>
+                                    setReplyDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                      e.preventDefault();
+                                      submitReply(p.id, p.eventId);
+                                    }
+                                  }}
+                                  className="flex-1 rounded-xl border border-brand-line bg-white px-3 py-2 text-xs text-brand-deep outline-none focus:border-brand-purple disabled:bg-stone-100 disabled:cursor-not-allowed"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={!user || submittingReply[p.id] || !(replyDrafts[p.id] || "").trim()}
+                                  onClick={() => submitReply(p.id, p.eventId)}
+                                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <Send className="h-3 w-3" />
+                                  <span>{submittingReply[p.id] ? "Posting..." : "Reply"}</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </article>
@@ -1619,7 +1903,7 @@ export default function Community() {
                       options={events.map((ev) => ({
                         value: ev.id,
                         label: ev.title,
-                        sublabel: [ev.venue, ev.category].filter(Boolean).join(" · "),
+                        sublabel: [ev.venue, ev.category].filter(Boolean).join(" ┬╖ "),
                       }))}
                       allowCustom={false}
                     />
@@ -1706,7 +1990,7 @@ export default function Community() {
 
                         const evTitle = events.find((e) => e.id === seatEventIdInput)?.title ?? "Selected Event";
                         if (targetSection !== "all" && searchedRow) {
-                          showToast(`Showing ${targetSection} · ${searchedRow} (Highlighted)`);
+                          showToast(`Showing ${targetSection} ┬╖ ${searchedRow} (Highlighted)`);
                         } else if (targetSection !== "all") {
                           showToast(`Showing ${targetSection} seat views`);
                         } else {
@@ -1763,7 +2047,7 @@ export default function Community() {
                       </h3>
                       <p className="text-xs text-muted">
                         {gallerySearchFilter?.eventId
-                          ? `Showing seat views for ${events.find((e) => e.id === gallerySearchFilter.eventId)?.title ?? "Selected Event"}${selectedGallerySection !== "all" ? ` · ${selectedGallerySection}` : (gallerySearchFilter.section ? ` · ${gallerySearchFilter.section}` : "")}`
+                          ? `Showing seat views for ${events.find((e) => e.id === gallerySearchFilter.eventId)?.title ?? "Selected Event"}${selectedGallerySection !== "all" ? ` ┬╖ ${selectedGallerySection}` : (gallerySearchFilter.section ? ` ┬╖ ${gallerySearchFilter.section}` : "")}`
                           : "Real, unedited photos shared by fans who sat there"}
                       </p>
                     </div>
@@ -1798,11 +2082,11 @@ export default function Community() {
                             {events.find((e) => e.id === (gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id))?.venue || "Event Venue"}
                           </span>
                           <span className="rounded-full bg-brand-orange/20 px-2 py-0.5 text-[10px] font-extrabold text-brand-orange border border-brand-orange/30">
-                            360° Panoramic
+                            360┬░ Panoramic
                           </span>
                         </div>
                         <p className="mt-0.5 text-xs text-white/80">
-                          View interactive 360° sightlines, step-free access, and vantage point elevations for this venue.
+                          View interactive 360┬░ sightlines, step-free access, and vantage point elevations for this venue.
                         </p>
                       </div>
                     </div>
@@ -1829,7 +2113,7 @@ export default function Community() {
                             Select an event above
                           </h4>
                           <p className="mt-1 text-xs text-muted max-w-sm mx-auto">
-                            Choose an event from the search bar to inspect actual verified fan seat views, camera angles, and 360° sightlines for its real sections.
+                            Choose an event from the search bar to inspect actual verified fan seat views, camera angles, and 360┬░ sightlines for its real sections.
                           </p>
                         </div>
                       );
@@ -1839,7 +2123,10 @@ export default function Community() {
                     const eventTitle = targetEvent?.title ?? "Selected Event";
 
                     // User posts for this event that have photos
-                    const userEventPhotos = posts.filter((p) => p.photo && p.eventId === targetEventId);
+                    const userEventPhotos = displayPosts.filter((p) => p.photo && p.eventId === targetEventId);
+
+                    // Backend EasePix photos for this event
+                    const backendEventPix = backendEasePixList.filter((pix) => pix.eventId === targetEventId);
 
                     const searchedRow = (gallerySearchFilter?.row || seatRowInput || "").trim();
                     const matchesSearchedSeat = (seatStr: string) => isSeatMatch(searchedRow, seatStr);
@@ -1856,7 +2143,7 @@ export default function Community() {
                       const rowRange =
                         rows.length > 0
                           ? rows.length > 1
-                            ? `Rows ${rows[0]} – ${rows[rows.length - 1]}`
+                            ? `Rows ${rows[0]} ΓÇô ${rows[rows.length - 1]}`
                             : `Row ${rows[0]}`
                           : "General Seating";
 
@@ -1884,9 +2171,30 @@ export default function Community() {
 
                     const searchedSectionQuery = (gallerySearchFilter?.section || seatSectionInput || "").trim().toLowerCase();
 
-                    // Integrate user posts into their matching real sections
+                    // Integrate user posts and backend EasePix photos into their matching real sections
                     const dynamicSections = baseCatalog.map((sec) => {
-                      const matchedUserPosts = userEventPhotos
+                      const matchedBackendPix: SectionSeatPhoto[] = backendEventPix
+                        .filter((pix) => {
+                          const secNorm = sec.name.toLowerCase().replace(/^section\s+/i, "");
+                          const pixSecNorm = pix.section.toLowerCase().replace(/^section\s+/i, "");
+                          return pixSecNorm.includes(secNorm) || secNorm.includes(pixSecNorm);
+                        })
+                        .map((pix) => ({
+                          photo: pix.photoUrl,
+                          authorName: pix.authorName,
+                          section: sec.name,
+                          seat: pix.rowLabel
+                            ? pix.seatNumber
+                              ? `${sec.name} ┬╖ Row ${pix.rowLabel} Seat ${pix.seatNumber}`
+                              : `${sec.name} ┬╖ ${pix.rowLabel}`
+                            : `${sec.name} ┬╖ Verified Seat`,
+                          vibe: pix.caption || "Sightline view from this seat",
+                          isVerified: pix.isVerified,
+                          pixId: pix.id,
+                          likesCount: pix.likesCount,
+                        }));
+
+                      const matchedUserPosts: SectionSeatPhoto[] = userEventPhotos
                         .filter((p) => {
                           if (!p.section) return false;
                           const secNorm = sec.name.toLowerCase().replace(/^section\s+/i, "");
@@ -1895,13 +2203,21 @@ export default function Community() {
                         })
                         .map((p) => ({
                           photo: p.photo!,
-                          authorName: `${p.author} (Verified Fan)`,
+                          authorName: p.author,
                           section: sec.name,
-                          seat: p.seatLabel ? `${sec.name} · ${p.seatLabel}` : (p.section ? `${p.section}` : `${sec.name} · Verified Seat`),
-                          vibe: p.body.slice(0, 85) + (p.body.length > 85 ? "…" : ""),
+                          seat: p.seatLabel ? `${sec.name} ┬╖ ${p.seatLabel}` : (p.section ? `${p.section}` : `${sec.name} ┬╖ Verified Seat`),
+                          vibe: p.body.slice(0, 85) + (p.body.length > 85 ? "ΓÇª" : ""),
+                          isVerified: p.isVerified ?? true,
                         }));
 
-                      const allSecPhotos = [...matchedUserPosts];
+                      const seenPhotos = new Set<string>();
+                      const allSecPhotos: SectionSeatPhoto[] = [];
+                      for (const item of [...matchedBackendPix, ...matchedUserPosts]) {
+                        if (!seenPhotos.has(item.photo)) {
+                          seenPhotos.add(item.photo);
+                          allSecPhotos.push(item);
+                        }
+                      }
 
                       const isTargetSection = Boolean(
                         searchedSectionQuery ? matchesSectionQuery(sec.name, searchedSectionQuery) : true
@@ -2141,7 +2457,7 @@ export default function Community() {
                                       No EasePix found for this section ({sec.name})
                                     </h5>
                                     <p className="mt-1 text-xs text-muted max-w-md">
-                                      No fan sightline photos have been shared for {sec.name} yet. Please look at other sections to explore views, or inspect the interactive 360° venue vantage in EaseXplore!
+                                      No fan sightline photos have been shared for {sec.name} yet. Please look at other sections to explore views, or inspect the interactive 360┬░ venue vantage in EaseXplore!
                                     </p>
                                     <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
                                       <button
@@ -2248,17 +2564,32 @@ export default function Community() {
                                               />
                                               <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/95 via-brand-deep/35 to-transparent p-4 flex flex-col justify-between">
                                                 <div className="flex items-center justify-between gap-2">
-                                                  <span className="rounded-full bg-brand-deep/85 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                                                    {p.authorName}
-                                                  </span>
-                                                  {isExactSeatMatch ? null : isClosestSeat ? (
-                                                    <span className="rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                                                      Closest Seat Angle
+                                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="rounded-full bg-brand-deep/85 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                                                      {p.authorName}
                                                     </span>
-                                                  ) : (
-                                                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                                                      Verified Sightline
-                                                    </span>
+                                                    {p.isVerified ? (
+                                                      <span className="rounded-full bg-emerald-500/90 px-2 py-0.5 text-[9px] font-extrabold text-white backdrop-blur flex items-center gap-1 shadow-xs">
+                                                        <CheckCircle2 className="h-2.5 w-2.5" /> Verified Attendee
+                                                      </span>
+                                                    ) : (
+                                                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-bold text-white/90 backdrop-blur">
+                                                        Community Attendee
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  {p.pixId && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleLikeEasePix(p.pixId!);
+                                                      }}
+                                                      className="cursor-pointer inline-flex items-center gap-1 rounded-full bg-brand-deep/80 hover:bg-brand-deep px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur transition"
+                                                    >
+                                                      <Heart className="h-3 w-3 text-pink-400 fill-pink-400" />
+                                                      <span>{p.likesCount ?? 0}</span>
+                                                    </button>
                                                   )}
                                                 </div>
 
@@ -2366,7 +2697,7 @@ export default function Community() {
                 <h3 className="font-brand text-sm font-bold text-brand-deep">Your kind of crowd</h3>
                 <button
                   type="button"
-                  onClick={() => showToast("Discovering new fan meetups…")}
+                  onClick={() => showToast("Discovering new fan meetupsΓÇª")}
                   className="cursor-pointer text-xs font-extrabold text-brand-purple hover:underline"
                 >
                   Discover
@@ -2393,7 +2724,7 @@ export default function Community() {
 
               <div className="mt-3.5 rounded-2xl bg-gradient-to-br from-brand-lilac/70 via-brand-warm to-brand-lilac/40 p-4 border border-brand-purple/15">
                 <small className="text-[10px] font-black uppercase tracking-wider text-brand-purple">
-                  ✦ COMMUNITY PICK
+                  Γ£ª COMMUNITY PICK
                 </small>
                 <h4 className="mt-1 font-brand text-sm font-bold text-brand-deep">
                   Going solo? Go together.
@@ -2418,7 +2749,7 @@ export default function Community() {
               </h3>
               <p className="mt-2 text-xs leading-relaxed text-muted">
                 Keep exchanges on-platform, check venue accessibility before travelling, and share only
-                what you’re comfortable sharing.
+                what youΓÇÖre comfortable sharing.
               </p>
             </section>
           </aside>
@@ -2461,7 +2792,7 @@ export default function Community() {
                 </h1>
 
                 <p className="mt-5 text-sm sm:text-base leading-relaxed text-muted max-w-md">
-                  Your next great night shouldn’t come with a markup. Swap tickets or pass them on to another fan, all at original face value.
+                  Your next great night shouldnΓÇÖt come with a markup. Swap tickets or pass them on to another fan, all at original face value.
                 </p>
 
                 {/* Sign In / Visit Action Button */}
@@ -2511,10 +2842,10 @@ export default function Community() {
 
                 {/* Sparkle Stars */}
                 <span className="absolute top-8 right-10 text-2xl font-bold text-brand-purple select-none pointer-events-none">
-                  ✦
+                  Γ£ª
                 </span>
                 <span className="absolute bottom-10 left-8 text-xl font-bold text-brand-orange select-none pointer-events-none">
-                  ✧
+                  Γ£º
                 </span>
 
                 {/* Floating Badge: Face Value (Top Right) */}
@@ -2546,7 +2877,7 @@ export default function Community() {
                       One ticket.<br />Endless memories.
                     </h2>
                     <p className="mt-1 text-[10px] font-bold opacity-80 tracking-wider">
-                      LIVE MUSIC · GOOD COMPANY
+                      LIVE MUSIC ┬╖ GOOD COMPANY
                     </p>
                   </div>
 
@@ -2589,7 +2920,7 @@ export default function Community() {
                   style={{ transform: "rotate(-4deg)" }}
                 >
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#eaf5ed] text-[#287958] font-black">
-                    ✓
+                    Γ£ô
                   </div>
                   <span>New fan. Fresh QR code.</span>
                 </div>
@@ -2857,7 +3188,7 @@ export default function Community() {
                       }}
                       className="cursor-pointer text-[11px] font-bold text-brand-purple hover:underline"
                     >
-                      ⚡ Use Sample Concert Photo
+                      ΓÜí Use Sample Concert Photo
                     </button>
                   </div>
                 </div>
@@ -2903,7 +3234,7 @@ export default function Community() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     const targetEventId = seatEventIdInput || (shareModalOrigin === "composer" ? selectedEventId : null);
                     if (!targetEventId) {
                       showToast("Please select an event before uploading EasePix");
@@ -2936,23 +3267,43 @@ export default function Community() {
                       showToast("EasePix attached! You're back to drafting your post.");
                       textareaRef.current?.focus();
                     } else {
-                      addPost({
-                        author: user?.name ?? "You",
-                        eventId: targetEventId,
-                        body: `View from ${seatSectionInput}, ${seatRowInput}. Unobstructed sightline to the main stage and fantastic acoustics!`,
-                        photo: photoToUse,
-                        section: seatSectionInput,
-                        seatLabel: seatRowInput,
-                      });
-                      setSeatPhotoInput("");
-                      setIsShareModalOpen(false);
-                      setHasSearched(true);
-                      setGallerySearchFilter({
-                        eventId: targetEventId,
-                        section: seatSectionInput,
-                      });
-                      showToast("Seat view uploaded to EasePix successfully! You earned +15 EasePoints ✨");
-                      scrollToSection("seat-search-results");
+                      try {
+                        const parts = parseSeatParts(seatRowInput);
+                        const rowLabel = parts.row || seatRowInput;
+                        const seatNum = parts.seat ? parseInt(parts.seat, 10) : undefined;
+
+                        await backendCreateEasePix({
+                          eventId: targetEventId,
+                          section: seatSectionInput,
+                          rowLabel: rowLabel || undefined,
+                          seatNumber: isNaN(seatNum as number) ? undefined : seatNum,
+                          photoUrl: photoToUse,
+                          caption: `View from ${seatSectionInput}, ${seatRowInput}.`,
+                          authorName: user?.name ?? "Fan",
+                        });
+
+                        addPost({
+                          author: user?.name ?? "You",
+                          eventId: targetEventId,
+                          body: `View from ${seatSectionInput}, ${seatRowInput}. Unobstructed sightline to the main stage and fantastic acoustics!`,
+                          photo: photoToUse,
+                          section: seatSectionInput,
+                          seatLabel: seatRowInput,
+                        });
+
+                        await reloadCommunityData();
+                        setSeatPhotoInput("");
+                        setIsShareModalOpen(false);
+                        setHasSearched(true);
+                        setGallerySearchFilter({
+                          eventId: targetEventId,
+                          section: seatSectionInput,
+                        });
+                        showToast("Seat view uploaded to EasePix successfully! You earned +15 EasePoints Γ£¿");
+                        scrollToSection("seat-search-results");
+                      } catch (err: any) {
+                        showToast(err?.message || "Failed to upload EasePix");
+                      }
                     }
                   }}
                   className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
@@ -2985,11 +3336,11 @@ export default function Community() {
           onClick={toggleEaseVoice}
           className="cursor-pointer inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-brand-orange to-brand-amber px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-brand-orange/20 transition hover:scale-105 active:scale-95"
         >
-          {activeVoicePlaying ? "Ⅱ Pause" : "▷ Play"}
+          {activeVoicePlaying ? "Γàí Pause" : "Γû╖ Play"}
         </button>
       </div>
 
-      {/* 5. 360° PHOTO PREVIEW MODAL */}
+      {/* 5. 360┬░ PHOTO PREVIEW MODAL */}
       {preview360Photo && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-4 backdrop-blur-md"
@@ -3006,12 +3357,12 @@ export default function Community() {
                 </div>
                 <div>
                   <h3 className="font-brand text-lg font-bold text-white leading-tight">
-                    EaseXplore · 360° View
+                    EaseXplore ┬╖ 360┬░ View
                   </h3>
                   <p className="text-xs text-white/80 mt-0.5 font-medium">
                     {preview360Photo.title}
                     {preview360Photo.section
-                      ? ` · ${
+                      ? ` ┬╖ ${
                           preview360Photo.section.toLowerCase().startsWith("section")
                             ? preview360Photo.section
                             : `Section ${preview360Photo.section}`
@@ -3104,7 +3455,7 @@ export default function Community() {
                       : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
                   )}
                 >
-                  ♿ Accessible Platform
+                  ΓÖ┐ Accessible Platform
                 </button>
               )}
             </div>
@@ -3128,7 +3479,7 @@ export default function Community() {
 
                         <div>
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-orange/15 px-3 py-1 text-[11px] font-extrabold text-brand-orange border border-brand-orange/30 mb-2">
-                            EaseXplore · Official Venue View
+                            EaseXplore ┬╖ Official Venue View
                           </span>
                           <h4 className="font-brand text-xl font-bold text-white tracking-tight">
                             No views provided by organizer
@@ -3180,7 +3531,7 @@ export default function Community() {
                   <>
                     <iframe
                       src={media.embedUrl}
-                      title="Interactive 360° Virtual Tour"
+                      title="Interactive 360┬░ Virtual Tour"
                       className="h-full w-full border-0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                       allowFullScreen
@@ -3197,7 +3548,7 @@ export default function Community() {
                           </>
                         ) : (
                           <>
-                            <Rotate3d className="h-3.5 w-3.5 text-brand-orange animate-spin" /> Interactive 360° Virtual Tour Active
+                            <Rotate3d className="h-3.5 w-3.5 text-brand-orange animate-spin" /> Interactive 360┬░ Virtual Tour Active
                           </>
                         )}
                       </span>
@@ -3214,10 +3565,10 @@ export default function Community() {
                 <span className="text-[11px] text-white/90 font-medium">
                   {preview360Photo.externalTourUrl ? (
                     preview360Photo.venueName
-                      ? `View 360° view · All rights reserved by ${preview360Photo.venueName}`
-                      : "View 360° view · All rights reserved by venue"
+                      ? `View 360┬░ view ┬╖ All rights reserved by ${preview360Photo.venueName}`
+                      : "View 360┬░ view ┬╖ All rights reserved by venue"
                   ) : (
-                    `No views provided by organizer · Search ${preview360Photo.venueName || "venue"} website`
+                    `No views provided by organizer ┬╖ Search ${preview360Photo.venueName || "venue"} website`
                   )}
                 </span>
               </div>
@@ -3241,7 +3592,7 @@ export default function Community() {
                         ? "Watch on YouTube"
                         : media.isVimeo
                         ? "Watch on Vimeo"
-                        : "View 360° Tour on Website"}
+                        : "View 360┬░ Tour on Website"}
                     </span>
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>
