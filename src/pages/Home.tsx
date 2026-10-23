@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router";
+import { Link, Navigate, useNavigate } from "react-router";
 import {
   Search,
   ShieldCheck,
@@ -30,6 +30,11 @@ const promises = [
 export default function Home() {
   const { publicEvents: events, eventsSource, user } = useStore();
   const navigate = useNavigate();
+
+  if (user?.role === "organizer") {
+    return <Navigate to="/dashboard/organizer" replace />;
+  }
+
   const featured = events.filter((event) => event.featured && event.status === "published");
   const published = events.filter((event) => event.status === "published");
 

@@ -9,6 +9,8 @@ import {
   type ExchangeRequest,
   type ExchangeTicket,
   type MyExchanges,
+  type ExchangeCategoryOption,
+  type ExchangeActivity,
 } from "./exchangeTypes"
 
 export class ExchangeContractError extends Error {
@@ -86,6 +88,7 @@ function ticket(value: unknown): ExchangeTicket {
     seatSection: string(item, "seatSection"),
     ...(typeof field(item, "seatLabel") === "string" ? { seatLabel: string(item, "seatLabel") } : {}),
     ...(price === undefined ? {} : { price: price as number }),
+    ...(typeof field(item, "categoryId") === "string" ? { categoryId: string(item, "categoryId") } : {}),
   }
 }
 function eligibleTicket(value: unknown): EligibleTicket {
@@ -118,6 +121,7 @@ function exchangeRequest(value: unknown): ExchangeRequest {
     status: enumeration(item, "status", exchangeRequestStatuses),
     expiresAt: timestamp(item, "expiresAt"),
     createdAt: timestamp(item, "createdAt"),
+    ...(field(item, "desiredCategoryId") !== undefined ? { desiredCategoryId: nullableString(item, "desiredCategoryId") } : {}),
   }
 }
 function listing(value: unknown): ExchangeListing {
@@ -136,6 +140,8 @@ function listing(value: unknown): ExchangeListing {
     offeredTicketId: string(item, "offeredTicketId"),
     offeredCategoryType: string(item, "offeredCategoryType"),
     offeredSeatSection: string(item, "offeredSeatSection"),
+    ...(typeof field(item, "offeredSeatLabel") === "string" ? { offeredSeatLabel: string(item, "offeredSeatLabel") } : {}),
+    ...(typeof field(item, "offeredPrice") === "number" ? { offeredPrice: field(item, "offeredPrice") as number } : {}),
     ...preferences(item),
     ...(typeof displayName === "string"
       ? { requesterDisplayName: displayName }
@@ -158,6 +164,7 @@ function match(value: unknown): ExchangeMatch {
   }
   if (result.status === "READY" && (!result.aAccepted || !result.bAccepted))
     throw new ExchangeContractError("READY acceptance")
+  if (field(item, "updatedAt") !== undefined) result.updatedAt = timestamp(item, "updatedAt")
   return result
 }
 
@@ -196,6 +203,7 @@ export async function createExchangeRequest(
           desiredSeatSection: payload.desiredSeatSection,
           allowCrossTier: payload.allowCrossTier,
           requestType: payload.requestType,
+          ...(payload.desiredCategoryId ? { desiredCategoryId: payload.desiredCategoryId } : {}),
           ...(payload.requestType === "DIRECT" ? { recipientUsername: payload.recipientUsername } : {}),
         }),
       },
@@ -329,4 +337,24 @@ export function exchangeErrorMessage(error: unknown): string {
   }
   if (error instanceof ExchangeContractError) return error.message
   return "Could not reach the exchange service. Check your connection and try again."
+}
+
+export async function getExchangeOptions(ticketId: string, signal?: AbortSignal): Promise<ExchangeCategoryOption[]> {
+  return list(await request<unknown>(`${root}/eligible-tickets/${encodeURIComponent(ticketId)}/options`, { signal }, true), value => {
+    const item = object(value)
+    return { id: string(item, "id"), type: string(item, "type"), name: string(item, "name"),
+      sections: list(field(item, "sections"), section => {
+        if (typeof section !== "string" || !section.trim()) throw new ExchangeContractError("section")
+        return section
+      }) }
+  })
+}
+
+export async function getExchangeActivity(signal?: AbortSignal): Promise<ExchangeActivity[]> {
+  return list(await request<unknown>(`${root}/activity`, { signal }, true), value => {
+    const item = object(value)
+    return { id: string(item, "id"), action: string(item, "action"), eventName: string(item, "eventName"),
+      createdAt: timestamp(item, "createdAt"), ownAction: boolean(item, "ownAction"),
+      matchId: nullableString(item, "matchId"), requestId: nullableString(item, "requestId") }
+  })
 }

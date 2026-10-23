@@ -17,6 +17,9 @@ import AssistanceRequestForm from "./pages/AssistanceRequestForm";
 import AssistanceRequests from "./pages/AssistanceRequests";
 import EaseVoiceNarration from "./pages/EaseVoiceNarration";
 
+import type { ComponentType } from "react";
+import { useStore } from "./lib/store";
+
 function NotFound() {
   return (
     <div className="mx-auto max-w-xl px-5 py-32 text-center">
@@ -29,17 +32,25 @@ function NotFound() {
   );
 }
 
+function CustomerOrAdminRoute({ Component }: { Component: ComponentType }) {
+  const { user } = useStore();
+  if (user?.role === "organizer") {
+    return <Navigate to="/dashboard/organizer" replace />;
+  }
+  return <Component />;
+}
+
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: Layout,
     children: [
       { index: true, Component: Home },
-      { path: "events", Component: Browse },
-      { path: "events/:id", Component: EventDetail },
-      { path: "community", Component: Community },
-      { path: "exchange", Component: () => <Navigate to="/community?tab=exchange" replace /> },
-      { path: "easexchange", Component: () => <Navigate to="/community?tab=exchange" replace /> },
+      { path: "events", Component: () => <CustomerOrAdminRoute Component={Browse} /> },
+      { path: "events/:id", Component: () => <CustomerOrAdminRoute Component={EventDetail} /> },
+      { path: "community", Component: () => <CustomerOrAdminRoute Component={Community} /> },
+      { path: "exchange", Component: () => <CustomerOrAdminRoute Component={() => <Navigate to="/community?tab=exchange" replace />} /> },
+      { path: "easexchange", Component: () => <CustomerOrAdminRoute Component={() => <Navigate to="/community?tab=exchange" replace />} /> },
       { path: "login", Component: Login },
       { path: "dashboard/customer", Component: CustomerDashboard },
       { path: "dashboard/organizer", Component: OrganizerDashboard },

@@ -80,6 +80,16 @@ export function resolveReturnUrl(role: string, returnTo?: string | null): string
   if (!returnTo || returnTo === "/" || returnTo.startsWith("/login")) {
     return defaultDashboard;
   }
+  // Organisers cannot access customer/admin Discover and EaseComms pages
+  if (
+    normalizedRole === "organizer" &&
+    (returnTo.startsWith("/events") ||
+      returnTo.startsWith("/community") ||
+      returnTo.startsWith("/exchange") ||
+      returnTo.startsWith("/easexchange"))
+  ) {
+    return defaultDashboard;
+  }
   // If navigating back to a role dashboard, ensure it matches the user's role
   if (returnTo.startsWith("/dashboard/")) {
     if (returnTo.toLowerCase() === defaultDashboard) {

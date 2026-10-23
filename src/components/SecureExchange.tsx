@@ -22,15 +22,16 @@ import { useStore } from "../lib/store"
 import useExchangeResource from "../lib/useExchangeResource"
 import ExchangeMatchPanel from "./ExchangeMatchPanel"
 import SwapRequestPanel from "./SwapRequestPanel"
-import { Badge, Button, Card, Field, Select, cx } from "./ui"
+import ExchangeActivityPanel from "./ExchangeActivityPanel"
+import Select from "./ExchangeSelect"
+import { Badge, Button, Card, Field, cx } from "./ui"
 
 const views = [
   { id: "listings", label: "Public listings" },
   { id: "mine", label: "My Exchanges" },
   { id: "invitations", label: "Direct invitations" },
-  { id: "create", label: "Create Request" },
 ] as const
-type DialogState = {
+type DialogState = { type: "create" } | {
   type: "interest"
   listing: ExchangeListing
   sourceId?: string
@@ -54,7 +55,27 @@ export default function SecureExchange() {
     getMyExchanges,
   )
   const invitations = useExchangeResource(user ? `invitations:${user.id}` : null, getExchangeInvitations)
-  const [dialog, setDialog] = useState<DialogState | null>(null)
+  const [dialog, setDialog] = useState<DialogState | null>(() => params.get("view") === "create" ? { type: "create" } : null)
+  const linkedMatch = params.get("match")
+  useEffect(() => {
+    if (linkedMatch && user) setDialog({ type: "match", matchId: linkedMatch })
+  }, [linkedMatch, user?.id])
+  const previousUser = useRef(user?.id)
+  useEffect(() => {
+    if (previousUser.current && previousUser.current !== user?.id) { setDialog(null); setNotice(null); setActionError(null); setCreating(false) }
+    previousUser.current = user?.id
+  }, [user?.id])
+  const [creating, setCreating] = useState(false)
+  const closeDialog = () => {
+    if (creating) return
+    setDialog(null)
+    setParams(current => {
+      const next = new URLSearchParams(current)
+      next.delete("match")
+      if (next.get("view") === "create") next.set("view", "listings")
+      return next
+    })
+  }
   const [filter, setFilter] = useState("ALL")
   const [notice, setNotice] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -80,9 +101,9 @@ export default function SecureExchange() {
       return next
     })
   const refresh = () => {
-    listings.reload()
-    mine.reload()
-    invitations.reload()
+    listings.refresh()
+    mine.refresh()
+    invitations.refresh()
   }
   const cancelRequest = async (request: ExchangeRequest) => {
     if (
@@ -110,10 +131,10 @@ export default function SecureExchange() {
       refresh()
     }
   }
-  const openInterest = (listing: ExchangeListing, sourceId?: string, publicFlow = true) => {
+  const openInterest = (listing: ExchangeListing, sourceId?: string) => {
     setNotice(null)
     setActionError(null)
-    setDialog({ type: "interest", listing, sourceId, useTicket: publicFlow && !sourceId })
+    setDialog({ type: "interest", listing, sourceId, useTicket: !sourceId })
   }
 
   return (
@@ -129,6 +150,7 @@ export default function SecureExchange() {
           swap the tickets and receive new QR codes.
         </p>
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <nav aria-label="Exchange views" className="flex flex-wrap gap-2">
         {views.map((item) => (
           <Button
@@ -146,6 +168,9 @@ export default function SecureExchange() {
           </Button>
         ))}
       </nav>
+      <Button onClick={() => setDialog({ type: "create" })}>Create Request</Button>
+      </div>
+      {user && <ExchangeActivityPanel key={user.id} />}
       {notice && (
         <p
           role="status"
@@ -232,20 +257,9 @@ export default function SecureExchange() {
       {view === "invitations" && user && <>
         <div className="flex justify-between"><h2 className="font-brand text-2xl font-bold">Direct invitations</h2><Button variant="outline" onClick={invitations.reload}>Refresh invitations</Button></div>
         <LoadState status={invitations.status} error={invitations.error} empty={invitations.data?.length === 0} emptyText="No direct invitations available." onRetry={invitations.reload} />
-        {invitations.data?.map(listing => <ListingCard key={listing.requestId} listing={listing} direct><Button onClick={() => openInterest(listing, undefined, false)}>Offer my request</Button></ListingCard>)}
-        <p className="text-sm text-muted">Create a compatible request for your own ticket, then select it to express interest in an invitation.</p>
+        {invitations.data?.map(listing => <ListingCard key={listing.requestId} listing={listing} direct><Button onClick={() => openInterest(listing)}>Review & offer a ticket</Button></ListingCard>)}
+        <p className="text-sm text-muted">Review the invitation and select an eligible owned ticket. Both users must accept before settlement.</p>
       </>}
-      {view === "create" && user && (
-        <SwapRequestPanel
-          onCreated={(request) => {
-            setNotice(
-              `Request ${request.id} confirmed. Status: ${request.status}.`,
-            )
-            refresh()
-            setView("mine")
-          }}
-        />
-      )}
       {view === "mine" && user && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -403,18 +417,16 @@ export default function SecureExchange() {
                     <p className="font-semibold text-brand-deep">
                       {match.ticketA.eventName}
                     </p>
-                    <p className="text-sm text-muted">
-                      {match.ticketA.categoryType} · Section{" "}
-                      {match.ticketA.seatSection} ↔ {match.ticketB.categoryType}{" "}
-                      · Section {match.ticketB.seatSection}
-                    </p>
+                    <HistoryTicket label="Offered" ticket={ownRequests.some(r => r.id === match.requestAId) ? match.ticketA : match.ticketB} />
+                    <HistoryTicket label="Received / counterpart" ticket={ownRequests.some(r => r.id === match.requestAId) ? match.ticketB : match.ticketA} />
+                    {match.ticketA.price != null && match.ticketB.price != null && <p className="text-sm">Price difference: S${Math.abs(match.ticketA.price - match.ticketB.price).toFixed(2)}</p>}
                     {match.status === "READY" && (
                       <p className="text-sm text-brand-deep">
                         Both users accepted. Awaiting settlement.
                       </p>
                     )}
                     <p className="text-xs text-muted">
-                      Expires {formatDate(match.expiresAt)}
+                      {match.status === "COMPLETED" && match.updatedAt ? `Completed ${formatDate(match.updatedAt)}` : `Expires ${formatDate(match.expiresAt)}`}
                     </p>
                     <Button
                       size="sm"
@@ -433,7 +445,15 @@ export default function SecureExchange() {
         </>
       )}
       {dialog && (
-        <ExchangeDialog onClose={() => setDialog(null)}>
+        <ExchangeDialog onClose={closeDialog} busy={creating}>
+          {dialog.type === "create" && (user ? <SwapRequestPanel key={user.id}
+            onCancel={closeDialog} onPendingChange={setCreating}
+            onCreated={request => {
+              setDialog(null)
+              setNotice(`Request ${request.id} confirmed. Status: ${request.status}.`)
+              refresh()
+              setView("mine")
+            }} /> : <div><p>Sign in to use EaseXchange</p><SignInLink>Sign in</SignInLink></div>)}
           {dialog.type === "suggestions" && (
             <SuggestedMatches
               request={dialog.request}
@@ -469,7 +489,7 @@ export default function SecureExchange() {
           )}
           {dialog.type === "match" && user && (
             <ExchangeMatchPanel
-              key={dialog.matchId}
+              key={`${user.id}:${dialog.matchId}`}
               matchId={dialog.matchId}
               myRequests={ownRequests}
               userId={user.id}
@@ -563,6 +583,8 @@ function ListingCard({
         Offering {listing.offeredCategoryType} · Section{" "}
         {listing.offeredSeatSection}
       </p>
+      {listing.offeredSeatLabel && <p className="text-sm text-muted">Seat {listing.offeredSeatLabel}</p>}
+      {listing.offeredPrice != null && <p className="text-sm text-muted">Value: S${listing.offeredPrice.toFixed(2)}</p>}
       {listing.requesterDisplayName && (
         <p className="mt-1 text-sm text-muted">
           Listed by {listing.requesterDisplayName}
@@ -650,7 +672,7 @@ export function TicketInterestPanel({ listing, onCreated, onChanged }: {
       onCreated(match.id)
     } catch (cause) {
       setError(`${exchangeErrorMessage(cause)} Interest was not confirmed. Check My Exchanges before retrying.`)
-      tickets.reload()
+      tickets.refresh()
       onChanged()
     } finally {
       submitting.current = false
@@ -674,6 +696,11 @@ export function TicketInterestPanel({ listing, onCreated, onChanged }: {
           </option>)}
         </Select>
       </Field>
+      {selected && <Card className="space-y-2 p-4">
+        <p className="font-semibold">Your current / offered ticket</p>
+        <p className="text-sm">{selected.eventName} · {selected.categoryType} · Section {selected.seatSection} · Seat {selected.seatLabel ?? "Unassigned"}</p>
+        {selected.price != null && <p className="text-sm">Value: S${selected.price.toFixed(2)}{listing.offeredPrice != null && ` · Price difference: S$${Math.abs(listing.offeredPrice - selected.price).toFixed(2)}${listing.offeredPrice > selected.price ? " — you pay" : listing.offeredPrice < selected.price ? " — the other participant pays" : " — no payment required"}`}</p>}
+      </Card>}
       <p className="text-sm text-muted">Only your compatible eligible tickets are shown. No separate public request is needed. Both participants must accept before simulated settlement can swap ownership.</p>
       {expired && <p className="text-sm text-muted">This listing's expiry time has passed. Refresh listings.</p>}
       <Button type="submit" disabled={!selected || pending || tickets.status !== "success" || expired}>
@@ -795,9 +822,11 @@ function InterestPanel({
 function ExchangeDialog({
   children,
   onClose,
+  busy = false,
 }: {
   children: ReactNode
   onClose: () => void
+  busy?: boolean
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = "exchange-dialog-title"
@@ -808,7 +837,7 @@ function ExchangeDialog({
     <dialog
       ref={ref}
       aria-labelledby={titleId}
-      onCancel={onClose}
+      onCancel={event => { event.preventDefault(); if (!busy) onClose() }}
       onClose={onClose}
       className={cx(
         "fixed inset-0 m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-3xl border border-brand-purple/15 bg-white p-5 text-brand-deep shadow-xl backdrop:bg-brand-deep/40 sm:p-7",
@@ -822,6 +851,7 @@ function ExchangeDialog({
           variant="ghost"
           size="sm"
           aria-label="Close exchange details"
+          disabled={busy}
           onClick={onClose}
         >
           <X className="h-5 w-5" />
@@ -843,4 +873,8 @@ function SignInLink({ children }: { children: ReactNode }) {
 }
 function formatDate(value: string) {
   return new Date(value).toLocaleString("en-SG")
+}
+
+function HistoryTicket({ label, ticket }: { label: string; ticket: import("../lib/exchangeTypes").ExchangeTicket }) {
+  return <p className="text-sm text-muted"><span className="font-semibold">{label}:</span> {ticket.categoryType} · Section {ticket.seatSection} · Seat {ticket.seatLabel ?? "Unassigned"}{ticket.price != null && ` · S$${ticket.price.toFixed(2)}`}</p>
 }

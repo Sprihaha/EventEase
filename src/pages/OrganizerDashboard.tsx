@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   LayoutDashboard,
   CalendarPlus,
@@ -16,17 +15,21 @@ import {
   Wrench,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
-import { categoryList, type Category, type EventItem } from "../lib/data";
+import { type EventItem } from "../lib/data";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
-import { Button, Badge, Card, Field, Input, Select, Textarea, Eyebrow, cx } from "../components/ui";
+import { Button, Badge, Card, Eyebrow, cx } from "../components/ui";
 import { OperationsSeatMap } from "../components/OperationsSeatMap";
 import EaseAnalytics from "../components/EaseAnalytics";
+import VenueSetup from "../components/VenueSetup";
+import CreateEventForm from "../components/CreateEventForm";
+import VenueSeatMap from "../components/VenueSeatMap";
 
 const nav: NavItem[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "sales", label: "Ticket sales", icon: CircleDollarSign },
   { id: "venues", label: "Venue status", icon: Building2 },
-  { id: "seats", label: "Seat maps", icon: Armchair },
+  { id: "venue-setup", label: "Venue setup", icon: MapPin },
+  { id: "seats", label: "Venue seat maps", icon: Armchair },
   { id: "events", label: "My events", icon: Ticket },
   { id: "create", label: "Create event", icon: CalendarPlus },
   { id: "analytics", label: "EaseAnalytics", icon: BarChart3 },
@@ -55,9 +58,10 @@ export default function OrganizerDashboard() {
           {active === "overview" && <Overview mine={mine} />}
           {active === "sales" && <TicketSales mine={mine} />}
           {active === "venues" && <VenueStatus mine={mine} />}
-          {active === "seats" && <OperationsSeatMap events={mine} eyebrow="Organizer seat maps" />}
+          {active === "venue-setup" && <VenueSetup />}
+          {active === "seats" && <VenueSeatMap />}
           {active === "events" && <EventsTable mine={mine} />}
-          {active === "create" && <CreateEvent onCreate={createEvent} organizer={{ id: user!.id, name: user!.name }} />}
+          {active === "create" && <CreateEventForm onCreate={createEvent} />}
           {active === "analytics" && <EaseAnalytics events={mine} />}
           {active === "promos" && <Promotions />}
         </>
@@ -249,133 +253,6 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
         );
       })}
     </div>
-  );
-}
-
-function CreateEvent({
-  onCreate,
-  organizer,
-}: {
-  onCreate: (e: EventItem) => Promise<void>;
-  organizer: { id: string; name: string };
-}) {
-  const [form, setForm] = useState({
-    title: "",
-    category: "Concert" as Category,
-    date: "",
-    venue: "",
-    city: "Singapore",
-    blurb: "",
-    vip: "200",
-    std: "100",
-    conc: "50",
-    earlyBird: "",
-  });
-  const [done, setDone] = useState(false);
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
-
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const submit = async () => {
-    if (!form.title || !form.date || !form.venue || saving) return;
-    setSaving(true); setError("");
-    try { await onCreate({
-      id: "",
-      title: form.title,
-      category: form.category,
-      date: new Date(form.date).toISOString(),
-      doors: "18:30",
-      venue: form.venue,
-      city: form.city,
-      image: `${window.location.origin}/event-placeholder.svg`,
-      blurb: form.blurb || "A new event on EventEase.",
-      organizerId: organizer.id,
-      organizerName: organizer.name,
-      status: "pending",
-      rows: 6,
-      cols: 10,
-      earlyBird: form.earlyBird ? +form.earlyBird : undefined,
-      tiers: [
-        { id: "t1", name: "VIP", price: +form.vip, total: 20, sold: 0 },
-        { id: "t2", name: "Standard", price: +form.std, total: 40, sold: 0 },
-        { id: "t3", name: "Concession", price: +form.conc, total: 20, sold: 0 },
-      ],
-    });
-    setDone(true);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "The event was not saved. Please try again."); }
-    finally { setSaving(false); }
-  };
-
-  if (done) {
-    return (
-      <Card className="p-10 text-center">
-        <CheckCircle2 className="mx-auto h-12 w-12 text-live" />
-        <h3 className="mt-3 font-brand text-2xl font-bold text-brand-deep">Event submitted</h3>
-        <p className="mt-1 text-muted">
-          Your event is now <Badge tone="warn">pending</Badge> admin approval. You'll be notified once
-          it goes live.
-        </p>
-        <Button className="mt-5" onClick={() => setDone(false)}>
-          Create another
-        </Button>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="p-6 sm:p-8">
-      <Eyebrow>New event</Eyebrow>
-      <h3 className="mt-1 font-brand text-2xl font-bold text-brand-deep">Event details</h3>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <Field label="Event title">
-            <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Summer Sessions 2026" />
-          </Field>
-        </div>
-        <Field label="Category">
-          <Select value={form.category} onChange={(e) => set("category", e.target.value)}>
-            {categoryList.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Date & time">
-          <Input type="datetime-local" value={form.date} onChange={(e) => set("date", e.target.value)} />
-        </Field>
-        <Field label="Venue">
-          <Input value={form.venue} onChange={(e) => set("venue", e.target.value)} placeholder="The National Stadium" />
-        </Field>
-        <Field label="City">
-          <Input value={form.city} onChange={(e) => set("city", e.target.value)} />
-        </Field>
-        <div className="sm:col-span-2">
-          <Field label="Description">
-            <Textarea rows={3} value={form.blurb} onChange={(e) => set("blurb", e.target.value)} />
-          </Field>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <div className="text-sm font-semibold">Ticket categories & pricing</div>
-        <div className="mt-3 grid gap-4 sm:grid-cols-3">
-          <Field label="VIP price (S$)">
-            <Input type="number" value={form.vip} onChange={(e) => set("vip", e.target.value)} />
-          </Field>
-          <Field label="Standard price (S$)">
-            <Input type="number" value={form.std} onChange={(e) => set("std", e.target.value)} />
-          </Field>
-          <Field label="Concession price (S$)">
-            <Input type="number" value={form.conc} onChange={(e) => set("conc", e.target.value)} />
-          </Field>
-        </div>
-      </div>
-
-      <p className="mt-4 text-sm text-muted">This layout creates 20 VIP, 40 Standard and 20 Concession seats. They become bookable after admin approval.</p>
-      {error && <p role="alert" className="mt-4 text-danger">{error}</p>}
-      <Button className="mt-6" disabled={saving} onClick={() => void submit()}>
-        {saving ? "Saving…" : "Submit for approval"}
-      </Button>
-    </Card>
   );
 }
 

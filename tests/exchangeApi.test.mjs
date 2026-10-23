@@ -83,6 +83,7 @@ async function harness() {
   let response
   const context = createContext({
     Headers,
+    FormData,
     AbortController,
     sessionStorage: { getItem: () => "contract-token" },
     fetch: async (url, init) => {
@@ -395,4 +396,33 @@ test("public interest loads private compatible tickets and submits a ticket dire
   }
   h.respond([{ ...eligible, eligible: "true" }])
   await assert.rejects(h.api.getListingEligibleTickets(request.id), { name: "ExchangeContractError" })
+})
+
+test('event option and activity endpoints are authenticated and validate their contracts', async () => {
+  const h = await harness()
+  const options = [{ id: 'category-id', type: 'STANDARD', name: 'Actual category', sections: ['Actual section'] }]
+  h.respond(options)
+  assert.deepEqual(plain(await h.api.getExchangeOptions('owned-ticket')), options)
+  assert.match(h.calls.at(-1).url, /exchanges\/eligible-tickets\/owned-ticket\/options$/)
+  assert.equal(h.calls.at(-1).headers.get('Authorization'), 'Bearer contract-token')
+  h.respond([{ ...options[0], sections: [42] }])
+  await assert.rejects(h.api.getExchangeOptions('owned-ticket'), /invalid response/)
+  const item = { id: 'activity-id', action: 'EXCHANGE_READY', createdAt: expiresAt,
+    eventName: 'Actual event', ownAction: false, matchId: 'match-id', requestId: null }
+  h.respond([item])
+  assert.deepEqual(plain(await h.api.getExchangeActivity()), [item])
+  assert.match(h.calls.at(-1).url, /exchanges\/activity$/)
+  assert.equal(h.calls.at(-1).headers.get('Authorization'), 'Bearer contract-token')
+  h.respond([{ ...item, ownAction: 'false' }])
+  await assert.rejects(h.api.getExchangeActivity(), /invalid response/)
+})
+
+test('stable desired category IDs and completion timestamps survive API mapping', async () => {
+  const h = await harness()
+  h.respond({ ...request, desiredCategoryId: 'actual-category' })
+  const result = await h.api.createExchangeRequest({ ...payload, desiredCategoryId: 'actual-category' })
+  assert.equal(JSON.parse(h.calls.at(-1).body).desiredCategoryId, 'actual-category')
+  assert.equal(result.desiredCategoryId, 'actual-category')
+  h.respond({ ...match, status: 'COMPLETED', aAccepted: true, bAccepted: true, updatedAt: expiresAt })
+  assert.equal((await h.api.getExchangeMatch(match.id)).updatedAt, expiresAt)
 })

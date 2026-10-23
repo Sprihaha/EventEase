@@ -84,7 +84,7 @@ async function pages<T>(path: string, authenticated = false): Promise<T[]> {
 
 export async function request<T>(path: string, init: RequestInit = {}, authenticated = false): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (authenticated) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {
@@ -286,25 +286,32 @@ export function backendSetEventStatus(id: string, status: EventStatus) {
   throw new Error("Unsupported event status change.");
 }
 
-export function backendCreateEvent(event: EventItem) {
-  const capacity = event.tiers.reduce((sum, tier) => sum + tier.total, 0);
+export type NewEventTier = { name: string; type: string; priceCents: number; sectionIds: string[] };
+export type NewEventInput = {
+  title: string;
+  category: string;
+  description: string;
+  venueId: string;
+  startAt: string;
+  endAt: string;
+  imageUrl: string;
+  tiers: NewEventTier[];
+};
+
+export function backendCreateEvent(input: NewEventInput) {
   return request(
     "/organiser/events",
     {
       method: "POST",
       body: JSON.stringify({
-        title: event.title,
-        category: event.category.toUpperCase(),
-        shortDescription: event.blurb.slice(0, 300),
-        description: event.blurb,
-        venueName: event.venue,
-        area: event.city,
-        startAt: event.date,
-        endAt: new Date(new Date(event.date).getTime() + 3 * 60 * 60 * 1000).toISOString(),
-        imageUrl: event.image,
-        capacity,
-        initialCategories: event.tiers.map(t => ({ type: t.name.toUpperCase(), name: t.name,
-          priceCents: Math.round(t.price * 100), quantity: t.total, seatSection: t.name })),
+        title: input.title,
+        category: input.category,
+        description: input.description || undefined,
+        venueId: input.venueId,
+        startAt: input.startAt,
+        endAt: input.endAt,
+        imageUrl: input.imageUrl || undefined,
+        initialCategories: input.tiers,
       }),
     },
     true,
@@ -467,4 +474,227 @@ export async function downloadBackendReport(path: string, fallbackName: string) 
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   return name;
+}
+
+// ---------- Organiser venues ----------
+export type VenueSection = { id: string; name: string; seatCount: number; rows: string[] };
+export type Venue = {
+  id: string;
+  name: string;
+  area: string | null;
+  address: string | null;
+  seatCount: number;
+  sections: VenueSection[];
+  easeexplore360Url?: string | null;
+};
+
+export async function backendListVenues(): Promise<Venue[]> {
+  const venues = await request<Venue[]>("/organiser/venues", {}, true);
+  return venues.map((v) => {
+    const cached = typeof window !== "undefined" ? localStorage.getItem(`venue-media-${v.id}`) : null;
+    return {
+      ...v,
+      easeexplore360Url: v.easeexplore360Url || cached || null,
+    };
+  });
+}
+
+export async function backendGetVenue(id: string): Promise<Venue> {
+  const venue = await request<Venue>(`/organiser/venues/${id}`, {}, true);
+  const cached = typeof window !== "undefined" ? localStorage.getItem(`venue-media-${venue.id}`) : null;
+  return {
+    ...venue,
+    easeexplore360Url: venue.easeexplore360Url || cached || null,
+  };
+}
+
+export function backendImportVenue(input: {
+  name: string;
+  area: string;
+  address: string;
+  file: File;
+  easeexplore360Url?: string;
+}) {
+  const body = new FormData();
+  body.append("name", input.name);
+  body.append("area", input.area);
+  if (input.address) body.append("address", input.address);
+  body.append("file", input.file);
+  if (input.easeexplore360Url) body.append("easeexplore_360_url", input.easeexplore360Url);
+  return request<Venue>("/organiser/venues/import", { method: "POST", body }, true);
+}
+
+export async function backendUpdateVenueEaseExplore(venueId: string, url: string | null): Promise<Venue> {
+  if (typeof window !== "undefined") {
+    if (url) {
+      localStorage.setItem(`venue-media-${venueId}`, url);
+    } else {
+      localStorage.removeItem(`venue-media-${venueId}`);
+    }
+  }
+  try {
+    return await request<Venue>(`/organiser/venues/${encodeURIComponent(venueId)}/easeexplore`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ easeexplore360Url: url }),
+    }, true);
+  } catch (err) {
+    console.warn("Backend EaseExplore PATCH failed or pending deployment; saved locally:", err);
+    return {
+      id: venueId,
+      name: "",
+      area: null,
+      address: null,
+      seatCount: 0,
+      sections: [],
+      easeexplore360Url: url,
+    } as Venue;
+  }
+}
+
+export function backendDownloadVenueTemplate() {
+  return downloadBackendReport("/organiser/venues/template", "venue-layout-template.xlsx");
+}
+
+export function backendEventCategories() {
+  return request<string[]>("/events/categories");
+}
+
+export function backendTicketCategoryTypes() {
+  return request<string[]>("/organiser/ticket-category-types", {}, true);
+}
+
+export type VenueLayoutSeat = { id: string; number: number; isAccessible: boolean };
+export type VenueLayoutRow = { label: string; seats: VenueLayoutSeat[] };
+export type VenueLayoutSection = { id: string; name: string; rows: VenueLayoutRow[] };
+export type VenueLayout = {
+  id: string;
+  name: string;
+  area: string | null;
+  address: string | null;
+  seatCount: number;
+  sections: VenueLayoutSection[];
+  easeexplore360Url?: string | null;
+};
+
+export type EventLayout = {
+  eventId: string;
+  venueId: string;
+  venueName: string;
+  sections: VenueLayoutSection[];
+  easeexplore360Url?: string | null;
+};
+
+export async function backendGetEventLayout(eventId: string): Promise<EventLayout> {
+  const layout = await request<EventLayout>(`/events/${encodeURIComponent(eventId)}/layout`);
+  const cached = typeof window !== "undefined" && layout.venueId ? localStorage.getItem(`venue-media-${layout.venueId}`) : null;
+  return {
+    ...layout,
+    easeexplore360Url: layout.easeexplore360Url || cached || null,
+  };
+}
+
+export async function backendGetVenueLayout(venueId: string): Promise<VenueLayout> {
+  try {
+    return await request<VenueLayout>(`/organiser/venues/${venueId}/layout`, {}, true);
+  } catch {
+    // Graceful fallback: construct layout structure from venue sections & rows
+    const venue = await backendGetVenue(venueId);
+    return {
+      ...venue,
+      sections: venue.sections.map((section) => {
+        const rowCount = Math.max(1, section.rows.length);
+        const seatsPerRow = Math.max(1, Math.round(section.seatCount / rowCount));
+        return {
+          id: section.id,
+          name: section.name,
+          rows: section.rows.map((rowLabel, rowIndex) => ({
+            label: rowLabel,
+            seats: Array.from({ length: seatsPerRow }, (_, i) => ({
+              id: `${section.id}-${rowLabel}-${i + 1}`,
+              number: i + 1,
+              isAccessible: rowIndex === 0 && i < 2,
+            })),
+          })),
+        };
+      }),
+    };
+  }
+}
+
+export type FormattedMedia = {
+  embedUrl: string;
+  isDirectVideo: boolean;
+  isYoutube: boolean;
+  isVimeo: boolean;
+  isIframe: boolean;
+  originalUrl: string;
+};
+
+export function formatMediaEmbedUrl(url: string | null | undefined): FormattedMedia {
+  if (!url) {
+    return { embedUrl: "", isDirectVideo: false, isYoutube: false, isVimeo: false, isIframe: false, originalUrl: "" };
+  }
+
+  let trimmed = url.trim();
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("data:")) {
+    trimmed = `https://${trimmed}`;
+  }
+
+  // 1. Direct video data or files
+  if (
+    trimmed.startsWith("data:video") ||
+    trimmed.toLowerCase().endsWith(".mp4") ||
+    trimmed.toLowerCase().endsWith(".webm") ||
+    trimmed.toLowerCase().endsWith(".mov") ||
+    trimmed.toLowerCase().endsWith(".m4v")
+  ) {
+    return {
+      embedUrl: trimmed,
+      isDirectVideo: true,
+      isYoutube: false,
+      isVimeo: false,
+      isIframe: false,
+      originalUrl: trimmed,
+    };
+  }
+
+  // 2. YouTube URLs (watch, shorts, youtu.be, embed)
+  const ytMatch = trimmed.match(
+    /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([A-Za-z0-9_-]{11})/i
+  );
+  if (ytMatch && ytMatch[1]) {
+    const videoId = ytMatch[1];
+    return {
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`,
+      isDirectVideo: false,
+      isYoutube: true,
+      isVimeo: false,
+      isIframe: true,
+      originalUrl: trimmed,
+    };
+  }
+
+  // 3. Vimeo URLs
+  const vimeoMatch = trimmed.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)([0-9]+)/i);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return {
+      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`,
+      isDirectVideo: false,
+      isYoutube: false,
+      isVimeo: true,
+      isIframe: true,
+      originalUrl: trimmed,
+    };
+  }
+
+  // 4. Other virtual tours / iframes (360fyr, Matterport, etc.)
+  return {
+    embedUrl: trimmed,
+    isDirectVideo: false,
+    isYoutube: false,
+    isVimeo: false,
+    isIframe: true,
+    originalUrl: trimmed,
+  };
 }
