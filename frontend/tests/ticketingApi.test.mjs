@@ -17,6 +17,7 @@ async function harness(
   let responses = []
   const context = createContext({
     Headers,
+    FormData,
     URL,
     sessionStorage: { getItem: () => "local-token" },
     fetch: async (url, init) => {

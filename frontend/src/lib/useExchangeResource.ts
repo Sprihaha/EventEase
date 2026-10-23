@@ -3,49 +3,51 @@ import { exchangeErrorMessage } from "./exchangeApi"
 
 type Resource<T> = {
   key: string
-  status: "success"
-  data: T
-} | {
-  key: string
-  status: "error"
-  error: string
+  revision: number
+  status: "success" | "error"
+  data: T | null
+  error: string | null
 }
 
-/** No cache or persistence. A changed identity immediately hides the previous response. */
+/** Retain items during refresh; a changed account/key immediately hides old data. */
 export default function useExchangeResource<T>(
   key: string | null,
   load: (signal: AbortSignal) => Promise<T>,
 ) {
   const [revision, setRevision] = useState(0)
+  const [backgroundRevision, setBackgroundRevision] = useState(0)
   const [result, setResult] = useState<Resource<T> | null>(null)
-  const identity = key === null ? null : `${key}:${revision}`
   useEffect(() => {
-    if (identity === null) return
+    if (key === null) return
     const controller = new AbortController()
-    load(controller.signal).then(
-      (data) => {
+    let running = false
+    const fetch = async (silent: boolean) => {
+      if (running) return
+      running = true
+      try {
+        const data = await load(controller.signal)
         if (!controller.signal.aborted)
-          setResult({ key: identity, status: "success", data })
-      },
-      (error: unknown) => {
-        if (!controller.signal.aborted)
-          setResult({
-            key: identity,
-            status: "error",
-            error: exchangeErrorMessage(error),
-          })
-      },
-    )
-    return () => controller.abort()
-  }, [identity, load])
-  const current = result?.key === identity ? result : null
+          setResult({ key, revision, status: "success", data, error: null })
+      } catch (error) {
+        if (!controller.signal.aborted) setResult(previous => {
+          const data = previous?.key === key ? previous.data : null
+          // A background failure must not replace visible items or flash an alert.
+          if (silent && data !== null) return previous
+          return { key, revision, status: "error", data, error: exchangeErrorMessage(error) }
+        })
+      } finally { running = false }
+    }
+    void fetch(false)
+    const timer = window.setInterval(() => void fetch(true), 30_000)
+    return () => { controller.abort(); window.clearInterval(timer) }
+  }, [key, revision, backgroundRevision, load])
+  const current = key !== null && result?.key === key ? result : null
   return {
-    status:
-      identity === null
-        ? "idle" as const
-        : (current?.status ?? "loading" as const),
-    data: current?.status === "success" ? current.data : null,
-    error: current?.status === "error" ? current.error : null,
-    reload: useCallback(() => setRevision((value) => value + 1), []),
+    status: key === null ? "idle" as const
+      : !current || current.revision !== revision ? "loading" as const : current.status,
+    data: current?.data ?? null,
+    error: current?.error ?? null,
+    reload: useCallback(() => setRevision(value => value + 1), []),
+    refresh: useCallback(() => setBackgroundRevision(value => value + 1), []),
   }
 }

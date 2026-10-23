@@ -34,11 +34,13 @@ class TicketContext:
     eligible: bool
     revision: str
     seat_label: str | None = None
+    category_id: str | None = None
 
     def snapshot(self) -> dict:
         return {"id": self.id, "event_id": self.event_id, "event_name": self.event_name,
                 "category_type": self.category_type, "seat_section": self.seat_section,
-                "price": self.price_cents / 100, **({"seat_label": self.seat_label} if self.seat_label else {})}
+                "price": self.price_cents / 100, "category_id": self.category_id,
+                **({"seat_label": self.seat_label} if self.seat_label else {})}
 
 
 class TicketingGateway(Protocol):
@@ -46,10 +48,21 @@ class TicketingGateway(Protocol):
 
     def load(self, db: Session, ticket_ids: list[str], now: datetime, *, lock: bool = False) -> dict[str, TicketContext]: ...
     def owned(self, db: Session, user_id: uuid.UUID, now: datetime) -> list[TicketContext]: ...
+    def preferences(self, db: Session, event_id: str) -> list[dict]: ...
 
 
 class RelationalTicketingGateway:
     source = "package-b-v1"
+
+    def preferences(self, db: Session, event_id: str) -> list[dict]:
+        categories = db.scalars(select(TicketCategory).where(TicketCategory.event_id == uuid.UUID(event_id))
+                                .order_by(TicketCategory.price_cents, TicketCategory.id)).all()
+        seats = db.scalars(select(EventSeat).where(EventSeat.event_id == uuid.UUID(event_id))).all()
+        return [{"id": str(c.id), "type": c.type.value, "name": c.name,
+                 "sections": sorted({(s.section_name or c.seat_section or "General Admission").strip()
+                                     for s in seats if s.ticket_category_id == c.id}
+                                    or {(c.seat_section or "General Admission").strip()})}
+                for c in categories]
 
     def owned(self, db: Session, user_id: uuid.UUID, now: datetime) -> list[TicketContext]:
         ids = db.scalars(select(Ticket.id).join(Booking).where(func.coalesce(Ticket.owner_user_id, Booking.user_id) == user_id)).all()
@@ -82,7 +95,7 @@ class RelationalTicketingGateway:
         result = {}
         for t, b, i, c, e, u in rows:
             seat = db.get(EventSeat, t.seat_id) if t.seat_id else None
-            section = (c.seat_section or "").strip() or "General Admission"
+            section = ((seat.section_name if seat else None) or c.seat_section or "").strip() or "General Admission"
             # Preferences remain section-based; actual seat identity is included
             # in the revision so changes invalidate consent.
             valid = (t.status == TicketStatus.VALID and b.status == BookingStatus.CONFIRMED
@@ -103,6 +116,7 @@ class RelationalTicketingGateway:
                 seat_section=section, price_cents=i.unit_price_cents, currency=b.currency,
                 status=t.status.value, eligible=valid, revision=revision,
                 seat_label=seat.label if seat else None,
+                category_id=str(c.id),
             )
         return result
 

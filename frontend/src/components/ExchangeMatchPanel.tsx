@@ -43,6 +43,7 @@ export default function ExchangeMatchPanel({
     const timer = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(timer)
   }, [])
+  useEffect(() => setConfirmed(null), [resource.data])
   const match = confirmed ?? resource.data
   const ownIds = new Set(
     myRequests
@@ -64,8 +65,8 @@ export default function ExchangeMatchPanel({
   const settle = async () => {
     if (!canSettle || submitting.current) return
     submitting.current = true; setPending("settle"); setError(null)
-    try { setConfirmed(await settleExchangeMatch(matchId, failPayment)); onChanged() }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Settlement was not confirmed. Refresh to check."); refresh() }
+    try { setConfirmed(await settleExchangeMatch(matchId, failPayment)); resource.refresh(); onChanged() }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Settlement was not confirmed. Refresh to check."); resource.refresh(); onChanged() }
     finally { submitting.current = false; setPending(null) }
   }
 
@@ -93,12 +94,14 @@ export default function ExchangeMatchPanel({
       }[action]
       const response = await operation(matchId)
       setConfirmed(response)
+      resource.refresh()
       onChanged()
     } catch (cause) {
       setError(
         `${exchangeErrorMessage(cause)} The action was not confirmed. Refresh to check the current status.`,
       )
-      refresh()
+      resource.refresh()
+      onChanged()
     } finally {
       submitting.current = false
       setPending(null)
@@ -141,11 +144,11 @@ export default function ExchangeMatchPanel({
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <TicketDetails
-              title={knownSide ? "My ticket" : "Ticket A"}
+              title={knownSide ? "Your current / offered ticket" : "Ticket A"}
               ticket={knownSide && ownsB ? match.ticketB : match.ticketA}
             />
             <TicketDetails
-              title={knownSide ? "Their ticket" : "Ticket B"}
+              title={knownSide ? "Ticket you receive" : "Ticket B"}
               ticket={knownSide && ownsB ? match.ticketA : match.ticketB}
             />
           </div>
@@ -155,6 +158,7 @@ export default function ExchangeMatchPanel({
               {new Date(match.expiresAt).toLocaleString("en-SG")}
             </time>
           </p>
+          {difference !== null && knownSide && <p className="text-sm font-semibold">Price difference: S${(Math.abs(difference) / 100).toFixed(2)}{difference > 0 ? " — you pay" : difference < 0 ? " — the other participant pays" : " — no payment required"}</p>}
           {match.status === "PENDING" && (
             <div
               className="rounded-2xl bg-brand-lilac/50 p-4 text-sm text-brand-deep"
@@ -185,9 +189,9 @@ export default function ExchangeMatchPanel({
               <p role="status" className="font-semibold">Both users accepted. Awaiting settlement.</p>
               {difference !== null && knownSide && <p>{difference < 0 ? `The other participant pays S$${(-difference/100).toFixed(2)}.` : `Your simulated payment: S$${(difference/100).toFixed(2)}.`}</p>}
               <p>Completing settlement swaps both individual tickets and replaces both QR codes.</p>
-              <label className="block">Simulated settlement result<select className="ml-2 rounded border p-2" value={failPayment ? "fail" : "success"} onChange={e => setFailPayment(e.target.value === "fail")}><option value="success">Success</option><option value="fail">Declined — test retry</option></select></label>
+              {difference !== null && difference > 0 && <label className="block">Simulated settlement result<select className="ml-2 rounded border p-2" value={failPayment ? "fail" : "success"} onChange={e => setFailPayment(e.target.value === "fail")}><option value="success">Success</option><option value="fail">Declined — test retry</option></select></label>}
               <Button variant="danger" disabled={!knownSide || expired || !!pending} onClick={() => void act("cancel")}>Cancel match</Button>
-              <Button disabled={!canSettle} onClick={() => void settle()}>{pending === "settle" ? "Settling…" : "Complete simulated settlement"}</Button>
+              <Button disabled={!canSettle} onClick={() => void settle()}>{pending === "settle" ? "Settling…" : difference === 0 ? "Complete equal-value swap" : "Complete simulated settlement"}</Button>
             </div>
           )}
           {match.status === "EXPIRED" && (
@@ -203,7 +207,7 @@ export default function ExchangeMatchPanel({
           )}
           {match.status === "COMPLETED" && (
             <p className="text-sm text-muted">
-              Exchange completed. Refresh My tickets to see your received ticket and its new QR code.
+              Exchange completed. Your received ticket and fresh QR code are now in My Tickets. {match.updatedAt && `Completed ${new Date(match.updatedAt).toLocaleString("en-SG")}.`}
             </p>
           )}
           {expired && match.status === "PENDING" && (
@@ -272,6 +276,7 @@ function TicketDetails({
     <Card className="p-4">
       <h4 className="font-semibold text-brand-deep">{title}</h4>
       <dl className="mt-3 space-y-2 text-sm">
+        {ticket.price != null && <div><dt className="text-muted">Value</dt><dd>S${ticket.price.toFixed(2)}</dd></div>}
         {ticket.seatLabel && <div><dt className="text-muted">Seat</dt><dd>{ticket.seatLabel}</dd></div>}
         <div>
           <dt className="text-muted">Event</dt>

@@ -27,6 +27,7 @@ export interface ExchangeTicket {
   seatSection: string
   price?: number
   seatLabel?: string
+  categoryId?: string
 }
 
 export interface EligibleTicket extends ExchangeTicket {
@@ -49,6 +50,7 @@ export interface ExchangeRequest {
   status: ExchangeRequestStatus
   expiresAt: string
   createdAt: string
+  desiredCategoryId?: string | null
 }
 
 export interface ExchangeListing {
@@ -58,6 +60,8 @@ export interface ExchangeListing {
   offeredTicketId: string
   offeredCategoryType: string
   offeredSeatSection: string
+  offeredSeatLabel?: string
+  offeredPrice?: number
   requesterDisplayName?: string
   desiredCategoryType: string | null
   desiredSeatSection: string | null
@@ -76,6 +80,7 @@ export interface ExchangeMatch {
   /** READY confirms mutual acceptance only; it does not confirm settlement or ticket transfer. */
   status: ExchangeMatchStatus
   expiresAt: string
+  updatedAt?: string
 }
 
 export interface MyExchanges {
@@ -91,4 +96,22 @@ export interface CreateExchangeRequestPayload {
   allowCrossTier: boolean
   requestType: "PUBLIC" | "DIRECT"
   recipientUsername?: string
+  desiredCategoryId?: string | null
+}
+
+export interface ExchangeCategoryOption {
+  id: string
+  type: string
+  name: string
+  sections: string[]
+}
+
+export interface ExchangeActivity {
+  id: string
+  action: string
+  createdAt: string
+  eventName: string
+  ownAction: boolean
+  matchId: string | null
+  requestId: string | null
 }

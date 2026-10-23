@@ -19,6 +19,7 @@ class CreateExchangeRequest(CamelModel):
     allow_cross_tier: bool = Field(strict=True)
     request_type: Literal["PUBLIC", "DIRECT"]
     recipient_username: Preference | None = None
+    desired_category_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
     def recipient_required(self):
@@ -51,6 +52,7 @@ class ExchangeTicketView(CamelModel):
     # Read-only major currency units, matching the frontend. Internally use cents.
     price: float
     seat_label: str | None = None
+    category_id: str | None = None
 
 
 class EligibleTicketView(ExchangeTicketView):
@@ -73,6 +75,7 @@ class ExchangeRequestView(CamelModel):
     status: ExchangeRequestStatus
     expires_at: datetime
     created_at: datetime
+    desired_category_id: str | None = None
 
 
 class ExchangeListingView(CamelModel):
@@ -82,6 +85,8 @@ class ExchangeListingView(CamelModel):
     offered_ticket_id: str
     offered_category_type: str
     offered_seat_section: str
+    offered_seat_label: str | None = None
+    offered_price: float
     desired_category_type: str | None
     desired_seat_section: str | None
     allow_cross_tier: bool
@@ -98,6 +103,24 @@ class ExchangeMatchView(CamelModel):
     b_accepted: bool
     status: ExchangeMatchStatus
     expires_at: datetime
+    updated_at: datetime
+
+
+class ExchangeCategoryOption(CamelModel):
+    id: str
+    type: str
+    name: str
+    sections: list[str]
+
+
+class ExchangeActivityView(CamelModel):
+    id: uuid.UUID
+    action: str
+    created_at: datetime
+    match_id: str | None = None
+    request_id: str | None = None
+    event_name: str
+    own_action: bool
 
 
 class MyExchangesView(CamelModel):

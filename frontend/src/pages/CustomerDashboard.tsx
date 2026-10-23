@@ -6,6 +6,8 @@ import { fetchOwnedTickets, payBooking, type OwnedTicket } from "../lib/ticketin
 import { DashboardShell, StatCard, type NavItem } from "../components/DashboardShell";
 import { QRCode, ticketPayload, Button, Badge, Card } from "../components/ui";
 
+import ExchangeActivityPanel from "../components/ExchangeActivityPanel";
+
 const nav: NavItem[] = [
   { id: "tickets", label: "My tickets", icon: Ticket },
   { id: "history", label: "Booking history", icon: History },
@@ -29,7 +31,10 @@ export default function CustomerDashboard() {
     const controller = new AbortController(); setLoading(true);
     load(controller.signal).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not load tickets."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
+    const refresh = () => { void load(controller.signal).catch(() => {}); };
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    return () => { controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [user?.id, load]);
   const act = async (id: string, operation: () => Promise<unknown>) => {
     if (busy) return;
@@ -44,6 +49,7 @@ export default function CustomerDashboard() {
   const valid = tickets.filter(t => t.status === "VALID" && t.bookingStatus === "CONFIRMED" && !t.checkedInAt);
   const spent = mine.filter(b => b.status === "confirmed").reduce((sum,b) => sum+b.total,0);
   return <DashboardShell role="customer" title="My dashboard" nav={nav}>{active => <>
+    <div className="mb-6"><ExchangeActivityPanel key={user.id} /></div>
     <div className="mb-6 flex justify-end"><Button variant="outline" disabled={!!busy} onClick={() => act("refresh", async () => {})}>Refresh tickets & bookings</Button></div>
     <div className="mb-7 grid gap-4 sm:grid-cols-3"><StatCard label="Valid owned tickets" value={String(valid.length)} tone="accent"/><StatCard label="Bookings" value={String(mine.length)}/><StatCard label="Confirmed purchases" value={currency(spent)}/></div>
     {(error || bookingsError) && <p role="alert" className="mb-5 rounded-xl bg-rose-50 p-4 text-danger">{error || bookingsError}</p>}
