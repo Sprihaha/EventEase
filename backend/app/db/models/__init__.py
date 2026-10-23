@@ -1,4 +1,5 @@
 from app.db.models.booking import Booking, BookingItem, Payment, Ticket
+from app.db.models.community import EaseConnectPost, EasePix
 from app.db.models.exchange import ExchangeMatch, ExchangeMatchStatus, ExchangeRequest, ExchangeRequestStatus, ExchangeSettlement
 from app.db.models.seating import EventSeat, SeatClaim
 from app.db.models.venue import Venue, VenueSeat, VenueSection
@@ -38,6 +39,7 @@ from app.db.models.user import (
 )
 
 __all__ = [
+    "EasePix", "EaseConnectPost",
     "EventSeat", "SeatClaim", "ExchangeSettlement",
     "Venue", "VenueSeat", "VenueSection",
     "ExchangeMatch",

@@ -1,8 +1,21 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router";
 import { fetchSeats, type LiveSeat } from "../lib/ticketingApi";
-import { backendGetEventLayout, formatMediaEmbedUrl } from "../lib/backendApi";
 import {
+  backendGetEventLayout,
+  formatMediaEmbedUrl,
+  backendListPosts,
+  backendCreatePost,
+  backendLikePost,
+  backendListEasePix,
+  backendCreateEasePix,
+  backendLikeEasePix,
+  type BackendCommunityPost,
+  type BackendEasePix,
+  type BackendEasePixCreate,
+} from "../lib/backendApi";
+import {
+
   Users,
   Repeat,
   Camera,
@@ -99,6 +112,9 @@ interface SectionSeatPhoto {
   section: string;
   seat: string;
   vibe: string;
+  isVerified?: boolean;
+  pixId?: string;
+  likesCount?: number;
 }
 
 interface SectionSegment {
@@ -396,6 +412,49 @@ function SearchableCombobox({
   );
 }
 
+interface PostReplyItem {
+  id: string;
+  author: string;
+  body: string;
+  when: string;
+  isVerified?: boolean;
+}
+
+interface DisplayPost {
+  id: string;
+  eventId: string;
+  author: string;
+  body: string;
+  section?: string;
+  seatLabel?: string;
+  photo?: string;
+  when: string;
+  likes: number;
+  isBackend: boolean;
+  isVerified?: boolean;
+  replies: PostReplyItem[];
+}
+
+function formatRelativeWhen(dateStr?: string): string {
+  if (!dateStr) return "Just now";
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    if (isNaN(diffMs)) return dateStr;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString("en-SG", { month: "short", day: "numeric" });
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function Community() {
   const { posts, events, user, addPost } = useStore();
   const navigate = useNavigate();
@@ -405,6 +464,29 @@ export default function Community() {
   const [lastCommsTab, setLastCommsTab] = useState<CommsChannelId>(
     tab === "exchange" ? "feed" : (tab as CommsChannelId)
   );
+
+  const [backendPosts, setBackendPosts] = useState<BackendCommunityPost[]>([]);
+  const [backendEasePixList, setBackendEasePixList] = useState<BackendEasePix[]>([]);
+  const [openCommentsForPost, setOpenCommentsForPost] = useState<Record<string, boolean>>({});
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [submittingReply, setSubmittingReply] = useState<Record<string, boolean>>({});
+
+  const reloadCommunityData = async () => {
+    try {
+      const [fetchedPosts, fetchedPix] = await Promise.all([
+        backendListPosts().catch(() => []),
+        backendListEasePix().catch(() => []),
+      ]);
+      setBackendPosts(fetchedPosts);
+      setBackendEasePixList(fetchedPix);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    reloadCommunityData();
+  }, []);
 
   useEffect(() => {
     if (tab !== "exchange") {
@@ -695,8 +777,50 @@ export default function Community() {
     }
   }, [events, selectedEventId]);
 
-  // Handle post likes
-  const toggleLike = (postId: string, initialLikes: number) => {
+  // Build unified list of posts combining backend posts with mock posts
+  const displayPosts: DisplayPost[] = useMemo(() => {
+    const bPosts: DisplayPost[] = backendPosts.map((p) => {
+      const sec = p.easepix?.section;
+      const seat = p.easepix?.rowLabel
+        ? p.easepix?.seatNumber
+          ? `${p.easepix.rowLabel} · Seat ${p.easepix.seatNumber}`
+          : p.easepix.rowLabel
+        : undefined;
+
+      return {
+        id: p.id,
+        eventId: p.eventId || events[0]?.id || "",
+        author: p.authorName,
+        body: p.content,
+        section: sec,
+        seatLabel: seat,
+        photo: p.easepix?.photoUrl,
+        when: formatRelativeWhen(p.createdAt),
+        likes: p.likesCount,
+        isBackend: true,
+        isVerified: p.easepix?.isVerified ?? false,
+        replies: (p.replies || []).map((r) => ({
+          id: r.id,
+          author: r.authorName,
+          body: r.content,
+          when: formatRelativeWhen(r.createdAt),
+          isVerified: r.easepix?.isVerified ?? false,
+        })),
+      };
+    });
+
+    const sPosts: DisplayPost[] = posts.map((p) => ({
+      ...p,
+      isBackend: false,
+      isVerified: true,
+      replies: [],
+    }));
+
+    return bPosts.length > 0 ? [...bPosts, ...sPosts] : sPosts;
+  }, [backendPosts, posts, events]);
+
+  // Handle post likes (persists to backend if isBackend is true)
+  const toggleLike = (postId: string, initialLikes: number, isBackend = false) => {
     setLikedPosts((prev) => {
       const isLiked = !prev[postId];
       setLikesCount((prevCounts) => ({
@@ -706,10 +830,56 @@ export default function Community() {
       showToast(isLiked ? "Added to your liked posts ❤️" : "Unliked post");
       return { ...prev, [postId]: isLiked };
     });
+
+    if (isBackend) {
+      backendLikePost(postId).catch(() => {});
+    }
+  };
+
+  // Like an individual EasePix photo
+  const handleLikeEasePix = async (pixId: string) => {
+    try {
+      await backendLikeEasePix(pixId);
+      await reloadCommunityData();
+      showToast("Liked EasePix photo! ❤️");
+    } catch {
+      showToast("Liked EasePix photo! ❤️");
+    }
+  };
+
+  // Submit reply / comment on a post (comments only for a post)
+  const submitReply = async (postId: string, eventId: string) => {
+    const text = (replyDrafts[postId] || "").trim();
+    if (!text) {
+      showToast("Write a reply before sending");
+      return;
+    }
+    if (!user) {
+      showToast("Please sign in to leave a comment.");
+      navigate("/login");
+      return;
+    }
+
+    setSubmittingReply((prev) => ({ ...prev, [postId]: true }));
+    try {
+      await backendCreatePost({
+        content: text,
+        eventId,
+        parentId: postId,
+        authorName: user.name,
+      });
+      setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
+      await reloadCommunityData();
+      showToast("Comment posted! 💬");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to post comment");
+    } finally {
+      setSubmittingReply((prev) => ({ ...prev, [postId]: false }));
+    }
   };
 
   // Submit new post
-  const submitPost = (e?: React.FormEvent) => {
+  const submitPost = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!draft.trim()) {
       showToast("Write a little something before sharing.");
@@ -726,29 +896,56 @@ export default function Community() {
     const targetEventId = selectedEventId || attachedEasePix?.eventId || events[0]?.id || "";
     const photoToSubmit = attachedEasePix?.photo || photoUrl.trim() || undefined;
     const sectionToSubmit = attachedEasePix?.section || undefined;
+    const rowToSubmit = attachedEasePix?.row || undefined;
 
-    addPost({
-      eventId: targetEventId,
-      author: user.name.split(" ")[0] || "You",
-      body: draft.trim(),
-      section: sectionToSubmit,
-      seatLabel: attachedEasePix?.row || undefined,
-      photo: photoToSubmit,
-    });
+    try {
+      let easepixPayload: BackendEasePixCreate | undefined = undefined;
+      if (photoToSubmit && sectionToSubmit) {
+        const parts = rowToSubmit ? parseSeatParts(rowToSubmit) : null;
+        easepixPayload = {
+          eventId: targetEventId,
+          section: sectionToSubmit,
+          rowLabel: parts?.row || rowToSubmit || undefined,
+          seatNumber: parts?.seat ? parseInt(parts.seat, 10) : undefined,
+          photoUrl: photoToSubmit,
+          caption: `View from ${sectionToSubmit} ${rowToSubmit || ""}`.trim(),
+          authorName: user.name,
+        };
+      }
 
-    if (photoToSubmit) {
-      setHasSearched(true);
-      setGallerySearchFilter({
+      await backendCreatePost({
+        content: draft.trim(),
         eventId: targetEventId,
-        section: sectionToSubmit,
+        authorName: user.name,
+        easepix: easepixPayload,
       });
-    }
 
-    setDraft("");
-    setPhotoUrl("");
-    setAttachedEasePix(null);
-    setShowPhotoInput(false);
-    showToast("Your post and EasePix seat view have been shared to EaseComms! ✨");
+      addPost({
+        eventId: targetEventId,
+        author: user.name.split(" ")[0] || "You",
+        body: draft.trim(),
+        section: sectionToSubmit,
+        seatLabel: rowToSubmit,
+        photo: photoToSubmit,
+      });
+
+      if (photoToSubmit) {
+        setHasSearched(true);
+        setGallerySearchFilter({
+          eventId: targetEventId,
+          section: sectionToSubmit,
+        });
+      }
+
+      await reloadCommunityData();
+      setDraft("");
+      setPhotoUrl("");
+      setAttachedEasePix(null);
+      setShowPhotoInput(false);
+      showToast("Your post and EasePix seat view have been shared to EaseConnect! ✨");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to share post");
+    }
   };
 
   // EaseVoice narration toggle
@@ -763,7 +960,7 @@ export default function Community() {
       setActiveVoicePlaying(false);
       showToast("EaseVoice audio paused.");
     } else {
-      const topPost = posts[0];
+      const topPost = displayPosts[0];
       const textToSpeak = topPost
         ? `EaseVoice narration. Community post by ${topPost.author} on ${eventName(topPost.eventId)}. ${topPost.body}`
         : "Welcome to EaseComms. The night is better together. Discover real seat views, trade tickets securely, and find your people.";
@@ -791,7 +988,7 @@ export default function Community() {
   }, []);
 
   // Filtered posts
-  const filteredPosts = posts.filter((p) => {
+  const filteredPosts = displayPosts.filter((p) => {
     if (filter === "views") return Boolean(p.photo);
     if (filter === "questions") return p.body.includes("?") || p.body.toLowerCase().includes("ask");
     if (filter === "following") return p.author === "Nadia" || p.author === "Jules";
@@ -1534,7 +1731,7 @@ export default function Community() {
                           <div className="mt-4 flex items-center gap-4 pt-3 border-t border-brand-line/60 text-xs text-muted font-bold">
                             <button
                               type="button"
-                              onClick={() => toggleLike(p.id, p.likes)}
+                              onClick={() => toggleLike(p.id, p.likes, p.isBackend)}
                               className={cx(
                                 "cursor-pointer inline-flex items-center gap-1.5 transition-colors",
                                 isLiked ? "text-brand-magenta" : "hover:text-brand-magenta",
@@ -1546,10 +1743,25 @@ export default function Community() {
 
                             <button
                               type="button"
-                              onClick={() => showToast("Comments section preview: 8 fans replied")}
-                              className="cursor-pointer inline-flex items-center gap-1.5 hover:text-brand-purple transition-colors"
+                              onClick={() =>
+                                setOpenCommentsForPost((prev) => ({
+                                  ...prev,
+                                  [p.id]: !prev[p.id],
+                                }))
+                              }
+                              className={cx(
+                                "cursor-pointer inline-flex items-center gap-1.5 transition-colors",
+                                openCommentsForPost[p.id]
+                                  ? "text-brand-purple font-extrabold"
+                                  : "hover:text-brand-purple"
+                              )}
                             >
-                              <MessageSquare className="h-4 w-4" /> 8 comments
+                              <MessageSquare className="h-4 w-4" />
+                              <span>
+                                {p.replies.length > 0
+                                  ? `${p.replies.length} ${p.replies.length === 1 ? "comment" : "comments"}`
+                                  : "Comment"}
+                              </span>
                             </button>
 
                             <button
@@ -1567,6 +1779,78 @@ export default function Community() {
                               <Sparkles className="h-3 w-3" /> +15 EasePoints
                             </div>
                           </div>
+
+                          {/* Expandable Comments / Replies Section for this post */}
+                          {openCommentsForPost[p.id] && (
+                            <div className="mt-3.5 space-y-3 rounded-2xl border border-brand-line/80 bg-brand-warm/30 p-3.5 sm:p-4">
+                              <div className="flex items-center justify-between text-xs font-bold text-brand-deep">
+                                <span>Comments & Replies ({p.replies.length})</span>
+                                <span className="text-[11px] text-muted">Join the discussion</span>
+                              </div>
+
+                              {/* Comment List */}
+                              {p.replies.length > 0 ? (
+                                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                  {p.replies.map((reply) => (
+                                    <div
+                                      key={reply.id}
+                                      className="rounded-xl border border-brand-line/60 bg-white p-3 text-xs shadow-xs"
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="font-bold text-brand-deep">
+                                            {reply.author}
+                                          </span>
+                                          {reply.isVerified && (
+                                            <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-[9px] font-bold">
+                                              Verified Attendee
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="text-[10px] text-muted">{reply.when}</span>
+                                      </div>
+                                      <p className="mt-1 leading-relaxed text-brand-deep/90">
+                                        {reply.body}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="py-2.5 text-center text-xs text-muted">
+                                  No comments on this post yet. Be the first to reply!
+                                </div>
+                              )}
+
+                              {/* Inline Reply Composer */}
+                              <div className="flex items-center gap-2 pt-2 border-t border-brand-line/60">
+                                <input
+                                  type="text"
+                                  placeholder={user ? "Write a comment..." : "Sign in to leave a comment..."}
+                                  disabled={!user || submittingReply[p.id]}
+                                  value={replyDrafts[p.id] || ""}
+                                  onChange={(e) =>
+                                    setReplyDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                      e.preventDefault();
+                                      submitReply(p.id, p.eventId);
+                                    }
+                                  }}
+                                  className="flex-1 rounded-xl border border-brand-line bg-white px-3 py-2 text-xs text-brand-deep outline-none focus:border-brand-purple disabled:bg-stone-100 disabled:cursor-not-allowed"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={!user || submittingReply[p.id] || !(replyDrafts[p.id] || "").trim()}
+                                  onClick={() => submitReply(p.id, p.eventId)}
+                                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <Send className="h-3 w-3" />
+                                  <span>{submittingReply[p.id] ? "Posting..." : "Reply"}</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </article>
@@ -1839,7 +2123,10 @@ export default function Community() {
                     const eventTitle = targetEvent?.title ?? "Selected Event";
 
                     // User posts for this event that have photos
-                    const userEventPhotos = posts.filter((p) => p.photo && p.eventId === targetEventId);
+                    const userEventPhotos = displayPosts.filter((p) => p.photo && p.eventId === targetEventId);
+
+                    // Backend EasePix photos for this event
+                    const backendEventPix = backendEasePixList.filter((pix) => pix.eventId === targetEventId);
 
                     const searchedRow = (gallerySearchFilter?.row || seatRowInput || "").trim();
                     const matchesSearchedSeat = (seatStr: string) => isSeatMatch(searchedRow, seatStr);
@@ -1884,9 +2171,30 @@ export default function Community() {
 
                     const searchedSectionQuery = (gallerySearchFilter?.section || seatSectionInput || "").trim().toLowerCase();
 
-                    // Integrate user posts into their matching real sections
+                    // Integrate user posts and backend EasePix photos into their matching real sections
                     const dynamicSections = baseCatalog.map((sec) => {
-                      const matchedUserPosts = userEventPhotos
+                      const matchedBackendPix: SectionSeatPhoto[] = backendEventPix
+                        .filter((pix) => {
+                          const secNorm = sec.name.toLowerCase().replace(/^section\s+/i, "");
+                          const pixSecNorm = pix.section.toLowerCase().replace(/^section\s+/i, "");
+                          return pixSecNorm.includes(secNorm) || secNorm.includes(pixSecNorm);
+                        })
+                        .map((pix) => ({
+                          photo: pix.photoUrl,
+                          authorName: pix.authorName,
+                          section: sec.name,
+                          seat: pix.rowLabel
+                            ? pix.seatNumber
+                              ? `${sec.name} · Row ${pix.rowLabel} Seat ${pix.seatNumber}`
+                              : `${sec.name} · ${pix.rowLabel}`
+                            : `${sec.name} · Verified Seat`,
+                          vibe: pix.caption || "Sightline view from this seat",
+                          isVerified: pix.isVerified,
+                          pixId: pix.id,
+                          likesCount: pix.likesCount,
+                        }));
+
+                      const matchedUserPosts: SectionSeatPhoto[] = userEventPhotos
                         .filter((p) => {
                           if (!p.section) return false;
                           const secNorm = sec.name.toLowerCase().replace(/^section\s+/i, "");
@@ -1895,13 +2203,21 @@ export default function Community() {
                         })
                         .map((p) => ({
                           photo: p.photo!,
-                          authorName: `${p.author} (Verified Fan)`,
+                          authorName: p.author,
                           section: sec.name,
                           seat: p.seatLabel ? `${sec.name} · ${p.seatLabel}` : (p.section ? `${p.section}` : `${sec.name} · Verified Seat`),
                           vibe: p.body.slice(0, 85) + (p.body.length > 85 ? "…" : ""),
+                          isVerified: p.isVerified ?? true,
                         }));
 
-                      const allSecPhotos = [...matchedUserPosts];
+                      const seenPhotos = new Set<string>();
+                      const allSecPhotos: SectionSeatPhoto[] = [];
+                      for (const item of [...matchedBackendPix, ...matchedUserPosts]) {
+                        if (!seenPhotos.has(item.photo)) {
+                          seenPhotos.add(item.photo);
+                          allSecPhotos.push(item);
+                        }
+                      }
 
                       const isTargetSection = Boolean(
                         searchedSectionQuery ? matchesSectionQuery(sec.name, searchedSectionQuery) : true
@@ -2248,17 +2564,32 @@ export default function Community() {
                                               />
                                               <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/95 via-brand-deep/35 to-transparent p-4 flex flex-col justify-between">
                                                 <div className="flex items-center justify-between gap-2">
-                                                  <span className="rounded-full bg-brand-deep/85 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                                                    {p.authorName}
-                                                  </span>
-                                                  {isExactSeatMatch ? null : isClosestSeat ? (
-                                                    <span className="rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                                                      Closest Seat Angle
+                                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="rounded-full bg-brand-deep/85 px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur">
+                                                      {p.authorName}
                                                     </span>
-                                                  ) : (
-                                                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur">
-                                                      Verified Sightline
-                                                    </span>
+                                                    {p.isVerified ? (
+                                                      <span className="rounded-full bg-emerald-500/90 px-2 py-0.5 text-[9px] font-extrabold text-white backdrop-blur flex items-center gap-1 shadow-xs">
+                                                        <CheckCircle2 className="h-2.5 w-2.5" /> Verified Attendee
+                                                      </span>
+                                                    ) : (
+                                                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-bold text-white/90 backdrop-blur">
+                                                        Community Attendee
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  {p.pixId && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleLikeEasePix(p.pixId!);
+                                                      }}
+                                                      className="cursor-pointer inline-flex items-center gap-1 rounded-full bg-brand-deep/80 hover:bg-brand-deep px-2.5 py-0.5 text-[10px] font-bold text-white backdrop-blur transition"
+                                                    >
+                                                      <Heart className="h-3 w-3 text-pink-400 fill-pink-400" />
+                                                      <span>{p.likesCount ?? 0}</span>
+                                                    </button>
                                                   )}
                                                 </div>
 
@@ -2903,7 +3234,7 @@ export default function Community() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     const targetEventId = seatEventIdInput || (shareModalOrigin === "composer" ? selectedEventId : null);
                     if (!targetEventId) {
                       showToast("Please select an event before uploading EasePix");
@@ -2936,23 +3267,43 @@ export default function Community() {
                       showToast("EasePix attached! You're back to drafting your post.");
                       textareaRef.current?.focus();
                     } else {
-                      addPost({
-                        author: user?.name ?? "You",
-                        eventId: targetEventId,
-                        body: `View from ${seatSectionInput}, ${seatRowInput}. Unobstructed sightline to the main stage and fantastic acoustics!`,
-                        photo: photoToUse,
-                        section: seatSectionInput,
-                        seatLabel: seatRowInput,
-                      });
-                      setSeatPhotoInput("");
-                      setIsShareModalOpen(false);
-                      setHasSearched(true);
-                      setGallerySearchFilter({
-                        eventId: targetEventId,
-                        section: seatSectionInput,
-                      });
-                      showToast("Seat view uploaded to EasePix successfully! You earned +15 EasePoints ✨");
-                      scrollToSection("seat-search-results");
+                      try {
+                        const parts = parseSeatParts(seatRowInput);
+                        const rowLabel = parts.row || seatRowInput;
+                        const seatNum = parts.seat ? parseInt(parts.seat, 10) : undefined;
+
+                        await backendCreateEasePix({
+                          eventId: targetEventId,
+                          section: seatSectionInput,
+                          rowLabel: rowLabel || undefined,
+                          seatNumber: isNaN(seatNum as number) ? undefined : seatNum,
+                          photoUrl: photoToUse,
+                          caption: `View from ${seatSectionInput}, ${seatRowInput}.`,
+                          authorName: user?.name ?? "Fan",
+                        });
+
+                        addPost({
+                          author: user?.name ?? "You",
+                          eventId: targetEventId,
+                          body: `View from ${seatSectionInput}, ${seatRowInput}. Unobstructed sightline to the main stage and fantastic acoustics!`,
+                          photo: photoToUse,
+                          section: seatSectionInput,
+                          seatLabel: seatRowInput,
+                        });
+
+                        await reloadCommunityData();
+                        setSeatPhotoInput("");
+                        setIsShareModalOpen(false);
+                        setHasSearched(true);
+                        setGallerySearchFilter({
+                          eventId: targetEventId,
+                          section: seatSectionInput,
+                        });
+                        showToast("Seat view uploaded to EasePix successfully! You earned +15 EasePoints ✨");
+                        scrollToSection("seat-search-results");
+                      } catch (err: any) {
+                        showToast(err?.message || "Failed to upload EasePix");
+                      }
                     }
                   }}
                   className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
