@@ -1059,30 +1059,42 @@ export default function Community() {
             </div>
           </div>
 
-          {/* Floating Community Live Stats Card */}
-          <div className="relative z-10 mt-8 w-full max-w-xs rounded-2xl border border-white/60 bg-brand-warm/95 p-4.5 text-brand-deep shadow-xl backdrop-blur-xl sm:self-end lg:absolute lg:right-8 lg:bottom-8 lg:mt-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <small className="text-[10px] font-bold uppercase tracking-wider text-muted">
-                  YOUR COMMUNITY THIS WEEK
-                </small>
-                <h3 className="mt-0.5 font-brand text-xl font-extrabold tracking-tight text-brand-deep">
-                  Feel the buzz.
-                </h3>
+          {/* Community Spotlight Feature Card */}
+          <div className="relative z-10 mt-8 w-full max-w-[285px] sm:self-end lg:absolute lg:right-8 lg:bottom-8 lg:mt-0">
+            <div
+              onClick={() => setTab("views")}
+              className="cursor-pointer rounded-2xl border border-white/30 bg-white/10 p-5 text-white shadow-2xl backdrop-blur-xl transform -rotate-2 sm:-rotate-3 transition-all hover:rotate-0 hover:scale-[1.02] duration-300 group"
+              title="Click to explore EasePix seat views"
+            >
+              <div className="flex items-center justify-between text-[9px] font-extrabold tracking-wider text-[#FFC7A6]">
+                <span className="flex items-center gap-1">✦ COMMUNITY SPOTLIGHT</span>
+                <span className="opacity-80">01 / 01</span>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/90 px-2.5 py-1 text-[10px] font-black text-emerald-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" /> LIVE
-              </span>
-            </div>
 
-            <div className="mt-3.5 grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-brand-line bg-white/90 p-2.5">
-                <strong className="block font-brand text-xl font-extrabold text-brand-deep">2.4k</strong>
-                <span className="text-[10px] text-muted">Fans chatting</span>
-              </div>
-              <div className="rounded-xl border border-brand-line bg-white/90 p-2.5">
-                <strong className="block font-brand text-xl font-extrabold text-brand-deep">186</strong>
-                <span className="text-[10px] text-muted">Seat views shared</span>
+              <h2 className="mt-3.5 font-brand text-2xl font-extrabold leading-tight text-white tracking-tight group-hover:text-brand-orange transition-colors">
+                Better views.<br />
+                Shared by real fans.
+              </h2>
+
+              <p className="mt-2 text-xs leading-relaxed text-[#EADDF4]/90">
+                Get a feel for your section before the lights go down.
+              </p>
+
+              <div className="mt-4 flex items-center pt-1.5">
+                <div className="flex -space-x-1.5 items-center">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-purple text-[10px] font-extrabold text-white ring-2 ring-purple-950/60 shadow-sm">
+                    N
+                  </span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-[10px] font-extrabold text-white ring-2 ring-purple-950/60 shadow-sm">
+                    A
+                  </span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-magenta text-[10px] font-extrabold text-white ring-2 ring-purple-950/60 shadow-sm">
+                    M
+                  </span>
+                </div>
+                <small className="ml-2.5 text-[10px] text-[#F3E7FA]/80 font-medium leading-tight">
+                  A different perspective, together.
+                </small>
               </div>
             </div>
           </div>
