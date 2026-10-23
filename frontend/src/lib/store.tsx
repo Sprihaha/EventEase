@@ -33,6 +33,7 @@ import {
   fetchBackendEvents,
   fetchBackendRoleEvents,
   type BackendAuth,
+  type NewEventInput,
 } from "./backendApi";
 import { isTokenExpired, getTokenExpirationMs, notifySessionExpired, onSessionExpired, clearSavedExpiredReturnTo } from "./session";
 
@@ -70,7 +71,7 @@ type Store = {
 
   cancelBooking: (id: string) => Promise<void>;
   addPost: (p: Omit<CommunityPost, "id" | "when" | "likes">) => void;
-  createEvent: (e: EventItem) => Promise<void>;
+  createEvent: (input: NewEventInput) => Promise<void>;
   setEventStatus: (id: string, status: EventItem["status"]) => Promise<void>;
   setOrganizerStatus: (id: string, status: OrganizerAccount["status"]) => void;
   resolveFraud: (id: string) => void;
@@ -265,8 +266,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           { ...p, id: "p-" + Date.now(), when: "now", likes: 0 },
           ...all,
         ]),
-      createEvent: async (e) => {
-        await backendCreateEvent(e);
+      createEvent: async (input) => {
+        await backendCreateEvent(input);
         if (user) setEvents(await fetchBackendRoleEvents("ORGANISER", user.id));
       },
       setEventStatus: async (id, status) => {

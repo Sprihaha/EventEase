@@ -84,6 +84,8 @@ class Settings(BaseSettings):
     INCLUDE_SAMPLE_EVENTS: bool | None = None
     IMPORT_MAX_BYTES: int = 2_000_000
     IMPORT_MAX_ROWS: int = 1000
+    # Organiser venue layouts (uploads reuse IMPORT_MAX_BYTES as the file size limit).
+    VENUE_MAX_SEATS: int = Field(default=20_000, ge=1, le=200_000)
 
     # Bookings
     CURRENCY: str = "SGD"

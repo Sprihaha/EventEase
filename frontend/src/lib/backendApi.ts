@@ -84,7 +84,7 @@ async function pages<T>(path: string, authenticated = false): Promise<T[]> {
 
 export async function request<T>(path: string, init: RequestInit = {}, authenticated = false): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (authenticated) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {
@@ -286,25 +286,32 @@ export function backendSetEventStatus(id: string, status: EventStatus) {
   throw new Error("Unsupported event status change.");
 }
 
-export function backendCreateEvent(event: EventItem) {
-  const capacity = event.tiers.reduce((sum, tier) => sum + tier.total, 0);
+export type NewEventTier = { name: string; type: string; priceCents: number; sectionIds: string[] };
+export type NewEventInput = {
+  title: string;
+  category: string;
+  description: string;
+  venueId: string;
+  startAt: string;
+  endAt: string;
+  imageUrl: string;
+  tiers: NewEventTier[];
+};
+
+export function backendCreateEvent(input: NewEventInput) {
   return request(
     "/organiser/events",
     {
       method: "POST",
       body: JSON.stringify({
-        title: event.title,
-        category: event.category.toUpperCase(),
-        shortDescription: event.blurb.slice(0, 300),
-        description: event.blurb,
-        venueName: event.venue,
-        area: event.city,
-        startAt: event.date,
-        endAt: new Date(new Date(event.date).getTime() + 3 * 60 * 60 * 1000).toISOString(),
-        imageUrl: event.image,
-        capacity,
-        initialCategories: event.tiers.map(t => ({ type: t.name.toUpperCase(), name: t.name,
-          priceCents: Math.round(t.price * 100), quantity: t.total, seatSection: t.name })),
+        title: input.title,
+        category: input.category,
+        description: input.description || undefined,
+        venueId: input.venueId,
+        startAt: input.startAt,
+        endAt: input.endAt,
+        imageUrl: input.imageUrl || undefined,
+        initialCategories: input.tiers,
       }),
     },
     true,
@@ -467,4 +474,44 @@ export async function downloadBackendReport(path: string, fallbackName: string) 
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   return name;
+}
+
+// ---------- Organiser venues ----------
+export type VenueSection = { id: string; name: string; seatCount: number; rows: string[] };
+export type Venue = {
+  id: string;
+  name: string;
+  area: string | null;
+  address: string | null;
+  seatCount: number;
+  sections: VenueSection[];
+};
+
+export function backendListVenues() {
+  return request<Venue[]>("/organiser/venues", {}, true);
+}
+
+export function backendGetVenue(id: string) {
+  return request<Venue>(`/organiser/venues/${id}`, {}, true);
+}
+
+export function backendImportVenue(input: { name: string; area: string; address: string; file: File }) {
+  const body = new FormData();
+  body.append("name", input.name);
+  body.append("area", input.area);
+  if (input.address) body.append("address", input.address);
+  body.append("file", input.file);
+  return request<Venue>("/organiser/venues/import", { method: "POST", body }, true);
+}
+
+export function backendDownloadVenueTemplate() {
+  return downloadBackendReport("/organiser/venues/template", "venue-layout-template.xlsx");
+}
+
+export function backendEventCategories() {
+  return request<string[]>("/events/categories");
+}
+
+export function backendTicketCategoryTypes() {
+  return request<string[]>("/organiser/ticket-category-types", {}, true);
 }

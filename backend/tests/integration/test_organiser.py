@@ -16,15 +16,15 @@ from app.db.models import (
     Role,
     TicketCategory,
 )
-from tests.helpers import auth_header, error_of, make_event, make_user
+from tests.helpers import auth_header, error_of, make_event, make_user, make_venue
 
 BASE = "/api/v1/organiser/events"
 
 
-def event_body(**overrides):
+def event_body(venue, **overrides):
     start = utcnow() + timedelta(days=30)
     body = {"title": "Harbour Lights Concert", "category": "CONCERT", "description": "An evening concert by the bay.",
-            "venueName": "Esplanade Concert Hall", "area": "Marina Bay", "startAt": start.isoformat(),
+            "venueId": str(venue.id), "startAt": start.isoformat(),
             "endAt": (start + timedelta(hours=3)).isoformat(), "imageUrl": "https://img.example.org/a.jpg",
             "capacity": 500}
     body.update(overrides)
@@ -41,8 +41,13 @@ def headers(client, organiser):
     return auth_header(client, organiser.username)
 
 
-def test_create_event_goes_to_review(client, db, headers):
-    response = client.post(BASE, json=event_body(), headers=headers)
+@pytest.fixture
+def venue(db, organiser):
+    return make_venue(db, organiser, name="Esplanade Concert Hall")
+
+
+def test_create_event_goes_to_review(client, db, headers, venue):
+    response = client.post(BASE, json=event_body(venue), headers=headers)
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["status"] == "REVIEW_IN_PROGRESS" and body["rejectionReason"] is None
@@ -53,15 +58,15 @@ def test_create_event_goes_to_review(client, db, headers):
     assert client.get("/api/v1/events").json()["total"] == 0
 
 
-def test_create_event_validation(client, headers):
+def test_create_event_validation(client, headers, venue):
     past = utcnow() - timedelta(days=1)
-    assert error_of(client.post(BASE, json=event_body(startAt=past.isoformat()), headers=headers))["code"] == "INVALID_EVENT_DATES"
+    assert error_of(client.post(BASE, json=event_body(venue, startAt=past.isoformat()), headers=headers))["code"] == "INVALID_EVENT_DATES"
     start = utcnow() + timedelta(days=5)
-    bad_end = event_body(startAt=start.isoformat(), endAt=(start - timedelta(hours=1)).isoformat())
+    bad_end = event_body(venue, startAt=start.isoformat(), endAt=(start - timedelta(hours=1)).isoformat())
     assert error_of(client.post(BASE, json=bad_end, headers=headers))["code"] == "INVALID_EVENT_DATES"
-    assert client.post(BASE, json=event_body(category="OPERA"), headers=headers).status_code == 422
-    assert client.post(BASE, json=event_body(capacity=0), headers=headers).status_code == 422
-    assert client.post(BASE, json=event_body(imageUrl="ftp://x"), headers=headers).status_code == 422
+    assert client.post(BASE, json=event_body(venue, category="OPERA"), headers=headers).status_code == 422
+    assert client.post(BASE, json=event_body(venue, capacity=0), headers=headers).status_code == 422
+    assert client.post(BASE, json=event_body(venue, imageUrl="ftp://x"), headers=headers).status_code == 422
 
 
 def test_organisers_only_see_their_own_events(client, db, headers, organiser):

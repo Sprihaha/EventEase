@@ -8,12 +8,14 @@ from app.core.errors import AppError
 from app.core.security import utcnow
 from app.db.models import BookingItem, Event, EventOrigin, EventStatus, EventSeat, TicketCategory, User
 from app.schemas.organiser import EventCreate, EventUpdate, TicketCategoryCreate, TicketCategoryUpdate
-from app.services import audit, fraud
+from app.services import audit, fraud, venues
 from app.services.events import parse_event_id
 from app.services.timeparse import to_utc
 
 EDITABLE = {EventStatus.REVIEW_IN_PROGRESS, EventStatus.REJECTED}
 EVENT_AUDIT_FIELDS = ["status", "title", "start_at", "end_at", "capacity", "rejection_reason"]
+# A category's section summary must fit its database column; longer lists fall back to the category name.
+SEAT_SECTION_MAX = TicketCategory.__table__.c.seat_section.type.length
 
 
 def _validate_dates(start, end) -> None:
@@ -35,27 +37,43 @@ def _own_event(db: Session, organiser: User, raw_id: str, *, lock: bool = False)
 def create_event(db: Session, organiser: User, data: EventCreate, ip: str | None) -> Event:
     start, end = to_utc(data.start_at), to_utc(data.end_at)
     _validate_dates(start, end)
-    if sum(c.quantity for c in data.initial_categories) > data.capacity:
-        raise AppError(422, "CAPACITY_EXCEEDED", "initial ticket quantities exceed event capacity")
+    venue = venues.get_own_venue(db, organiser, data.venue_id)
+    sections = {section.id: section for section in venue.sections}
+
+    chosen = [section_id for category in data.initial_categories for section_id in category.section_ids]
+    unknown = [str(section_id) for section_id in dict.fromkeys(chosen) if section_id not in sections]
+    if unknown:
+        raise AppError(422, "UNKNOWN_SECTIONS", "every section must belong to the selected venue",
+                       {"sectionIds": unknown})
+    if len(chosen) != len(set(chosen)):
+        raise AppError(422, "SECTION_IN_TWO_CATEGORIES", "a section can be sold in only one ticket category")
+    capacity = data.capacity or venue.seat_count
+    on_sale = sum(len(sections[section_id].seats) for section_id in chosen)
+    if on_sale > capacity:
+        raise AppError(422, "CAPACITY_EXCEEDED", "the selected sections have more seats than the event capacity")
+
     event = Event(
-        origin=EventOrigin.ORGANISER, organiser_id=organiser.id, title=data.title.strip(), category=data.category,
-        short_description=data.short_description or (data.description or "")[:300] or None,
-        description=data.description, venue_name=data.venue_name.strip(), area=data.area.strip(), start_at=start,
-        end_at=end, image_url=data.image_url, capacity=data.capacity, status=EventStatus.REVIEW_IN_PROGRESS,
+        origin=EventOrigin.ORGANISER, organiser_id=organiser.id, venue_id=venue.id, title=data.title.strip(),
+        category=data.category, short_description=data.short_description or (data.description or "")[:300] or None,
+        description=data.description, venue_name=venue.name, area=venue.area, start_at=start, end_at=end,
+        image_url=data.image_url, capacity=capacity, status=EventStatus.REVIEW_IN_PROGRESS,
     )
     db.add(event)
     db.flush()
-    row_offset = 0
     for initial in data.initial_categories:
-        category = TicketCategory(event_id=event.id, type=initial.type, name=initial.name,
-            seat_section=initial.seat_section or initial.name, price_cents=initial.price_cents, quantity_total=initial.quantity)
-        db.add(category); db.flush()
-        for index in range(initial.quantity):
-            row_index = row_offset + index // 10
-            row = chr(65 + row_index) if row_index < 26 else f"R{row_index+1}"
-            number = index % 10 + 1
-            db.add(EventSeat(event_id=event.id, ticket_category_id=category.id, label=f"{row}-{number}",row_label=row,number=number))
-        row_offset += (initial.quantity + 9) // 10
+        picked = [sections[section_id] for section_id in initial.section_ids]
+        names = ", ".join(section.name for section in picked)
+        category = TicketCategory(
+            event_id=event.id, type=initial.type, name=initial.name.strip(), price_cents=initial.price_cents,
+            seat_section=names if len(names) <= SEAT_SECTION_MAX else initial.name.strip(),
+            quantity_total=sum(len(section.seats) for section in picked),
+        )
+        db.add(category)
+        db.flush()
+        db.add_all(EventSeat(event_id=event.id, ticket_category_id=category.id, venue_seat_id=seat.id,
+                             section_name=section.name, row_label=seat.row_label, number=seat.number,
+                             label=f"{section.name} {seat.row_label}-{seat.number}")
+                   for section in picked for seat in section.seats)
     audit.record(db, actor=organiser, action="EVENT_SUBMITTED", entity_type="Event", entity_id=event.id,
                  before=None, after=audit.snapshot(event, EVENT_AUDIT_FIELDS), ip=ip)
     db.commit()

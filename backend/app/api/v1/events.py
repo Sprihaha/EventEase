@@ -10,10 +10,23 @@ from app.db.models import EventCategory
 from app.db.session import get_db
 from app.schemas.common import Page
 from app.schemas.events import EventDetail, EventListItem
+from app.schemas.organiser import EventLayoutOut
 from app.services import events as event_service
 from app.services.timeparse import parse_bound
 
 router = APIRouter(prefix="/events", tags=["Events"])
+
+
+@router.get("/categories", response_model=list[str], summary="Event categories the platform supports")
+def categories():
+    return [c.value for c in EventCategory]
+
+
+@router.get("/{event_id}/layout", response_model=EventLayoutOut,
+            summary="The venue layout (sections, rows, seats) behind an approved event")
+def layout(event_id: str, db: Session = Depends(get_db)):
+    from app.services.venues import event_layout
+    return event_layout(db, event_service.parse_event_id(event_id))
 
 
 @router.get("/{event_id}/seats", summary="Database-backed individual seat availability")
