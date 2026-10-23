@@ -57,6 +57,20 @@ def cmd_purge(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_send_test_email(args: argparse.Namespace) -> int:
+    from app.services.mail.base import get_mailer
+    settings = get_settings()
+    print(f"Using MAIL_TRANSPORT: {settings.MAIL_TRANSPORT}")
+    print(f"Sending test email from: {settings.MAIL_FROM} to: {args.to}")
+    try:
+        mailer = get_mailer()
+        mailer.send(args.to, args.subject, args.body)
+        print("Test email sent successfully!")
+        return 0
+    except Exception as e:
+        print(f"Failed to send email: {e}", file=sys.stderr)
+        return 1
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description="EventEase management commands")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -70,6 +84,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("seed-sample", help="Insert labelled sample events (development only)").set_defaults(func=cmd_seed_sample)
     sub.add_parser("ingest-events", help="Sync Singapore events from configured external sources").set_defaults(func=cmd_ingest)
     sub.add_parser("purge-old-data", help="Delete personal data past DATA_RETENTION_DAYS (PDPA)").set_defaults(func=cmd_purge)
+
+    mail_cmd = sub.add_parser("send-test-email", help="Send a test email using configured MAIL_TRANSPORT")
+    mail_cmd.add_argument("--to", required=True, help="Recipient email address")
+    mail_cmd.add_argument("--subject", default="EventEase Test Email", help="Email subject")
+    mail_cmd.add_argument("--body", default="This is a test notification from EventEase.", help="Email body")
+    mail_cmd.set_defaults(func=cmd_send_test_email)
     return parser
 
 
