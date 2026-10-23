@@ -7,7 +7,7 @@ if ((import.meta.env.VITE_LOCAL_SANDBOX === "true" || import.meta.env.VITE_LOCAL
   throw new Error("Local testing refuses a nonlocal API URL.");
 }
 const API_ROOT = `${API_ORIGIN}/api/v1`;
-const TOKEN_KEY = "eventease-access-token";
+import { TOKEN_KEY, isTokenExpired, notifySessionExpired } from "./session";
 
 export class ApiError extends Error {
   constructor(
@@ -87,13 +87,26 @@ export async function request<T>(path: string, init: RequestInit = {}, authentic
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (authenticated) {
     const token = sessionStorage.getItem(TOKEN_KEY);
-    if (token) headers.set("Authorization", `Bearer ${token}`);
+    if (token) {
+      if (isTokenExpired(token)) {
+        notifySessionExpired();
+        throw new ApiError("Session expired, please login again", 401, "TOKEN_EXPIRED");
+      }
+      headers.set("Authorization", `Bearer ${token}`);
+    }
   }
   const response = await fetch(`${API_ROOT}${path}`, { ...init, headers });
   if (!response.ok) {
     const body = await response.json().catch(() => null) as
       | { error?: { code?: string; message?: string; details?: Record<string, unknown> }; detail?: string }
       | null;
+    if (
+      response.status === 401 &&
+      (authenticated || body?.error?.code === "TOKEN_EXPIRED") &&
+      path !== "/auth/login"
+    ) {
+      notifySessionExpired();
+    }
     throw new ApiError(
       body?.error?.message ?? body?.detail ?? `Backend request failed (${response.status})`,
       response.status,
@@ -424,11 +437,17 @@ export function deleteBackendNarrationAudio(pageKey: string) {
  */
 export async function downloadBackendReport(path: string, fallbackName: string) {
   const token = sessionStorage.getItem(TOKEN_KEY);
-  if (!token) throw new ApiError("Please log in to download reports.", 401);
+  if (!token || isTokenExpired(token)) {
+    if (token) notifySessionExpired();
+    throw new ApiError("Please log in to download reports.", 401);
+  }
   const response = await fetch(`${API_ROOT}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
+    if (response.status === 401) {
+      notifySessionExpired();
+    }
     const body = (await response.json().catch(() => null)) as
       | { error?: { message?: string }; detail?: string }
       | null;

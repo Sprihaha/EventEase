@@ -15,6 +15,7 @@ import {
 import { useStore } from "../lib/store";
 import { ApiError, backendForgotPassword, backendResendVerification, backendSignup } from "../lib/backendApi";
 import { Badge, Button, Card, Field, Input } from "../components/ui";
+import { getSavedExpiredReturnTo, clearSavedExpiredReturnTo, resolveReturnUrl } from "../lib/session";
 
 type SignUp = {
   userId: string;
@@ -46,7 +47,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const navState = location.state as { returnTo?: string; mode?: "forgot" } | null;
-  const returnTo = navState?.returnTo;
+  const returnTo = navState?.returnTo ?? getSavedExpiredReturnTo();
   const [mode, setMode] = useState<"signin" | "signup" | "sent" | "forgot" | "forgotSent">(
     navState?.mode === "forgot" ? "forgot" : "signin",
   );
@@ -59,7 +60,11 @@ export default function Login() {
   // send them to their dashboard and drop this page from history.
   useEffect(() => {
     if (!sessionLoading && user) {
-      navigate(user.mustChangePassword ? "/change-password" : user.role === "customer" && returnTo ? returnTo : `/dashboard/${user.role}`, { replace: true });
+      clearSavedExpiredReturnTo();
+      const destination = user.mustChangePassword
+        ? "/change-password"
+        : resolveReturnUrl(user.role, returnTo);
+      navigate(destination, { replace: true });
     }
   }, [sessionLoading, user, returnTo, navigate]);
 
@@ -153,7 +158,11 @@ export default function Login() {
       const account = await authenticate(username, password);
       setSigningIn(false);
       if (account) {
-        navigate(account.mustChangePassword ? "/change-password" : account.role === "customer" && returnTo ? returnTo : `/dashboard/${account.role}`, { replace: true });
+        clearSavedExpiredReturnTo();
+        const destination = account.mustChangePassword
+          ? "/change-password"
+          : resolveReturnUrl(account.role, returnTo);
+        navigate(destination, { replace: true });
         return;
       }
     } catch (err: unknown) {

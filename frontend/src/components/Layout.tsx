@@ -18,6 +18,14 @@ import {
 import { useStore } from "../lib/store";
 import { Button, cx } from "./ui";
 import EaseVoice from "./EaseVoice";
+import SessionExpiredModal from "./SessionExpiredModal";
+import {
+  onSessionExpired,
+  hasExpiredRedirect,
+  clearExpiredRedirect,
+  getSavedExpiredReturnTo,
+  saveExpiredReturnTo,
+} from "../lib/session";
 
 function AccessibilityBar() {
   const [big, setBig] = useState(false);
@@ -68,7 +76,47 @@ export default function Layout() {
   const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenu = useRef<HTMLDivElement>(null);
-  const dash = user ? `/dashboard/${user.role}` : "/login";
+  const dash = user ? (user.mustChangePassword ? "/change-password" : `/dashboard/${user.role}`) : "/login";
+
+  const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
+  const [expiredReturnTo, setExpiredReturnTo] = useState<string | null>(null);
+
+  // If the user refreshed the page while expired, redirect to /login immediately preserving destination
+  useEffect(() => {
+    if (hasExpiredRedirect()) {
+      clearExpiredRedirect();
+      const returnTo = getSavedExpiredReturnTo();
+      navigate("/login", {
+        replace: true,
+        state: returnTo ? { returnTo } : undefined,
+      });
+    }
+  }, [navigate]);
+
+  // Listen for session expiry event to display modal and remember current page
+  useEffect(() => {
+    return onSessionExpired(() => {
+      const currentPath =
+        typeof window !== "undefined" && !window.location.pathname.startsWith("/login")
+          ? window.location.pathname + window.location.search + window.location.hash
+          : getSavedExpiredReturnTo();
+      if (currentPath && !currentPath.startsWith("/login")) {
+        setExpiredReturnTo(currentPath);
+        saveExpiredReturnTo(currentPath);
+      }
+      setSessionExpiredOpen(true);
+    });
+  }, []);
+
+  const handleConfirmSessionExpired = () => {
+    const returnTo = expiredReturnTo || getSavedExpiredReturnTo();
+    setSessionExpiredOpen(false);
+    clearExpiredRedirect();
+    navigate("/login", {
+      replace: true,
+      state: returnTo ? { returnTo } : undefined,
+    });
+  };
 
   // Only reset scroll to top when navigating to /login
   useEffect(() => {
@@ -97,7 +145,7 @@ export default function Layout() {
       <header className="sticky top-0 z-40 border-b border-brand-purple/10 bg-white/95 text-brand-deep shadow-[0_2px_15px_-4px_rgba(50,19,79,0.06)] backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-5 sm:gap-3 lg:gap-6">
           <Link
-            to="/"
+            to={user ? dash : "/"}
             className="flex items-center rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-orange/30"
           >
             <img
@@ -238,13 +286,17 @@ export default function Layout() {
         <Outlet />
       </main>
       <EaseVoice />
+      <SessionExpiredModal
+        isOpen={sessionExpiredOpen}
+        onConfirm={handleConfirmSessionExpired}
+      />
 
       <footer className="mt-20 border-t border-white/10 bg-brand-deep text-white">
         <div className="mx-auto max-w-7xl px-5 py-16">
           <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
             <div className="space-y-6">
               <div>
-                <Link to="/" className="inline-block">
+                <Link to={user ? dash : "/"} className="inline-block">
                   <img
                     src="/EventEase_logo.png"
                     alt="EventEase"

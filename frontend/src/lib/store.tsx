@@ -34,6 +34,7 @@ import {
   fetchBackendRoleEvents,
   type BackendAuth,
 } from "./backendApi";
+import { isTokenExpired, getTokenExpirationMs, notifySessionExpired, onSessionExpired, clearSavedExpiredReturnTo } from "./session";
 
 import { fetchBookings, bookingForStore } from "./ticketingApi";
 
@@ -129,6 +130,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (active) { setEvents([]); setEventsSource("error"); setEventsError(cause instanceof Error ? cause.message : "Could not load events."); }
     });
     if (hasBackendSession()) {
+      if (isTokenExpired()) {
+        notifySessionExpired();
+        setSessionLoading(false);
+        return;
+      }
       backendMe().then(account => {
         if (!active) return;
         const role = account.role === "ORGANISER" ? "organizer" : account.role.toLowerCase() as Role;
@@ -148,6 +154,51 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .finally(() => active && setSessionLoading(false));
     } else setSessionLoading(false);
     return () => { active = false; };
+  }, []);
+
+  // Active session expiration timer & watcher
+  useEffect(() => {
+    if (!user) return;
+    const checkExpiry = () => {
+      if (isTokenExpired()) {
+        notifySessionExpired();
+      }
+    };
+
+    const expMs = getTokenExpirationMs();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (expMs) {
+      const remaining = expMs - Date.now();
+      if (remaining <= 0) {
+        notifySessionExpired();
+      } else {
+        timer = setTimeout(() => {
+          notifySessionExpired();
+        }, Math.max(0, remaining));
+      }
+    }
+
+    const interval = setInterval(checkExpiry, 5000);
+    window.addEventListener("focus", checkExpiry);
+    document.addEventListener("visibilitychange", checkExpiry);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      clearInterval(interval);
+      window.removeEventListener("focus", checkExpiry);
+      document.removeEventListener("visibilitychange", checkExpiry);
+    };
+  }, [user]);
+
+  // Handle session expired broadcast: clean up local store state
+  useEffect(() => {
+    return onSessionExpired(() => {
+      accountId.current = null;
+      accountRole.current = null;
+      setUser(null);
+      setBookings([]);
+      setBookingsError(null);
+    });
   }, []);
 
   const value = useMemo<Store>(() => {
@@ -188,6 +239,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       startSession,
       logout: () => {
         void backendLogout();
+        clearSavedExpiredReturnTo();
         accountId.current = null;
         accountRole.current = null;
         setUser(null);

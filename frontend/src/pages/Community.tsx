@@ -2397,7 +2397,7 @@ export default function Community() {
                   ) : (
                     <button
                       type="button"
-                      id="visit-easexchange-btn"
+                      id="try-easexchange-btn"
                       onClick={() => {
                         const el = document.getElementById("easexchange-app");
                         if (el) {
@@ -2408,7 +2408,7 @@ export default function Community() {
                       }}
                       className="cursor-pointer inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-purple/25 transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
                     >
-                      <Repeat className="h-4 w-4" /> Visit EaseXchange
+                      <Repeat className="h-4 w-4" /> Try EaseXchange
                     </button>
                   )}
                 </div>
