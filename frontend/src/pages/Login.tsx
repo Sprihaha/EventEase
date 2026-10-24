@@ -14,8 +14,9 @@ import {
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { ApiError, backendForgotPassword, backendResendVerification, backendSignup } from "../lib/backendApi";
-import { Badge, Button, Card, Field, Input } from "../components/ui";
+import type { SignUpPrefill, SignUpRole } from "./SignUpChoice";
 import { getSavedExpiredReturnTo, clearSavedExpiredReturnTo, resolveReturnUrl } from "../lib/session";
+import { Badge, Button, Card, Field, Input } from "../components/ui";
 
 type SignUp = {
   userId: string;
@@ -46,10 +47,17 @@ export default function Login() {
   const { authenticate, user, sessionLoading } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const navState = location.state as { returnTo?: string; mode?: "forgot" } | null;
+  const navState = location.state as {
+    returnTo?: string;
+    mode?: "forgot" | "signup";
+    role?: SignUpRole;
+    prefill?: SignUpPrefill;
+  } | null;
   const returnTo = navState?.returnTo ?? getSavedExpiredReturnTo();
+  // The sign-up form is only reached after choosing an account type on /signup.
+  const signUpRole = navState?.mode === "signup" ? navState.role : undefined;
   const [mode, setMode] = useState<"signin" | "signup" | "sent" | "forgot" | "forgotSent">(
-    navState?.mode === "forgot" ? "forgot" : "signin",
+    signUpRole ? "signup" : navState?.mode === "forgot" ? "forgot" : "signin",
   );
 
   useEffect(() => {
@@ -86,15 +94,18 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [signingIn, setSigningIn] = useState(false);
-  const [signUp, setSignUp] = useState<SignUp>(emptySignUp);
+  const [signUp, setSignUp] = useState<SignUp>(() => ({
+    ...emptySignUp,
+    userId: navState?.prefill?.username ?? "",
+    email: navState?.prefill?.email ?? "",
+  }));
   const [signingUp, setSigningUp] = useState(false);
   const [signUpError, setSignUpError] = useState("");
   // Set when the account exists but its email has not been verified yet.
   const [unverified, setUnverified] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   // Set when sign-in used a username or email that has no account.
-  const [signUpPrompt, setSignUpPrompt] = useState<{ username?: string; email?: string } | null>(null);
-  const [fromUnknownLogin, setFromUnknownLogin] = useState(false);
+  const [signUpPrompt, setSignUpPrompt] = useState<SignUpPrefill | null>(null);
   const [forgotUsername, setForgotUsername] = useState("");
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSending, setForgotSending] = useState(false);
@@ -137,17 +148,8 @@ export default function Login() {
     return signUp.password.length >= 8 ? "Password strength: ready" : "Use at least 8 characters";
   }, [signUp.password]);
 
-  const goToSignUp = (prefill: { username?: string; email?: string }) => {
-    setSignUp((current) => ({
-      ...current,
-      userId: prefill.username ?? current.userId,
-      email: prefill.email ?? current.email,
-    }));
-    setSignUpPrompt(null);
-    setFromUnknownLogin(true);
-    setError("");
-    setMode("signup");
-  };
+  // Every sign-up starts by choosing customer or organiser.
+  const goToSignUp = (prefill: SignUpPrefill = {}) => navigate("/signup", { state: { prefill } });
 
   const handleSignIn = async (event: FormEvent) => {
     event.preventDefault();
@@ -220,6 +222,7 @@ export default function Login() {
         password: signUp.password,
         email: signUp.email,
         phone: signUp.phone,
+        role: signUpRole ?? "CUSTOMER",
       });
       setSignUp((current) => ({ ...current, password: "" }));
       setResendState("idle");
@@ -350,7 +353,7 @@ export default function Login() {
 
               <div className="mt-8 border-t border-brand-purple/10 pt-6 text-center">
                 <p className="text-sm text-muted">New to EventEase?</p>
-                <Button className="mt-3" variant="outline" onClick={() => { setMode("signup"); setError(""); }}>
+                <Button className="mt-3" variant="outline" onClick={() => goToSignUp()}>
                   <UserPlus className="h-4 w-4" /> Sign up as a new user
                 </Button>
               </div>
@@ -359,16 +362,23 @@ export default function Login() {
 
           {mode === "signup" && (
             <>
-              <Button variant="ghost" size="sm" onClick={() => { setMode("signin"); setFromUnknownLogin(false); }} className="-ml-3">
-                <ArrowLeft className="h-4 w-4" /> Back to sign in
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => goToSignUp({ username: signUp.userId || undefined, email: signUp.email || undefined })}
+                className="-ml-3"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back to account type
               </Button>
-              {fromUnknownLogin && (
-                <p className="mt-4 font-brand text-lg font-bold text-brand-orange">New to EventEase? Sign up now</p>
-              )}
               <h1 className="mt-4 font-brand text-4xl font-bold tracking-tight text-brand-deep">
-                Create your account
+                {signUpRole === "ORGANISER" ? "Create your organiser account" : "Create your customer account"}
               </h1>
-              <p className="mt-2 text-sm text-muted">Join as a customer. Verify your email to finish.</p>
+              <p className="mt-2 text-sm text-muted">
+                {signUpRole === "ORGANISER"
+                  ? "Create your event, share your creativity."
+                  : "Search, view and book event tickets."}{" "}
+                Verify your email to finish.
+              </p>
               <form className="mt-7 grid gap-4 sm:grid-cols-2" onSubmit={handleSignUp}>
                 <Field label="User ID">
                   <Input value={signUp.userId} onChange={(e) => update("userId", e.target.value)} minLength={3} required />

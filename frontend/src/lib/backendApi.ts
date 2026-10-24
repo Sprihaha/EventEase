@@ -226,11 +226,12 @@ export async function backendSignup(account: {
   password: string;
   email: string;
   phone: string;
+  role: "CUSTOMER" | "ORGANISER";
 }) {
   // Creates an unverified account; the backend emails a link to /verify-email/:token.
   return request<{ message: string; email: string; verificationRequired: boolean }>("/auth/signup", {
     method: "POST",
-    body: JSON.stringify({ ...account, role: "CUSTOMER" }),
+    body: JSON.stringify(account),
   });
 }
 

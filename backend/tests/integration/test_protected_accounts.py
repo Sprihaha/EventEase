@@ -47,9 +47,10 @@ def test_orm_refuses_changes_to_protected_fields(db, username, role, field, valu
 
 def test_guard_matches_usernames_case_insensitively(db):
     user = make_user(db, Role.CUSTOMER, username="JOHN")
-    user.role = Role.ORGANISER
-    with pytest.raises(RuleError):
+    user.password_hash = "replaced"
+    with pytest.raises(RuleError) as info:
         db.commit()
+    assert info.value.code == "ACCOUNT_PROTECTED"
 
 
 def test_other_fields_of_protected_accounts_still_change(db, john):
@@ -63,7 +64,7 @@ def test_other_fields_of_protected_accounts_still_change(db, john):
 def test_unprotected_accounts_are_unaffected(db):
     user = make_user(db)
     user.username = "renamedfan"
-    user.role = Role.ORGANISER
+    user.password_hash = "replaced"
     db.commit()
     assert _reload(db, user).username == "renamedfan"
 

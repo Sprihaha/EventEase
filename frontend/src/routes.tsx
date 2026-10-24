@@ -12,6 +12,7 @@ import Verify from "./pages/Verify";
 import VerifyEmail from "./pages/VerifyEmail";
 import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
+import SignUpChoice from "./pages/SignUpChoice";
 import AccessibilitySettings from "./pages/AccessibilitySettings";
 import AssistanceRequestForm from "./pages/AssistanceRequestForm";
 import AssistanceRequests from "./pages/AssistanceRequests";
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { path: "exchange", Component: () => <CustomerOrAdminRoute Component={() => <Navigate to="/community?tab=exchange" replace />} /> },
       { path: "easexchange", Component: () => <CustomerOrAdminRoute Component={() => <Navigate to="/community?tab=exchange" replace />} /> },
       { path: "login", Component: Login },
+      { path: "signup", Component: SignUpChoice },
       { path: "dashboard/customer", Component: CustomerDashboard },
       { path: "dashboard/organizer", Component: OrganizerDashboard },
       { path: "dashboard/admin", Component: AdminDashboard },

@@ -20,6 +20,7 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 from app.db.base import Base, Timestamps, UUIDPk, str_enum
 from app.db.models.enums import Role, UserStatus
 from app.rules.protected_accounts import PROTECTED_FIELDS, check_not_protected
+from app.rules.roles import role_change_error
 
 
 class User(UUIDPk, Timestamps, Base):
@@ -60,8 +61,9 @@ class User(UUIDPk, Timestamps, Base):
 
 
 @event.listens_for(Session, "before_flush")
-def _guard_protected_accounts(session: Session, _flush_context, _instances) -> None:
-    """Refuse any ORM change to a protected account's username, password or role.
+def _guard_user_changes(session: Session, _flush_context, _instances) -> None:
+    """Refuse ORM changes to a protected account's username, password or role, and to
+    any existing account's role.
 
     Bulk update() statements and raw SQL bypass the ORM; none target these columns.
     """
@@ -74,6 +76,8 @@ def _guard_protected_accounts(session: Session, _flush_context, _instances) -> N
             continue
         renamed_from = state.attrs.username.history.deleted
         check_not_protected(renamed_from[0] if renamed_from else obj.username)
+        if "role" in changed:
+            raise role_change_error()
 
 
 class RefreshToken(UUIDPk, Base):
