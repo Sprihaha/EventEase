@@ -4,13 +4,9 @@
 services:
   - type: web
     name: eventease-frontend
-    runtime: static
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
     envVars:
       - key: VITE_API_BASE_URL
         value: https://eventease-backend-qkbl.onrender.com
