@@ -32,9 +32,10 @@ services:
       - key: CORS_ORIGINS
         sync: false
       - key: CORS_ORIGIN_REGEX
-        value: https://([a-z0-9-]+\.)*figma\.(site|com)
+        value: https://([a-z0-9-]+\.)*(figma\.(site|com)|onrender\.com)
       - key: FRONTEND_URL
-        sync: false
+        value: https://eventease-frontend-invd.onrender.com
+
       - key: TICKETMASTER_API_KEY
         sync: false
       - key: PAYMENT_PROVIDER
