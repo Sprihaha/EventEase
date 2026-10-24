@@ -105,14 +105,19 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str | None = None
     STRIPE_WEBHOOK_SECRET: str | None = None
 
-    # Mail. "console" prints messages; "smtp" sends real mail (e.g. Gmail: smtp.gmail.com,
-    # port 587, the account address as SMTP_USERNAME and a Google app password).
-    MAIL_TRANSPORT: Literal["console", "smtp"] = "console"
+    # Mail. "console" prints messages; "resend" and "sendgrid" use HTTPS REST APIs;
+    # "smtp" sends real mail (e.g. Gmail: smtp.gmail.com, port 587 with STARTTLS or 465 with SSL).
+    MAIL_TRANSPORT: Literal["console", "resend", "sendgrid", "smtp"] = "console"
     MAIL_FROM: str = "EventEase <no-reply@eventease.local>"
+    RESEND_API_KEY: str | None = None
+    SENDGRID_API_KEY: str | None = None
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
     SMTP_USERNAME: str | None = None
+    SMTP_USER: str | None = None
     SMTP_PASSWORD: str | None = None
+    SMTP_USE_TLS: bool = True
+    SMTP_USE_SSL: bool = False
     SMTP_TIMEOUT_SECONDS: int = 15
 
     # Email verification: required for new sign-ups; accounts created earlier get reminders.
@@ -163,8 +168,12 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must be at least 32 characters")
         if self.PAYMENT_PROVIDER == "stripe" and not self.STRIPE_SECRET_KEY:
             raise ValueError("STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe")
-        if self.MAIL_TRANSPORT == "smtp" and not (self.SMTP_HOST and self.SMTP_USERNAME and self.SMTP_PASSWORD):
+        if self.MAIL_TRANSPORT == "smtp" and not (self.SMTP_HOST and (self.SMTP_USERNAME or self.SMTP_USER) and self.SMTP_PASSWORD):
             raise ValueError("SMTP_HOST, SMTP_USERNAME and SMTP_PASSWORD are required when MAIL_TRANSPORT=smtp")
+        if self.MAIL_TRANSPORT == "resend" and not self.RESEND_API_KEY:
+            raise ValueError("RESEND_API_KEY is required when MAIL_TRANSPORT=resend")
+        if self.MAIL_TRANSPORT == "sendgrid" and not self.SENDGRID_API_KEY:
+            raise ValueError("SENDGRID_API_KEY is required when MAIL_TRANSPORT=sendgrid")
         return self
 
     @property

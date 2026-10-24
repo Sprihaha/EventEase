@@ -74,6 +74,21 @@ def cmd_purge(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_send_test_email(args: argparse.Namespace) -> int:
+    from app.services.mail.base import get_mailer
+    settings = get_settings()
+    print(f"Using MAIL_TRANSPORT: {settings.MAIL_TRANSPORT}")
+    print(f"Sending test email from: {settings.MAIL_FROM} to: {args.to}")
+    try:
+        mailer = get_mailer()
+        mailer.send(args.to, args.subject, args.body)
+        print("Test email sent successfully!")
+        return 0
+    except Exception as e:
+        print(f"Failed to send email: {e}", file=sys.stderr)
+        return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description="EventEase management commands")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -92,6 +107,12 @@ def build_parser() -> argparse.ArgumentParser:
                             help="List (or with --send, email) existing accounts whose email is not yet verified")
     remind.add_argument("--send", action="store_true", help="Actually send the reminder emails")
     remind.set_defaults(func=cmd_verification_reminders)
+
+    mail_cmd = sub.add_parser("send-test-email", help="Send a test email using configured MAIL_TRANSPORT")
+    mail_cmd.add_argument("--to", required=True, help="Recipient email address")
+    mail_cmd.add_argument("--subject", default="EventEase Test Email", help="Email subject")
+    mail_cmd.add_argument("--body", default="This is a test notification from EventEase.", help="Email body")
+    mail_cmd.set_defaults(func=cmd_send_test_email)
     return parser
 
 
