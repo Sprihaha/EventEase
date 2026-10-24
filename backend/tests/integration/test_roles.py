@@ -39,7 +39,8 @@ def test_other_fields_still_change(db):
 def test_role_is_set_once_at_sign_up(client, db, role):
     response = client.post("/api/v1/auth/signup", json={"username": "newfan", "password": PASSWORD,
                                                          "email": "newfan@gmail.com", "phone": "91234567",
-                                                         "role": role})
+                                                         "role": role, "organisationName": "Fan Events",
+                                                         "organisationEmail": "team@fanevents.sg"})
     assert response.status_code == 201
     assert db.scalar(select(User).where(User.username == "newfan")).role == role
 

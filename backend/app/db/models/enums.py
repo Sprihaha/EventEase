@@ -12,6 +12,12 @@ class UserStatus(StrEnum):
     SUSPENDED = "SUSPENDED"
 
 
+class OrganiserApplicationStatus(StrEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
 class EventCategory(StrEnum):
     # Stored as plain text (no DB constraint) so new categories need no migration.
     CONCERT = "CONCERT"
