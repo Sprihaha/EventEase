@@ -2,7 +2,7 @@ import type { Category, EventItem, EventStatus } from "./data";
 
 const API_ORIGIN =
   ((import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL) as string | undefined)?.replace(/\/$/, "") ??
-  "https://eventease-backend-fbpd.onrender.com";
+  "https://eventease-backend-qkbl.onrender.com";
 if ((import.meta.env.VITE_LOCAL_SANDBOX === "true" || import.meta.env.VITE_LOCAL_ONLY === "true") && !["localhost", "127.0.0.1", "[::1]"].includes(new URL(API_ORIGIN).hostname)) {
   throw new Error("Local testing refuses a nonlocal API URL.");
 }

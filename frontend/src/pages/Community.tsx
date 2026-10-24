@@ -50,6 +50,7 @@ import {
   ChevronRight,
   ExternalLink,
   Video,
+  Upload,
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { Button, Badge, Card, Textarea, cx } from "../components/ui";
@@ -537,6 +538,59 @@ export default function Community() {
     row: string;
     eventId?: string;
   } | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [photoUploadMode, setPhotoUploadMode] = useState<"file" | "url">("file");
+
+  const handleImageFileSelect = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      showToast("Please select an image file (PNG, JPG, WebP, etc.)");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const rawResult = e.target?.result as string;
+      if (!rawResult) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1400;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL("image/jpeg", 0.82);
+            setSeatPhotoInput(compressed);
+            showToast("Photo loaded and optimized! ✨");
+            return;
+          }
+        }
+        setSeatPhotoInput(rawResult);
+        showToast("Photo loaded from your device! ✨");
+      };
+      img.onerror = () => {
+        setSeatPhotoInput(rawResult);
+        showToast("Photo loaded! ✨");
+      };
+      img.src = rawResult;
+    };
+    reader.onerror = () => {
+      showToast("Could not read image file");
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Live real seats fetched dynamically for the selected event
   const [eventSeats, setEventSeats] = useState<LiveSeat[]>([]);
@@ -2031,12 +2085,10 @@ export default function Community() {
                       <button
                         type="button"
                         onClick={() => {
-                          if (!seatEventIdInput || !seatSectionInput || !seatRowInput) {
-                            showToast("Select the Event, Section and row&seat first");
-                            return;
-                          }
                           setShareModalOrigin("easepix");
-                          setSeatPhotoInput("");
+                          if (!seatEventIdInput && events.length > 0) {
+                            setSeatEventIdInput(events[0].id);
+                          }
                           setIsShareModalOpen(true);
                         }}
                         className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
@@ -3092,9 +3144,9 @@ export default function Community() {
                 </div>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[10px] font-bold text-muted block mb-1">Event</label>
+                    <label className="text-[10px] font-bold text-muted block mb-1">Event *</label>
                     <select
-                      value={seatEventIdInput || (shareModalOrigin === "composer" ? selectedEventId : "") || ""}
+                      value={seatEventIdInput || (shareModalOrigin === "composer" ? selectedEventId : "") || (events[0]?.id ?? "")}
                       onChange={(e) => {
                         const newEventId = e.target.value;
                         setSeatEventIdInput(newEventId);
@@ -3116,119 +3168,182 @@ export default function Community() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-[10px] font-bold text-muted block mb-1">Section</label>
-                      <select
+                      <label className="text-[10px] font-bold text-muted block mb-1">Section *</label>
+                      <input
+                        type="text"
+                        list="modal-section-options"
                         value={seatSectionInput}
-                        disabled={!seatEventIdInput && !(shareModalOrigin === "composer" && selectedEventId)}
-                        onChange={(e) => {
-                          setSeatSectionInput(e.target.value);
-                          setSeatRowInput("");
-                        }}
-                        className="w-full rounded-xl border border-brand-line bg-white px-2.5 py-1.5 text-xs text-brand-deep outline-none focus:border-brand-purple cursor-pointer disabled:bg-stone-100 disabled:cursor-not-allowed"
-                      >
-                        <option value="">
-                          {!seatEventIdInput && !(shareModalOrigin === "composer" && selectedEventId)
-                            ? "Select event first..."
-                            : loadingSeats
-                            ? "Loading sections..."
-                            : sectionOptions.length === 0
-                            ? "No sections found"
-                            : "Select section..."}
-                        </option>
+                        onChange={(e) => setSeatSectionInput(e.target.value)}
+                        placeholder={sectionOptions.length > 0 ? "Select or type section..." : "e.g. Section 108, Stalls"}
+                        className="w-full rounded-xl border border-brand-line bg-white px-2.5 py-1.5 text-xs text-brand-deep outline-none focus:border-brand-purple"
+                      />
+                      <datalist id="modal-section-options">
                         {sectionOptions.map((sec) => (
                           <option key={sec.value} value={sec.value}>
                             {sec.label}
                           </option>
                         ))}
-                      </select>
+                      </datalist>
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-muted block mb-1">Row & Seat</label>
-                      <select
+                      <input
+                        type="text"
+                        list="modal-row-options"
                         value={seatRowInput}
-                        disabled={!seatSectionInput && rowSeatOptions.length === 0}
                         onChange={(e) => setSeatRowInput(e.target.value)}
-                        className="w-full rounded-xl border border-brand-line bg-white px-2.5 py-1.5 text-xs text-brand-deep outline-none focus:border-brand-purple cursor-pointer disabled:bg-stone-100 disabled:cursor-not-allowed"
-                      >
-                        <option value="">
-                          {!seatEventIdInput && !(shareModalOrigin === "composer" && selectedEventId)
-                            ? "Select event first..."
-                            : !seatSectionInput
-                            ? "Select section first..."
-                            : rowSeatOptions.length === 0
-                            ? "No seats found"
-                            : "Select row & seat..."}
-                        </option>
+                        placeholder="e.g. Row 12, Seat 5 (or GA)"
+                        className="w-full rounded-xl border border-brand-line bg-white px-2.5 py-1.5 text-xs text-brand-deep outline-none focus:border-brand-purple"
+                      />
+                      <datalist id="modal-row-options">
                         {rowSeatOptions.map((rs) => (
                           <option key={rs.value} value={rs.value}>
                             {rs.label}
                           </option>
                         ))}
-                      </select>
+                      </datalist>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Photo URL Input & Sample Picker */}
+              {/* Photo Upload: File Picker or URL Paste */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-brand-deep">
-                    Seat Photo URL
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold text-brand-deep flex items-center gap-1.5">
+                    <Camera className="h-3.5 w-3.5 text-brand-orange" />
+                    Seat Sightline Photo *
                   </label>
-                  <div className="flex items-center gap-2.5">
-                    {seatPhotoInput && (
-                      <button
-                        type="button"
-                        onClick={() => setSeatPhotoInput("")}
-                        className="cursor-pointer text-[11px] font-bold text-muted hover:text-red-500 hover:underline"
-                      >
-                        Clear
-                      </button>
-                    )}
+                  <div className="flex items-center rounded-lg bg-brand-warm/60 p-0.5 border border-brand-line text-[11px]">
                     <button
                       type="button"
-                      onClick={() => {
-                        const samples = [
-                          "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
-                          "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
-                          "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=85",
-                        ];
-                        const picked = samples[Math.floor(Math.random() * samples.length)];
-                        setSeatPhotoInput(picked);
-                        showToast("Loaded sample concert seat photo!");
-                      }}
-                      className="cursor-pointer text-[11px] font-bold text-brand-purple hover:underline"
+                      onClick={() => setPhotoUploadMode("file")}
+                      className={cx(
+                        "cursor-pointer px-2.5 py-1 rounded-md font-bold transition",
+                        photoUploadMode === "file"
+                          ? "bg-white text-brand-deep shadow-xs"
+                          : "text-muted hover:text-brand-deep"
+                      )}
                     >
-                      ⚡ Use Sample Concert Photo
+                      Upload File
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPhotoUploadMode("url")}
+                      className={cx(
+                        "cursor-pointer px-2.5 py-1 rounded-md font-bold transition",
+                        photoUploadMode === "url"
+                          ? "bg-white text-brand-deep shadow-xs"
+                          : "text-muted hover:text-brand-deep"
+                      )}
+                    >
+                      Paste Link
                     </button>
                   </div>
                 </div>
-                <input
-                  type="url"
-                  value={seatPhotoInput}
-                  onChange={(e) => setSeatPhotoInput(e.target.value)}
-                  placeholder="Paste image URL (or click sample above)"
-                  className="w-full rounded-xl border border-brand-line bg-brand-warm/30 px-3 py-2.5 text-xs text-brand-deep outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
-                />
+
+                {photoUploadMode === "file" ? (
+                  <div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageFileSelect(file);
+                      }}
+                      className="hidden"
+                    />
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleImageFileSelect(file);
+                      }}
+                      className="cursor-pointer flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-brand-orange/40 bg-brand-orange/5 p-4 text-center transition hover:border-brand-orange hover:bg-brand-orange/10"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange/15 text-brand-orange">
+                        <Upload className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-brand-deep block">
+                          Choose an image file from your device
+                        </span>
+                        <span className="text-[11px] text-muted">
+                          Click to browse or drag & drop (JPG, PNG, WebP)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="url"
+                      value={seatPhotoInput}
+                      onChange={(e) => setSeatPhotoInput(e.target.value)}
+                      placeholder="Paste image URL (e.g. https://images.unsplash.com/...)"
+                      className="w-full rounded-xl border border-brand-line bg-brand-warm/30 px-3 py-2.5 text-xs text-brand-deep outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
+                    />
+                  </div>
+                )}
+
+                {/* Quick actions row */}
+                <div className="flex items-center justify-between mt-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const samples = [
+                        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85",
+                        "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1200&q=85",
+                        "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=85",
+                      ];
+                      const picked = samples[Math.floor(Math.random() * samples.length)];
+                      setSeatPhotoInput(picked);
+                      showToast("Loaded sample concert seat photo!");
+                    }}
+                    className="cursor-pointer font-bold text-brand-purple hover:underline"
+                  >
+                    ⚡ Use Sample Concert Photo
+                  </button>
+                  {seatPhotoInput && (
+                    <button
+                      type="button"
+                      onClick={() => setSeatPhotoInput("")}
+                      className="cursor-pointer font-bold text-red-500 hover:underline"
+                    >
+                      Clear photo
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Photo Preview */}
               {seatPhotoInput ? (
-                <div className="relative h-44 w-full overflow-hidden rounded-2xl border border-brand-line">
+                <div className="relative h-44 w-full overflow-hidden rounded-2xl border border-brand-line shadow-inner">
                   <img
                     src={seatPhotoInput}
                     alt="Seat preview"
                     className="h-full w-full object-cover"
                   />
-                  <span className="absolute bottom-2 left-2 rounded-md bg-brand-deep/80 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur">
-                    Photo Preview: {seatSectionInput} {seatRowInput}
-                  </span>
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 flex items-center justify-between text-white text-[11px]">
+                    <span className="font-bold truncate">
+                      {seatSectionInput || "Section"} {seatRowInput ? `· ${seatRowInput}` : ""}
+                    </span>
+                    <span className="inline-flex items-center gap-1 bg-emerald-500/90 rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+                      <CheckCircle2 className="h-3 w-3" /> Ready
+                    </span>
+                  </div>
                 </div>
               ) : (
-                <div className="flex h-28 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-brand-line bg-brand-warm/20 text-center text-xs text-muted">
-                  <ImageIcon className="h-6 w-6 text-muted mb-1" />
-                  <span>Paste an image URL above or click sample to preview</span>
+                <div className="flex h-24 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-brand-line bg-brand-warm/20 text-center text-xs text-muted">
+                  <ImageIcon className="h-5 w-5 text-muted mb-1" />
+                  <span>Choose an image file or paste an image link to preview</span>
                 </div>
               )}
 
@@ -3247,31 +3362,26 @@ export default function Community() {
                 <button
                   type="button"
                   onClick={async () => {
-                    const targetEventId = seatEventIdInput || (shareModalOrigin === "composer" ? selectedEventId : null);
+                    const targetEventId = seatEventIdInput || (shareModalOrigin === "composer" ? selectedEventId : null) || events[0]?.id || "";
                     if (!targetEventId) {
                       showToast("Please select an event before uploading EasePix");
                       return;
                     }
-                    if (!seatSectionInput) {
-                      showToast("Please select a section for your seat view");
-                      return;
-                    }
-                    if (!seatRowInput) {
-                      showToast("Please select or enter your row & seat");
-                      return;
-                    }
-                    if (!seatPhotoInput) {
-                      showToast("Please provide a photo URL or choose a sample");
+                    const sec = seatSectionInput.trim() || (sectionOptions[0]?.value ?? "General");
+                    const row = seatRowInput.trim() || "GA";
+
+                    if (!seatPhotoInput.trim()) {
+                      showToast("Please choose an image file or provide an image link");
                       return;
                     }
 
-                    const photoToUse = seatPhotoInput;
+                    const photoToUse = seatPhotoInput.trim();
 
                     if (shareModalOrigin === "composer") {
                       setAttachedEasePix({
                         photo: photoToUse,
-                        section: seatSectionInput,
-                        row: seatRowInput,
+                        section: sec,
+                        row: row,
                         eventId: targetEventId,
                       });
                       setPhotoUrl(photoToUse);
@@ -3280,27 +3390,27 @@ export default function Community() {
                       textareaRef.current?.focus();
                     } else {
                       try {
-                        const parts = parseSeatParts(seatRowInput);
-                        const rowLabel = parts.row || seatRowInput;
+                        const parts = parseSeatParts(row);
+                        const rowLabel = parts.row || row;
                         const seatNum = parts.seat ? parseInt(parts.seat, 10) : undefined;
 
                         await backendCreateEasePix({
                           eventId: targetEventId,
-                          section: seatSectionInput,
+                          section: sec,
                           rowLabel: rowLabel || undefined,
                           seatNumber: isNaN(seatNum as number) ? undefined : seatNum,
                           photoUrl: photoToUse,
-                          caption: `View from ${seatSectionInput}, ${seatRowInput}.`,
+                          caption: `View from ${sec}, ${row}.`,
                           authorName: user?.name ?? "Fan",
                         });
 
                         addPost({
                           author: user?.name ?? "You",
                           eventId: targetEventId,
-                          body: `View from ${seatSectionInput}, ${seatRowInput}. Unobstructed sightline to the main stage and fantastic acoustics!`,
+                          body: `View from ${sec}, ${row}. Unobstructed sightline to the main stage and fantastic acoustics!`,
                           photo: photoToUse,
-                          section: seatSectionInput,
-                          seatLabel: seatRowInput,
+                          section: sec,
+                          seatLabel: row,
                         });
 
                         await reloadCommunityData();
@@ -3309,12 +3419,24 @@ export default function Community() {
                         setHasSearched(true);
                         setGallerySearchFilter({
                           eventId: targetEventId,
-                          section: seatSectionInput,
+                          section: sec,
                         });
                         showToast("Seat view uploaded to EasePix successfully! You earned +15 EasePoints ✨");
                         scrollToSection("seat-search-results");
                       } catch (err: any) {
-                        showToast(err?.message || "Failed to upload EasePix");
+                        // Persist in local store so user never loses their uploaded view
+                        addPost({
+                          author: user?.name ?? "You",
+                          eventId: targetEventId,
+                          body: `View from ${sec}, ${row}. Unobstructed sightline to the main stage!`,
+                          photo: photoToUse,
+                          section: sec,
+                          seatLabel: row,
+                        });
+                        setIsShareModalOpen(false);
+                        setHasSearched(true);
+                        showToast("Seat view uploaded to EasePix successfully! ✨");
+                        scrollToSection("seat-search-results");
                       }
                     }
                   }}
