@@ -11,6 +11,7 @@ from app.db.models import (
     FraudSeverity,
     FraudSignalType,
     FraudStatus,
+    OrganiserApplicationStatus,
     Role,
     UserStatus,
 )
@@ -55,6 +56,23 @@ class AdminEventDetail(AdminEventListItem):
     suspension_reason: str | None
     ticket_categories: list[TicketCategoryOut]
     sales: SalesReport | None
+
+
+class OrganiserRequestOut(CamelModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    username: str
+    email_masked: str | None
+    email_verified: bool
+    phone_masked: str | None
+    organisation_name: str
+    organisation_email: str
+    same_organisation_requests: int = Field(..., description="Other requests under the same organisation name")
+    status: OrganiserApplicationStatus
+    submitted_at: datetime
+    reviewed_at: datetime | None
+    reviewed_by: str | None
+    review_note: str | None
 
 
 class AdminUser(CamelModel):

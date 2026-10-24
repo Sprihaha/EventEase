@@ -18,6 +18,8 @@ from app.core.security import (
 )
 from app.db.models import (
     LoginAttempt,
+    OrganiserApplication,
+    OrganiserApplicationStatus,
     PasswordResetRequest,
     PasswordResetToken,
     RefreshToken,
@@ -27,6 +29,7 @@ from app.db.models import (
 )
 from app.rules.contact import EMAIL_TAKEN, mask_email, normalise_email, normalise_sg_phone
 from app.rules.errors import RuleError
+from app.rules.organisation import check_organisation
 from app.rules.password import check_password
 from app.rules.protected_accounts import check_not_protected, is_protected_username
 from app.rules.username import USERNAME_TAKEN
@@ -122,6 +125,9 @@ def refresh_session(db: Session, settings: Settings, raw_token: str | None) -> S
         raise invalid
     if user.status == UserStatus.SUSPENDED:
         raise AppError(403, "ACCOUNT_SUSPENDED", "this account is suspended")
+    blocked = organiser_block(db, user)
+    if blocked is not None:
+        raise blocked
     token.revoked_at = now
     session = _start_session(db, settings, user, token.family_id)
     db.commit()
@@ -158,10 +164,36 @@ def _record_attempt(db: Session, identifier: str, user: User | None, ip: str | N
                      entity_type="User", entity_id=user.id, after={"reason": reason}, ip=ip)
 
 
-def login(db: Session, settings: Settings, identifier: str, password: str, ip: str | None) -> Session_:
+def organiser_block(db: Session, user: User) -> AppError | None:
+    """The error that keeps an organiser out until an admin approves their sign-up request.
+
+    Organisers from before requests existed have no row and are treated as approved.
+    """
+    if user.role != Role.ORGANISER:
+        return None
+    application = db.scalar(select(OrganiserApplication).where(OrganiserApplication.user_id == user.id))
+    if application is None or application.status == OrganiserApplicationStatus.APPROVED:
+        return None
+    if application.status == OrganiserApplicationStatus.PENDING:
+        return AppError(403, "ORGANISER_PENDING", "your organiser request is waiting for admin approval")
+    return AppError(403, "ORGANISER_REJECTED", "your organiser request was not approved",
+                    {"reason": application.review_note})
+
+
+def login(db: Session, settings: Settings, identifier: str, password: str, ip: str | None,
+          portal: Role | None = None) -> Session_:
+    """Sign in. `portal` is the login tab chosen; the account must have that role.
+
+    The admin tab is verification only: every failure there is the same INVALID_CREDENTIALS,
+    with no sign-up offer or attempts count. On the other tabs an unknown username gets
+    SIGNUP_REQUIRED, and a known account of another role counts as a wrong password.
+    """
     identifier = identifier.strip()
     user = _find_by_identifier(db, identifier)
     now = utcnow()
+
+    if portal == Role.ADMIN and (user is None or user.role != Role.ADMIN):
+        raise AppError(401, "INVALID_CREDENTIALS", "invalid password or username", {})
 
     if user is None:
         # Not a sign-in attempt: nothing is recorded and no account or fraud counter changes.
@@ -181,7 +213,10 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
         raise AppError(423, "ACCOUNT_LOCKED", "account temporarily locked after repeated failed logins",
                        {"lockedUntil": user.locked_until.isoformat()})
 
-    if not verify_password(password, user.password_hash):
+    # Always check the password, so a wrong tab takes as long as a wrong password.
+    password_ok = verify_password(password, user.password_hash)
+    wrong_portal = portal is not None and user.role != portal
+    if wrong_portal or not password_ok:
         user.failed_login_count += 1
         locked = user.failed_login_count >= settings.LOGIN_MAX_FAILURES
         # Remaining attempts for this account; the sign-in page shows it only for this error.
@@ -191,7 +226,10 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
             user.locked_until = now + timedelta(minutes=settings.LOCKOUT_MINUTES)
             user.failed_login_count = 0
             details["lockedUntil"] = user.locked_until.isoformat()
-        _record_attempt(db, identifier, user, ip, False, "LOCKED_OUT" if locked else "BAD_PASSWORD")
+        if portal == Role.ADMIN:
+            details = {}
+        reason = "LOCKED_OUT" if locked else "WRONG_PORTAL" if wrong_portal else "BAD_PASSWORD"
+        _record_attempt(db, identifier, user, ip, False, reason)
         db.commit()
         fraud.on_login_failure(db, ip=ip, identifier=identifier, user=user)
         if locked:
@@ -210,6 +248,13 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
         raise AppError(403, "EMAIL_NOT_VERIFIED", "please verify your email before signing in",
                        {"email": mask_email(user.email)})
 
+    blocked = organiser_block(db, user)
+    if blocked is not None:
+        user.failed_login_count = 0
+        _record_attempt(db, identifier, user, ip, False, blocked.code)
+        db.commit()
+        raise blocked
+
     user.failed_login_count = 0
     user.locked_until = None
     _record_attempt(db, identifier, user, ip, True, "OK")
@@ -222,8 +267,12 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
 
 
 def signup(db: Session, settings: Settings, *, username: str, password: str, email: str, phone: str,
-           role: str, ip: str | None) -> User:
-    """Create an unverified account and email its verification link. No session until verified."""
+           role: str, ip: str | None, organisation_name: str | None = None,
+           organisation_email: str | None = None) -> User:
+    """Create an unverified account and email its verification link. No session until verified.
+
+    Organisers must give an organisation name and email; their request waits for admin approval.
+    """
     if role.upper() == Role.ADMIN.value:
         raise AppError(403, "ROLE_NOT_ALLOWED", "administrator accounts cannot be created through sign-up")
     if role not in SIGNUP_ROLES:
@@ -235,6 +284,7 @@ def signup(db: Session, settings: Settings, *, username: str, password: str, ema
     if db.scalar(select(func.count()).select_from(User).where(func.lower(User.email) == normalised_email.lower())):
         raise RuleError(*EMAIL_TAKEN, status_code=409)
     phone_e164 = normalise_sg_phone(phone)
+    organisation = check_organisation(organisation_name, organisation_email) if role == Role.ORGANISER.value else None
 
     user = User(username=username, email=normalised_email, phone_e164=phone_e164,
                 password_hash=hash_password(password), role=Role(role), signup_ip=ip,
@@ -251,7 +301,10 @@ def signup(db: Session, settings: Settings, *, username: str, password: str, ema
         if "uq_users_email_lower" in str(error.orig):
             raise RuleError(*EMAIL_TAKEN, status_code=409) from error
         raise
-    send_signup_verification(db, settings, user)
+    if organisation is not None:
+        db.add(OrganiserApplication(user_id=user.id, organisation_name=organisation[0],
+                                    organisation_email=organisation[1]))
+    send_signup_verification(db, settings, user, awaiting_approval=organisation is not None)
     fraud.on_signup(db, user=user, ip=ip)
     return user
 
@@ -364,6 +417,10 @@ def forgot_password(db: Session, settings: Settings, username: str, email: str, 
         raise AppError(403, "ACCOUNT_SUSPENDED", "this account is suspended")
     if user.role == Role.ADMIN or is_protected_username(user.username):
         raise AppError(403, "RESET_NOT_AVAILABLE", "password reset by email is not available for this account")
+    # A reset signs the user in, so organisers awaiting approval cannot use it to get in.
+    blocked = organiser_block(db, user)
+    if blocked is not None:
+        raise blocked
     now = utcnow()
     db.execute(
         update(PasswordResetToken)
@@ -396,6 +453,9 @@ def reset_password(db: Session, settings: Settings, token: str, new_password: st
         raise AppError(400, "RESET_TOKEN_INVALID", "reset link is invalid or has expired")
     if user.status == UserStatus.SUSPENDED:
         raise AppError(403, "ACCOUNT_SUSPENDED", "this account is suspended")
+    blocked = organiser_block(db, user)
+    if blocked is not None:
+        raise blocked
     check_password(new_password)
     check_not_protected(user.username)
     record.used_at = utcnow()

@@ -32,7 +32,8 @@ def seeded_admin_password(db) -> str:
 
 @pytest.mark.parametrize("role", ["CUSTOMER", "ORGANISER"])
 def test_signup_creates_unverified_account_without_session(client, db, role):
-    response = signup(client, role=role)
+    organisation = {"organisationName": "Fan Events", "organisationEmail": "team@fanevents.sg"}
+    response = signup(client, role=role, **(organisation if role == "ORGANISER" else {}))
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["verificationRequired"] is True and body["email"] == "n***@example.com"

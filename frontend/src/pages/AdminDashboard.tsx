@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -25,11 +25,18 @@ import { OperationsSeatMap } from "../components/OperationsSeatMap";
 import AssistanceQueue from "../components/AssistanceQueue";
 import EaseVoiceNarration from "./EaseVoiceNarration";
 import ResetDemoData from "../components/ResetDemoData";
+import OrganiserRequests from "../components/OrganiserRequests";
+import { countPendingOrganiserRequests } from "../lib/backendApi";
 
 export default function AdminDashboard() {
-  const { events, organizers, fraud, assistanceRequests } = useStore();
+  const { events, fraud, assistanceRequests } = useStore();
   const pendingEvents = events.filter((e) => e.status === "pending").length;
-  const pendingOrgs = organizers.filter((o) => o.status === "pending").length;
+  // Real organiser sign-up requests waiting for review, from the backend.
+  const [pendingOrgs, setPendingOrgs] = useState(0);
+  const refreshPendingOrgs = useCallback(() => {
+    countPendingOrganiserRequests().then(setPendingOrgs).catch(() => setPendingOrgs(0));
+  }, []);
+  useEffect(refreshPendingOrgs, [refreshPendingOrgs]);
   const openFraud = fraud.filter((f) => !f.resolved).length;
   const openAssistance = assistanceRequests.filter((request) =>
     ["Submitted", "Assigned", "In progress"].includes(request.status),
@@ -38,7 +45,7 @@ export default function AdminDashboard() {
   const nav: NavItem[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "events", label: "Event approvals", icon: CalendarCheck, badge: pendingEvents },
-    { id: "organizers", label: "Organizers", icon: Building2, badge: pendingOrgs },
+    { id: "organizers", label: "Organiser requests", icon: Building2, badge: pendingOrgs },
     { id: "fraud", label: "Fraud monitor", icon: ShieldAlert, badge: openFraud },
     { id: "sales", label: "Sales status", icon: CircleDollarSign },
     { id: "assistance", label: "Assistance queue", icon: ClipboardList, badge: openAssistance },
@@ -57,12 +64,12 @@ export default function AdminDashboard() {
             <StatCard label="Live events" value={String(events.filter((e) => e.status === "published").length)} />
             <StatCard label="Pending approvals" value={String(pendingEvents + pendingOrgs)} tone="accent" />
             <StatCard label="Open fraud alerts" value={String(openFraud)} tone={openFraud ? "danger" : "live"} />
-            <StatCard label="Approved organizers" value={String(organizers.filter((o) => o.status === "approved").length)} />
+            <StatCard label="Organiser requests" value={String(pendingOrgs)} tone={pendingOrgs ? "accent" : undefined} />
           </div>
 
           {active === "overview" && <><Overview /><div className="mt-8"><ResetDemoData /></div></>}
           {active === "events" && <EventApprovals />}
-          {active === "organizers" && <Organizers />}
+          {active === "organizers" && <OrganiserRequests onChanged={refreshPendingOrgs} />}
           {active === "fraud" && <FraudMonitor />}
           {active === "sales" && <SalesStatus />}
           {active === "seats" && <OperationsSeatMap events={events} eyebrow="Platform seat maps" />}
@@ -320,57 +327,6 @@ function EventApprovals() {
                 ) : (
                   <div className="text-right text-xs text-muted">—</div>
                 )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
-  );
-}
-
-function Organizers() {
-  const { organizers, setOrganizerStatus } = useStore();
-  return (
-    <Card className="overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="border-b border-brand-purple/10 bg-brand-purple/5 text-left text-xs uppercase tracking-wide text-muted">
-          <tr>
-            <th className="p-4">Organizer</th>
-            <th className="p-4">Contact</th>
-            <th className="p-4">Events</th>
-            <th className="p-4">Status</th>
-            <th className="p-4 text-right">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {organizers.map((o) => (
-            <tr key={o.id} className="border-b border-line last:border-0">
-              <td className="p-4 font-medium">{o.name}</td>
-              <td className="p-4 text-muted">{o.contact}</td>
-              <td className="p-4 text-muted">{o.events}</td>
-              <td className="p-4">
-                <Badge tone={o.status === "approved" ? "live" : o.status === "pending" ? "warn" : "danger"}>
-                  {o.status}
-                </Badge>
-              </td>
-              <td className="p-4">
-                <div className="flex justify-end gap-2">
-                  {o.status === "pending" && (
-                    <Button size="sm" onClick={() => setOrganizerStatus(o.id, "approved")}>
-                      <Check className="h-4 w-4" /> Approve
-                    </Button>
-                  )}
-                  {o.status !== "suspended" ? (
-                    <Button size="sm" variant="danger" onClick={() => setOrganizerStatus(o.id, "suspended")}>
-                      Suspend
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => setOrganizerStatus(o.id, "approved")}>
-                      Reinstate
-                    </Button>
-                  )}
-                </div>
               </td>
             </tr>
           ))}

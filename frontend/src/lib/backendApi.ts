@@ -212,10 +212,13 @@ export async function fetchBackendRoleEvents(role: BackendRole, ownerId = "") {
   return [];
 }
 
-export async function backendLogin(identifier: string, password: string) {
+export type LoginPortal = "CUSTOMER" | "ORGANISER" | "ADMIN";
+
+// `portal` is the login tab chosen; the backend refuses accounts of any other role.
+export async function backendLogin(identifier: string, password: string, portal?: LoginPortal) {
   const auth = await request<BackendAuth>("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ identifier, password }),
+    body: JSON.stringify({ identifier, password, portal }),
   });
   sessionStorage.setItem(TOKEN_KEY, auth.accessToken);
   return auth;
@@ -227,9 +230,12 @@ export async function backendSignup(account: {
   email: string;
   phone: string;
   role: "CUSTOMER" | "ORGANISER";
+  organisationName?: string;
+  organisationEmail?: string;
 }) {
   // Creates an unverified account; the backend emails a link to /verify-email/:token.
-  return request<{ message: string; email: string; verificationRequired: boolean }>("/auth/signup", {
+  // Organisers also wait for an administrator to approve their request.
+  return request<{ message: string; email: string; verificationRequired: boolean; approvalRequired: boolean }>("/auth/signup", {
     method: "POST",
     body: JSON.stringify(account),
   });
@@ -382,6 +388,42 @@ export async function backendChangePassword(currentPassword: string, newPassword
   );
   sessionStorage.setItem(TOKEN_KEY, auth.accessToken);
   return auth;
+}
+
+export type OrganiserRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export type OrganiserRequest = {
+  id: string;
+  userId: string;
+  username: string;
+  emailMasked: string | null;
+  emailVerified: boolean;
+  phoneMasked: string | null;
+  organisationName: string;
+  organisationEmail: string;
+  sameOrganisationRequests: number;
+  status: OrganiserRequestStatus;
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  reviewNote: string | null;
+};
+
+export async function fetchOrganiserRequests(status?: OrganiserRequestStatus) {
+  return pages<OrganiserRequest>(`/admin/organiser-requests${status ? `?status=${status}` : ""}`, true);
+}
+
+export async function countPendingOrganiserRequests() {
+  const page = await request<{ total: number }>("/admin/organiser-requests?status=PENDING&pageSize=1", {}, true);
+  return page.total;
+}
+
+export async function decideOrganiserRequest(id: string, approve: boolean, reason?: string) {
+  return request<OrganiserRequest>(
+    `/admin/organiser-requests/${id}/${approve ? "approve" : "reject"}`,
+    { method: "POST", ...(approve ? {} : { body: JSON.stringify({ reason: reason || null }) }) },
+    true,
+  );
 }
 
 export function hasBackendSession() { return !!sessionStorage.getItem(TOKEN_KEY); }

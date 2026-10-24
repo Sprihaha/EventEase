@@ -10,6 +10,8 @@ from app.schemas.common import CamelModel
 class LoginRequest(CamelModel):
     identifier: str = Field(..., min_length=1, max_length=254, description="Username or email address")
     password: str = Field(..., min_length=1, max_length=1024)
+    portal: Role | None = Field(None, description="Login tab chosen (CUSTOMER, ORGANISER or ADMIN); the account "
+                                                  "must have this role. Omit to accept any role.")
 
 
 class SignupRequest(CamelModel):
@@ -19,12 +21,15 @@ class SignupRequest(CamelModel):
     email: str = Field(..., max_length=320)
     phone: str = Field(..., max_length=32)
     role: str = Field(..., max_length=32, description="CUSTOMER or ORGANISER")
+    organisation_name: str | None = Field(None, max_length=1000, description="Required for ORGANISER")
+    organisation_email: str | None = Field(None, max_length=320, description="Required for ORGANISER")
 
 
 class SignupResponse(CamelModel):
     message: str
     email: str = Field(..., description="Masked address the verification link was sent to")
     verification_required: bool = True
+    approval_required: bool = Field(False, description="True for organisers: an admin must approve the request")
 
 
 class VerifyEmailRequest(CamelModel):
