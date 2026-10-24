@@ -16,7 +16,13 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.core.security import new_opaque_token, sha256, utcnow
-from app.db.models import EmailVerificationToken, User, UserStatus
+from app.db.models import (
+    EmailVerificationToken,
+    OrganiserApplication,
+    OrganiserApplicationStatus,
+    User,
+    UserStatus,
+)
 from app.rules.contact import is_undeliverable_email, mask_email
 from app.services.mail.base import send_safely
 
@@ -34,15 +40,18 @@ def _issue_link(db: Session, settings: Settings, user: User, ttl: timedelta) -> 
     return f"{settings.FRONTEND_URL.rstrip('/')}/verify-email/{token}"
 
 
-def send_signup_verification(db: Session, settings: Settings, user: User) -> None:
+def send_signup_verification(db: Session, settings: Settings, user: User, *, awaiting_approval: bool = False) -> None:
     hours = settings.EMAIL_VERIFICATION_TTL_HOURS
     link = _issue_link(db, settings, user, timedelta(hours=hours))
     db.commit()
+    next_step = ("Your organiser request has been submitted. Once your email is verified, an administrator will "
+                 "review it, and we'll email you when it has been decided." if awaiting_approval
+                 else "You can sign in once your email is verified.")
     send_safely(
         user.email,
         "Verify your EventEase email",
         f"Hi {user.username},\n\nWelcome to EventEase! Please confirm this is your email address by opening "
-        f"this link within {hours} hours:\n{link}\n\nYou can sign in once your email is verified.\n\n"
+        f"this link within {hours} hours:\n{link}\n\n{next_step}\n\n"
         f"If you did not create an EventEase account, you can ignore this email.",
     )
 
@@ -67,7 +76,9 @@ def resend_verification(db: Session, settings: Settings, identifier: str) -> Non
     user = db.scalar(select(User).where(or_(func.lower(User.username) == lowered, func.lower(User.email) == lowered)))
     if user is None or user.email is None or user.email_verified_at is not None or user.status != UserStatus.ACTIVE:
         return
-    send_signup_verification(db, settings, user)
+    pending = db.scalar(select(OrganiserApplication.id).where(
+        OrganiserApplication.user_id == user.id, OrganiserApplication.status == OrganiserApplicationStatus.PENDING))
+    send_signup_verification(db, settings, user, awaiting_approval=pending is not None)
 
 
 # --------------------------------------------------------------------------- reminders

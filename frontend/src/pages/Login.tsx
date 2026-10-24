@@ -9,11 +9,18 @@ import {
   LockKeyhole,
   Mail,
   ShieldCheck,
+  Sparkles,
   Ticket,
   UserPlus,
 } from "lucide-react";
 import { useStore } from "../lib/store";
-import { ApiError, backendForgotPassword, backendResendVerification, backendSignup } from "../lib/backendApi";
+import {
+  ApiError,
+  backendForgotPassword,
+  backendResendVerification,
+  backendSignup,
+  type LoginPortal,
+} from "../lib/backendApi";
 import type { SignUpPrefill, SignUpRole } from "./SignUpChoice";
 import { getSavedExpiredReturnTo, clearSavedExpiredReturnTo, resolveReturnUrl } from "../lib/session";
 import { Badge, Button, Card, Field, Input } from "../components/ui";
@@ -24,6 +31,9 @@ type SignUp = {
   email: string;
   phone: string;
   billingAddress: string;
+  // Organisers only; both are required.
+  organisationName: string;
+  organisationEmail: string;
 };
 
 const emptySignUp: SignUp = {
@@ -32,7 +42,18 @@ const emptySignUp: SignUp = {
   email: "",
   phone: "",
   billingAddress: "",
+  organisationName: "",
+  organisationEmail: "",
 };
+
+const PORTALS: { id: LoginPortal; label: string; icon: typeof Ticket }[] = [
+  { id: "CUSTOMER", label: "Login as customer", icon: Ticket },
+  { id: "ORGANISER", label: "Login as organiser", icon: Sparkles },
+  { id: "ADMIN", label: "Login as admin", icon: ShieldCheck },
+];
+
+const ORGANISER_PENDING_MESSAGE =
+  "Your organiser request is still waiting for admin approval. We'll email you once it's decided.";
 
 // Messages for the forgot-password errors returned by the backend.
 const FORGOT_ERRORS: Record<string, string> = {
@@ -41,6 +62,8 @@ const FORGOT_ERRORS: Record<string, string> = {
   TOO_MANY_RESET_REQUESTS: "Too many attempts, please try again tomorrow.",
   RESET_NOT_AVAILABLE: "Password reset by email isn't available for this account.",
   ACCOUNT_SUSPENDED: "This account is suspended.",
+  ORGANISER_PENDING: ORGANISER_PENDING_MESSAGE,
+  ORGANISER_REJECTED: "Your organiser request was not approved.",
 };
 
 export default function Login() {
@@ -54,11 +77,16 @@ export default function Login() {
     prefill?: SignUpPrefill;
   } | null;
   const returnTo = navState?.returnTo ?? getSavedExpiredReturnTo();
-  // The sign-up form is only reached after choosing an account type on /signup.
-  const signUpRole = navState?.mode === "signup" ? navState.role : undefined;
+  // The sign-up form is reached after choosing an account type on /signup, or from the
+  // sign-up offer shown for an unknown username on the customer or organiser tab.
+  const initialSignUpRole = navState?.mode === "signup" ? navState.role : undefined;
+  const [signUpRole, setSignUpRole] = useState<SignUpRole | undefined>(initialSignUpRole);
   const [mode, setMode] = useState<"signin" | "signup" | "sent" | "forgot" | "forgotSent">(
-    signUpRole ? "signup" : navState?.mode === "forgot" ? "forgot" : "signin",
+    initialSignUpRole ? "signup" : navState?.mode === "forgot" ? "forgot" : "signin",
   );
+  // The login tab; the backend only accepts accounts with this role.
+  const [portal, setPortal] = useState<LoginPortal>("CUSTOMER");
+  const [approvalRequired, setApprovalRequired] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -151,13 +179,33 @@ export default function Login() {
   // Every sign-up starts by choosing customer or organiser.
   const goToSignUp = (prefill: SignUpPrefill = {}) => navigate("/signup", { state: { prefill } });
 
+  // From the customer/organiser tab, an unknown username goes straight to that role's form.
+  const openSignUpForm = (role: SignUpRole, prefill: SignUpPrefill) => {
+    setSignUp((current) => ({
+      ...current,
+      userId: prefill.username ?? current.userId,
+      email: prefill.email ?? current.email,
+    }));
+    setSignUpRole(role);
+    setSignUpPrompt(null);
+    setError("");
+    setMode("signup");
+  };
+
+  const choosePortal = (next: LoginPortal) => {
+    setPortal(next);
+    setError("");
+    setSignUpPrompt(null);
+    setUnverified(false);
+  };
+
   const handleSignIn = async (event: FormEvent) => {
     event.preventDefault();
     setSignUpPrompt(null);
     setError("");
     setSigningIn(true);
     try {
-      const account = await authenticate(username, password);
+      const account = await authenticate(username, password, portal);
       setSigningIn(false);
       if (account) {
         clearSavedExpiredReturnTo();
@@ -199,9 +247,23 @@ export default function Login() {
         setError(lockedMessage);
         return;
       }
+      if (err instanceof ApiError && err.code === "ORGANISER_PENDING") {
+        setError(ORGANISER_PENDING_MESSAGE);
+        return;
+      }
+      if (err instanceof ApiError && err.code === "ORGANISER_REJECTED") {
+        const reason = err.details.reason ? ` Reason: ${err.details.reason}` : "";
+        setError(`Your organiser request was not approved.${reason}`);
+        return;
+      }
       // Attempts left are shown only after a wrong password for a registered account,
       // and come from that account's own counter on the backend.
       if (err instanceof ApiError && err.code === "INVALID_CREDENTIALS") {
+        // The admin tab never reveals an attempts count.
+        if (err.details.attemptsRemaining === undefined) {
+          setError("Invalid username or password.");
+          return;
+        }
         const left = Number(err.details.attemptsRemaining);
         setError(left > 0
           ? `Username or password doesn't match. ${left} ${left === 1 ? "attempt" : "attempts"} remaining.`
@@ -223,7 +285,11 @@ export default function Login() {
         email: signUp.email,
         phone: signUp.phone,
         role: signUpRole ?? "CUSTOMER",
+        ...(signUpRole === "ORGANISER"
+          ? { organisationName: signUp.organisationName, organisationEmail: signUp.organisationEmail }
+          : {}),
       });
+      setApprovalRequired(signUpRole === "ORGANISER");
       setSignUp((current) => ({ ...current, password: "" }));
       setResendState("idle");
       setMode("sent");
@@ -273,9 +339,29 @@ export default function Login() {
               <h1 className="mt-4 font-brand text-4xl font-bold tracking-tight text-brand-deep">
                 Welcome back
               </h1>
-              <p className="mt-2 text-sm text-muted">Enter your EventEase username and password.</p>
+              <p className="mt-2 text-sm text-muted">Choose how you're signing in, then enter your username and password.</p>
 
-              <form className="mt-8 space-y-5" onSubmit={handleSignIn}>
+              <div className="mt-6 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Login as">
+                {PORTALS.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={portal === id}
+                    onClick={() => choosePortal(id)}
+                    className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-orange/30 ${
+                      portal === id
+                        ? "border-brand-orange bg-brand-orange/10 text-brand-deep"
+                        : "border-brand-purple/15 text-muted hover:border-brand-purple/40"
+                    }`}
+                  >
+                    <Icon className={`h-5 w-5 ${portal === id ? "text-brand-orange" : ""}`} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <form className="mt-6 space-y-5" onSubmit={handleSignIn}>
                 <Field label="Username">
                   <Input
                     autoComplete="username"
@@ -306,15 +392,17 @@ export default function Login() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
-                  <div className="mt-1.5 text-right">
-                    <button
-                      type="button"
-                      className="cursor-pointer text-xs font-semibold text-brand-purple underline-offset-2 hover:underline"
-                      onClick={openForgot}
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
+                  {portal !== "ADMIN" && (
+                    <div className="mt-1.5 text-right">
+                      <button
+                        type="button"
+                        className="cursor-pointer text-xs font-semibold text-brand-purple underline-offset-2 hover:underline"
+                        onClick={openForgot}
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  )}
                 </Field>
                 {error && (
                   <div role="alert" className="rounded-xl border border-rose-200 bg-danger/10 p-3.5 text-sm font-medium text-danger">
@@ -341,8 +429,13 @@ export default function Login() {
                   <div role="alert" className="rounded-xl border border-brand-orange/30 bg-brand-orange/10 p-3.5 text-sm font-medium text-brand-deep">
                     <p>Sign up as new user.</p>
                     <p className="mt-0.5 font-normal text-muted">We couldn't find an EventEase account for that username or email.</p>
-                    <Button className="mt-3" size="sm" type="button" onClick={() => goToSignUp(signUpPrompt)}>
-                      <UserPlus className="h-4 w-4" /> Sign up
+                    <Button
+                      className="mt-3"
+                      size="sm"
+                      type="button"
+                      onClick={() => openSignUpForm(portal === "ORGANISER" ? "ORGANISER" : "CUSTOMER", signUpPrompt)}
+                    >
+                      <UserPlus className="h-4 w-4" /> {portal === "ORGANISER" ? "Sign up as organiser" : "Sign up as customer"}
                     </Button>
                   </div>
                 )}
@@ -351,12 +444,14 @@ export default function Login() {
                 </Button>
               </form>
 
-              <div className="mt-8 border-t border-brand-purple/10 pt-6 text-center">
-                <p className="text-sm text-muted">New to EventEase?</p>
-                <Button className="mt-3" variant="outline" onClick={() => goToSignUp()}>
-                  <UserPlus className="h-4 w-4" /> Sign up as a new user
-                </Button>
-              </div>
+              {portal !== "ADMIN" && (
+                <div className="mt-8 border-t border-brand-purple/10 pt-6 text-center">
+                  <p className="text-sm text-muted">New to EventEase?</p>
+                  <Button className="mt-3" variant="outline" onClick={() => goToSignUp()}>
+                    <UserPlus className="h-4 w-4" /> Sign up as a new user
+                  </Button>
+                </div>
+              )}
             </>
           )}
 
@@ -375,9 +470,8 @@ export default function Login() {
               </h1>
               <p className="mt-2 text-sm text-muted">
                 {signUpRole === "ORGANISER"
-                  ? "Create your event, share your creativity."
-                  : "Search, view and book event tickets."}{" "}
-                Verify your email to finish.
+                  ? "Create your event, share your creativity. Verify your email, then an administrator will review your request."
+                  : "Search, view and book event tickets. Verify your email to finish."}
               </p>
               <form className="mt-7 grid gap-4 sm:grid-cols-2" onSubmit={handleSignUp}>
                 <Field label="User ID">
@@ -397,6 +491,27 @@ export default function Login() {
                   </Field>
                   {passwordHint && <p className="mt-1.5 text-xs text-muted">{passwordHint}</p>}
                 </div>
+                {signUpRole === "ORGANISER" && (
+                  <>
+                    <Field label="Organisation name">
+                      <Input
+                        value={signUp.organisationName}
+                        onChange={(e) => update("organisationName", e.target.value)}
+                        minLength={2}
+                        maxLength={200}
+                        required
+                      />
+                    </Field>
+                    <Field label="Organisation email">
+                      <Input
+                        type="email"
+                        value={signUp.organisationEmail}
+                        onChange={(e) => update("organisationEmail", e.target.value)}
+                        required
+                      />
+                    </Field>
+                  </>
+                )}
                 <div className="sm:col-span-2">
                   <Field label="Billing address">
                     <Input value={signUp.billingAddress} onChange={(e) => update("billingAddress", e.target.value)} required />
@@ -408,7 +523,12 @@ export default function Login() {
                   </div>
                 )}
                 <Button className="mt-2 w-full sm:col-span-2" size="lg" type="submit" disabled={signingUp}>
-                  {signingUp ? "Creating your account…" : "Send verification link"} {!signingUp && <Mail className="h-4 w-4" />}
+                  {signingUp
+                    ? "Creating your account…"
+                    : signUpRole === "ORGANISER"
+                      ? "Submit organiser request"
+                      : "Send verification link"}{" "}
+                  {!signingUp && <Mail className="h-4 w-4" />}
                 </Button>
               </form>
             </>
@@ -481,12 +601,20 @@ export default function Login() {
                 <Mail className="h-6 w-6" />
               </div>
               <h1 className="mt-5 font-brand text-4xl font-bold tracking-tight text-brand-deep">
-                Check your inbox
+                {approvalRequired ? "Your request has been submitted" : "Check your inbox"}
               </h1>
-              <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted">
-                We've sent a verification link to <strong className="text-brand-deep">{signUp.email}</strong>.
-                Open it within 24 hours to activate your account, then sign in.
-              </p>
+              {approvalRequired ? (
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted">
+                  Your organiser request has been sent to an administrator for approval. First, verify your email
+                  using the link we sent to <strong className="text-brand-deep">{signUp.email}</strong> (within 24
+                  hours). We'll email you once your request has been reviewed.
+                </p>
+              ) : (
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted">
+                  We've sent a verification link to <strong className="text-brand-deep">{signUp.email}</strong>.
+                  Open it within 24 hours to activate your account, then sign in.
+                </p>
+              )}
               <p className="mx-auto mt-3 max-w-sm text-xs text-muted">
                 Can't find it? Check your spam folder.{" "}
                 {resendState === "sent" ? (

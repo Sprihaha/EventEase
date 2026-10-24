@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.deps import check_origin, client_ip, get_current_user
 from app.core.rate_limit import enforce
-from app.db.models import User
+from app.db.models import Role, User
 from app.db.session import get_db
 from app.schemas.auth import (
     AuthResponse,
@@ -63,7 +63,7 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     ip = client_ip(request)
     enforce("login-ip", ip, settings.RATE_LOGIN_IP)
     enforce("login-id", body.identifier.strip(), settings.RATE_LOGIN_IDENTIFIER)
-    return _respond(response, auth_service.login(db, settings, body.identifier, body.password, ip))
+    return _respond(response, auth_service.login(db, settings, body.identifier, body.password, ip, body.portal))
 
 
 @router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED,
@@ -75,7 +75,12 @@ def signup(body: SignupRequest, request: Request, db: Session = Depends(get_db))
     ip = client_ip(request)
     enforce("signup-ip", ip, settings.RATE_SIGNUP_IP)
     user = auth_service.signup(db, settings, username=body.username, password=body.password, email=body.email,
-                               phone=body.phone, role=body.role, ip=ip)
+                               phone=body.phone, role=body.role, ip=ip, organisation_name=body.organisation_name,
+                               organisation_email=body.organisation_email)
+    if user.role == Role.ORGANISER:
+        return {"message": "Your request has been submitted. Verify your email; an administrator will then review "
+                           "your organiser request.",
+                "email": mask_email(user.email), "approval_required": True}
     return {"message": "Account created. Open the link we emailed you to verify your address, then sign in.",
             "email": mask_email(user.email)}
 

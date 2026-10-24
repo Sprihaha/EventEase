@@ -33,6 +33,7 @@ import {
   fetchBackendEvents,
   fetchBackendRoleEvents,
   type BackendAuth,
+  type LoginPortal,
   type NewEventInput,
 } from "./backendApi";
 import { isTokenExpired, getTokenExpirationMs, notifySessionExpired, onSessionExpired, clearSavedExpiredReturnTo } from "./session";
@@ -52,7 +53,7 @@ export type User = {
 
 type Store = {
   user: User | null;
-  authenticate: (username: string, password: string) => Promise<User | null>;
+  authenticate: (username: string, password: string, portal?: LoginPortal) => Promise<User | null>;
   startSession: (auth: BackendAuth) => Promise<User>;
   logout: () => void;
 
@@ -236,7 +237,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       user,
       sessionLoading, eventsError, bookingsError,
       refreshBookings: async () => { if (user?.role === "customer") await loadBookings(user.id); },
-      authenticate: async (username, password) => startSession(await backendLogin(username.trim().toLowerCase(), password)),
+      authenticate: async (username, password, portal) =>
+        startSession(await backendLogin(username.trim().toLowerCase(), password, portal)),
       startSession,
       logout: () => {
         void backendLogout();
