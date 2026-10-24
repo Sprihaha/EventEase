@@ -5,8 +5,8 @@ from app.schemas.common import CamelModel
 
 
 class EasePixCreate(CamelModel):
-    event_id: uuid.UUID
-    venue_id: uuid.UUID | None = None
+    event_id: uuid.UUID | str
+    venue_id: uuid.UUID | str | None = None
     section: str
     row_label: str | None = None
     seat_number: int | None = None
@@ -37,10 +37,10 @@ class EasePixOut(CamelModel):
 
 class EaseConnectPostCreate(CamelModel):
     content: str
-    event_id: uuid.UUID | None = None
+    event_id: uuid.UUID | str | None = None
     author_name: str | None = None
-    parent_id: uuid.UUID | None = None
-    easepix_id: uuid.UUID | None = None
+    parent_id: uuid.UUID | str | None = None
+    easepix_id: uuid.UUID | str | None = None
     easepix: EasePixCreate | None = None
 
 
