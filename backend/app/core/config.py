@@ -64,10 +64,14 @@ class Settings(BaseSettings):
     RATE_BOOKING_USER: str = "20/60"
 
     # CORS / frontend
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8000,http://localhost:8443"
-    CORS_ORIGIN_REGEX: str = r"https://([a-z0-9-]+\.)*figma\.(site|com)"
-    # Links in emails point here; the Vite dev server listens on 8443 (vite.config.ts).
-    FRONTEND_URL: str = "http://localhost:8443"
+    CORS_ORIGINS: str = (
+        "http://localhost:5173,http://localhost:8000,http://localhost:8443,"
+        "https://eventease-frontend-invd.onrender.com"
+    )
+    CORS_ORIGIN_REGEX: str = r"https://([a-z0-9-]+\.)*(figma\.(site|com)|onrender\.com)"
+    # Links in emails point here; defaults to live Render frontend or local Vite 8443
+    FRONTEND_URL: str = "https://eventease-frontend-invd.onrender.com"
+
 
     # Default administrator
     ADMIN_USERNAME: str = "eventeaseadmin"
