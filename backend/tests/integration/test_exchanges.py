@@ -165,12 +165,14 @@ def test_public_interest_candidates_are_authenticated_private_and_compatible(cli
     assert "requesterUserId" not in str(public) and "ownerUserId" not in response.text
 
 
-def test_public_interest_does_not_expose_direct_or_own_requests(client, world):
+def test_ticket_interest_allows_only_named_recipient_for_direct_requests(client, world):
     w = world
     ba, bb = ticket(client, w.ha, w), ticket(client, w.hb, w)
     direct = offer(client, w.ha, ba["tickets"][0]["id"], requestType="DIRECT", recipientUsername=w.b.username).json()
-    assert client.get(f"{ROOT}/{direct['id']}/eligible-tickets", headers=w.hb).status_code == 404
-    assert ticket_interest(client, w.hb, direct["id"], bb["tickets"][0]["id"]).status_code == 404
+    assert client.get(f"{ROOT}/{direct['id']}/eligible-tickets", headers=w.hx).status_code == 404
+    assert ticket_interest(client, w.hx, direct["id"], bb["tickets"][0]["id"]).status_code == 404
+    assert client.get(f"{ROOT}/{direct['id']}/eligible-tickets", headers=w.hb).status_code == 200
+    assert ticket_interest(client, w.hb, direct["id"], bb["tickets"][0]["id"]).json()['status'] == 'PENDING'
     assert ticket_interest(client, w.ha, direct["id"], ba["tickets"][0]["id"]).status_code == 404
 
 
@@ -303,6 +305,9 @@ def test_match_closure_reopens_both_requests(client, world, verb, terminal):
     a, b, _, _ = pair(client, world)
     m = match(client, world, a, b)
     assert action(client, world.ha, m, verb).json()["status"] == terminal
+    for headers in (world.ha, world.hb):
+        activity = client.get(ROOT + '/activity', headers=headers).json()
+        assert any(item['matchId'] == m['id'] and item['action'] == f'EXCHANGE_{terminal}' for item in activity)
     assert client.get(f"{ROOT}/mine", headers=world.ha).json()["requests"][0]["status"] == "OPEN"
     assert client.get(f"{ROOT}/mine", headers=world.hb).json()["requests"][0]["status"] == "OPEN"
     assert action(client, world.hb, m, "accept").status_code == 409
@@ -567,3 +572,121 @@ def test_ready_can_be_cancelled_without_settlement_or_qr_changes(client, db, wor
         t = db.get(Ticket, uuid.UUID(booking['tickets'][0]['id']))
         assert t.owner_user_id == owner.id and t.code == booking['tickets'][0]['code']
     assert all(r['status'] == 'OPEN' for r in client.get(ROOT+'/mine', headers=w.ha).json()['requests'])
+
+
+def test_event_preference_options_validate_ids_sections_and_cross_tier(client, db, world):
+    from app.db.models import EventSeat
+    w = world
+    ba = ticket(client, w.ha, w)
+    tid = ba['tickets'][0]['id']
+    # Real venue sections take precedence over category fallback labels.
+    db.add(EventSeat(event_id=w.event.id, ticket_category_id=w.vip.id, label='Balcony A-1',
+                     row_label='A', number=1, section_name='Balcony'))
+    db.commit()
+    path = f'{ROOT}/eligible-tickets/{tid}/options'
+    assert client.get(path).status_code == 401
+    assert client.get(path, headers=w.hb).status_code == 404
+    options = client.get(path, headers=w.ha).json()
+    vip = next(c for c in options if c['id'] == str(w.vip.id))
+    assert vip['sections'] == ['Balcony'] and vip['name'] == w.vip.name
+    assert offer(client, w.ha, tid, desiredCategoryType='TYPO').status_code == 422
+    assert offer(client, w.ha, tid, desiredSeatSection='Imaginary').status_code == 422
+    assert offer(client, w.ha, tid, desiredCategoryId=str(uuid.uuid4())).status_code == 422
+    assert offer(client, w.ha, tid, desiredCategoryId=str(w.vip.id)).status_code == 422
+    assert offer(client, w.ha, tid, desiredCategoryId=str(w.vip.id), allowCrossTier=True,
+                 desiredSeatSection='General Admission').status_code == 422
+    created = offer(client, w.ha, tid, desiredCategoryId=str(w.vip.id), allowCrossTier=True,
+                    desiredSeatSection='Balcony')
+    assert created.status_code == 201, created.text
+    assert created.json()['desiredCategoryId'] == str(w.vip.id)
+    assert created.json()['desiredCategoryType'] == 'VIP'
+
+
+def test_activity_is_private_durable_and_covers_lifecycle(client, world):
+    w = world
+    ba, bb = ticket(client, w.ha, w), ticket(client, w.hb, w)
+    direct = offer(client, w.ha, ba['tickets'][0]['id'], requestType='DIRECT', recipientUsername=w.b.username).json()
+    assert client.get(ROOT+'/activity').status_code == 401
+    received = client.get(ROOT+'/activity', headers=w.hb).json()
+    assert any(a['requestId'] == direct['id'] and a['action'] == 'EXCHANGE_OPEN' for a in received)
+    assert client.get(ROOT+'/activity', headers=w.hx).json() == []
+    response = offer(client, w.hb, bb['tickets'][0]['id']).json()
+    m = client.post(f"{ROOT}/{response['id']}/interest", headers=w.hb, json={'targetRequestId': direct['id']}).json()
+    assert action(client, w.ha, m, 'accept').json()['status'] == 'PENDING'
+    # A single acceptance cannot settle or change either QR identity.
+    assert client.post(f"{ROOT}/matches/{m['id']}/settle", headers=w.ha, json={}).status_code == 409
+    assert action(client, w.hb, m, 'accept').json()['status'] == 'READY'
+    # Equal value requires no simulated payment; even a decline input is irrelevant.
+    completed = client.post(f"{ROOT}/matches/{m['id']}/settle", headers=w.ha, json={'paymentMethod':'mock_fail'})
+    assert completed.status_code == 200 and completed.json()['updatedAt']
+    for user, old, received_ticket in ((w.a, ba, bb), (w.b, bb, ba)):
+        assert client.post("/api/v1/auth/logout").status_code == 204
+        headers = auth_header(client, user.username)  # Fresh login after logout, no React state.
+        activities = client.get(ROOT+'/activity', headers=headers).json()
+        actions = {a['action'] for a in activities}
+        assert {'EXCHANGE_ACCEPTED', 'EXCHANGE_READY', 'EXCHANGE_COMPLETED'} <= actions
+        assert all('username' not in a and 'actorUserId' not in a for a in activities)
+        assert old['tickets'][0]['code'] not in str(activities)
+        owned = client.get('/api/v1/me/tickets/history', headers=headers).json()
+        assert [t['id'] for t in owned] == [received_ticket['tickets'][0]['id']]
+        history = client.get(ROOT+'/mine', headers=headers).json()
+        assert history['matches'][0]['status'] == 'COMPLETED'
+    assert client.get(ROOT+'/activity', headers=w.hx).json() == []
+
+
+def test_swap_exception_rolls_back_both_owners_codes_and_settlement(client, db, world, monkeypatch):
+    from app.db.models.exchange import ExchangeSettlement
+    a, b, ba, bb = pair(client, world)
+    m = match(client, world, a, b)
+    action(client, world.ha, m, 'accept'); action(client, world.hb, m, 'accept')
+    original = RelationalTicketingGateway.swap
+    def interrupted(self, session, *args):
+        original(self, session, *args)
+        session.flush()
+        raise RuntimeError('injected failure after both ticket updates')
+    monkeypatch.setattr(RelationalTicketingGateway, 'swap', interrupted)
+    with pytest.raises(RuntimeError, match='injected failure'):
+        client.post(f"{ROOT}/matches/{m['id']}/settle", headers=world.ha, json={})
+    db.expire_all()
+    for booking, owner in ((ba, world.a), (bb, world.b)):
+        t = db.get(Ticket, uuid.UUID(booking['tickets'][0]['id']))
+        assert t.owner_user_id == owner.id and t.code == booking['tickets'][0]['code']
+    assert db.get(ExchangeMatch, uuid.UUID(m['id'])).status == MS.READY
+    assert db.scalar(select(func.count()).select_from(ExchangeSettlement)) == 0
+
+
+def test_concurrent_settlement_rotates_once_and_creates_one_settlement(client, db, world):
+    from app.db.models import User
+    from app.db.models.exchange import ExchangeSettlement
+    a, b, ba, bb = pair(client, world)
+    m = match(client, world, a, b)
+    action(client, world.ha, m, 'accept'); action(client, world.hb, m, 'accept')
+    barrier = Barrier(2)
+    ids = (world.a.id, world.b.id)
+    match_id = uuid.UUID(m['id'])
+    def run(user_id):
+        with SessionLocal() as session:
+            user = session.get(User, user_id)
+            barrier.wait(timeout=10)
+            return exchanges.settle(session, RelationalTicketingGateway(), get_settings(), user, match_id, 'mock_success').status
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert list(pool.map(run, ids)) == [MS.COMPLETED, MS.COMPLETED]
+    db.expire_all()
+    assert db.scalar(select(func.count()).select_from(ExchangeSettlement)) == 1
+    assert db.scalar(select(func.count()).select_from(AuditLog).where(AuditLog.entity_type == 'ExchangeMatch', AuditLog.action == 'EXCHANGE_COMPLETED')) == 1
+    for booking, new_owner in ((ba, world.b), (bb, world.a)):
+        t = db.get(Ticket, uuid.UUID(booking['tickets'][0]['id']))
+        assert t.owner_user_id == new_owner.id and t.code != booking['tickets'][0]['code']
+
+
+def test_new_category_id_preference_matches_unchanged_legacy_offer(client, db, world):
+    w = world
+    ba, bb = ticket(client, w.ha, w), ticket(client, w.hb, w)
+    a = offer(client, w.ha, ba['tickets'][0]['id'], desiredCategoryId=str(w.category.id)).json()
+    b = offer(client, w.hb, bb['tickets'][0]['id']).json()
+    legacy = db.get(ExchangeRequest, uuid.UUID(b['id']))
+    legacy.ticket_snapshot = {key: value for key, value in legacy.ticket_snapshot.items() if key != 'category_id'}
+    db.commit()
+    suggestions = client.get(f"{ROOT}/{a['id']}/matches", headers=w.ha).json()
+    assert [s['requestId'] for s in suggestions] == [b['id']]
+    assert match(client, w, a, b)['status'] == 'PENDING'

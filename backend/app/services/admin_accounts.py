@@ -17,6 +17,7 @@ from app.core.security import generate_password, hash_password, utcnow
 from app.db.models import RefreshToken, Role, User
 from app.rules.errors import RuleError
 from app.rules.password import check_password
+from app.rules.protected_accounts import is_protected_username
 from app.rules.username import check_username_format
 from app.services import audit
 
@@ -125,6 +126,8 @@ def reset_admin_password(db: Session, username: str, *, out: Callable[[str], Non
     user = find_admin(db, username)
     if user is None or user.role != Role.ADMIN:
         raise SeedError(f"No admin account named '{username}'")
+    if is_protected_username(user.username):
+        raise SeedError(f"'{user.username}' is a protected account; its password cannot be reset")
     password = generate_password(20)
     now = utcnow()
     user.password_hash = hash_password(password)

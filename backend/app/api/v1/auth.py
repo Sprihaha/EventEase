@@ -12,12 +12,18 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     MeResponse,
+    ResendVerificationRequest,
     ResetPasswordRequest,
     SignupRequest,
+    SignupResponse,
     UsernameAvailability,
+    VerifyEmailRequest,
 )
+from app.rules.contact import mask_email
+from app.rules.protected_accounts import is_protected_username
 from app.schemas.common import Message
 from app.services import auth as auth_service
+from app.services import email_verification
 from app.services.usernames import check_username_available
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -60,16 +66,34 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     return _respond(response, auth_service.login(db, settings, body.identifier, body.password, ip))
 
 
-@router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED,
+@router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED,
              responses={400: {"description": "Rule violation"}, 403: {"description": "ROLE_NOT_ALLOWED"},
                         409: {"description": "USERNAME_TAKEN / EMAIL_TAKEN"}})
-def signup(body: SignupRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+def signup(body: SignupRequest, request: Request, db: Session = Depends(get_db)):
+    """Creates an unverified account and emails a verification link; log in after opening it."""
     settings = get_settings()
     ip = client_ip(request)
     enforce("signup-ip", ip, settings.RATE_SIGNUP_IP)
-    session = auth_service.signup(db, settings, username=body.username, password=body.password, email=body.email,
-                                  phone=body.phone, role=body.role, ip=ip)
-    return _respond(response, session)
+    user = auth_service.signup(db, settings, username=body.username, password=body.password, email=body.email,
+                               phone=body.phone, role=body.role, ip=ip)
+    return {"message": "Account created. Open the link we emailed you to verify your address, then sign in.",
+            "email": mask_email(user.email)}
+
+
+@router.post("/verify-email", response_model=Message, responses={400: {"description": "VERIFICATION_LINK_INVALID"}})
+def verify_email(body: VerifyEmailRequest, request: Request, db: Session = Depends(get_db)):
+    enforce("verify-email-ip", client_ip(request), get_settings().RATE_VERIFY_EMAIL_IP)
+    email_verification.verify_email(db, body.token)
+    return {"message": "Email verified. You can now sign in."}
+
+
+@router.post("/resend-verification", response_model=Message)
+def resend_verification(body: ResendVerificationRequest, request: Request, db: Session = Depends(get_db)):
+    settings = get_settings()
+    enforce("resend-verification-ip", client_ip(request), settings.RATE_RESEND_VERIFICATION_IP)
+    enforce("resend-verification-id", body.identifier.strip(), settings.RATE_RESEND_VERIFICATION_IDENTIFIER)
+    email_verification.resend_verification(db, settings, body.identifier)
+    return {"message": "If that account still needs verifying, a new link has been sent to its email address."}
 
 
 @router.get("/username-available", response_model=UsernameAvailability,
@@ -80,20 +104,28 @@ def username_available(request: Request, username: str = Query(..., max_length=1
     return {"username": username, "available": True}
 
 
-@router.post("/forgot-password", response_model=Message)
+@router.post("/forgot-password", response_model=Message,
+             responses={404: {"description": "USER_NOT_FOUND"},
+                        400: {"description": "INVALID_EMAIL (not this account's verified email)"},
+                        403: {"description": "RESET_NOT_AVAILABLE / ACCOUNT_SUSPENDED"},
+                        429: {"description": "TOO_MANY_RESET_REQUESTS (daily limit) / RATE_LIMITED (per IP)"}})
 def forgot_password(body: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
     settings = get_settings()
-    enforce("forgot-ip", client_ip(request), settings.RATE_FORGOT_IP)
-    enforce("forgot-id", body.identifier.strip(), settings.RATE_FORGOT_IDENTIFIER)
-    auth_service.forgot_password(db, settings, body.identifier)
-    return {"message": "If an account with an email address matches, a password reset link has been sent."}
+    ip = client_ip(request)
+    enforce("forgot-ip", ip, settings.RATE_FORGOT_IP)
+    auth_service.forgot_password(db, settings, body.username, body.email, ip)
+    return {"message": "A password reset link has been sent to your verified email address."}
 
 
-@router.post("/reset-password", response_model=Message)
-def reset_password(body: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
-    enforce("reset-ip", client_ip(request), get_settings().RATE_RESET_IP)
-    auth_service.reset_password(db, body.token, body.new_password)
-    return {"message": "Password updated. Please log in with your new password."}
+@router.post("/reset-password", response_model=AuthResponse,
+             responses={400: {"description": "RESET_TOKEN_INVALID / WEAK_PASSWORD"},
+                        403: {"description": "ACCOUNT_SUSPENDED / ACCOUNT_PROTECTED"}})
+def reset_password(body: ResetPasswordRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    """Sets the new password, signs out every other session and signs this browser in."""
+    settings = get_settings()
+    enforce("reset-ip", client_ip(request), settings.RATE_RESET_IP)
+    session = auth_service.reset_password(db, settings, body.token, body.new_password)
+    return _respond(response, session)
 
 
 @router.post("/refresh", response_model=AuthResponse, dependencies=[Depends(check_origin)])
@@ -115,7 +147,9 @@ def logout(request: Request, db: Session = Depends(get_db)):
 @router.get("/me", response_model=MeResponse)
 def me(user: User = Depends(get_current_user)):
     return MeResponse(id=user.id, username=user.username, role=user.role, email=user.email, phone=user.phone_e164,
-                      must_change_password=user.must_change_password, created_at=user.created_at)
+                      must_change_password=user.must_change_password,
+                      email_verified=user.email_verified_at is not None,
+                      password_changeable=not is_protected_username(user.username), created_at=user.created_at)
 
 
 @router.post("/change-password", response_model=AuthResponse)

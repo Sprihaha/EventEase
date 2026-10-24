@@ -44,6 +44,10 @@ def auth_header(client, identifier: str, password: str = PASSWORD) -> dict:
     return {"Authorization": f"Bearer {login(client, identifier, password)['accessToken']}"}
 
 
+def forgot_password(client, username: str, email: str):
+    return client.post("/api/v1/auth/forgot-password", json={"username": username, "email": email})
+
+
 def error_of(response) -> dict:
     return response.json()["error"]
 
@@ -86,3 +90,30 @@ def make_event(db, *, organiser=None, origin=None, status=None, days=10, hours=3
 def admin_headers(client, db) -> dict:
     admin = make_user(db, role=Role.ADMIN)
     return auth_header(client, admin.username)
+
+
+def layout_csv(*lines) -> bytes:
+    """Venue layout upload content. lines: (section, row, first, last[, accessible])."""
+    from app.services.venue_layout import COLUMNS
+
+    rows = [",".join(COLUMNS)] + [",".join(f'"{v}"' for v in line) for line in lines]
+    return ("\n".join(rows) + "\n").encode()
+
+
+def make_venue(db, organiser, *lines, name=None, area="Marina Bay"):
+    """A stored venue. lines: (section, row, first, last); defaults to one 10-seat section."""
+    from app.db.models import Venue, VenueSeat, VenueSection
+
+    venue = Venue(organiser_id=organiser.id, name=name or unique_name("venue"), area=area)
+    sections: dict[str, VenueSection] = {}
+    for section_name, row, first, last in lines or (("Hall", "A", 1, 10),):
+        section = sections.get(section_name)
+        if section is None:
+            section = sections[section_name] = VenueSection(name=section_name, position=len(sections))
+            venue.sections.append(section)
+        for number in range(first, last + 1):
+            section.seats.append(VenueSeat(row_label=row, number=number, is_accessible=False,
+                                           position=len(section.seats)))
+    db.add(venue)
+    db.commit()
+    return venue

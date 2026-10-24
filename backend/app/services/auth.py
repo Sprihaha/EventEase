@@ -16,12 +16,22 @@ from app.core.security import (
     utcnow,
     verify_password,
 )
-from app.db.models import LoginAttempt, PasswordResetToken, RefreshToken, Role, User, UserStatus
-from app.rules.contact import EMAIL_TAKEN, normalise_email, normalise_sg_phone
+from app.db.models import (
+    LoginAttempt,
+    PasswordResetRequest,
+    PasswordResetToken,
+    RefreshToken,
+    Role,
+    User,
+    UserStatus,
+)
+from app.rules.contact import EMAIL_TAKEN, mask_email, normalise_email, normalise_sg_phone
 from app.rules.errors import RuleError
 from app.rules.password import check_password
+from app.rules.protected_accounts import check_not_protected, is_protected_username
 from app.rules.username import USERNAME_TAKEN
 from app.services import audit, fraud
+from app.services.email_verification import send_signup_verification
 from app.services.mail.base import send_safely
 from app.services.usernames import check_username_available, suggest_usernames
 
@@ -51,7 +61,8 @@ class Session_:
         return {
             "access_token": self.access_token,
             "expires_in": self.expires_in,
-            "user": {"id": self.user.id, "username": self.user.username, "role": self.user.role},
+            "user": {"id": self.user.id, "username": self.user.username, "role": self.user.role,
+                     "password_changeable": not is_protected_username(self.user.username)},
             "redirect_to": redirect_for(self.user),
             "must_change_password": self.user.must_change_password,
         }
@@ -153,9 +164,7 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
     now = utcnow()
 
     if user is None:
-        _record_attempt(db, identifier, None, ip, False, "UNKNOWN_USER")
-        db.commit()
-        fraud.on_login_failure(db, ip=ip, identifier=identifier, user=None)
+        # Not a sign-in attempt: nothing is recorded and no account or fraud counter changes.
         is_email = "@" in identifier
         raise AppError(404, "SIGNUP_REQUIRED", "sign up as new user", {
             "identifier": identifier,
@@ -175,21 +184,31 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
     if not verify_password(password, user.password_hash):
         user.failed_login_count += 1
         locked = user.failed_login_count >= settings.LOGIN_MAX_FAILURES
+        # Remaining attempts for this account; the sign-in page shows it only for this error.
+        details = {"forgotPasswordAvailable": user.email_verified_at is not None,
+                   "attemptsRemaining": 0 if locked else settings.LOGIN_MAX_FAILURES - user.failed_login_count}
         if locked:
             user.locked_until = now + timedelta(minutes=settings.LOCKOUT_MINUTES)
             user.failed_login_count = 0
+            details["lockedUntil"] = user.locked_until.isoformat()
         _record_attempt(db, identifier, user, ip, False, "LOCKED_OUT" if locked else "BAD_PASSWORD")
         db.commit()
         fraud.on_login_failure(db, ip=ip, identifier=identifier, user=user)
         if locked:
             fraud.on_account_locked(db, user=user, ip=ip)
-        raise AppError(401, "INVALID_CREDENTIALS", "invalid password or username",
-                       {"forgotPasswordAvailable": user.email is not None})
+        raise AppError(401, "INVALID_CREDENTIALS", "invalid password or username", details)
 
     if user.status == UserStatus.SUSPENDED:
         _record_attempt(db, identifier, user, ip, False, "SUSPENDED")
         db.commit()
         raise AppError(403, "ACCOUNT_SUSPENDED", "this account is suspended")
+
+    if user.needs_email_verification:
+        user.failed_login_count = 0
+        _record_attempt(db, identifier, user, ip, False, "EMAIL_UNVERIFIED")
+        db.commit()
+        raise AppError(403, "EMAIL_NOT_VERIFIED", "please verify your email before signing in",
+                       {"email": mask_email(user.email)})
 
     user.failed_login_count = 0
     user.locked_until = None
@@ -203,7 +222,8 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
 
 
 def signup(db: Session, settings: Settings, *, username: str, password: str, email: str, phone: str,
-           role: str, ip: str | None) -> Session_:
+           role: str, ip: str | None) -> User:
+    """Create an unverified account and email its verification link. No session until verified."""
     if role.upper() == Role.ADMIN.value:
         raise AppError(403, "ROLE_NOT_ALLOWED", "administrator accounts cannot be created through sign-up")
     if role not in SIGNUP_ROLES:
@@ -218,7 +238,7 @@ def signup(db: Session, settings: Settings, *, username: str, password: str, ema
 
     user = User(username=username, email=normalised_email, phone_e164=phone_e164,
                 password_hash=hash_password(password), role=Role(role), signup_ip=ip,
-                password_changed_at=utcnow())
+                password_changed_at=utcnow(), email_verification_required=True)
     db.add(user)
     try:
         db.flush()
@@ -231,10 +251,9 @@ def signup(db: Session, settings: Settings, *, username: str, password: str, ema
         if "uq_users_email_lower" in str(error.orig):
             raise RuleError(*EMAIL_TAKEN, status_code=409) from error
         raise
-    session = _start_session(db, settings, user)
-    db.commit()
+    send_signup_verification(db, settings, user)
     fraud.on_signup(db, user=user, ip=ip)
-    return session
+    return user
 
 
 # --------------------------------------------------------------------------- passwords
@@ -248,11 +267,42 @@ def _set_password(db: Session, user: User, new_password: str) -> None:
     user.locked_until = None
     user.password_changed_at = utcnow()
     revoke_all_refresh_tokens(db, user.id)
+    # Any reset link still outstanding stops working the moment the password changes.
+    db.execute(
+        update(PasswordResetToken)
+        .where(PasswordResetToken.user_id == user.id, PasswordResetToken.used_at.is_(None))
+        .values(used_at=user.password_changed_at)
+    )
 
 
 def change_password(db: Session, settings: Settings, user: User, current: str, new: str, ip: str | None) -> Session_:
+    """Change a signed-in user's password.
+
+    A wrong current password counts towards the same per-account limit as sign-in: at
+    LOGIN_MAX_FAILURES the account locks for LOCKOUT_MINUTES and every session is signed out.
+    On success other devices are signed out and a notice goes to the verified email.
+    """
+    check_not_protected(user.username)
+    db.refresh(user, with_for_update=True)
+    now = utcnow()
+    if user.locked_until is not None and user.locked_until > now:
+        raise AppError(423, "ACCOUNT_LOCKED", "account temporarily locked after repeated failed attempts",
+                       {"lockedUntil": user.locked_until.isoformat()})
     if not verify_password(current, user.password_hash):
-        raise AppError(400, "INVALID_CURRENT_PASSWORD", "current password is incorrect")
+        user.failed_login_count += 1
+        if user.failed_login_count >= settings.LOGIN_MAX_FAILURES:
+            user.locked_until = now + timedelta(minutes=settings.LOCKOUT_MINUTES)
+            user.failed_login_count = 0
+            user.token_version += 1
+            revoke_all_refresh_tokens(db, user.id)
+            db.commit()
+            fraud.on_account_locked(db, user=user, ip=ip)
+            raise AppError(423, "ACCOUNT_LOCKED", "account temporarily locked after repeated failed attempts",
+                           {"lockedUntil": user.locked_until.isoformat(), "signedOut": True})
+        remaining = settings.LOGIN_MAX_FAILURES - user.failed_login_count
+        db.commit()
+        raise AppError(400, "INVALID_CURRENT_PASSWORD", "current password is incorrect",
+                       {"attemptsRemaining": remaining})
     check_password(new)
     if verify_password(new, user.password_hash):
         raise AppError(400, "PASSWORD_REUSED", "new password must be different from the current password")
@@ -262,14 +312,58 @@ def change_password(db: Session, settings: Settings, user: User, current: str, n
                      after={"mustChangePassword": False}, ip=ip)
     session = _start_session(db, settings, user)
     db.commit()
+    if user.email_verified_at is not None:
+        send_safely(
+            user.email,
+            "Your EventEase password was changed",
+            f"Hi {user.username},\n\nThe password for your EventEase account was just changed, and you were "
+            f"signed out on your other devices.\n\nIf you made this change, no action is needed.\n\n"
+            f"If you did not, reset your password now using \"Forgot password?\" on the sign-in page:\n"
+            f"{settings.FRONTEND_URL.rstrip('/')}/login",
+        )
     return session
 
 
-def forgot_password(db: Session, settings: Settings, identifier: str) -> None:
-    """Always succeeds silently; only users with an email (never the admin) get a link."""
-    user = _find_by_identifier(db, identifier)
-    if user is None or user.email is None or user.role == Role.ADMIN or user.status != UserStatus.ACTIVE:
-        return
+def _enforce_daily_reset_limit(db: Session, settings: Settings, identifier_lower: str, user: User | None) -> None:
+    """At most PASSWORD_RESET_DAILY_LIMIT requests per Singapore calendar day.
+
+    Counted per account, or per typed username when no account matches. Every attempt
+    counts, including ones refused for a wrong email. Logging in is unaffected.
+    """
+    today = utcnow().astimezone(settings.tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    match = (PasswordResetRequest.user_id == user.id if user is not None
+             else PasswordResetRequest.identifier_lower == identifier_lower)
+    count = db.scalar(select(func.count()).select_from(PasswordResetRequest)
+                      .where(match, PasswordResetRequest.created_at >= today))
+    if count >= settings.PASSWORD_RESET_DAILY_LIMIT:
+        raise AppError(429, "TOO_MANY_RESET_REQUESTS", "too many attempts, please try again tomorrow",
+                       {"retryAfter": (today + timedelta(days=1)).isoformat()})
+
+
+def forgot_password(db: Session, settings: Settings, username: str, email: str, ip: str | None = None) -> None:
+    """Email a reset link only when the username exists and `email` is that account's verified address.
+
+    Errors say which part is wrong: USER_NOT_FOUND for an unknown username, INVALID_EMAIL when the
+    email is unknown, belongs to another account, or is not verified.
+    """
+    username_lower = username.strip().lower()[:254]
+    user = db.scalar(select(User).where(func.lower(User.username) == username_lower))
+    if user is not None:
+        # Serialise concurrent requests for one account so the daily count is exact.
+        db.refresh(user, with_for_update=True)
+    _enforce_daily_reset_limit(db, settings, username_lower, user)
+    db.add(PasswordResetRequest(identifier_lower=username_lower, user_id=user.id if user else None, ip=ip))
+    db.commit()
+
+    if user is None:
+        raise AppError(404, "USER_NOT_FOUND", "user not found")
+    if (user.email is None or user.email_verified_at is None
+            or user.email.lower() != email.strip().lower()):
+        raise AppError(400, "INVALID_EMAIL", "invalid email address")
+    if user.status != UserStatus.ACTIVE:
+        raise AppError(403, "ACCOUNT_SUSPENDED", "this account is suspended")
+    if user.role == Role.ADMIN or is_protected_username(user.username):
+        raise AppError(403, "RESET_NOT_AVAILABLE", "password reset by email is not available for this account")
     now = utcnow()
     db.execute(
         update(PasswordResetToken)
@@ -289,14 +383,23 @@ def forgot_password(db: Session, settings: Settings, identifier: str) -> None:
     )
 
 
-def reset_password(db: Session, token: str, new_password: str) -> None:
+def reset_password(db: Session, settings: Settings, token: str, new_password: str) -> Session_:
+    """Set the new password and sign the user in, so the reset page can go straight to the dashboard."""
     record = db.scalar(
         select(PasswordResetToken).where(PasswordResetToken.token_hash == sha256(token)).with_for_update()
     )
     if record is None or record.used_at is not None or record.expires_at <= utcnow():
         raise AppError(400, "RESET_TOKEN_INVALID", "reset link is invalid or has expired")
-    check_password(new_password)
     user = db.get(User, record.user_id)
+    # Links are only issued to verified addresses; this also voids any issued before that rule.
+    if user.email_verified_at is None:
+        raise AppError(400, "RESET_TOKEN_INVALID", "reset link is invalid or has expired")
+    if user.status == UserStatus.SUSPENDED:
+        raise AppError(403, "ACCOUNT_SUSPENDED", "this account is suspended")
+    check_password(new_password)
+    check_not_protected(user.username)
     record.used_at = utcnow()
     _set_password(db, user, new_password)
+    session = _start_session(db, settings, user)
     db.commit()
+    return session

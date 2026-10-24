@@ -56,7 +56,8 @@ class Settings(BaseSettings):
     RATE_LOGIN_IDENTIFIER: str = "10/60"
     RATE_SIGNUP_IP: str = "10/3600"
     RATE_FORGOT_IP: str = "5/900"
-    RATE_FORGOT_IDENTIFIER: str = "3/3600"
+    # Per account (or unknown identifier) per Singapore calendar day, stored in the database.
+    PASSWORD_RESET_DAILY_LIMIT: int = Field(default=3, ge=1, le=50)
     RATE_RESET_IP: str = "10/900"
     RATE_USERNAME_CHECK_IP: str = "60/60"
     RATE_REFRESH_IP: str = "30/60"
@@ -65,7 +66,8 @@ class Settings(BaseSettings):
     # CORS / frontend
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:8000,http://localhost:8443"
     CORS_ORIGIN_REGEX: str = r"https://([a-z0-9-]+\.)*figma\.(site|com)"
-    FRONTEND_URL: str = "http://localhost:5173"
+    # Links in emails point here; the Vite dev server listens on 8443 (vite.config.ts).
+    FRONTEND_URL: str = "http://localhost:8443"
 
     # Default administrator
     ADMIN_USERNAME: str = "eventeaseadmin"
@@ -82,6 +84,8 @@ class Settings(BaseSettings):
     INCLUDE_SAMPLE_EVENTS: bool | None = None
     IMPORT_MAX_BYTES: int = 2_000_000
     IMPORT_MAX_ROWS: int = 1000
+    # Organiser venue layouts (uploads reuse IMPORT_MAX_BYTES as the file size limit).
+    VENUE_MAX_SEATS: int = Field(default=20_000, ge=1, le=200_000)
 
     # Bookings
     CURRENCY: str = "SGD"
@@ -101,18 +105,27 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str | None = None
     STRIPE_WEBHOOK_SECRET: str | None = None
 
-    # Mail
+    # Mail. "console" prints messages; "resend" and "sendgrid" use HTTPS REST APIs;
+    # "smtp" sends real mail (e.g. Gmail: smtp.gmail.com, port 587 with STARTTLS or 465 with SSL).
     MAIL_TRANSPORT: Literal["console", "resend", "sendgrid", "smtp"] = "console"
     MAIL_FROM: str = "EventEase <no-reply@eventease.local>"
     RESEND_API_KEY: str | None = None
     SENDGRID_API_KEY: str | None = None
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
     SMTP_USER: str | None = None
     SMTP_PASSWORD: str | None = None
     SMTP_USE_TLS: bool = True
     SMTP_USE_SSL: bool = False
-    SMTP_TIMEOUT_SECONDS: int = 10
+    SMTP_TIMEOUT_SECONDS: int = 15
+
+    # Email verification: required for new sign-ups; accounts created earlier get reminders.
+    EMAIL_VERIFICATION_TTL_HOURS: int = Field(default=24, ge=1, le=720)
+    EMAIL_REMINDER_TTL_DAYS: int = Field(default=7, ge=1, le=60)
+    RATE_VERIFY_EMAIL_IP: str = "20/900"
+    RATE_RESEND_VERIFICATION_IP: str = "5/900"
+    RATE_RESEND_VERIFICATION_IDENTIFIER: str = "3/3600"
 
     # Fraud thresholds
     FRAUD_FAILED_LOGINS_PER_IP: int = 10
@@ -155,6 +168,12 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must be at least 32 characters")
         if self.PAYMENT_PROVIDER == "stripe" and not self.STRIPE_SECRET_KEY:
             raise ValueError("STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe")
+        if self.MAIL_TRANSPORT == "smtp" and not (self.SMTP_HOST and (self.SMTP_USERNAME or self.SMTP_USER) and self.SMTP_PASSWORD):
+            raise ValueError("SMTP_HOST, SMTP_USERNAME and SMTP_PASSWORD are required when MAIL_TRANSPORT=smtp")
+        if self.MAIL_TRANSPORT == "resend" and not self.RESEND_API_KEY:
+            raise ValueError("RESEND_API_KEY is required when MAIL_TRANSPORT=resend")
+        if self.MAIL_TRANSPORT == "sendgrid" and not self.SENDGRID_API_KEY:
+            raise ValueError("SENDGRID_API_KEY is required when MAIL_TRANSPORT=sendgrid")
         return self
 
     @property

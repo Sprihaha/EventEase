@@ -1,7 +1,10 @@
 import logging
+import smtplib
+import ssl
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from email.message import EmailMessage
 from typing import Protocol
 
 from app.core.config import Settings, get_settings
@@ -39,9 +42,10 @@ class ConsoleMailer:
 class ResendMailer:
     """Live transactional email delivery via Resend HTTPS REST API."""
 
-    def __init__(self, settings: Settings) -> None:
-        self.api_key = settings.RESEND_API_KEY
-        self.mail_from = settings.MAIL_FROM
+    def __init__(self, settings: Settings | None = None) -> None:
+        cfg = settings or get_settings()
+        self.api_key = cfg.RESEND_API_KEY
+        self.mail_from = cfg.MAIL_FROM
         if not self.api_key:
             raise RuntimeError("RESEND_API_KEY must be set when MAIL_TRANSPORT=resend")
 
@@ -71,9 +75,10 @@ class ResendMailer:
 class SendGridMailer:
     """Live transactional email delivery via SendGrid v3 REST API."""
 
-    def __init__(self, settings: Settings) -> None:
-        self.api_key = settings.SENDGRID_API_KEY
-        self.mail_from = settings.MAIL_FROM
+    def __init__(self, settings: Settings | None = None) -> None:
+        cfg = settings or get_settings()
+        self.api_key = cfg.SENDGRID_API_KEY
+        self.mail_from = cfg.MAIL_FROM
         if not self.api_key:
             raise RuntimeError("SENDGRID_API_KEY must be set when MAIL_TRANSPORT=sendgrid")
 
@@ -111,38 +116,30 @@ class SendGridMailer:
 
 
 class SmtpMailer:
-    """Live transactional email delivery via standard SMTP (Gmail, Brevo, SES, Mailgun, etc.)."""
+    """Real delivery over SMTP: implicit TLS on port 465, STARTTLS on any other port."""
 
-    def __init__(self, settings: Settings) -> None:
-        self.host = settings.SMTP_HOST
-        self.port = settings.SMTP_PORT
-        self.user = settings.SMTP_USER
-        self.password = settings.SMTP_PASSWORD
-        self.use_tls = settings.SMTP_USE_TLS
-        self.use_ssl = settings.SMTP_USE_SSL
-        self.timeout = settings.SMTP_TIMEOUT_SECONDS
-        self.mail_from = settings.MAIL_FROM
-        if not self.host:
-            raise RuntimeError("SMTP_HOST must be set when MAIL_TRANSPORT=smtp")
+    def __init__(self, settings: Settings | None = None) -> None:
+        self.settings = settings
 
     def send(self, to: str, subject: str, body: str) -> None:
-        import smtplib
-        from email.message import EmailMessage
-
-        msg = EmailMessage()
-        msg["From"] = self.mail_from
-        msg["To"] = to
-        msg["Subject"] = subject
-        msg.set_content(body)
-
-        server_cls = smtplib.SMTP_SSL if self.use_ssl else smtplib.SMTP
-        with server_cls(self.host, self.port, timeout=self.timeout) as server:
-            if not self.use_ssl and self.use_tls:
-                server.starttls()
-            if self.user and self.password:
-                server.login(self.user, self.password)
-            server.send_message(msg)
-            logger.info("SMTP mail sent successfully to %s", to)
+        settings = self.settings or get_settings()
+        message = EmailMessage()
+        message["From"] = settings.MAIL_FROM
+        message["To"] = to
+        message["Subject"] = subject
+        message.set_content(body)
+        context = ssl.create_default_context()
+        if settings.SMTP_PORT == 465:
+            smtp = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS,
+                                    context=context)
+        else:
+            smtp = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS)
+        with smtp:
+            if settings.SMTP_PORT != 465:
+                smtp.starttls(context=context)
+            username = settings.SMTP_USERNAME or getattr(settings, "SMTP_USER", None)
+            smtp.login(username, settings.SMTP_PASSWORD)
+            smtp.send_message(message)
 
 
 _mailer: Mailer | None = None
@@ -167,8 +164,8 @@ def get_mailer() -> Mailer:
             _mailer = SendGridMailer(settings)
         elif transport == "smtp":
             _mailer = SmtpMailer(settings)
-        else:
-            raise RuntimeError(f"Unsupported MAIL_TRANSPORT '{transport}'")
+        else:  # pragma: no cover - rejected by Settings validation
+            raise RuntimeError(f"Unsupported MAIL_TRANSPORT {transport}")
     return _mailer
 
 

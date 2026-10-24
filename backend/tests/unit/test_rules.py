@@ -136,3 +136,22 @@ def test_masking_hides_contact_details():
     assert mask_email("alice@example.com") == "a***@example.com"
     assert mask_phone("+6591234567") == "+65****4567"
     assert mask_email(None) is None
+
+
+# ----------------------------------------------------------------- protected accounts
+
+
+@pytest.mark.parametrize("username", ["Janice", "john", "JAY"])
+def test_protected_usernames(username):
+    from app.rules.protected_accounts import check_not_protected, is_protected_username
+
+    assert is_protected_username(username)
+    assert _error(check_not_protected, username).code == "ACCOUNT_PROTECTED"
+
+
+@pytest.mark.parametrize("username", [None, "johnny", "jays", "eventeaseadmin"])
+def test_other_usernames_are_not_protected(username):
+    from app.rules.protected_accounts import check_not_protected, is_protected_username
+
+    assert not is_protected_username(username)
+    check_not_protected(username)

@@ -12,7 +12,7 @@ from app.schemas.exchange import (CreateExchangeRequest, EligibleTicketView, Exc
                                   ExchangeMatchView, ExchangeRequestView, ExpressInterest, MyExchangesView)
 from app.services import exchanges
 from app.services.exchange_ticketing import TicketingGateway, get_exchange_ticketing
-from app.schemas.exchange import SettleExchange, TicketInterest
+from app.schemas.exchange import SettleExchange, TicketInterest, ExchangeCategoryOption, ExchangeActivityView
 
 router = APIRouter(prefix="/exchanges", tags=["EaseXchange"])
 
@@ -55,6 +55,18 @@ def eligible(user: User = Depends(require_customer), db: Session = Depends(get_d
 def mine(user: User = Depends(require_customer), db: Session = Depends(get_db),
          gateway: TicketingGateway = Depends(get_exchange_ticketing)):
     return _run(db, exchanges.mine, gateway, user)
+
+
+@router.get("/eligible-tickets/{ticket_id}/options", response_model=list[ExchangeCategoryOption])
+def options(ticket_id: str, user: User = Depends(require_customer), db: Session = Depends(get_db),
+            gateway: TicketingGateway = Depends(get_exchange_ticketing)):
+    return _run(db, exchanges.preference_options, gateway, user, ticket_id)
+
+
+@router.get("/activity", response_model=list[ExchangeActivityView])
+def activity(user: User = Depends(require_customer), db: Session = Depends(get_db),
+             gateway: TicketingGateway = Depends(get_exchange_ticketing)):
+    return _run(db, exchanges.activity, gateway, user)
 
 
 @router.post("", response_model=ExchangeRequestView, status_code=201)

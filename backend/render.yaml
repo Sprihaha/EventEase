@@ -1,4 +1,4 @@
-﻿services:
+services:
   - type: web
     name: eventease-backend
     runtime: docker
@@ -51,7 +51,7 @@
         sync: false
       - key: SMTP_PORT
         sync: false
-      - key: SMTP_USER
+      - key: SMTP_USERNAME
         sync: false
       - key: SMTP_PASSWORD
         sync: false

@@ -21,8 +21,23 @@ class SignupRequest(CamelModel):
     role: str = Field(..., max_length=32, description="CUSTOMER or ORGANISER")
 
 
+class SignupResponse(CamelModel):
+    message: str
+    email: str = Field(..., description="Masked address the verification link was sent to")
+    verification_required: bool = True
+
+
+class VerifyEmailRequest(CamelModel):
+    token: str = Field(..., min_length=10, max_length=200)
+
+
+class ResendVerificationRequest(CamelModel):
+    identifier: str = Field(..., min_length=1, max_length=254, description="Username or email address")
+
+
 class ForgotPasswordRequest(CamelModel):
-    identifier: str = Field(..., min_length=1, max_length=254)
+    username: str = Field(..., min_length=1, max_length=254)
+    email: str = Field(..., min_length=1, max_length=320, description="Must be the account's verified email")
 
 
 class ResetPasswordRequest(CamelModel):
@@ -39,6 +54,7 @@ class UserSummary(CamelModel):
     id: uuid.UUID
     username: str
     role: Role
+    password_changeable: bool = True
 
 
 class AuthResponse(CamelModel):
@@ -57,6 +73,8 @@ class MeResponse(CamelModel):
     email: str | None
     phone: str | None
     must_change_password: bool
+    email_verified: bool
+    password_changeable: bool = True
     created_at: datetime
 
 

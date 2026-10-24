@@ -4,13 +4,13 @@ import uuid
 from datetime import timedelta
 from decimal import Decimal
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.core.security import utcnow
-from app.db.models import User, UserStatus, Role
+from app.db.models import AuditLog, User, UserStatus, Role
 from app.db.models.exchange import ExchangeMatch, ExchangeMatchStatus as MS, ExchangeRequest, ExchangeRequestStatus as RS, ExchangeSettlement
 from app.schemas.exchange import CreateExchangeRequest
 from app.services import audit
@@ -31,12 +31,14 @@ def request_view(r: ExchangeRequest) -> dict:
             "offered_category_type": s["category_type"], "offered_seat_section": s["seat_section"],
             "desired_category_type": r.desired_category_type, "desired_seat_section": r.desired_seat_section,
             "allow_cross_tier": r.allow_cross_tier, "request_type": r.request_type,
-            "status": r.status, "expires_at": r.expires_at, "created_at": r.created_at}
+            "status": r.status, "expires_at": r.expires_at, "created_at": r.created_at,
+            "desired_category_id": s.get("desired_category_id")}
 
 
 def listing_view(r: ExchangeRequest) -> dict:
     view = request_view(r)
-    return {"request_id": r.id, **{k: v for k, v in view.items() if k not in
+    return {"request_id": r.id, "offered_seat_label": r.ticket_snapshot.get("seat_label"),
+            "offered_price": r.ticket_snapshot["price"], **{k: v for k, v in view.items() if k not in
             ("id", "requester_user_id", "request_type", "status", "created_at")}}
 
 
@@ -81,9 +83,16 @@ def _state(db, entity, status, reason=None, actor=None):
 
 def _live(gateway: TicketingGateway, db, requests, now, *, lock=False) -> dict[uuid.UUID, bool]:
     contexts = gateway.load(db, [r.offered_ticket_id for r in requests if r.ticketing_source == gateway.source], now, lock=lock)
-    return {r.id: bool((t := contexts.get(r.offered_ticket_id)) and r.ticketing_source == gateway.source
-                       and t.eligible and t.owner_user_id == r.requester_user_id and t.revision == r.ticket_revision)
-            for r in requests}
+    live = {}
+    for r in requests:
+        t = contexts.get(r.offered_ticket_id)
+        live[r.id] = bool(t and r.ticketing_source == gateway.source and t.eligible
+                          and t.owner_user_id == r.requester_user_id and t.revision == r.ticket_revision)
+        # Older offers predate category IDs in snapshots. Resolve them only
+        # from unchanged live tickets, so new ID preferences can match safely.
+        if live[r.id] and t.category_id and not r.ticket_snapshot.get("category_id"):
+            r.ticket_snapshot = {**r.ticket_snapshot, "category_id": t.category_id}
+    return live
 
 
 def _close_match(db, m, requests, live, now, status, reason, actor=None):
@@ -177,6 +186,15 @@ def create(db, gateway, settings: Settings, user, data: CreateExchangeRequest):
         fail("TICKET_NOT_FOUND", "ticket not found", 404)
     if not t.eligible:
         fail("TICKET_INELIGIBLE", "this ticket cannot be offered for exchange")
+    has_preferences = bool(data.desired_category_id or data.desired_category_type or data.desired_seat_section)
+    options = gateway.preferences(db, t.event_id) if has_preferences else []
+    choices = [c for c in options if (not data.desired_category_id or c["id"] == str(data.desired_category_id))
+               and (not data.desired_category_type or c["type"].casefold() == data.desired_category_type.casefold())]
+    if (has_preferences and not choices) or (data.desired_seat_section and not any(
+            data.desired_seat_section.casefold() == section.casefold() for c in choices for section in c["sections"])):
+        fail("INVALID_PREFERENCE", "choose a category and section from this event", 422)
+    if data.desired_category_id:
+        data.desired_category_type = choices[0]["type"]
     if data.desired_category_type and not data.allow_cross_tier and data.desired_category_type.casefold() != t.category_type.casefold():
         fail("CROSS_TIER_DISABLED", "enable cross-tier exchange to request another category", 422)
     if db.scalar(select(ExchangeRequest.id).where(ExchangeRequest.ticketing_source == gateway.source,
@@ -189,7 +207,7 @@ def create(db, gateway, settings: Settings, user, data: CreateExchangeRequest):
         if not recipient or recipient.id == user.id:
             fail("INVALID_RECIPIENT", "choose another active customer username", 422)
     r = ExchangeRequest(recipient_user_id=recipient.id if recipient else None, requester_user_id=user.id, ticketing_source=t.source, offered_ticket_id=t.id,
-                        ticket_snapshot=t.snapshot(), ticket_revision=t.revision,
+                        ticket_snapshot={**t.snapshot(), "desired_category_id": str(data.desired_category_id) if data.desired_category_id else None}, ticket_revision=t.revision,
                         desired_category_type=data.desired_category_type, desired_seat_section=data.desired_seat_section,
                         allow_cross_tier=data.allow_cross_tier, request_type=data.request_type, status=RS.OPEN,
                         created_at=now, expires_at=min(t.event_start_at, now + timedelta(hours=settings.EXCHANGE_REQUEST_TTL_HOURS)))
@@ -209,6 +227,8 @@ def compatible(a: ExchangeRequest, b: ExchangeRequest) -> bool:
     if x["event_id"] != y["event_id"]:
         return False
     for r, own, other in ((a, x, y), (b, y, x)):
+        if own.get("desired_category_id") and own["desired_category_id"] != other.get("category_id"):
+            return False
         if not r.allow_cross_tier and own["category_type"].casefold() != other["category_type"].casefold():
             return False
         if r.desired_category_type and r.desired_category_type.casefold() != other["category_type"].casefold():
@@ -216,6 +236,42 @@ def compatible(a: ExchangeRequest, b: ExchangeRequest) -> bool:
         if r.desired_seat_section and r.desired_seat_section.casefold() != other["seat_section"].casefold():
             return False
     return True
+
+
+def preference_options(db, gateway, user, ticket_id):
+    t = gateway.load(db, [ticket_id], utcnow()).get(ticket_id)
+    if not t or t.owner_user_id != user.id:
+        fail("TICKET_NOT_FOUND", "ticket not found", 404)
+    if not t.eligible:
+        fail("TICKET_INELIGIBLE", "this ticket cannot be offered for exchange")
+    return gateway.preferences(db, t.event_id)
+
+
+def activity(db, gateway, user):
+    """Project existing durable audit events into participant-only activity.
+
+    Never return raw audit records, actors, recipient usernames or QR values.
+    No notification table or schema migration is needed.
+    """
+    refresh(db, gateway, owned_request_ids(db, user))
+    requests = list(db.scalars(select(ExchangeRequest).where(or_(
+        ExchangeRequest.requester_user_id == user.id, ExchangeRequest.recipient_user_id == user.id))))
+    own_ids = [r.id for r in requests if r.requester_user_id == user.id]
+    matches = list(db.scalars(select(ExchangeMatch).where(or_(
+        ExchangeMatch.request_a_id.in_(own_ids), ExchangeMatch.request_b_id.in_(own_ids)))))
+    request_map = {str(r.id): r for r in requests}
+    match_map = {str(m.id): m for m in matches}
+    events = db.scalars(select(AuditLog).where(or_(
+        and_(AuditLog.entity_type == "ExchangeRequest", AuditLog.entity_id.in_(request_map)),
+        and_(AuditLog.entity_type == "ExchangeMatch", AuditLog.entity_id.in_(match_map))))
+        .order_by(AuditLog.created_at.desc(), AuditLog.id).limit(100)).all()
+    return [{"id": e.id, "action": e.action, "created_at": e.created_at,
+             "match_id": e.entity_id if e.entity_type == "ExchangeMatch" else None,
+             "request_id": e.entity_id if e.entity_type == "ExchangeRequest" else None,
+             "event_name": (match_map[e.entity_id].ticket_a["event_name"] if e.entity_type == "ExchangeMatch"
+                            else request_map[e.entity_id].ticket_snapshot["event_name"]),
+             "own_action": e.actor_user_id == user.id} for e in events
+            if e.entity_type == "ExchangeMatch" or e.action not in ("EXCHANGE_MATCHED", "EXCHANGE_COMPLETED")]
 
 
 def listings(db, gateway, own=None, recipient=None):
@@ -269,10 +325,10 @@ def interest(db, gateway, settings, user, request_id, target_id):
 
 def _interest_target(db, gateway, user, target_id):
     target = db.get(ExchangeRequest, target_id)
-    # This path is exclusively for public listings. Private invitations and the
-    # existing two-request suggestions keep their existing access rules.
-    if target is None or target.request_type != "PUBLIC" or target.requester_user_id == user.id:
-        fail("EXCHANGE_NOT_FOUND", "public exchange request not found", 404)
+    # A private invitation may be answered only by its named recipient.
+    if (target is None or target.requester_user_id == user.id
+            or (target.request_type == "DIRECT" and target.recipient_user_id != user.id)):
+        fail("EXCHANGE_NOT_FOUND", "exchange request not found", 404)
     if target.status != RS.OPEN or target.expires_at <= utcnow():
         fail()
     if not _live(gateway, db, [target], utcnow())[target.id]:
@@ -442,7 +498,7 @@ def settle(db, gateway, settings, user, match_id, payment_method):
         settlement = ExchangeSettlement(match_id=m.id, payer_user_id=payer, amount_cents=abs(cents_b-cents_a),
                                         currency="SGD", status="PENDING")
         db.add(settlement)
-    if payment_method == "mock_fail":
+    if payer and payment_method == "mock_fail":
         settlement.status = "FAILED"
         audit.record(db, actor=user, action="EXCHANGE_SETTLEMENT_FAILED", entity_type="ExchangeMatch", entity_id=m.id)
         db.commit()

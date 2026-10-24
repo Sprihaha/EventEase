@@ -9,7 +9,7 @@ from app.db.models import AuditLog, LoginAttempt, Role, User, UserStatus
 from app.rules.username import USERNAME_PATTERN
 from app.services.admin_accounts import seed_admin
 from app.services.mail.base import get_mailer
-from tests.helpers import PASSWORD, error_of, login, make_user
+from tests.helpers import PASSWORD, error_of, forgot_password, login, make_user
 
 WEAK_MESSAGE = "Password must contain at least 8 string long, with upper and lower case, at least a digit and a symbol"
 
@@ -30,18 +30,19 @@ def seeded_admin_password(db) -> str:
 # ----------------------------------------------------------------- sign-up
 
 
-@pytest.mark.parametrize("role,redirect", [("CUSTOMER", "/customer/dashboard"), ("ORGANISER", "/organiser/dashboard")])
-def test_signup_success_returns_tokens_and_redirect(client, db, role, redirect):
+@pytest.mark.parametrize("role", ["CUSTOMER", "ORGANISER"])
+def test_signup_creates_unverified_account_without_session(client, db, role):
     response = signup(client, role=role)
     assert response.status_code == 201, response.text
     body = response.json()
-    assert body["redirectTo"] == redirect
-    assert body["user"]["role"] == role and body["user"]["username"] == "newfan"
-    assert body["accessToken"] and body["tokenType"] == "Bearer" and body["expiresIn"] == 900
-    assert get_settings().REFRESH_COOKIE_NAME in response.cookies
-    assert "password" not in response.text.lower().replace("mustchangepassword", "")
+    assert body["verificationRequired"] is True and body["email"] == "n***@example.com"
+    assert "accessToken" not in body
+    assert get_settings().REFRESH_COOKIE_NAME not in response.cookies
+    assert "password" not in response.text.lower()
     user = db.scalar(select(User).where(User.username == "newfan"))
-    assert user.phone_e164 == "+6591234567" and user.password_hash.startswith("$argon2id$")
+    assert user.role == role and user.phone_e164 == "+6591234567" and user.password_hash.startswith("$argon2id$")
+    assert user.email_verification_required and user.email_verified_at is None
+    assert "/verify-email/" in get_mailer().outbox[-1].body
 
 
 @pytest.mark.parametrize("role", ["ADMIN", "admin", "Admin"])
@@ -145,7 +146,8 @@ def test_login_unknown_identifier_requires_signup(client, db):
     assert error["details"]["prefill"] == {"email": "ghost@example.com"}
     by_name = error_of(client.post("/api/v1/auth/login", json={"identifier": "ghost", "password": "x"}))
     assert by_name["details"]["prefill"] == {"username": "ghost"}
-    assert db.scalar(select(func.count()).select_from(LoginAttempt).where(LoginAttempt.success.is_(False))) == 2
+    # Unknown usernames are not sign-in attempts: nothing is stored.
+    assert db.scalar(select(func.count()).select_from(LoginAttempt)) == 0
 
 
 def test_login_wrong_password(client, db):
@@ -155,7 +157,7 @@ def test_login_wrong_password(client, db):
     assert error_of(response) == {
         "code": "INVALID_CREDENTIALS",
         "message": "invalid password or username",
-        "details": {"forgotPasswordAvailable": True},
+        "details": {"forgotPasswordAvailable": False, "attemptsRemaining": 4},
     }
     attempt = db.scalar(select(LoginAttempt))
     assert attempt.success is False and attempt.reason == "BAD_PASSWORD"
@@ -211,6 +213,18 @@ def test_lockout_after_five_failures(client, db):
     user.locked_until = utcnow() - timedelta(seconds=1)
     db.commit()
     assert login(client, "victim")["user"]["username"] == "victim"
+
+
+def test_failed_sign_in_reports_attempts_left_for_that_account(client, db):
+    make_user(db, username="victim")
+    make_user(db, username="bystander")
+    remaining = [error_of(client.post("/api/v1/auth/login", json={"identifier": "victim", "password": "Wrong1!pass"}))
+                 ["details"]["attemptsRemaining"] for _ in range(4)]
+    assert remaining == [4, 3, 2, 1]
+    other = error_of(client.post("/api/v1/auth/login", json={"identifier": "bystander", "password": "Wrong1!pass"}))
+    assert other["details"]["attemptsRemaining"] == 4
+    last = error_of(client.post("/api/v1/auth/login", json={"identifier": "victim", "password": "Wrong1!pass"}))
+    assert last["details"]["attemptsRemaining"] == 0 and "lockedUntil" in last["details"]
 
 
 def test_success_resets_failure_counter(client, db):
@@ -311,34 +325,72 @@ def _last_reset_token(email: str) -> str:
     return message.body.split("token=")[1].split()[0]
 
 
-def test_forgot_password_is_generic_and_emails_existing_users(client, db):
-    user = make_user(db)
-    unknown = client.post("/api/v1/auth/forgot-password", json={"identifier": "nobody@example.com"})
-    known = client.post("/api/v1/auth/forgot-password", json={"identifier": user.username})
-    assert unknown.status_code == known.status_code == 200
-    assert unknown.json() == known.json()
+def test_forgot_password_emails_the_verified_address_when_both_match(client, db):
+    user = make_user(db, email="Fan@Gmail.com", email_verified_at=utcnow())
+    response = forgot_password(client, user.username.upper(), " fan@gmail.COM ")
+    assert response.status_code == 200
+    assert response.json() == {"message": "A password reset link has been sent to your verified email address."}
+    assert [m.to for m in get_mailer().outbox] == ["Fan@Gmail.com"]
     assert _last_reset_token(user.email)
+
+
+def test_forgot_password_unknown_username_is_user_not_found(client, db):
+    make_user(db, email="fan@gmail.com", email_verified_at=utcnow())
+    response = forgot_password(client, "nobody", "fan@gmail.com")
+    assert response.status_code == 404
+    assert error_of(response) == {"code": "USER_NOT_FOUND", "message": "user not found", "details": {}}
+    assert get_mailer().outbox == []
+
+
+@pytest.mark.parametrize("email", ["stranger@gmail.com", "other@gmail.com", "not-an-email", "fan"])
+def test_forgot_password_email_not_matching_the_account_is_invalid(client, db, email):
+    user = make_user(db, email="fan@gmail.com", email_verified_at=utcnow())
+    make_user(db, email="other@gmail.com", email_verified_at=utcnow())
+    response = forgot_password(client, user.username, email)
+    assert response.status_code == 400
+    assert error_of(response) == {"code": "INVALID_EMAIL", "message": "invalid email address", "details": {}}
+    assert get_mailer().outbox == []
+
+
+def test_forgot_password_unverified_email_is_invalid(client, db):
+    user = make_user(db, email="fan@gmail.com")
+    assert error_of(forgot_password(client, user.username, user.email))["code"] == "INVALID_EMAIL"
+    assert get_mailer().outbox == []
 
 
 def test_forgot_password_never_applies_to_admin(client, db):
     seeded_admin_password(db)
-    before = len(get_mailer().outbox)
-    assert client.post("/api/v1/auth/forgot-password", json={"identifier": "eventeaseadmin"}).status_code == 200
-    assert len(get_mailer().outbox) == before
+    assert error_of(forgot_password(client, "eventeaseadmin", "admin@gmail.com"))["code"] == "INVALID_EMAIL"
+    admin = make_user(db, Role.ADMIN, email="boss@gmail.com", email_verified_at=utcnow())
+    response = forgot_password(client, admin.username, admin.email)
+    assert response.status_code == 403 and error_of(response)["code"] == "RESET_NOT_AVAILABLE"
+    assert get_mailer().outbox == []
+
+
+def test_forgot_password_suspended_account(client, db):
+    user = make_user(db, email="fan@gmail.com", email_verified_at=utcnow(), status=UserStatus.SUSPENDED)
+    assert error_of(forgot_password(client, user.username, user.email))["code"] == "ACCOUNT_SUSPENDED"
+    assert get_mailer().outbox == []
 
 
 def test_reset_password_flow(client, db):
-    user = make_user(db)
+    user = make_user(db, email_verified_at=utcnow())
     login(client, user.username)
     refresh_cookie = client.cookies.get(get_settings().REFRESH_COOKIE_NAME)
-    client.post("/api/v1/auth/forgot-password", json={"identifier": user.email})
+    forgot_password(client, user.username, user.email)
     token = _last_reset_token(user.email)
 
     weak = client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": "weak"})
     assert error_of(weak)["code"] == "WEAK_PASSWORD"
 
     new_password = generate_password()
-    assert client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": new_password}).status_code == 200
+    reset = client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": new_password})
+    assert reset.status_code == 200
+    # The reset signs this browser in directly.
+    body = reset.json()
+    assert body["user"]["username"] == user.username and body["redirectTo"] == "/customer/dashboard"
+    assert client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {body['accessToken']}"}).status_code == 200
+    assert get_settings().REFRESH_COOKIE_NAME in reset.cookies
     login(client, user.username, new_password)
     # Single use.
     reused = client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": generate_password()})
@@ -348,11 +400,42 @@ def test_reset_password_flow(client, db):
     assert client.post("/api/v1/auth/refresh", cookies={get_settings().REFRESH_COOKIE_NAME: refresh_cookie}).status_code == 401
 
 
+def test_changing_the_password_voids_an_outstanding_reset_link(client, db):
+    user = make_user(db, email_verified_at=utcnow())
+    forgot_password(client, user.username, user.email)
+    token = _last_reset_token(user.email)
+    headers = {"Authorization": f"Bearer {login(client, user.username)['accessToken']}"}
+    changed = client.post("/api/v1/auth/change-password", headers=headers,
+                          json={"currentPassword": PASSWORD, "newPassword": generate_password()})
+    assert changed.status_code == 200
+    response = client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": generate_password()})
+    assert error_of(response)["code"] == "RESET_TOKEN_INVALID"
+
+
+def test_failed_sign_ins_are_remembered_between_visits(client, db):
+    make_user(db, username="victim")
+    for _ in range(2):
+        client.post("/api/v1/auth/login", json={"identifier": "victim", "password": "Wrong1!pass"})
+    client.cookies.clear()  # a brand-new browser tab or device
+    again = error_of(client.post("/api/v1/auth/login", json={"identifier": "victim", "password": "Wrong1!pass"}))
+    assert again["details"]["attemptsRemaining"] == 2
+
+
+def test_suspended_account_cannot_use_a_reset_link(client, db):
+    user = make_user(db, email_verified_at=utcnow())
+    forgot_password(client, user.username, user.email)
+    token = _last_reset_token(user.email)
+    user.status = UserStatus.SUSPENDED
+    db.commit()
+    response = client.post("/api/v1/auth/reset-password", json={"token": token, "newPassword": generate_password()})
+    assert response.status_code == 403 and error_of(response)["code"] == "ACCOUNT_SUSPENDED"
+
+
 def test_reset_token_expires(client, db):
     from app.db.models import PasswordResetToken
 
-    user = make_user(db)
-    client.post("/api/v1/auth/forgot-password", json={"identifier": user.email})
+    user = make_user(db, email_verified_at=utcnow())
+    forgot_password(client, user.username, user.email)
     token = _last_reset_token(user.email)
     record = db.scalar(select(PasswordResetToken))
     record.expires_at = utcnow() - timedelta(seconds=1)
