@@ -85,9 +85,12 @@ async function pages<T>(path: string, authenticated = false): Promise<T[]> {
 export async function request<T>(path: string, init: RequestInit = {}, authenticated = false): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  // A session can only expire if one was sent; signed-out visitors never see the expiry prompt.
+  let sentToken = false;
   if (authenticated) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) {
+      sentToken = true;
       if (isTokenExpired(token)) {
         notifySessionExpired();
         throw new ApiError("Session expired, please login again", 401, "TOKEN_EXPIRED");
@@ -102,7 +105,7 @@ export async function request<T>(path: string, init: RequestInit = {}, authentic
       | null;
     if (
       response.status === 401 &&
-      (authenticated || body?.error?.code === "TOKEN_EXPIRED") &&
+      (sentToken || body?.error?.code === "TOKEN_EXPIRED") &&
       path !== "/auth/login"
     ) {
       notifySessionExpired();

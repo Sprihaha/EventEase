@@ -9,15 +9,21 @@ import { Eyebrow, Input, Select, cx } from "../components/ui";
 export default function Browse() {
   const { publicEvents: events, eventsSource, eventsError } = useStore();
   const [params, setParams] = useSearchParams();
-  const [q, setQ] = useState("");
-  const [cat, setCat] = useState<Category | "All">((params.get("cat") as Category) ?? "All");
+  // Search and category live in the address (e.g. /events?q=jazz&cat=Concert), so the home-page
+  // search, category links, refreshing and shared links all keep the same results.
+  const [q, setQ] = useState(params.get("q") ?? "");
+  const [cat, setCat] = useState<Category | "All">(() => {
+    const fromUrl = params.get("cat") as Category | null;
+    return fromUrl && categoryList.includes(fromUrl) ? fromUrl : "All";
+  });
   const [sort, setSort] = useState("date");
   const [maxPrice, setMaxPrice] = useState(400);
 
   const results = useMemo(() => {
     let list = events.filter((e) => e.status === "published");
     if (cat !== "All") list = list.filter((e) => e.category === cat);
-    if (q) list = list.filter((e) => (e.title + e.venue + e.city).toLowerCase().includes(q.toLowerCase()));
+    const term = q.trim().toLowerCase();
+    if (term) list = list.filter((e) => [e.title, e.venue, e.city, e.blurb, e.category].join(" ").toLowerCase().includes(term));
     list = list.filter(e => e.priceFrom === undefined && !e.tiers.length || (e.priceFrom ?? Math.min(...e.tiers.map(t => t.price))) <= maxPrice);
     list = [...list].sort((a, b) => {
       if (sort === "price") return (a.priceFrom ?? Math.min(...a.tiers.map((t) => t.price))) - (b.priceFrom ?? Math.min(...b.tiers.map((t) => t.price)));
@@ -26,10 +32,16 @@ export default function Browse() {
     return list;
   }, [events, cat, q, sort, maxPrice]);
 
+  const syncParams = (nextQ: string, nextCat: Category | "All") => {
+    const next = new URLSearchParams();
+    if (nextQ.trim()) next.set("q", nextQ.trim());
+    if (nextCat !== "All") next.set("cat", nextCat);
+    setParams(next, { replace: true });
+  };
+
   const setCategory = (c: Category | "All") => {
     setCat(c);
-    if (c === "All") setParams({});
-    else setParams({ cat: c });
+    syncParams(q, c);
   };
 
   return (
@@ -58,8 +70,11 @@ export default function Browse() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-purple" />
               <Input
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Name or venue"
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  syncParams(e.target.value, cat);
+                }}
+                placeholder="Event, venue or area"
                 className="pl-9"
               />
             </div>
@@ -113,7 +128,10 @@ export default function Browse() {
         {/* Results */}
         <div>
           <div className="mb-5 flex items-center justify-between text-sm font-medium text-muted">
-            <span>Showing {results.length} events</span>
+            <span>
+              Showing {results.length} {results.length === 1 ? "event" : "events"}
+              {q.trim() ? ` for “${q.trim()}”` : ""}
+            </span>
           </div>
           {results.length ? (
             <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">

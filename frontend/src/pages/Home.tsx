@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router";
 import {
   Search,
@@ -30,13 +31,17 @@ const promises = [
 export default function Home() {
   const { publicEvents: events, eventsSource, user } = useStore();
   const navigate = useNavigate();
+  const [query, setQuery] = useState("");
 
   if (user?.role === "organizer") {
     return <Navigate to="/dashboard/organizer" replace />;
   }
 
-  const featured = events.filter((event) => event.featured && event.status === "published");
+  // Real upcoming events in Singapore from the backend (approved and not yet over), soonest first.
   const published = events.filter((event) => event.status === "published");
+  const upcoming = [...published].sort((a, b) => +new Date(a.date) - +new Date(b.date));
+  const heroPicks = upcoming.slice(0, 2);
+  const nextUp = upcoming.slice(0, 6);
 
   return (
     <div className="bg-brand-warm text-brand-text">
@@ -66,14 +71,17 @@ export default function Home() {
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                navigate("/events");
+                const term = query.trim();
+                navigate(term ? `/events?q=${encodeURIComponent(term)}` : "/events");
               }}
               className="home-search-shadow mt-8 flex max-w-xl items-center gap-2 rounded-2xl bg-white p-2"
             >
               <Search className="ml-3 h-5 w-5 shrink-0 text-brand-purple" />
               <Input
-                aria-label="Search artists, teams, and shows"
-                placeholder="Search artists, teams, shows…"
+                aria-label="Search events, venues and areas"
+                placeholder="Search events, venues, areas…"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
                 className="h-11 flex-1 border-0 bg-transparent px-1 text-brand-text focus:border-transparent focus:ring-0"
               />
               <Button
@@ -116,15 +124,15 @@ export default function Home() {
                 />
                 {eventsSource === "loading"
                   ? "Finding upcoming events…"
-                  : eventsSource === "backend"
-                    ? "Live via EventEase API"
-                    : eventsSource === "error"
-                      ? "Event service unavailable"
-                      : "No events available"}
+                  : eventsSource === "error"
+                    ? "Events are unavailable right now"
+                    : upcoming.length
+                      ? `${upcoming.length} upcoming in Singapore`
+                      : "New events coming soon"}
               </div>
             </div>
             <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2 sm:gap-6">
-              {featured.slice(0, 2).map((event, index) => (
+              {heroPicks.map((event, index) => (
                 <div
                   key={event.id}
                   className={
@@ -167,10 +175,10 @@ export default function Home() {
           <div>
             <Eyebrow>What’s on</Eyebrow>
             <h2 className="mt-3 font-brand text-4xl font-bold tracking-tight text-brand-deep sm:text-5xl">
-              Upcoming events
+              Upcoming events in Singapore
             </h2>
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted">
-              Concerts, music, performing arts, dance, and more—sorted for what’s next.
+              Concerts, theatre, sports and cultural performances—soonest first.
             </p>
           </div>
           <Link
@@ -180,8 +188,18 @@ export default function Home() {
             Browse all <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
+        {eventsSource !== "loading" && !nextUp.length && (
+          <div className="mt-10 rounded-3xl border border-dashed border-brand-purple/25 bg-white p-10 text-center">
+            <p className="font-brand text-xl font-bold text-brand-deep">
+              {eventsSource === "error" ? "We couldn't load events right now." : "No upcoming events yet."}
+            </p>
+            <p className="mt-2 text-sm text-muted">
+              {eventsSource === "error" ? "Please try again in a moment." : "New events are added regularly—check back soon."}
+            </p>
+          </div>
+        )}
         <div className="mt-10 grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
-          {featured.map((event) => (
+          {nextUp.map((event) => (
             <EventCard key={event.id} ev={event} presentation="home" />
           ))}
         </div>
