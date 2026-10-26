@@ -48,16 +48,18 @@ export default function SignUpChoice() {
               key={role}
               type="button"
               onClick={() => choose(role)}
-              className="group flex aspect-square cursor-pointer flex-col items-center justify-center rounded-[2rem] border-2 border-brand-purple/20 bg-white p-8 text-center shadow-[0_30px_100px_-50px_rgba(50,19,79,0.35)] transition hover:-translate-y-1 hover:border-brand-orange focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-orange/30"
+              className="how-it-works-card group relative isolate flex aspect-square cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[2.25rem] border border-white/25 p-8 text-center text-white shadow-md shadow-brand-purple/25 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-brand-orange/30 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-orange/40"
             >
-              <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-brand-orange/10 text-brand-orange transition group-hover:bg-brand-orange group-hover:text-white">
-                <Icon className="h-10 w-10" />
-              </span>
-              <span className="mt-6 font-brand text-2xl font-bold text-brand-deep">{title}</span>
-              <span className="mt-3 max-w-[16rem] text-sm leading-relaxed text-muted">{tagline}</span>
-              <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-brand-purple">
-                Continue <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-              </span>
+              <div className="relative z-10 flex flex-col items-center justify-center">
+                <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/20 text-white shadow-sm backdrop-blur-md transition-all duration-300 group-hover:scale-110 group-hover:bg-white/30">
+                  <Icon className="h-10 w-10 text-white" />
+                </span>
+                <span className="mt-6 font-brand text-2xl font-bold tracking-tight text-white">{title}</span>
+                <span className="mt-3 max-w-[16rem] text-sm leading-relaxed text-white/90">{tagline}</span>
+                <span className="mt-7 inline-flex items-center gap-2 rounded-full bg-white/20 px-5 py-2 text-sm font-bold text-white shadow-xs backdrop-blur-md transition-all duration-300 group-hover:bg-white group-hover:text-brand-orange group-hover:shadow-md">
+                  Continue <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
+              </div>
             </button>
           ))}
         </div>
