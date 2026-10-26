@@ -1,38 +1,30 @@
 import {
-  LayoutDashboard,
   CalendarPlus,
   Ticket,
   BarChart3,
   Tag,
-  TrendingUp,
-  Users,
-  CheckCircle2,
   CircleDollarSign,
   Building2,
   Armchair,
   MapPin,
-  Clock3,
-  Wrench,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { type EventItem } from "../lib/data";
-import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
-import { Button, Badge, Card, Eyebrow, cx } from "../components/ui";
-import { OperationsSeatMap } from "../components/OperationsSeatMap";
+import { DashboardShell, type NavItem } from "../components/DashboardShell";
+import { Button, Badge, Card } from "../components/ui";
 import EaseAnalytics from "../components/EaseAnalytics";
 import VenueSetup from "../components/VenueSetup";
 import CreateEventForm from "../components/CreateEventForm";
 import VenueSeatMap from "../components/VenueSeatMap";
 
 const nav: NavItem[] = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "analytics", label: "EaseAnalytics", icon: BarChart3 },
   { id: "sales", label: "Ticket sales", icon: CircleDollarSign },
   { id: "venues", label: "Venue status", icon: Building2 },
   { id: "venue-setup", label: "Venue setup", icon: MapPin },
   { id: "seats", label: "Venue seat maps", icon: Armchair },
   { id: "events", label: "My events", icon: Ticket },
   { id: "create", label: "Create event", icon: CalendarPlus },
-  { id: "analytics", label: "EaseAnalytics", icon: BarChart3 },
   { id: "promos", label: "Promotions", icon: Tag },
 ];
 
@@ -40,39 +32,24 @@ export default function OrganizerDashboard() {
   const { user, events, createEvent } = useStore();
   const mine = events.filter((e) => e.organizerId === user?.id);
 
-  const gross = mine.reduce((a, e) => a + e.tiers.reduce((x, t) => x + t.sold * t.price, 0), 0);
-  const sold = mine.reduce((a, e) => a + e.tiers.reduce((x, t) => x + t.sold, 0), 0);
-  const capacity = mine.reduce((a, e) => a + e.tiers.reduce((x, t) => x + t.total, 0), 0);
-
   return (
     <DashboardShell
       role="organizer"
       title={(active) => {
-        if (active === "overview") return "Organizer studio";
+        if (active === "analytics") return `Welcome, ${user?.name || "organizer"}!`;
         return nav.find((n) => n.id === active)?.label ?? "Organizer studio";
       }}
       nav={nav}
     >
       {(active) => (
         <>
-          {active === "overview" && (
-            <>
-              <div className="mb-8 grid gap-4 sm:grid-cols-4">
-                <StatCard label="Gross sales" value={currency(gross)} tone="accent" sub="This season" />
-                <StatCard label="Tickets sold" value={String(sold)} sub={`of ${capacity} capacity`} />
-                <StatCard label="Live events" value={String(mine.filter((e) => e.status === "published").length)} />
-                <StatCard label="Sell-through" value={`${Math.round((sold / Math.max(capacity, 1)) * 100)}%`} tone="live" />
-              </div>
-              <Overview mine={mine} />
-            </>
-          )}
+          {active === "analytics" && <EaseAnalytics events={mine} />}
           {active === "sales" && <TicketSales mine={mine} />}
           {active === "venues" && <VenueStatus mine={mine} />}
           {active === "venue-setup" && <VenueSetup />}
           {active === "seats" && <VenueSeatMap />}
           {active === "events" && <EventsTable mine={mine} />}
           {active === "create" && <CreateEventForm onCreate={createEvent} />}
-          {active === "analytics" && <EaseAnalytics events={mine} />}
           {active === "promos" && <Promotions />}
         </>
       )}
@@ -172,45 +149,6 @@ function VenueStatus({ mine }: { mine: EventItem[] }) {
           </Card>
         );
       })}
-    </div>
-  );
-}
-
-function Overview({ mine }: { mine: EventItem[] }) {
-  const data = mine.map((e) => ({
-    label: e.title.split(" ")[0],
-    value: e.tiers.reduce((a, t) => a + t.sold * t.price, 0),
-  }));
-  return (
-    <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-      <Card className="p-6">
-        <Eyebrow>Revenue by event</Eyebrow>
-        <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">Sales performance</h3>
-        <div className="mt-6">
-          <BarChart data={data} />
-        </div>
-      </Card>
-      <Card className="p-6">
-        <Eyebrow>Audience</Eyebrow>
-        <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">Engagement snapshot</h3>
-        <ul className="mt-5 space-y-4 text-sm">
-          {[
-            { icon: Users, l: "Unique visitors", v: "12,480", d: "+18% wk" },
-            { icon: TrendingUp, l: "Conversion rate", v: "6.4%", d: "+0.9pt" },
-            { icon: Ticket, l: "Avg. basket", v: "2.3 seats", d: "steady" },
-          ].map((r) => (
-            <li key={r.l} className="flex items-center justify-between">
-              <span className="flex items-center gap-2.5 text-muted">
-                <r.icon className="h-4 w-4 text-brand-purple" /> {r.l}
-              </span>
-              <span className="text-right">
-                <span className="font-brand text-lg font-bold text-brand-deep">{r.v}</span>{" "}
-                <span className="text-xs text-live">{r.d}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
     </div>
   );
 }
