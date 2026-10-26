@@ -119,7 +119,7 @@ export default function CustomerDashboard() {
     )}
     {active === "history" && (
       <div className="space-y-6">
-        <ExchangeActivityPanel key={user.id} />
+        <ExchangeActivityPanel key={user.id} title="My activity" />
         <Card className="overflow-x-auto p-4">
           <table className="w-full text-left text-sm">
             <thead>

@@ -17,13 +17,17 @@ const messages: Record<string, string> = {
   EXCHANGE_EXPIRED: "Exchange expired",
 };
 
-export function ExchangeActivityPanel() {
+export function ExchangeActivityPanel({
+  title = "Exchange activity",
+}: {
+  title?: string;
+} = {}) {
   const { user } = useStore();
   const activity = useExchangeResource(user ? `activity:${user.id}` : null, getExchangeActivity);
   if (!user) return null;
   return (
     <details className="rounded-2xl border border-brand-purple/20 bg-brand-lilac/40 p-4" open>
-      <summary className="cursor-pointer font-semibold text-brand-purple">Exchange activity</summary>
+      <summary className="cursor-pointer font-semibold text-brand-purple">{title}</summary>
       <Button className="my-3" size="sm" variant="outline" disabled={activity.status === "loading"} onClick={activity.reload}>Refresh activity</Button>
       {activity.status === "loading" && !activity.data && <p role="status">Loading exchange activity…</p>}
       {activity.error && <p role="alert">{activity.error}</p>}
