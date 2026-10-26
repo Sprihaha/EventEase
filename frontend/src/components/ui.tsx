@@ -165,3 +165,5 @@ export function QRCode({ value, size = 132 }: { value: string; size?: number }) 
     />
   );
 }
+
+export { InfoTooltip, type InfoTooltipProps } from "./InfoTooltip";

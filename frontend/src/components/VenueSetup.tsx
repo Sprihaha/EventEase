@@ -9,7 +9,7 @@ import {
   formatMediaEmbedUrl,
   type Venue,
 } from "../lib/backendApi";
-import { Badge, Button, Card, Eyebrow, Field, Input } from "./ui";
+import { Badge, Button, Card, Eyebrow, Field, InfoTooltip, Input } from "./ui";
 import VenueSeatMap from "./VenueSeatMap";
 
 const emptyForm = { name: "", area: "", address: "", easeexplore360Url: "" };
@@ -160,28 +160,24 @@ export default function VenueSetup() {
               </span>
 
               {/* Question mark with hover tooltip */}
-              <div className="relative group inline-flex items-center">
-                <button
-                  type="button"
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-purple/15 text-brand-purple text-xs font-bold hover:bg-brand-purple hover:text-white transition cursor-help shadow-xs"
-                  aria-label="What is EaseXplore?"
-                >
-                  <HelpCircle className="h-3.5 w-3.5" />
-                </button>
-                {/* Tooltip Card */}
-                <div className="absolute left-1/2 -top-2 -translate-x-1/2 -translate-y-full hidden group-hover:block z-40 w-80 rounded-2xl border border-white/20 bg-brand-deep p-3.5 text-xs text-white shadow-2xl pointer-events-none transition-all">
-                  <div className="font-bold text-brand-orange mb-1 flex items-center gap-1.5">
+              <InfoTooltip
+                title={
+                  <span className="flex items-center gap-1.5">
                     <Rotate3d className="h-4 w-4 animate-spin text-brand-orange" /> What is EaseXplore?
-                  </div>
-                  <p className="text-[11px] text-white/90 leading-relaxed font-medium">
-                    EaseXplore is EventEase&apos;s 360° immersive viewer. It allows ticket buyers and attendees to preview sightlines, elevations, and virtual tours of your venue before booking their seats.
-                  </p>
-                  <p className="mt-1.5 text-[10px] text-brand-orange/90 font-semibold">
-                    💡 You can link to a 360° tour website (e.g., 360fyr, Matterport, virtual tour) or upload a 360° photo.
-                  </p>
-                  <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 border-4 border-transparent border-t-brand-deep" />
-                </div>
-              </div>
+                  </span>
+                }
+                tooltipClassName="w-80"
+                content={
+                  <>
+                    <p className="text-[11px] text-white/90 leading-relaxed font-medium">
+                      EaseXplore is EventEase&apos;s 360° immersive viewer. It allows ticket buyers and attendees to preview sightlines, elevations, and virtual tours of your venue before booking their seats.
+                    </p>
+                    <p className="mt-1.5 text-[10px] text-brand-orange/90 font-semibold">
+                      💡 You can link to a 360° tour website (e.g., 360fyr, Matterport, virtual tour) or upload a 360° photo.
+                    </p>
+                  </>
+                }
+              />
             </div>
 
             <p className="text-xs text-muted mb-3.5">

@@ -16,7 +16,7 @@ import {
   Route,
 } from "lucide-react";
 import { useStore } from "../lib/store";
-import { Button, cx } from "./ui";
+import { Button, InfoTooltip, cx } from "./ui";
 import EaseVoice from "./EaseVoice";
 import SessionExpiredModal from "./SessionExpiredModal";
 import {
@@ -217,17 +217,27 @@ export default function Layout() {
                       <LayoutDashboard className="h-4 w-4 text-brand-purple" />
                       <span className="capitalize">{user.role} dashboard</span>
                     </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        navigate("/settings/accessibility");
-                      }}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30"
-                    >
-                      <Settings className="h-4 w-4 text-brand-purple" />
-                      Accessibility settings
-                    </button>
+                    <div className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple">
+                      <button
+                        role="menuitem"
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigate("/settings/accessibility");
+                        }}
+                        className="flex flex-1 items-center gap-3 text-left focus-visible:outline-none"
+                      >
+                        <Settings className="h-4 w-4 text-brand-purple" />
+                        <span>EaseVoice</span>
+                      </button>
+                      <InfoTooltip
+                        side="left"
+                        title="What is EaseVoice?"
+                        content="Customizable voice narration and speech controls that read event and ticket details aloud."
+                        ariaLabel="Learn about EaseVoice"
+                        size="sm"
+                      />
+                    </div>
                     {user.canChangePassword !== false && (
                       <button
                         role="menuitem"
@@ -242,17 +252,27 @@ export default function Layout() {
                       </button>
                     )}
                     {user.role === "customer" && (
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          navigate("/assistance");
-                        }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30"
-                      >
-                        <Route className="h-4 w-4 text-brand-purple" />
-                        My assistance requests
-                      </button>
+                      <div className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple">
+                        <button
+                          role="menuitem"
+                          type="button"
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            navigate("/assistance");
+                          }}
+                          className="flex flex-1 items-center gap-3 text-left focus-visible:outline-none"
+                        >
+                          <Route className="h-4 w-4 text-brand-purple" />
+                          <span>EaseGuide</span>
+                        </button>
+                        <InfoTooltip
+                          side="left"
+                          title="What is EaseGuide?"
+                          content="Request and track venue accessibility assistance, escort services, and on-site support for your bookings."
+                          ariaLabel="Learn about EaseGuide"
+                          size="sm"
+                        />
+                      </div>
                     )}
                     <button
                       role="menuitem"
