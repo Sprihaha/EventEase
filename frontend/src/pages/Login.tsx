@@ -283,8 +283,12 @@ export default function Login() {
 
   const handleSignUp = async (event: FormEvent) => {
     event.preventDefault();
-    if (signUpRole === "ORGANISER" && !organisationChoice) {
-      setSignUpError("Please select your organisation.");
+    if (signUpRole === "ORGANISER" && !signUp.organisationName.trim()) {
+      setSignUpError("Please enter your company / organisation name.");
+      return;
+    }
+    if (signUpRole === "ORGANISER" && !signUp.organisationEmail.trim()) {
+      setSignUpError("Please enter your company / organisation email.");
       return;
     }
     setSigningUp(true);
@@ -504,35 +508,47 @@ export default function Login() {
                 </div>
                 {signUpRole === "ORGANISER" && (
                   <>
-                    <Field label="Organisation">
-                      <Select
-                        value={organisationChoice}
+                    <Field label="Company / Organisation name">
+                      <Input
+                        placeholder="e.g. Acme Live, LiveNation, or your company name"
+                        value={signUp.organisationName}
                         onChange={(e) => {
-                          const value = e.target.value;
-                          setOrganisationChoice(value);
-                          update("organisationName", value === OTHERS ? "" : organisations.find((o) => o.id === value)?.name ?? "");
+                          const val = e.target.value;
+                          update("organisationName", val);
+                          const match = organisations.find((o) => o.name.toLowerCase() === val.toLowerCase());
+                          setOrganisationChoice(match ? match.id : OTHERS);
                         }}
-                        placeholder="Select your organisation"
-                      >
-                        <option value="" disabled>Select your organisation</option>
-                        {organisations.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                        <option value={OTHERS}>Others</option>
-                      </Select>
+                        minLength={2}
+                        maxLength={200}
+                        required
+                      />
                     </Field>
-                    {organisationChoice === OTHERS && (
-                      <Field label="Organisation name">
-                        <Input
-                          value={signUp.organisationName}
-                          onChange={(e) => update("organisationName", e.target.value)}
-                          minLength={2}
-                          maxLength={200}
-                          required
-                        />
-                      </Field>
+                    {organisations.length > 0 && (
+                      <div className="-mt-1 mb-1">
+                        <label className="text-xs text-muted block mb-1">
+                          Or choose from existing registered organisations:
+                        </label>
+                        <Select
+                          value={organisationChoice}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setOrganisationChoice(value);
+                            if (value && value !== OTHERS) {
+                              const match = organisations.find((o) => o.id === value);
+                              if (match) update("organisationName", match.name);
+                            }
+                          }}
+                        >
+                          <option value="">-- Select registered organisation (optional) --</option>
+                          {organisations.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                          <option value={OTHERS}>Other / New Company</option>
+                        </Select>
+                      </div>
                     )}
-                    <Field label="Organisation email">
+                    <Field label="Company / Organisation email">
                       <Input
                         type="email"
+                        placeholder="e.g. contact@yourcompany.com"
                         value={signUp.organisationEmail}
                         onChange={(e) => update("organisationEmail", e.target.value)}
                         required
