@@ -27,6 +27,7 @@ export type BackendAuth = {
   user: { id: string; username: string; role: BackendRole; passwordChangeable: boolean };
   redirectTo: string;
   mustChangePassword: boolean;
+  organisation?: { id: string; name: string } | null;
 };
 
 type BackendEvent = {
@@ -217,11 +218,15 @@ export async function fetchBackendRoleEvents(role: BackendRole, ownerId = "") {
 
 export type LoginPortal = "CUSTOMER" | "ORGANISER" | "ADMIN";
 
-// `portal` is the login tab chosen; the backend refuses accounts of any other role.
-export async function backendLogin(identifier: string, password: string, portal?: LoginPortal) {
+export async function backendLogin(
+  identifier: string,
+  password: string,
+  portal?: LoginPortal,
+  organisation?: string,
+) {
   const auth = await request<BackendAuth>("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ identifier, password, portal }),
+    body: JSON.stringify({ identifier, password, portal, organisation }),
   });
   sessionStorage.setItem(TOKEN_KEY, auth.accessToken);
   return auth;

@@ -24,7 +24,7 @@ import {
 import type { SignUpPrefill, SignUpRole } from "./SignUpChoice";
 import { getSavedExpiredReturnTo, clearSavedExpiredReturnTo, resolveReturnUrl } from "../lib/session";
 import { Badge, Button, Card, Field, Input, Select } from "../components/ui";
-import { OTHERS, fetchOrganisations, type Organisation } from "../lib/organisation";
+import { OTHERS, fetchOrganisations, getCurrentOrganisation, type Organisation } from "../lib/organisation";
 
 type SignUp = {
   userId: string;
@@ -88,12 +88,16 @@ export default function Login() {
   // The login tab; the backend only accepts accounts with this role.
   const [portal, setPortal] = useState<LoginPortal>("CUSTOMER");
   const [approvalRequired, setApprovalRequired] = useState(false);
-  // Organiser sign-up: a listed organisation (by id) or OTHERS for a new one.
+  // Organiser sign-up & sign-in: a listed organisation or OTHERS for a new one.
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [organisationChoice, setOrganisationChoice] = useState("");
+  const [signInOrgChoice, setSignInOrgChoice] = useState("");
+  const [signInOrgName, setSignInOrgName] = useState("");
   useEffect(() => {
-    if (mode === "signup" && signUpRole === "ORGANISER") fetchOrganisations().then(setOrganisations).catch(() => setOrganisations([]));
-  }, [mode, signUpRole]);
+    if ((mode === "signup" && signUpRole === "ORGANISER") || (mode === "signin" && portal === "ORGANISER")) {
+      fetchOrganisations().then(setOrganisations).catch(() => setOrganisations([]));
+    }
+  }, [mode, signUpRole, portal]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -106,7 +110,9 @@ export default function Login() {
       clearSavedExpiredReturnTo();
       const destination = user.mustChangePassword
         ? "/change-password"
-        : user.role === "organizer" ? "/select-organisation" : resolveReturnUrl(user.role, returnTo);
+        : user.role === "organizer"
+          ? (getCurrentOrganisation() ? "/dashboard/organizer" : "/select-organisation")
+          : resolveReturnUrl(user.role, returnTo);
       navigate(destination, { replace: true });
     }
   }, [sessionLoading, user, returnTo, navigate]);
@@ -210,20 +216,45 @@ export default function Login() {
     event.preventDefault();
     setSignUpPrompt(null);
     setError("");
+
+    let selectedOrg: string | undefined = undefined;
+    if (portal === "ORGANISER") {
+      const orgName = (signInOrgChoice === OTHERS ? signInOrgName : signInOrgChoice).trim();
+      if (!orgName) {
+        setError("Please select or enter your company / organisation name.");
+        return;
+      }
+      selectedOrg = orgName;
+    }
+
     setSigningIn(true);
     try {
-      const account = await authenticate(username, password, portal);
+      const account = await authenticate(username, password, portal, selectedOrg);
       setSigningIn(false);
       if (account) {
         clearSavedExpiredReturnTo();
         const destination = account.mustChangePassword
           ? "/change-password"
-          : account.role === "organizer" ? "/select-organisation" : resolveReturnUrl(account.role, returnTo);
+          : account.role === "organizer"
+            ? (getCurrentOrganisation() ? "/dashboard/organizer" : "/select-organisation")
+            : resolveReturnUrl(account.role, returnTo);
         navigate(destination, { replace: true });
         return;
       }
     } catch (err: unknown) {
       setSigningIn(false);
+      if (err instanceof ApiError && err.code === "ORGANISATION_NOT_MEMBER") {
+        setError(err.message || `This account does not have an approved membership with "${selectedOrg}".`);
+        return;
+      }
+      if (err instanceof ApiError && err.code === "ORGANISATION_PENDING") {
+        setError(err.message || ORGANISER_PENDING_MESSAGE);
+        return;
+      }
+      if (err instanceof ApiError && err.code === "ORGANISATION_REJECTED") {
+        setError(err.message || "Your organiser request was not approved.");
+        return;
+      }
       if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") {
         // The password was right, so this is not a failed attempt.
         setUnverified(true);
@@ -377,6 +408,41 @@ export default function Login() {
               </div>
 
               <form className="mt-6 space-y-5" onSubmit={handleSignIn}>
+                {portal === "ORGANISER" && (
+                  <>
+                    <Field label="Company / Organisation">
+                      <Select
+                        value={signInOrgChoice}
+                        onChange={(event) => {
+                          const val = event.target.value;
+                          setSignInOrgChoice(val);
+                          if (val !== OTHERS) {
+                            setSignInOrgName(val);
+                          } else {
+                            setSignInOrgName("");
+                          }
+                        }}
+                        required
+                      >
+                        <option value="" disabled>Select your company / organisation</option>
+                        {organisations.map((org) => (
+                          <option key={org.id} value={org.name}>{org.name}</option>
+                        ))}
+                        <option value={OTHERS}>Others (specify company name)</option>
+                      </Select>
+                    </Field>
+                    {signInOrgChoice === OTHERS && (
+                      <Field label="Company name">
+                        <Input
+                          value={signInOrgName}
+                          onChange={(event) => setSignInOrgName(event.target.value)}
+                          placeholder="e.g. Acme Events"
+                          required
+                        />
+                      </Field>
+                    )}
+                  </>
+                )}
                 <Field label="Username">
                   <Input
                     autoComplete="username"

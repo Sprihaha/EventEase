@@ -12,6 +12,7 @@ class LoginRequest(CamelModel):
     password: str = Field(..., min_length=1, max_length=1024)
     portal: Role | None = Field(None, description="Login tab chosen (CUSTOMER, ORGANISER or ADMIN); the account "
                                                   "must have this role. Omit to accept any role.")
+    organisation: str | None = Field(None, max_length=200, description="Company / Organisation name for organiser login")
 
 
 class SignupRequest(CamelModel):
@@ -62,6 +63,11 @@ class UserSummary(CamelModel):
     password_changeable: bool = True
 
 
+class OrganisationSummary(CamelModel):
+    id: str | None = None
+    name: str
+
+
 class AuthResponse(CamelModel):
     access_token: str
     token_type: str = "Bearer"
@@ -69,6 +75,7 @@ class AuthResponse(CamelModel):
     user: UserSummary
     redirect_to: str
     must_change_password: bool = False
+    organisation: OrganisationSummary | None = None
 
 
 class MeResponse(CamelModel):

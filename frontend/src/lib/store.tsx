@@ -37,7 +37,7 @@ import {
   type NewEventInput,
 } from "./backendApi";
 import { isTokenExpired, getTokenExpirationMs, notifySessionExpired, onSessionExpired, clearSavedExpiredReturnTo } from "./session";
-import { clearCurrentOrganisation } from "./organisation";
+import { clearCurrentOrganisation, setCurrentOrganisation } from "./organisation";
 
 import { fetchBookings, bookingForStore } from "./ticketingApi";
 
@@ -54,7 +54,7 @@ export type User = {
 
 type Store = {
   user: User | null;
-  authenticate: (username: string, password: string, portal?: LoginPortal) => Promise<User | null>;
+  authenticate: (username: string, password: string, portal?: LoginPortal, organisation?: string) => Promise<User | null>;
   startSession: (auth: BackendAuth) => Promise<User>;
   logout: () => void;
 
@@ -207,8 +207,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Store>(() => {
     // Loads the signed-in user's data from a backend session (after login or a password reset).
     const startSession = async (auth: BackendAuth): Promise<User> => {
-      // Each sign-in starts without an organisation; organisers choose one next.
-      clearCurrentOrganisation();
+      if (auth.organisation) {
+        setCurrentOrganisation(auth.organisation);
+      } else {
+        clearCurrentOrganisation();
+      }
       const role = auth.user.role === "ORGANISER" ? "organizer" : (auth.user.role.toLowerCase() as Role);
       const account: User = {
         id: auth.user.id,
@@ -240,8 +243,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       user,
       sessionLoading, eventsError, bookingsError,
       refreshBookings: async () => { if (user?.role === "customer") await loadBookings(user.id); },
-      authenticate: async (username, password, portal) =>
-        startSession(await backendLogin(username.trim().toLowerCase(), password, portal)),
+      authenticate: async (username, password, portal, organisation) =>
+        startSession(await backendLogin(username.trim().toLowerCase(), password, portal, organisation)),
       startSession,
       logout: () => {
         void backendLogout();

@@ -63,7 +63,10 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
     ip = client_ip(request)
     enforce("login-ip", ip, settings.RATE_LOGIN_IP)
     enforce("login-id", body.identifier.strip(), settings.RATE_LOGIN_IDENTIFIER)
-    return _respond(response, auth_service.login(db, settings, body.identifier, body.password, ip, body.portal))
+    return _respond(
+        response,
+        auth_service.login(db, settings, body.identifier, body.password, ip, body.portal, body.organisation),
+    )
 
 
 @router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED,

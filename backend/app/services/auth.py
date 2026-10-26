@@ -59,9 +59,10 @@ class Session_:
     access_token: str
     expires_in: int
     refresh_token: str
+    organisation: dict | None = None
 
     def body(self) -> dict:
-        return {
+        data = {
             "access_token": self.access_token,
             "expires_in": self.expires_in,
             "user": {"id": self.user.id, "username": self.user.username, "role": self.user.role,
@@ -69,6 +70,9 @@ class Session_:
             "redirect_to": redirect_for(self.user),
             "must_change_password": self.user.must_change_password,
         }
+        if self.organisation is not None:
+            data["organisation"] = self.organisation
+        return data
 
 
 # --------------------------------------------------------------------------- tokens
@@ -87,10 +91,12 @@ def _issue_refresh_token(db: Session, settings: Settings, user: User, family_id:
     return token
 
 
-def _start_session(db: Session, settings: Settings, user: User, family_id: uuid.UUID | None = None) -> Session_:
+def _start_session(db: Session, settings: Settings, user: User, family_id: uuid.UUID | None = None,
+                   organisation: dict | None = None) -> Session_:
     refresh = _issue_refresh_token(db, settings, user, family_id)
     access, expires_in = create_access_token(settings, user.id, user.role.value, user.token_version)
-    return Session_(user=user, access_token=access, expires_in=expires_in, refresh_token=refresh)
+    return Session_(user=user, access_token=access, expires_in=expires_in, refresh_token=refresh,
+                    organisation=organisation)
 
 
 def revoke_all_refresh_tokens(db: Session, user_id: uuid.UUID) -> None:
@@ -181,7 +187,7 @@ def organiser_block(db: Session, user: User) -> AppError | None:
 
 
 def login(db: Session, settings: Settings, identifier: str, password: str, ip: str | None,
-          portal: Role | None = None) -> Session_:
+          portal: Role | None = None, organisation: str | None = None) -> Session_:
     """Sign in. `portal` is the login tab chosen; the account must have that role.
 
     The admin tab is verification only: every failure there is the same INVALID_CREDENTIALS,
@@ -255,10 +261,41 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
         db.commit()
         raise blocked
 
+    selected_org = None
+    if portal == Role.ORGANISER and organisation and organisation.strip():
+        from app.services.organisations import my_memberships, MembershipStatus
+        memberships = my_memberships(db, user)
+        org_clean = organisation.strip().lower()
+        match = next((m for m in memberships if m["organisation_name"].strip().lower() == org_clean), None)
+        if match is None:
+            user.failed_login_count += 1
+            _record_attempt(db, identifier, user, ip, False, "ORGANISATION_MISMATCH")
+            db.commit()
+            raise AppError(401, "ORGANISATION_NOT_MEMBER",
+                           f"This account is not associated with organisation '{organisation}'.",
+                           {"attemptsRemaining": max(0, settings.LOGIN_MAX_FAILURES - user.failed_login_count)})
+        if match["status"] == MembershipStatus.PENDING:
+            user.failed_login_count = 0
+            _record_attempt(db, identifier, user, ip, False, "ORGANISATION_PENDING")
+            db.commit()
+            raise AppError(403, "ORGANISATION_PENDING",
+                           f"Your membership for '{match['organisation_name']}' is still waiting for admin approval.")
+        if match["status"] == MembershipStatus.REJECTED:
+            user.failed_login_count = 0
+            _record_attempt(db, identifier, user, ip, False, "ORGANISATION_REJECTED")
+            db.commit()
+            reason = f" Reason: {match['review_note']}" if match.get("review_note") else ""
+            raise AppError(403, "ORGANISATION_REJECTED",
+                           f"Your membership for '{match['organisation_name']}' was not approved.{reason}")
+        selected_org = {
+            "id": str(match["organisation_id"]) if match["organisation_id"] else str(match["id"]),
+            "name": match["organisation_name"],
+        }
+
     user.failed_login_count = 0
     user.locked_until = None
     _record_attempt(db, identifier, user, ip, True, "OK")
-    session = _start_session(db, settings, user)
+    session = _start_session(db, settings, user, organisation=selected_org)
     db.commit()
     return session
 
