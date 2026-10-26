@@ -184,11 +184,16 @@ export default function Community() {
     const targetEventId =
       easePix.seatEventIdInput ||
       (easePix.shareModalOrigin === "composer" ? feed.selectedEventId : null) ||
-      events[0]?.id ||
-      "";
+      null;
 
-    if (!targetEventId) {
-      showToast("Please select an event before uploading EasePix");
+    const matchedEvent = targetEventId ? events.find((e) => e.id === targetEventId) : null;
+    const targetVenue =
+      easePix.seatVenueInput.trim() ||
+      matchedEvent?.venue ||
+      (events[0]?.venue ?? "");
+
+    if (!targetVenue) {
+      showToast("Please specify a venue before uploading EasePix");
       return;
     }
 
@@ -207,7 +212,8 @@ export default function Community() {
         photo: photoToUse,
         section: sec,
         row: row,
-        eventId: targetEventId,
+        venueName: targetVenue,
+        eventId: targetEventId || undefined,
       });
       feed.setPhotoUrl(photoToUse);
       easePix.setIsShareModalOpen(false);
@@ -220,19 +226,24 @@ export default function Community() {
         const seatNum = parts.seat ? parseInt(parts.seat, 10) : undefined;
 
         await backendCreateEasePix({
-          eventId: targetEventId,
+          venueName: targetVenue,
+          eventId: targetEventId || undefined,
           section: sec,
           rowLabel: rowLabel || undefined,
           seatNumber: isNaN(seatNum as number) ? undefined : seatNum,
           photoUrl: photoToUse,
-          caption: `View from ${sec}, ${row}.`,
+          caption: matchedEvent?.title
+            ? `View from ${sec}, ${row} at ${targetVenue} · ${matchedEvent.title}.`
+            : `View from ${sec}, ${row} at ${targetVenue}.`,
           authorName: user?.name ?? "Fan",
         });
 
         addPost({
           author: user?.name ?? "You",
-          eventId: targetEventId,
-          body: `View from ${sec}, ${row}. Unobstructed sightline to the main stage and fantastic acoustics!`,
+          eventId: targetEventId || (events[0]?.id ?? ""),
+          body: matchedEvent?.title
+            ? `View from ${sec}, ${row} at ${targetVenue} (${matchedEvent.title}). Fantastic sightlines!`
+            : `View from ${sec}, ${row} at ${targetVenue}. Fantastic sightlines!`,
           photo: photoToUse,
           section: sec,
           seatLabel: row,
@@ -242,8 +253,9 @@ export default function Community() {
         easePix.setSeatPhotoInput("");
         easePix.setIsShareModalOpen(false);
         easePix.setHasSearched(true);
+        easePix.setSeatVenueInput(targetVenue);
         easePix.setGallerySearchFilter({
-          eventId: targetEventId,
+          eventId: targetEventId || undefined,
           section: sec,
         });
         showToast("Seat view uploaded to EasePix successfully! You earned +15 EasePoints ✨");
@@ -251,8 +263,8 @@ export default function Community() {
       } catch {
         addPost({
           author: user?.name ?? "You",
-          eventId: targetEventId,
-          body: `View from ${sec}, ${row}. Unobstructed sightline to the main stage!`,
+          eventId: targetEventId || (events[0]?.id ?? ""),
+          body: `View from ${sec}, ${row} at ${targetVenue}!`,
           photo: photoToUse,
           section: sec,
           seatLabel: row,
@@ -486,8 +498,8 @@ export default function Community() {
               onOpenUploadModal={(sectionName) => {
                 easePix.setShareModalOrigin("easepix");
                 if (sectionName) easePix.setSeatSectionInput(sectionName);
-                if (!easePix.seatEventIdInput && events.length > 0) {
-                  easePix.setSeatEventIdInput(events[0].id);
+                if (!easePix.seatVenueInput && events.length > 0) {
+                  easePix.setSeatVenueInput(events[0].venue);
                 }
                 easePix.setIsShareModalOpen(true);
               }}
@@ -509,6 +521,9 @@ export default function Community() {
         onClose={() => easePix.setIsShareModalOpen(false)}
         user={user}
         events={events}
+        seatVenueInput={easePix.seatVenueInput}
+        onSeatVenueInputChange={easePix.setSeatVenueInput}
+        venueOptions={easePix.venueOptions}
         seatEventIdInput={easePix.seatEventIdInput}
         onSeatEventIdInputChange={easePix.setSeatEventIdInput}
         seatSectionInput={easePix.seatSectionInput}

@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError
-from app.db.models import Booking, BookingStatus, Event, User
+from app.db.models import Booking, BookingStatus, Event, User, Venue
 from app.db.models.community import EaseConnectPost, EasePix
 from app.schemas.community import EaseConnectPostCreate, EasePixCreate
 
@@ -33,11 +33,14 @@ def create_easepix(db: Session, user: User | None, data: EasePixCreate) -> EaseP
             target_event_id = None
 
     event = db.get(Event, target_event_id) if target_event_id else None
-    if not event:
-        # Fallback to the latest available event so photo upload never breaks due to a mock ID
-        event = db.scalar(select(Event).order_by(Event.created_at.desc()).limit(1))
-        if not event:
-            raise AppError(404, "EVENT_NOT_FOUND", "Event not found")
+
+    # Resolve venue name from input or event
+    venue_name: str | None = data.venue_name.strip() if data.venue_name else None
+    if not venue_name and event:
+        venue_name = event.venue_name
+
+    if not venue_name and not event:
+        raise AppError(400, "VENUE_OR_EVENT_REQUIRED", "Please select a venue for the seat view")
 
     target_venue_id: uuid.UUID | None = None
     if data.venue_id:
@@ -49,16 +52,21 @@ def create_easepix(db: Session, user: User | None, data: EasePixCreate) -> EaseP
             except (ValueError, TypeError):
                 target_venue_id = None
 
-    venue_id = target_venue_id or event.venue_id
-    verified = is_user_verified_attendee(db, user.id if user else None, event.id)
+    if not target_venue_id and event and event.venue_id:
+        target_venue_id = event.venue_id
+    elif not target_venue_id and venue_name:
+        target_venue_id = db.scalar(select(Venue.id).where(Venue.name.ilike(venue_name)).limit(1))
+
+    verified = is_user_verified_attendee(db, user.id if user else None, event.id if event else None)
 
     author = data.author_name or (user.name if user and getattr(user, "name", None) else (user.username if user else "Fan"))
 
     pix = EasePix(
         user_id=user.id if user else None,
         author_name=author,
-        event_id=event.id,
-        venue_id=venue_id,
+        event_id=event.id if event else None,
+        venue_id=target_venue_id,
+        venue_name=venue_name,
         section=data.section.strip(),
         row_label=data.row_label.strip() if data.row_label else None,
         seat_number=data.seat_number,
@@ -78,6 +86,8 @@ def create_easepix(db: Session, user: User | None, data: EasePixCreate) -> EaseP
 def list_easepix(
     db: Session,
     event_id: uuid.UUID | None = None,
+    venue_id: uuid.UUID | None = None,
+    venue_name: str | None = None,
     section: str | None = None,
     row_label: str | None = None,
     limit: int = 100,
@@ -85,9 +95,14 @@ def list_easepix(
     stmt = select(EasePix).order_by(EasePix.created_at.desc())
     if event_id:
         stmt = stmt.where(EasePix.event_id == event_id)
-    if section and section.lower() != "all":
+    if venue_id:
+        stmt = stmt.where(EasePix.venue_id == venue_id)
+    if venue_name and venue_name.strip() and venue_name.lower() != "all":
+        clean_venue = venue_name.strip()
+        stmt = stmt.where(EasePix.venue_name.ilike(f"%{clean_venue}%"))
+    if section and section.strip() and section.lower() != "all":
         stmt = stmt.where(EasePix.section.ilike(section.strip()))
-    if row_label and row_label.lower() != "all":
+    if row_label and row_label.strip() and row_label.lower() != "all":
         stmt = stmt.where(EasePix.row_label.ilike(row_label.strip()))
     stmt = stmt.limit(limit)
     return list(db.scalars(stmt))

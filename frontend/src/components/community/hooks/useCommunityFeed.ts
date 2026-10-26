@@ -188,8 +188,10 @@ export function useCommunityFeed({
       let easepixPayload: BackendEasePixCreate | undefined = undefined
       if (photoToSubmit && sectionToSubmit) {
         const parts = rowToSubmit ? parseSeatParts(rowToSubmit) : null
+        const eventMatch = events.find((e) => e.id === targetEventId)
         easepixPayload = {
-          eventId: targetEventId,
+          venueName: attachedEasePix?.venueName || eventMatch?.venue || undefined,
+          eventId: targetEventId || undefined,
           section: sectionToSubmit,
           rowLabel: parts?.row || rowToSubmit || undefined,
           seatNumber: parts?.seat ? parseInt(parts.seat, 10) : undefined,

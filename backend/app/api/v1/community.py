@@ -40,12 +40,22 @@ def like_post(
 @router.get("/easepix", response_model=list[EasePixOut], summary="List EasePix seat sightline photos")
 def list_easepix(
     event_id: uuid.UUID | None = Query(None, description="Filter by event ID"),
+    venue_id: uuid.UUID | None = Query(None, description="Filter by venue ID"),
+    venue_name: str | None = Query(None, description="Filter by venue name"),
     section: str | None = Query(None, description="Filter by seat section"),
     row_label: str | None = Query(None, description="Filter by row label"),
     limit: int = Query(100, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
-    return community_service.list_easepix(db, event_id=event_id, section=section, row_label=row_label, limit=limit)
+    return community_service.list_easepix(
+        db,
+        event_id=event_id,
+        venue_id=venue_id,
+        venue_name=venue_name,
+        section=section,
+        row_label=row_label,
+        limit=limit,
+    )
 
 
 @router.post("/easepix", response_model=EasePixOut, summary="Upload an EasePix seat sightline photo")

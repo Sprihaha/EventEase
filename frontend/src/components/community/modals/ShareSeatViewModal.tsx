@@ -16,6 +16,9 @@ interface ShareSeatViewModalProps {
   onClose: () => void
   user: User | null
   events: EventItem[]
+  seatVenueInput: string
+  onSeatVenueInputChange: (venue: string) => void
+  venueOptions?: SearchableOption[]
   seatEventIdInput: string
   onSeatEventIdInputChange: (id: string) => void
   seatSectionInput: string
@@ -37,6 +40,9 @@ export function ShareSeatViewModal({
   isOpen,
   onClose,
   events,
+  seatVenueInput,
+  onSeatVenueInputChange,
+  venueOptions,
   seatEventIdInput,
   onSeatEventIdInputChange,
   seatSectionInput,
@@ -57,6 +63,19 @@ export function ShareSeatViewModal({
   const [photoUploadMode, setPhotoUploadMode] = useState<"file" | "url">("file")
 
   if (!isOpen) return null
+
+  const availableVenues = Array.from(
+    new Set([
+      ...(venueOptions?.map((v) => v.value) ?? []),
+      ...events.map((e) => e.venue).filter(Boolean),
+    ]),
+  )
+
+  const eventsForVenue = seatVenueInput
+    ? events.filter(
+        (e) => e.venue.toLowerCase() === seatVenueInput.toLowerCase(),
+      )
+    : events
 
   const handleImageFileSelect = async (file: File) => {
     try {
@@ -126,15 +145,64 @@ export function ShareSeatViewModal({
               Seat View Details
             </div>
             <div className="space-y-3">
+              {/* Venue Selection (Mandatory) */}
               <div>
                 <label className="text-[10px] font-bold text-muted block mb-1">
-                  Event *
+                  Venue <span className="text-brand-orange">*</span>
                 </label>
+                <input
+                  type="text"
+                  list="modal-venue-options"
+                  value={seatVenueInput}
+                  onChange={(e) => {
+                    const newVenue = e.target.value
+                    onSeatVenueInputChange(newVenue)
+                    if (seatEventIdInput) {
+                      const curEv = events.find((ev) => ev.id === seatEventIdInput)
+                      if (curEv && curEv.venue.toLowerCase() !== newVenue.toLowerCase()) {
+                        onSeatEventIdInputChange("")
+                        if (shareModalOrigin === "composer") {
+                          onSelectedEventIdChange("")
+                        }
+                      }
+                    }
+                  }}
+                  placeholder="Select or enter venue name (e.g. Singapore Indoor Stadium)..."
+                  className="w-full rounded-xl border border-brand-line bg-white px-2.5 py-1.5 text-xs text-brand-deep outline-none focus:border-brand-purple"
+                />
+                <datalist id="modal-venue-options">
+                  {availableVenues.map((v) => (
+                    <option key={v} value={v} />
+                  ))}
+                </datalist>
+              </div>
+
+              {/* Event Selection (Optional) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-bold text-muted">
+                    Event <span className="font-normal text-muted/70">(Optional)</span>
+                  </label>
+                  {seatEventIdInput && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSeatEventIdInputChange("")
+                        if (shareModalOrigin === "composer") {
+                          onSelectedEventIdChange("")
+                        }
+                      }}
+                      className="cursor-pointer text-[10px] font-bold text-brand-purple hover:underline"
+                    >
+                      Clear Event (General Venue View)
+                    </button>
+                  )}
+                </div>
                 <select
                   value={
                     seatEventIdInput ||
                     (shareModalOrigin === "composer" ? selectedEventId : "") ||
-                    (events[0]?.id ?? "")
+                    ""
                   }
                   onChange={(e) => {
                     const newEventId = e.target.value
@@ -142,15 +210,21 @@ export function ShareSeatViewModal({
                     if (shareModalOrigin === "composer") {
                       onSelectedEventIdChange(newEventId)
                     }
+                    if (newEventId) {
+                      const ev = events.find((item) => item.id === newEventId)
+                      if (ev?.venue && (!seatVenueInput || seatVenueInput.toLowerCase() !== ev.venue.toLowerCase())) {
+                        onSeatVenueInputChange(ev.venue)
+                      }
+                    }
                     onSeatSectionInputChange("")
                     onSeatRowInputChange("")
                   }}
                   className="w-full rounded-xl border border-brand-line bg-white px-2.5 py-1.5 text-xs text-brand-deep outline-none focus:border-brand-purple cursor-pointer"
                 >
-                  <option value="">Select event...</option>
-                  {events.map((ev) => (
+                  <option value="">No specific event (General venue sightline)</option>
+                  {eventsForVenue.map((ev) => (
                     <option key={ev.id} value={ev.id}>
-                      {ev.title} {ev.venue ? `(${ev.venue})` : ""}
+                      {ev.title} {ev.venue && (!seatVenueInput || seatVenueInput.toLowerCase() !== ev.venue.toLowerCase()) ? `(${ev.venue})` : ""}
                     </option>
                   ))}
                 </select>

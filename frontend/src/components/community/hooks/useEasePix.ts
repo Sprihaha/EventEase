@@ -331,15 +331,16 @@ export function useEasePix({
   const handleOpenEaseExplore = useCallback(
     async (sectionOverride?: string) => {
       const targetEventId = gallerySearchFilter?.eventId || seatEventIdInput
-      if (!targetEventId) {
-        onShowToast("Please select an event to open EaseXplore 360° views")
-        return
-      }
-      const ev = events.find((e) => e.id === targetEventId)
-      if (!ev) {
-        onShowToast("Selected event not found")
-        return
-      }
+      // Event is optional for EaseXplore 360° views - resolve event if ID provided or by matching venue
+      const ev = targetEventId
+        ? events.find((e) => e.id === targetEventId)
+        : seatVenueInput
+          ? events.find(
+              (e) => e.venue.toLowerCase() === seatVenueInput.toLowerCase(),
+            )
+          : events[0]
+
+      const targetVenueName = seatVenueInput || ev?.venue || "Venue"
 
       const targetSection =
         sectionOverride ||
@@ -368,25 +369,30 @@ export function useEasePix({
               : vantagePoints[1]
 
       let externalTourUrl: string | null = null
-      let detectedVenueName = ev.venue || ""
+      let detectedVenueName = targetVenueName
 
-      try {
-        const layout = await backendGetEventLayout(targetEventId)
-        if (layout?.easeexplore360Url) {
-          externalTourUrl = layout.easeexplore360Url
+      if (ev?.id) {
+        try {
+          const layout = await backendGetEventLayout(ev.id)
+          if (layout?.easeexplore360Url) {
+            externalTourUrl = layout.easeexplore360Url
+          }
+          if (layout?.venueName) {
+            detectedVenueName = layout.venueName
+          }
+        } catch {
+          // Layout endpoint optional
         }
-        if (layout?.venueName) {
-          detectedVenueName = layout.venueName
-        }
-      } catch {
-        // Layout endpoint optional
       }
 
-      const finalVenueName = detectedVenueName || ev.venue || "Venue"
+      const finalVenueName = detectedVenueName || targetVenueName || "Venue"
 
       setPreview360Photo({
         url: matched.image,
-        title: `${finalVenueName} · ${ev.title}`,
+        title:
+          targetEventId && ev?.title
+            ? `${finalVenueName} · ${ev.title}`
+            : finalVenueName,
         section: targetSection,
         elevation: matched.elevation,
         fov: matched.fov,
@@ -396,12 +402,12 @@ export function useEasePix({
     },
     [
       gallerySearchFilter,
+      seatVenueInput,
       seatEventIdInput,
       events,
       selectedGallerySection,
       seatSectionInput,
       sectionOptions,
-      onShowToast,
     ],
   )
 
@@ -490,7 +496,7 @@ export function useEasePix({
   // Dynamic section calculation
   const { orderedSections, sectionsToDisplay, totalPhotos } = useMemo(() => {
     const targetEventId = gallerySearchFilter?.eventId || effectiveEventId
-    if (!targetEventId) {
+    if (!targetEventId && !seatVenueInput) {
       return { orderedSections: [], sectionsToDisplay: [], totalPhotos: 0 }
     }
 
@@ -507,9 +513,17 @@ export function useEasePix({
       return p.eventId === targetEventId
     })
     const backendEventPix = backendEasePixList.filter((pix) => {
-      if (seatEventIdInput) return pix.eventId === seatEventIdInput
-      if (venueEvents.length > 0) return venueEvents.includes(pix.eventId)
-      return pix.eventId === targetEventId
+      if (seatEventIdInput && pix.eventId) return pix.eventId === seatEventIdInput
+      if (seatVenueInput) {
+        if (pix.venueName && pix.venueName.toLowerCase().includes(seatVenueInput.toLowerCase())) {
+          return true
+        }
+        if (pix.eventId && venueEvents.includes(pix.eventId)) {
+          return true
+        }
+      }
+      if (targetEventId && pix.eventId === targetEventId) return true
+      return false
     })
 
     const searchedRow = (gallerySearchFilter?.row || seatRowInput || "").trim()
@@ -540,6 +554,24 @@ export function useEasePix({
         tier: opt.sublabel ?? "Reserved Tier",
         rowRange,
         photos: [],
+      }
+    })
+
+    // Include any custom sections found in uploaded photos for this venue
+    backendEventPix.forEach((pix) => {
+      if (
+        pix.section &&
+        !baseCatalog.some((sec) =>
+          matchesSectionQuery(sec.name, pix.section),
+        )
+      ) {
+        baseCatalog.push({
+          id: `sec-${pix.section.toLowerCase().replace(/\s+/g, "-")}`,
+          name: pix.section,
+          tier: "Venue Seating",
+          rowRange: pix.rowLabel ? `Row ${pix.rowLabel}` : "General",
+          photos: [],
+        })
       }
     })
 

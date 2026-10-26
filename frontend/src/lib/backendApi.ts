@@ -749,7 +749,8 @@ export type BackendEasePix = {
   id: string;
   userId?: string | null;
   authorName: string;
-  eventId: string;
+  venueName?: string | null;
+  eventId?: string | null;
   venueId?: string | null;
   section: string;
   rowLabel?: string | null;
@@ -764,7 +765,8 @@ export type BackendEasePix = {
 };
 
 export type BackendEasePixCreate = {
-  eventId: string;
+  venueName?: string | null;
+  eventId?: string | null;
   venueId?: string | null;
   section: string;
   rowLabel?: string | null;
@@ -822,12 +824,16 @@ export async function backendLikePost(postId: string): Promise<BackendCommunityP
 
 export async function backendListEasePix(params?: {
   eventId?: string;
+  venueId?: string;
+  venueName?: string;
   section?: string;
   rowLabel?: string;
   limit?: number;
 }): Promise<BackendEasePix[]> {
   const q = new URLSearchParams();
   if (params?.eventId) q.set("event_id", params.eventId);
+  if (params?.venueId) q.set("venue_id", params.venueId);
+  if (params?.venueName) q.set("venue_name", params.venueName);
   if (params?.section) q.set("section", params.section);
   if (params?.rowLabel) q.set("row_label", params.rowLabel);
   if (params?.limit) q.set("limit", String(params.limit));

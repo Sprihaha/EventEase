@@ -63,6 +63,7 @@ export interface AttachedEasePix {
   photo: string
   section: string
   row: string
+  venueName?: string
   eventId?: string
 }
 

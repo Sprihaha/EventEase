@@ -5,7 +5,8 @@ from app.schemas.common import CamelModel
 
 
 class EasePixCreate(CamelModel):
-    event_id: uuid.UUID | str
+    venue_name: str | None = None
+    event_id: uuid.UUID | str | None = None
     venue_id: uuid.UUID | str | None = None
     section: str
     row_label: str | None = None
@@ -21,7 +22,8 @@ class EasePixOut(CamelModel):
     id: uuid.UUID
     user_id: uuid.UUID | None = None
     author_name: str
-    event_id: uuid.UUID
+    venue_name: str | None = None
+    event_id: uuid.UUID | None = None
     venue_id: uuid.UUID | None = None
     section: str
     row_label: str | None = None

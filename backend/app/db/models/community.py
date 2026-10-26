@@ -9,13 +9,15 @@ class EasePix(UUIDPk, Timestamps, Base):
     __tablename__ = "easepix"
     __table_args__ = (
         Index("ix_easepix_event_section", "event_id", "section"),
+        Index("ix_easepix_venue_name", "venue_name"),
         Index("ix_easepix_created_at", "created_at"),
     )
 
     user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     author_name: Mapped[str] = mapped_column(String(100), default="Fan")
-    event_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    event_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("events.id", ondelete="CASCADE"), nullable=True)
     venue_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("venues.id", ondelete="SET NULL"), nullable=True)
+    venue_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     section: Mapped[str] = mapped_column(String(100), nullable=False)
     row_label: Mapped[str | None] = mapped_column(String(20), nullable=True)
