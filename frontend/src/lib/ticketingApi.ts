@@ -23,7 +23,7 @@ export interface IssuedTicket {
 }
 export interface BackendBooking {
   id: string; status: "PENDING_PAYMENT" | "CONFIRMED" | "CANCELLED" | "REFUNDED";
-  event: { id: string; title: string; startAt: string; venueName: string; imageUrl: string | null };
+  event: { id: string; title: string; startAt: string; endAt: string; venueName: string; imageUrl: string | null };
   items: { ticketCategoryId: string; name: string; quantity: number; unitPriceCents: number }[];
   tickets: IssuedTicket[]; totalCents: number; currency: string; holdExpiresAt: string | null;
   createdAt: string; cancellable: boolean;

@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Navigate } from "react-router";
+import { Navigate, useNavigate } from "react-router";
 import { useStore } from "../../lib/store";
 import type { Role } from "../../lib/data";
 import { cx } from "../ui";
 import { PanelLeftClose, PanelLeftOpen, ChevronRight, type LucideIcon } from "lucide-react";
 
-export type NavItem = { id: string; label: string; icon: LucideIcon; badge?: number };
+// `to` turns the item into a link to another page instead of a tab inside the dashboard.
+export type NavItem = { id: string; label: string; icon: LucideIcon; badge?: number; to?: string };
 
 export function DashboardShell({
   role,
@@ -23,6 +24,7 @@ export function DashboardShell({
   const { user, sessionLoading } = useStore();
   const [active, setActive] = useState(nav[0].id);
   const [collapsed, setCollapsed] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const pages: Partial<Record<Role, Record<string, string>>> = {
@@ -107,8 +109,8 @@ export function DashboardShell({
                 return (
                   <button
                     key={n.id}
-                    onClick={() => setActive(n.id)}
-                    aria-pressed={isSelected}
+                    onClick={() => (n.to ? navigate(n.to) : setActive(n.id))}
+                    aria-pressed={n.to ? undefined : isSelected}
                     title={collapsed ? n.label : undefined}
                     className={cx(
                       "dashboard-nav-item group relative flex cursor-pointer items-center rounded-xl transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/20 active:scale-[0.98]",

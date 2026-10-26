@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { LayoutDashboard, History, Repeat, QrCode, X } from "lucide-react";
+import { LayoutDashboard, History, QrCode, X, ArrowLeftRight } from "lucide-react";
 import { useStore, currency, fmtDate } from "../lib/store";
 import { fetchOwnedTickets, payBooking, type OwnedTicket } from "../lib/ticketingApi";
-import { DashboardShell, StatCard, type NavItem } from "../components/DashboardShell";
+import { DashboardShell, type NavItem } from "../components/DashboardShell";
 import { QRCode, ticketPayload, Button, Badge, Card } from "../components/ui";
 
 import ExchangeActivityPanel from "../components/ExchangeActivityPanel";
@@ -11,10 +11,10 @@ import ExchangeActivityPanel from "../components/ExchangeActivityPanel";
 const nav: NavItem[] = [
   { id: "tickets", label: "Dashboard", icon: LayoutDashboard },
   { id: "history", label: "Booking history", icon: History },
-  { id: "refund", label: "Refund & exchange", icon: Repeat },
+  { id: "easexchange", label: "EaseXchange", icon: ArrowLeftRight, to: "/community?tab=exchange" },
 ];
 export default function CustomerDashboard() {
-  const { user, sessionLoading, bookings, bookingsError, cancelBooking, refreshBookings } = useStore();
+  const { user, sessionLoading, bookings, bookingsError, refreshBookings } = useStore();
   const [tickets, setTickets] = useState<OwnedTicket[]>([]);
   const [qr, setQr] = useState<OwnedTicket | null>(null);
   const [error, setError] = useState("");
@@ -46,14 +46,15 @@ export default function CustomerDashboard() {
   if (sessionLoading) return <p className="p-10" role="status">Restoring your session…</p>;
   if (!user || user.role !== "customer") return <div className="p-10"><p>Sign in as a customer to view your tickets.</p><Link to="/login"><Button className="mt-4">Sign in</Button></Link></div>;
   const mine = bookings.filter(b => b.userId === user.id);
-  const valid = tickets.filter(t => t.status === "VALID" && t.bookingStatus === "CONFIRMED" && !t.checkedInAt);
-  const spent = mine.filter(b => b.status === "confirmed").reduce((sum,b) => sum+b.total,0);
+  // Assistance can only be requested for events that haven't happened yet.
+  const eventPassed = (date?: string) => !!date && Date.parse(date) <= Date.now();
+  // My tickets shows only usable tickets: valid, from a confirmed booking, for an event that hasn't finished.
+  const activeTickets = tickets.filter(t => t.status === "VALID" && t.bookingStatus === "CONFIRMED" && Date.parse(t.event.endAt ?? t.event.startAt) > Date.now());
   return (
     <DashboardShell
       role="customer"
       title={(active) => {
         if (active === "history") return "Booking history";
-        if (active === "refund") return "Refund & exchange";
         return `Welcome, ${user.name}!`;
       }}
       nav={nav}
@@ -73,11 +74,6 @@ export default function CustomerDashboard() {
         <>
           {active === "tickets" && (
             <>
-              <div className="mb-7 grid gap-4 sm:grid-cols-3">
-          <StatCard label="Valid owned tickets" value={String(valid.length)} tone="accent" />
-          <StatCard label="Bookings" value={String(mine.length)} />
-          <StatCard label="Confirmed purchases" value={currency(spent)} />
-        </div>
         {(error || bookingsError) && (
           <p role="alert" className="mb-5 rounded-xl bg-rose-50 p-4 text-danger">
             {error || bookingsError}
@@ -85,13 +81,13 @@ export default function CustomerDashboard() {
         )}
         {loading && <p role="status">Loading tickets…</p>}
         <div className="space-y-4">
-          {!loading && !tickets.length && (
+          {!loading && !activeTickets.length && (
             <Card className="p-8">
-              <p>No tickets yet.</p>
+              <p>No upcoming tickets.</p>
               <Link to="/events"><Button className="mt-4">Browse events</Button></Link>
             </Card>
           )}
-          {tickets.map(t => (
+          {activeTickets.map(t => (
             <Card key={t.id} className="flex flex-wrap items-center justify-between gap-4 p-6">
               <div>
                 <Badge tone={t.status === "VALID" && !t.checkedInAt ? "live" : "neutral"}>
@@ -142,11 +138,13 @@ export default function CustomerDashboard() {
                   <td className="p-3">{currency(b.total)}</td>
                   <td className="p-3">{b.status.replace(/_/g, " ")}</td>
                   <td className="p-3">
-                    {b.status === "confirmed" && (
+                    {b.status === "confirmed" && (eventPassed(b.event?.date) ? (
+                      <span className="text-xs text-muted" title="Assistance can't be requested for a past event">Event has passed</span>
+                    ) : (
                       <Link className="text-brand-purple underline" to={`/assistance/request/${b.id}`}>
                         Request assistance
                       </Link>
-                    )}
+                    ))}
                     {b.status === "pending_payment" && (
                       <Button size="sm" disabled={!!busy} onClick={() => act(b.id, () => payBooking(b.id))}>
                         Resume simulated payment
@@ -161,7 +159,6 @@ export default function CustomerDashboard() {
         </Card>
       </div>
     )}
-    {active === "refund" && <div className="space-y-4"><p className="text-sm text-muted">Refund eligibility comes from the backend. Tickets already admitted or exchanged cannot be refunded as part of their original booking.</p>{mine.map(b => <Card key={b.id} className="flex flex-wrap items-center justify-between gap-4 p-6"><div><h2 className="font-bold">{b.event?.title}</h2><p className="text-sm text-muted">{b.status.replace(/_/g," ")} · {currency(b.total)}</p></div><Button variant="danger" disabled={!!busy || !b.cancellable} onClick={() => act(b.id, () => cancelBooking(b.id))}>{busy === b.id ? "Processing…" : b.status === "pending_payment" ? "Release hold" : "Cancel & refund"}</Button></Card>)}<Link to="/community?tab=exchange"><Button variant="outline" className="mt-3">Open <span className="font-feature italic font-black ml-1">EaseXchange</span></Button></Link></div>}
     {qr && <div role="dialog" aria-modal="true" aria-label="Digital ticket" className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-5"><Card className="relative w-full max-w-md p-7 text-center"><button aria-label="Close ticket" className="absolute right-4 top-4" onClick={() => setQr(null)}><X className="h-5 w-5"/></button><h2 className="font-brand text-2xl font-bold">{qr.event.title}</h2><p className="my-4">Seat {qr.seatLabel ?? "General Admission"} · {qr.categoryName}</p><div className="mx-auto w-max"><QRCode value={ticketPayload(qr.code)} size={180}/></div><Link className="mt-5 block text-brand-purple underline" to={`/verify/${encodeURIComponent(qr.code)}`}>Open verification page</Link><p className="mt-3 break-all text-xs text-muted">{qr.code}</p></Card></div>}
   </>)}</DashboardShell>
   );

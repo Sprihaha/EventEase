@@ -11,7 +11,6 @@ import {
   CircleDollarSign,
   Armchair,
   Route,
-  RotateCcw,
   MapPin,
   Accessibility,
   Clock3,
@@ -52,7 +51,6 @@ export default function AdminDashboard() {
     { id: "narration", label: "EaseVoice narration", icon: Volume2 },
     { id: "seats", label: "Seat maps", icon: Armchair },
     { id: "guide", label: "EaseGuide requests", icon: Route, badge: 3 },
-    { id: "refunds", label: "Refund requests", icon: RotateCcw, badge: 2 },
     { id: "analytics", label: "Platform analytics", icon: BarChart3 },
   ];
 
@@ -76,7 +74,6 @@ export default function AdminDashboard() {
           {active === "assistance" && <AssistanceQueue />}
           {active === "narration" && <EaseVoiceNarration embedded />}
           {active === "guide" && <EaseGuideRequests />}
-          {active === "refunds" && <RefundRequests />}
           {active === "analytics" && <PlatformAnalytics />}
         </>
       )}
@@ -179,54 +176,6 @@ function EaseGuideRequests() {
               >
                 {done ? <><Check className="h-4 w-4" /> Team assigned</> : "Assign support team"}
               </Button>
-            </div>
-          </Card>
-        );
-      })}
-    </div>
-  );
-}
-
-const refundSeed = [
-  { id: "RF-2081", ref: "EE-8F3K21", customer: "Alex Chen", event: "Hamlet — A New Staging", amount: 240, reason: "Unable to attend due to medical appointment" },
-  { id: "RF-2082", ref: "EE-2QP907", customer: "Jamie Koh", event: "City Derby — Finals Night", amount: 180, reason: "Duplicate booking made during checkout" },
-] as const;
-
-function RefundRequests() {
-  const [decisions, setDecisions] = useState<Record<string, "approved" | "declined">>({});
-  return (
-    <div className="space-y-4">
-      {refundSeed.map((request) => {
-        const decision = decisions[request.id];
-        return (
-          <Card key={request.id} className="p-5">
-            <div className="flex flex-wrap items-start justify-between gap-5">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-brand text-xl font-bold text-brand-deep">{request.event}</h2>
-                  <Badge tone={decision === "approved" ? "live" : decision === "declined" ? "danger" : "warn"}>
-                    {decision ?? "pending review"}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-sm text-muted">
-                  {request.customer} · Ticket {request.ref} · Request {request.id}
-                </p>
-                <p className="mt-3 max-w-xl rounded-xl bg-mist/60 p-3 text-sm">{request.reason}</p>
-              </div>
-              <div className="min-w-36 text-right">
-                <div className="font-brand text-2xl font-bold text-brand-deep">{currency(request.amount)}</div>
-                <div className="text-xs text-muted">requested refund</div>
-                {!decision && (
-                  <div className="mt-4 flex justify-end gap-2">
-                    <Button size="sm" variant="danger" onClick={() => setDecisions((all) => ({ ...all, [request.id]: "declined" }))}>
-                      Decline
-                    </Button>
-                    <Button size="sm" onClick={() => setDecisions((all) => ({ ...all, [request.id]: "approved" }))}>
-                      Approve
-                    </Button>
-                  </div>
-                )}
-              </div>
             </div>
           </Card>
         );

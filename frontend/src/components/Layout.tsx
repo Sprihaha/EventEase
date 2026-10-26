@@ -43,6 +43,9 @@ export default function Layout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenu = useRef<HTMLDivElement>(null);
   const dash = user ? (user.mustChangePassword ? "/change-password" : `/dashboard/${user.role}`) : "/login";
+  // The logo opens the home page for visitors and customers (search, browse and explore events);
+  // organisers and admins go to their dashboard.
+  const logoTo = user && user.role !== "customer" ? dash : "/";
 
   const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
   const [expiredReturnTo, setExpiredReturnTo] = useState<string | null>(null);
@@ -111,7 +114,7 @@ export default function Layout() {
       <header className="sticky top-0 z-40 border-b border-brand-purple/10 bg-white/95 text-brand-deep shadow-[0_2px_15px_-4px_rgba(50,19,79,0.06)] backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-5 sm:gap-3 lg:gap-6">
           <Link
-            to={user ? dash : "/"}
+            to={logoTo}
             className="flex items-center rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-orange/30"
           >
             <img
@@ -311,7 +314,7 @@ export default function Layout() {
           <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
             <div className="space-y-6">
               <div>
-                <Link to={user ? dash : "/"} className="inline-block">
+                <Link to={logoTo} className="inline-block">
                   <img
                     src="/EventEase_logo.png"
                     alt="EventEase"
