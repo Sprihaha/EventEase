@@ -45,17 +45,27 @@ export default function OrganizerDashboard() {
   const capacity = mine.reduce((a, e) => a + e.tiers.reduce((x, t) => x + t.total, 0), 0);
 
   return (
-    <DashboardShell role="organizer" title="Organizer studio" nav={nav}>
+    <DashboardShell
+      role="organizer"
+      title={(active) => {
+        if (active === "overview") return "Organizer studio";
+        return nav.find((n) => n.id === active)?.label ?? "Organizer studio";
+      }}
+      nav={nav}
+    >
       {(active) => (
         <>
-          <div className="mb-8 grid gap-4 sm:grid-cols-4">
-            <StatCard label="Gross sales" value={currency(gross)} tone="accent" sub="This season" />
-            <StatCard label="Tickets sold" value={String(sold)} sub={`of ${capacity} capacity`} />
-            <StatCard label="Live events" value={String(mine.filter((e) => e.status === "published").length)} />
-            <StatCard label="Sell-through" value={`${Math.round((sold / Math.max(capacity, 1)) * 100)}%`} tone="live" />
-          </div>
-
-          {active === "overview" && <Overview mine={mine} />}
+          {active === "overview" && (
+            <>
+              <div className="mb-8 grid gap-4 sm:grid-cols-4">
+                <StatCard label="Gross sales" value={currency(gross)} tone="accent" sub="This season" />
+                <StatCard label="Tickets sold" value={String(sold)} sub={`of ${capacity} capacity`} />
+                <StatCard label="Live events" value={String(mine.filter((e) => e.status === "published").length)} />
+                <StatCard label="Sell-through" value={`${Math.round((sold / Math.max(capacity, 1)) * 100)}%`} tone="live" />
+              </div>
+              <Overview mine={mine} />
+            </>
+          )}
           {active === "sales" && <TicketSales mine={mine} />}
           {active === "venues" && <VenueStatus mine={mine} />}
           {active === "venue-setup" && <VenueSetup />}
