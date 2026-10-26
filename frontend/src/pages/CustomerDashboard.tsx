@@ -51,7 +51,11 @@ export default function CustomerDashboard() {
   return (
     <DashboardShell
       role="customer"
-      title={`Welcome, ${user.name}!`}
+      title={(active) => {
+        if (active === "history") return "Booking history";
+        if (active === "refund") return "Refund & exchange";
+        return `Welcome, ${user.name}!`;
+      }}
       nav={nav}
       headerAction={(active) =>
         active === "tickets" ? (

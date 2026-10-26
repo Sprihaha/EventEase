@@ -15,7 +15,7 @@ export function DashboardShell({
   children,
 }: {
   role: Role;
-  title: string;
+  title: string | ((active: string) => string);
   nav: NavItem[];
   headerAction?: ReactNode | ((active: string) => ReactNode);
   children: (active: string) => ReactNode;
@@ -104,7 +104,9 @@ export function DashboardShell({
       {/* Content */}
       <div className="min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="font-brand text-4xl font-bold tracking-tight text-brand-deep">{title}</h1>
+          <h1 className="font-brand text-4xl font-bold tracking-tight text-brand-deep">
+            {typeof title === "function" ? title(active) : title}
+          </h1>
           {headerAction && (
             <div>{typeof headerAction === "function" ? headerAction(active) : headerAction}</div>
           )}
