@@ -134,7 +134,8 @@ body {
   z-index: 2;
 }
 
-/* Community & Exchange Internal Scroll Container */
+/* Universal & Reusable EventEase Scrollbars */
+.custom-scrollbar,
 .community-scroll-container {
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -142,15 +143,18 @@ body {
   scrollbar-color: #c2b0df transparent;
 }
 
+.custom-scrollbar::-webkit-scrollbar,
 .community-scroll-container::-webkit-scrollbar {
   width: 8px;
 }
 
+.custom-scrollbar::-webkit-scrollbar-track,
 .community-scroll-container::-webkit-scrollbar-track {
   background: rgba(237, 229, 245, 0.45);
   border-radius: 9999px;
 }
 
+.custom-scrollbar::-webkit-scrollbar-thumb,
 .community-scroll-container::-webkit-scrollbar-thumb {
   background: #c2b0df;
   border-radius: 9999px;
@@ -158,8 +162,26 @@ body {
   background-clip: padding-box;
 }
 
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
 .community-scroll-container::-webkit-scrollbar-thumb:hover {
   background: #7438e8;
+}
+
+/* Reusable Glassmorphism Panels */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(116, 56, 232, 0.12);
+  box-shadow: 0 8px 32px -8px rgba(50, 19, 79, 0.08);
+}
+
+.glass-panel-dark {
+  background: rgba(50, 19, 79, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.35);
 }
 
 ::selection {
