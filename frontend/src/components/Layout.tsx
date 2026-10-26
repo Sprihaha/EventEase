@@ -190,12 +190,12 @@ export default function Layout() {
                         location.pathname.startsWith(dash) && "is-selected",
                       )}
                     >
-                      {user.role === "customer" ? (
-                        <User className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
-                      ) : (
+                      {user.role === "admin" ? (
                         <LayoutDashboard className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
+                      ) : (
+                        <User className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                       )}
-                      <span className="capitalize">{user.role === "customer" ? "Profile" : `${user.role} dashboard`}</span>
+                      <span className="capitalize">{user.role === "admin" ? "Admin dashboard" : "Profile"}</span>
                     </button>
                     <div
                       aria-pressed={location.pathname === "/settings/accessibility"}
