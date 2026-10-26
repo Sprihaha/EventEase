@@ -48,15 +48,28 @@ export default function CustomerDashboard() {
   const mine = bookings.filter(b => b.userId === user.id);
   const valid = tickets.filter(t => t.status === "VALID" && t.bookingStatus === "CONFIRMED" && !t.checkedInAt);
   const spent = mine.filter(b => b.status === "confirmed").reduce((sum,b) => sum+b.total,0);
-  return <DashboardShell role="customer" title={`Welcome, ${user.name}!`} nav={nav}>{active => <>
-    {active === "tickets" && (
-      <>
-        <div className="mb-6 flex justify-end">
-          <Button variant="outline" disabled={!!busy} onClick={() => act("refresh", async () => {})}>
+  return (
+    <DashboardShell
+      role="customer"
+      title={`Welcome, ${user.name}!`}
+      nav={nav}
+      headerAction={(active) =>
+        active === "tickets" ? (
+          <Button
+            variant="outline"
+            disabled={!!busy}
+            onClick={() => act("refresh", async () => {})}
+          >
             Refresh tickets & bookings
           </Button>
-        </div>
-        <div className="mb-7 grid gap-4 sm:grid-cols-3">
+        ) : null
+      }
+    >
+      {(active) => (
+        <>
+          {active === "tickets" && (
+            <>
+              <div className="mb-7 grid gap-4 sm:grid-cols-3">
           <StatCard label="Valid owned tickets" value={String(valid.length)} tone="accent" />
           <StatCard label="Bookings" value={String(mine.length)} />
           <StatCard label="Confirmed purchases" value={currency(spent)} />
@@ -146,5 +159,6 @@ export default function CustomerDashboard() {
     )}
     {active === "refund" && <div className="space-y-4"><p className="text-sm text-muted">Refund eligibility comes from the backend. Tickets already admitted or exchanged cannot be refunded as part of their original booking.</p>{mine.map(b => <Card key={b.id} className="flex flex-wrap items-center justify-between gap-4 p-6"><div><h2 className="font-bold">{b.event?.title}</h2><p className="text-sm text-muted">{b.status.replace(/_/g," ")} · {currency(b.total)}</p></div><Button variant="danger" disabled={!!busy || !b.cancellable} onClick={() => act(b.id, () => cancelBooking(b.id))}>{busy === b.id ? "Processing…" : b.status === "pending_payment" ? "Release hold" : "Cancel & refund"}</Button></Card>)}<Link to="/community?tab=exchange"><Button variant="outline" className="mt-3">Open <span className="font-feature italic font-black ml-1">EaseXchange</span></Button></Link></div>}
     {qr && <div role="dialog" aria-modal="true" aria-label="Digital ticket" className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-5"><Card className="relative w-full max-w-md p-7 text-center"><button aria-label="Close ticket" className="absolute right-4 top-4" onClick={() => setQr(null)}><X className="h-5 w-5"/></button><h2 className="font-brand text-2xl font-bold">{qr.event.title}</h2><p className="my-4">Seat {qr.seatLabel ?? "General Admission"} · {qr.categoryName}</p><div className="mx-auto w-max"><QRCode value={ticketPayload(qr.code)} size={180}/></div><Link className="mt-5 block text-brand-purple underline" to={`/verify/${encodeURIComponent(qr.code)}`}>Open verification page</Link><p className="mt-3 break-all text-xs text-muted">{qr.code}</p></Card></div>}
-  </>}</DashboardShell>;
+  </>)}</DashboardShell>
+  );
 }

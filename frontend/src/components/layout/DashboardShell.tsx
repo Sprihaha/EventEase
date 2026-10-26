@@ -11,11 +11,13 @@ export function DashboardShell({
   role,
   title,
   nav,
+  headerAction,
   children,
 }: {
   role: Role;
   title: string;
   nav: NavItem[];
+  headerAction?: ReactNode | ((active: string) => ReactNode);
   children: (active: string) => ReactNode;
 }) {
   const { user, sessionLoading } = useStore();
@@ -100,8 +102,13 @@ export function DashboardShell({
       </aside>
 
       {/* Content */}
-      <div>
-        <h1 className="font-brand text-4xl font-bold tracking-tight text-brand-deep">{title}</h1>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="font-brand text-4xl font-bold tracking-tight text-brand-deep">{title}</h1>
+          {headerAction && (
+            <div>{typeof headerAction === "function" ? headerAction(active) : headerAction}</div>
+          )}
+        </div>
         <div className="mt-6">{children(active)}</div>
       </div>
     </div>
