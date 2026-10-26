@@ -88,16 +88,18 @@ export default function Login() {
   // The login tab; the backend only accepts accounts with this role.
   const [portal, setPortal] = useState<LoginPortal>("CUSTOMER");
   const [approvalRequired, setApprovalRequired] = useState(false);
-  // Organiser sign-up & sign-in: a listed organisation or OTHERS for a new one.
+  // Organiser sign-up & sign-in: organisations fetched dynamically from Supabase db
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
+  const [loadingOrganisations, setLoadingOrganisations] = useState(false);
   const [organisationChoice, setOrganisationChoice] = useState("");
-  const [signInOrgChoice, setSignInOrgChoice] = useState("");
   const [signInOrgName, setSignInOrgName] = useState("");
   useEffect(() => {
-    if ((mode === "signup" && signUpRole === "ORGANISER") || (mode === "signin" && portal === "ORGANISER")) {
-      fetchOrganisations().then(setOrganisations).catch(() => setOrganisations([]));
-    }
-  }, [mode, signUpRole, portal]);
+    setLoadingOrganisations(true);
+    fetchOrganisations()
+      .then((data) => setOrganisations(data ?? []))
+      .catch(() => setOrganisations([]))
+      .finally(() => setLoadingOrganisations(false));
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -219,12 +221,11 @@ export default function Login() {
 
     let selectedOrg: string | undefined = undefined;
     if (portal === "ORGANISER") {
-      const orgName = (signInOrgChoice === OTHERS ? signInOrgName : signInOrgChoice).trim();
-      if (!orgName) {
-        setError("Please select or enter your company / organisation name.");
+      if (!signInOrgName.trim()) {
+        setError("Please select your company / organisation.");
         return;
       }
-      selectedOrg = orgName;
+      selectedOrg = signInOrgName.trim();
     }
 
     setSigningIn(true);
@@ -409,39 +410,23 @@ export default function Login() {
 
               <form className="mt-6 space-y-5" onSubmit={handleSignIn}>
                 {portal === "ORGANISER" && (
-                  <>
-                    <Field label="Company / Organisation">
-                      <Select
-                        value={signInOrgChoice}
-                        onChange={(event) => {
-                          const val = event.target.value;
-                          setSignInOrgChoice(val);
-                          if (val !== OTHERS) {
-                            setSignInOrgName(val);
-                          } else {
-                            setSignInOrgName("");
-                          }
-                        }}
-                        required
-                      >
-                        <option value="" disabled>Select your company / organisation</option>
-                        {organisations.map((org) => (
-                          <option key={org.id} value={org.name}>{org.name}</option>
-                        ))}
-                        <option value={OTHERS}>Others (specify company name)</option>
-                      </Select>
-                    </Field>
-                    {signInOrgChoice === OTHERS && (
-                      <Field label="Company name">
-                        <Input
-                          value={signInOrgName}
-                          onChange={(event) => setSignInOrgName(event.target.value)}
-                          placeholder="e.g. Acme Events"
-                          required
-                        />
-                      </Field>
-                    )}
-                  </>
+                  <Field label="Company / Organisation">
+                    <Select
+                      value={signInOrgName}
+                      onChange={(event) => setSignInOrgName(event.target.value)}
+                      required
+                      disabled={loadingOrganisations && organisations.length === 0}
+                    >
+                      <option value="" disabled>
+                        {loadingOrganisations && organisations.length === 0
+                          ? "Loading organisations from database…"
+                          : "Select your company / organisation"}
+                      </option>
+                      {organisations.map((org) => (
+                        <option key={org.id} value={org.name}>{org.name}</option>
+                      ))}
+                    </Select>
+                  </Field>
                 )}
                 <Field label="Username">
                   <Input
