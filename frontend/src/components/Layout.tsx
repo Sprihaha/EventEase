@@ -44,9 +44,8 @@ export default function Layout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenu = useRef<HTMLDivElement>(null);
   const dash = user ? (user.mustChangePassword ? "/change-password" : `/dashboard/${user.role}`) : "/login";
-  // The logo opens the home page for visitors and customers (search, browse and explore events);
-  // organisers and admins go to their dashboard.
-  const logoTo = user && user.role !== "customer" ? dash : "/";
+  // The logo opens the dashboard for any logged-in user; visitors go to "/"
+  const logoTo = user ? dash : "/";
 
   const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
   const [expiredReturnTo, setExpiredReturnTo] = useState<string | null>(null);
