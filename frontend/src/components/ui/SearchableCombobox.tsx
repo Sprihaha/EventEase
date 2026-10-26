@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { Search, X, ChevronDown } from "lucide-react";
+import { Search, ChevronDown, X } from "lucide-react";
 import { cx } from "../ui";
 
 export interface SearchableOption {
@@ -17,6 +17,7 @@ export interface SearchableComboboxProps {
   options: SearchableOption[];
   allowCustom?: boolean;
   disabled?: boolean;
+  clearable?: boolean;
   className?: string;
 }
 
@@ -28,6 +29,7 @@ export function SearchableCombobox({
   options,
   allowCustom = true,
   disabled = false,
+  clearable = false,
   className,
 }: SearchableComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -43,6 +45,10 @@ export function SearchableCombobox({
       ? selectedOption.label
       : value;
 
+  const activePlaceholder = isOpen && selectedOption
+    ? selectedOption.label
+    : placeholder;
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -50,6 +56,7 @@ export function SearchableCombobox({
         !containerRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setQuery("");
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -72,7 +79,10 @@ export function SearchableCombobox({
   });
 
   return (
-    <div ref={containerRef} className={cx("relative w-full", className)}>
+    <div
+      ref={containerRef}
+      className={cx("relative w-full", isOpen ? "z-40" : "z-10", className)}
+    >
       <label className="block text-xs font-bold uppercase tracking-wider text-muted mb-1.5">
         {label}
       </label>
@@ -84,10 +94,16 @@ export function SearchableCombobox({
           type="text"
           disabled={disabled}
           value={displayValue}
-          placeholder={placeholder}
+          placeholder={activePlaceholder}
+          onClick={() => {
+            if (!isOpen) {
+              setIsOpen(true);
+              setQuery("");
+            }
+          }}
           onFocus={() => {
             setIsOpen(true);
-            setQuery(selectedOption ? selectedOption.label : value);
+            setQuery("");
           }}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -97,19 +113,20 @@ export function SearchableCombobox({
             }
           }}
           className={cx(
-            "w-full rounded-2xl border border-brand-purple/20 bg-white/95 py-2.5 pl-10 pr-10 text-sm font-medium text-brand-deep shadow-xs outline-none transition placeholder:text-muted/60 focus:border-brand-purple focus:ring-4 focus:ring-brand-purple/15 disabled:bg-neutral-100 disabled:opacity-60",
+            "w-full rounded-2xl border border-brand-purple/20 bg-white/95 py-2.5 pl-10 pr-10 text-sm font-medium text-brand-deep shadow-xs outline-none transition placeholder:text-muted/60 focus:border-brand-purple focus:ring-4 focus:ring-brand-purple/15 disabled:bg-neutral-100 disabled:opacity-60 cursor-pointer",
           )}
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 gap-1">
-          {value && !disabled && (
+          {clearable && value && !disabled && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onChange("");
                 setQuery("");
+                setIsOpen(false);
               }}
-              className="rounded-full p-1 text-muted hover:bg-neutral-100 hover:text-brand-deep transition"
+              className="cursor-pointer rounded-full p-1 text-muted hover:bg-neutral-100 hover:text-brand-deep transition"
               aria-label="Clear selection"
             >
               <X className="h-3.5 w-3.5" />
@@ -118,8 +135,11 @@ export function SearchableCombobox({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => setIsOpen((prev) => !prev)}
-            className="text-muted hover:text-brand-purple transition"
+            onClick={() => {
+              setIsOpen((prev) => !prev);
+              setQuery("");
+            }}
+            className="cursor-pointer text-muted hover:text-brand-purple transition"
             aria-label="Toggle options"
           >
             <ChevronDown
@@ -157,11 +177,12 @@ export function SearchableCombobox({
                     setIsOpen(false);
                     setQuery("");
                   }}
+                  aria-selected={isSelected}
                   className={cx(
-                    "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition",
+                    "dropdown-menu-item group flex w-full cursor-pointer items-center justify-between rounded-xl border border-transparent px-3 py-2 text-left text-sm transition",
                     isSelected
-                      ? "bg-brand-orange text-white font-bold shadow-xs"
-                      : "text-brand-deep hover:bg-brand-lilac/50 font-medium",
+                      ? "is-selected bg-brand-deep text-white font-semibold shadow-xs"
+                      : "text-brand-deep font-medium hover:bg-brand-purple/15 hover:border-brand-purple/40 hover:text-brand-deep",
                   )}
                 >
                   <div>

@@ -27,9 +27,10 @@ import Select from "./ExchangeSelect"
 import { Badge, Button, Card, Field, cx } from "../ui"
 
 const views = [
-  { id: "listings", label: "Public listings" },
   { id: "mine", label: "My Exchanges" },
+  { id: "listings", label: "Public listings" },
   { id: "invitations", label: "Direct invitations" },
+  { id: "activity", label: "Exchange activity" },
 ] as const
 type DialogState = { type: "create" } | {
   type: "interest"
@@ -44,18 +45,80 @@ type DialogState = { type: "create" } | {
   matchId: string
 }
 
+const PAGE_SIZE = 10
+
+function Pagination({
+  currentPage,
+  totalItems,
+  pageSize = PAGE_SIZE,
+  onPageChange,
+}: {
+  currentPage: number
+  totalItems: number
+  pageSize?: number
+  onPageChange: (page: number) => void
+}) {
+  const totalPages = Math.ceil(totalItems / pageSize)
+  if (totalPages <= 1) return null
+
+  const startItem = (currentPage - 1) * pageSize + 1
+  const endItem = Math.min(currentPage * pageSize, totalItems)
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-brand-line/60 text-xs text-muted">
+      <span>
+        Showing <strong className="text-brand-deep">{startItem}–{endItem}</strong> of{" "}
+        <strong className="text-brand-deep">{totalItems}</strong>
+      </span>
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          className="cursor-pointer px-3 py-1.5 rounded-lg border border-brand-purple/20 bg-white font-medium text-brand-deep transition hover:bg-brand-lilac/40 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Previous
+        </button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onPageChange(p)}
+            className={cx(
+              "cursor-pointer min-w-8 h-8 px-2 rounded-lg font-bold transition text-xs flex items-center justify-center",
+              currentPage === p
+                ? "bg-brand-purple text-white shadow-sm"
+                : "border border-brand-purple/20 bg-white text-brand-deep hover:bg-brand-lilac/40",
+            )}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          type="button"
+          disabled={currentPage === totalPages}
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          className="cursor-pointer px-3 py-1.5 rounded-lg border border-brand-purple/20 bg-white font-medium text-brand-deep transition hover:bg-brand-lilac/40 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function SecureExchange() {
   const { user } = useStore()
   const [params, setParams] = useSearchParams()
   const view =
-    views.find((item) => item.id === params.get("view"))?.id ?? "listings"
+    views.find((item) => item.id === params.get("view"))?.id ?? (user ? "mine" : "listings")
   const listings = useExchangeResource("listings", getExchangeListings)
   const mine = useExchangeResource(
     user ? `mine:${user.id}` : null,
     getMyExchanges,
   )
   const invitations = useExchangeResource(user ? `invitations:${user.id}` : null, getExchangeInvitations)
-  const [dialog, setDialog] = useState<DialogState | null>(() => params.get("view") === "create" ? { type: "create" } : null)
+  const [dialog, setDialog] = useState<DialogState | null>(null)
   const linkedMatch = params.get("match")
   useEffect(() => {
     if (linkedMatch && user) setDialog({ type: "match", matchId: linkedMatch })
@@ -77,6 +140,10 @@ export default function SecureExchange() {
     })
   }
   const [filter, setFilter] = useState("ALL")
+  const [listingsPage, setListingsPage] = useState(1)
+  const [invitationsPage, setInvitationsPage] = useState(1)
+  const [myRequestsPage, setMyRequestsPage] = useState(1)
+  const [myMatchesPage, setMyMatchesPage] = useState(1)
   const [notice, setNotice] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
@@ -90,6 +157,9 @@ export default function SecureExchange() {
     mine.data?.requests.filter(
       (request) => request.requesterUserId === user?.id,
     ) ?? []
+  const filteredRequests = ownRequests.filter(
+    (request) => filter === "ALL" || request.status === filter,
+  )
   const openRequests = ownRequests.filter(
     (request) =>
       request.status === "OPEN" && Date.parse(request.expiresAt) > now,
@@ -139,18 +209,7 @@ export default function SecureExchange() {
 
   return (
     <section aria-label="EaseXchange" className="space-y-5">
-      <div className="rounded-2xl border border-brand-purple/20 bg-brand-lilac/60 p-4 text-sm text-brand-deep">
-        <p className="flex items-center gap-2 font-semibold">
-          <Repeat className="h-5 w-5 shrink-0" /> <span className="font-feature italic font-black text-brand-purple">EaseXchange</span> · Secure ticket
-          exchange
-        </p>
-        <p className="mt-2">
-          Offer an eligible owned ticket, explore compatible requests, and
-          accept a match. After both accept, complete simulated settlement to
-          swap the tickets and receive new QR codes.
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div id="exchange-controls" className="flex flex-wrap items-center justify-between gap-3 scroll-mt-48">
       <nav aria-label="Exchange views" className="flex flex-wrap gap-2">
         {views.map((item) => (
           <Button
@@ -168,9 +227,26 @@ export default function SecureExchange() {
           </Button>
         ))}
       </nav>
-      <Button onClick={() => setDialog({ type: "create" })}>Create Request</Button>
+      <button
+        type="button"
+        id="create-request-btn"
+        onClick={() => setDialog({ type: "create" })}
+        className="scroll-mt-48 cursor-pointer inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+      >
+        Request EaseXchange
+      </button>
       </div>
-      {user && <ExchangeActivityPanel key={user.id} />}
+      <div className="rounded-2xl border border-brand-purple/20 bg-brand-lilac/60 p-4 text-sm text-brand-deep">
+        <p className="flex items-center gap-2 font-semibold">
+          <Repeat className="h-5 w-5 shrink-0" /> <span className="font-feature italic font-black text-brand-purple">EaseXchange</span> · Secure ticket
+          exchange
+        </p>
+        <p className="mt-2">
+          Offer an eligible owned ticket, explore compatible requests, and
+          accept a match. After both accept, complete simulated settlement to
+          swap the tickets and receive new QR codes.
+        </p>
+      </div>
       {notice && (
         <p
           role="status"
@@ -189,7 +265,7 @@ export default function SecureExchange() {
       )}
       {view === "listings" && (
         <>
-          <div className="flex items-center justify-between gap-3">
+          <div id="public-listings" className="flex items-center justify-between gap-3 scroll-mt-24">
             <h2 className="font-brand text-2xl font-bold text-brand-deep">
               Public listings
             </h2>
@@ -210,7 +286,9 @@ export default function SecureExchange() {
             onRetry={listings.reload}
           />
           <div className="grid gap-4 sm:grid-cols-2">
-            {listings.data?.map((listing) => {
+            {(listings.data ?? [])
+              .slice((listingsPage - 1) * PAGE_SIZE, listingsPage * PAGE_SIZE)
+              .map((listing) => {
               const own = ownRequests.some(
                 (request) => request.id === listing.requestId,
               )
@@ -240,6 +318,11 @@ export default function SecureExchange() {
               )
             })}
           </div>
+          <Pagination
+            currentPage={listingsPage}
+            totalItems={listings.data?.length ?? 0}
+            onPageChange={setListingsPage}
+          />
         </>
       )}
       {view !== "listings" && !user && (
@@ -257,7 +340,16 @@ export default function SecureExchange() {
       {view === "invitations" && user && <>
         <div className="flex justify-between"><h2 className="font-brand text-2xl font-bold">Direct invitations</h2><Button variant="outline" onClick={invitations.reload}>Refresh invitations</Button></div>
         <LoadState status={invitations.status} error={invitations.error} empty={invitations.data?.length === 0} emptyText="No direct invitations available." onRetry={invitations.reload} />
-        {invitations.data?.map(listing => <ListingCard key={listing.requestId} listing={listing} direct><Button onClick={() => openInterest(listing)}>Review & offer a ticket</Button></ListingCard>)}
+        <div className="space-y-4">
+          {(invitations.data ?? [])
+            .slice((invitationsPage - 1) * PAGE_SIZE, invitationsPage * PAGE_SIZE)
+            .map(listing => <ListingCard key={listing.requestId} listing={listing} direct><Button onClick={() => openInterest(listing)}>Review & offer a ticket</Button></ListingCard>)}
+        </div>
+        <Pagination
+          currentPage={invitationsPage}
+          totalItems={invitations.data?.length ?? 0}
+          onPageChange={setInvitationsPage}
+        />
         <p className="text-sm text-muted">Review the invitation and select an eligible owned ticket. Both users must accept before settlement.</p>
       </>}
       {view === "mine" && user && (
@@ -289,7 +381,10 @@ export default function SecureExchange() {
               <Field label="Request status">
                 <Select
                   value={filter}
-                  onChange={(event) => setFilter(event.target.value)}
+                  onChange={(event) => {
+                    setFilter(event.target.value)
+                    setMyRequestsPage(1)
+                  }}
                 >
                   <option value="ALL">All statuses</option>
                   {exchangeRequestStatuses.map((status) => (
@@ -300,10 +395,8 @@ export default function SecureExchange() {
                 </Select>
               </Field>
               <div className="space-y-4">
-                {ownRequests
-                  .filter(
-                    (request) => filter === "ALL" || request.status === filter,
-                  )
+                {filteredRequests
+                  .slice((myRequestsPage - 1) * PAGE_SIZE, myRequestsPage * PAGE_SIZE)
                   .map((request) => (
                     <Card key={request.id} className="p-5">
                       <div className="flex flex-wrap items-center gap-2">
@@ -392,6 +485,11 @@ export default function SecureExchange() {
                     </Card>
                   ))}
               </div>
+              <Pagination
+                currentPage={myRequestsPage}
+                totalItems={filteredRequests.length}
+                onPageChange={setMyRequestsPage}
+              />
               {ownRequests.length > 0 &&
                 !ownRequests.some(
                   (request) => filter === "ALL" || request.status === filter,
@@ -409,7 +507,9 @@ export default function SecureExchange() {
                 </p>
               )}
               <div className="grid gap-4 sm:grid-cols-2">
-                {mine.data.matches.map((match) => (
+                {(mine.data.matches ?? [])
+                  .slice((myMatchesPage - 1) * PAGE_SIZE, myMatchesPage * PAGE_SIZE)
+                  .map((match) => (
                   <Card key={match.id} className="space-y-3 p-5">
                     <Badge tone={match.status === "READY" ? "live" : "neutral"}>
                       {match.status}
@@ -440,9 +540,24 @@ export default function SecureExchange() {
                   </Card>
                 ))}
               </div>
+              <Pagination
+                currentPage={myMatchesPage}
+                totalItems={mine.data.matches.length}
+                onPageChange={setMyMatchesPage}
+              />
             </>
           )}
         </>
+      )}
+      {view === "activity" && user && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="font-brand text-2xl font-bold text-brand-deep">
+              Exchange activity
+            </h2>
+          </div>
+          <ExchangeActivityPanel key={user.id} />
+        </div>
       )}
       {dialog && (
         <ExchangeDialog onClose={closeDialog} busy={creating}>

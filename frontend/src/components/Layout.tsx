@@ -11,13 +11,13 @@ import {
   LogOut,
   ChevronRight,
   ChevronDown,
-  Settings,
+  Volume2,
   KeyRound,
   Route,
   User,
 } from "lucide-react";
 import { useStore } from "../lib/store";
-import { Button, InfoTooltip, cx } from "./ui";
+import { Badge, Button, InfoTooltip, cx } from "./ui";
 import EaseVoice from "./EaseVoice";
 import SessionExpiredModal from "./SessionExpiredModal";
 import {
@@ -157,12 +157,15 @@ export default function Layout() {
                   aria-haspopup="menu"
                   aria-expanded={userMenuOpen}
                   aria-label="Open user menu"
-                  className="border-brand-purple/20 bg-white text-brand-deep hover:border-brand-purple hover:bg-brand-lilac/40 focus-visible:ring-4 focus-visible:ring-brand-orange/30"
+                  className="gap-2 border-brand-purple/20 bg-white text-brand-deep hover:border-brand-purple hover:bg-brand-lilac/40 focus-visible:ring-4 focus-visible:ring-brand-orange/30"
                 >
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-orange text-[10px] font-bold text-white">
                     {user.name[0]}
                   </span>
                   <span className="hidden font-medium sm:inline">{user.name}</span>
+                  <Badge tone="accent" className="hidden px-2 py-0.5 text-[10px] font-bold capitalize sm:inline-flex">
+                    {user.role}
+                  </Badge>
                   <ChevronDown className="h-3.5 w-3.5 text-muted" />
                 </Button>
                 {userMenuOpen && (
@@ -173,20 +176,30 @@ export default function Layout() {
                   >
                     <button
                       role="menuitem"
+                      aria-pressed={location.pathname.startsWith(dash)}
                       onClick={() => {
                         setUserMenuOpen(false);
                         navigate(dash);
                       }}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30"
+                      className={cx(
+                        "dropdown-menu-item group flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30",
+                        location.pathname.startsWith(dash) && "is-selected",
+                      )}
                     >
                       {user.role === "customer" ? (
-                        <User className="h-4 w-4 text-brand-purple" />
+                        <User className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                       ) : (
-                        <LayoutDashboard className="h-4 w-4 text-brand-purple" />
+                        <LayoutDashboard className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                       )}
                       <span className="capitalize">{user.role === "customer" ? "Profile" : `${user.role} dashboard`}</span>
                     </button>
-                    <div className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple">
+                    <div
+                      aria-pressed={location.pathname === "/settings/accessibility"}
+                      className={cx(
+                        "dropdown-menu-item group flex w-full cursor-pointer items-center justify-between rounded-xl border border-transparent px-3 py-2 text-sm font-semibold transition",
+                        location.pathname === "/settings/accessibility" && "is-selected",
+                      )}
+                    >
                       <button
                         role="menuitem"
                         type="button"
@@ -194,9 +207,9 @@ export default function Layout() {
                           setUserMenuOpen(false);
                           navigate("/settings/accessibility");
                         }}
-                        className="flex flex-1 items-center gap-3 text-left focus-visible:outline-none"
+                        className="flex flex-1 items-center gap-3 text-left focus-visible:outline-none cursor-pointer"
                       >
-                        <Settings className="h-4 w-4 text-brand-purple" />
+                        <Volume2 className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                         <span>EaseVoice</span>
                       </button>
                       <InfoTooltip
@@ -210,18 +223,28 @@ export default function Layout() {
                     {user.canChangePassword !== false && (
                       <button
                         role="menuitem"
+                        aria-pressed={location.pathname === "/change-password"}
                         onClick={() => {
                           setUserMenuOpen(false);
                           navigate("/change-password");
                         }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30"
+                        className={cx(
+                          "dropdown-menu-item group flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30",
+                          location.pathname === "/change-password" && "is-selected",
+                        )}
                       >
-                        <KeyRound className="h-4 w-4 text-brand-purple" />
+                        <KeyRound className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                         Change password
                       </button>
                     )}
                     {user.role === "customer" && (
-                      <div className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple">
+                      <div
+                        aria-pressed={location.pathname === "/assistance"}
+                        className={cx(
+                          "dropdown-menu-item group flex w-full cursor-pointer items-center justify-between rounded-xl border border-transparent px-3 py-2 text-sm font-semibold transition",
+                          location.pathname === "/assistance" && "is-selected",
+                        )}
+                      >
                         <button
                           role="menuitem"
                           type="button"
@@ -229,9 +252,9 @@ export default function Layout() {
                             setUserMenuOpen(false);
                             navigate("/assistance");
                           }}
-                          className="flex flex-1 items-center gap-3 text-left focus-visible:outline-none"
+                          className="flex flex-1 items-center gap-3 text-left focus-visible:outline-none cursor-pointer"
                         >
-                          <Route className="h-4 w-4 text-brand-purple" />
+                          <Route className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                           <span>EaseGuide</span>
                         </button>
                         <InfoTooltip
@@ -250,9 +273,9 @@ export default function Layout() {
                         logout();
                         navigate("/");
                       }}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-danger transition hover:bg-danger/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-danger/20"
+                      className="danger-menu-item group flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold text-danger transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-danger/20"
                     >
-                      <LogOut className="h-4 w-4" />
+                      <LogOut className="h-4 w-4 shrink-0 transition-transform duration-150" />
                       Sign out
                     </button>
                   </div>

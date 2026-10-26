@@ -32,7 +32,7 @@ export function ExchangeActivityPanel({
       {activity.status === "loading" && !activity.data && <p role="status">Loading exchange activity…</p>}
       {activity.error && <p role="alert">{activity.error}</p>}
       {activity.data?.length === 0 && <p className="text-sm text-muted">No exchange activity yet.</p>}
-      <ul className="max-h-64 space-y-3 overflow-y-auto text-sm">
+      <ul className="max-h-[min(650px,calc(100vh-280px))] space-y-3 overflow-y-auto text-sm pr-1">
         {activity.data?.map(item => (
           <li key={item.id} className="rounded-xl bg-white p-3">
             <Link className="font-semibold text-brand-purple underline" to={item.matchId

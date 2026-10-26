@@ -38,7 +38,7 @@ export function CommunitySidebar({
             <button
               type="button"
               onClick={() => onToggleCollapse(false)}
-              title="Expand EaseComms Channels"
+              title="Expand Channels"
               className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-xl bg-brand-lilac/70 text-brand-purple hover:bg-brand-purple hover:text-white transition shadow-sm"
             >
               <ChevronRight className="h-5 w-5" />
@@ -50,12 +50,12 @@ export function CommunitySidebar({
         ) : (
           <div className="flex items-center justify-between px-2 pb-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-muted">
-              EaseComms Channels
+              Channels
             </span>
             <button
               type="button"
               onClick={() => onToggleCollapse(true)}
-              title="Collapse EaseComms Channels"
+              title="Collapse Channels"
               className="cursor-pointer inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold text-muted hover:bg-brand-lilac/60 hover:text-brand-purple transition"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -69,7 +69,7 @@ export function CommunitySidebar({
           <div
             className="flex flex-col items-center gap-2"
             role="tablist"
-            aria-label="EaseComms channels"
+            aria-label="Community channels"
           >
             {/* Channel 1: EaseConnect */}
             <button
@@ -145,7 +145,7 @@ export function CommunitySidebar({
             <div
               className="space-y-2"
               role="tablist"
-              aria-label="EaseComms channels"
+              aria-label="Community channels"
             >
               {/* Channel 1: EaseConnect */}
               <button

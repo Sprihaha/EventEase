@@ -1,4 +1,4 @@
-import { X, Rotate3d, Camera } from "lucide-react"
+import { Rotate3d, Camera } from "lucide-react"
 import { EasePixSearchBar } from "./EasePixSearchBar"
 import { EasePixSectionGrid } from "./EasePixSectionGrid"
 import type { SearchableOption, SectionSegment, EventItem, User } from "../types"
@@ -6,8 +6,12 @@ import type { SearchableOption, SectionSegment, EventItem, User } from "../types
 interface EasePixViewProps {
   user: User | null
   events: EventItem[]
+  seatVenueInput?: string
+  onSeatVenueInputChange?: (venue: string) => void
+  venueOptions?: SearchableOption[]
   seatEventIdInput: string
   onSeatEventIdInputChange: (id: string) => void
+  eventOptions?: SearchableOption[]
   seatSectionInput: string
   onSeatSectionInputChange: (sec: string) => void
   seatRowInput: string
@@ -32,8 +36,12 @@ interface EasePixViewProps {
 export function EasePixView({
   user,
   events,
+  seatVenueInput,
+  onSeatVenueInputChange,
+  venueOptions,
   seatEventIdInput,
   onSeatEventIdInputChange,
+  eventOptions,
   seatSectionInput,
   onSeatSectionInputChange,
   seatRowInput,
@@ -56,11 +64,12 @@ export function EasePixView({
 }: EasePixViewProps) {
   const currentEvent = events.find(
     (e) =>
+      (seatVenueInput && e.venue.toLowerCase() === seatVenueInput.toLowerCase()) ||
       e.id ===
       (gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id),
   )
   const eventTitle = currentEvent?.title ?? "Selected Event"
-  const venueTitle = currentEvent?.venue || "Event Venue"
+  const venueTitle = currentEvent?.venue || seatVenueInput || "Event Venue"
 
   return (
     <div className="space-y-6">
@@ -68,8 +77,12 @@ export function EasePixView({
       <EasePixSearchBar
         user={user}
         events={events}
+        seatVenueInput={seatVenueInput}
+        onSeatVenueInputChange={onSeatVenueInputChange}
+        venueOptions={venueOptions}
         seatEventIdInput={seatEventIdInput}
         onSeatEventIdInputChange={onSeatEventIdInputChange}
+        eventOptions={eventOptions}
         seatSectionInput={seatSectionInput}
         onSeatSectionInputChange={onSeatSectionInputChange}
         seatRowInput={seatRowInput}
@@ -78,8 +91,24 @@ export function EasePixView({
         rowSeatOptions={rowSeatOptions}
         loadingSeats={loadingSeats}
         onFindSeatViews={onFindSeatViews}
+        onClearSearchFilter={onClearSearchFilter}
         onOpenUploadModal={() => onOpenUploadModal()}
       />
+
+      {/* Pre-search Guidance State */}
+      {!hasSearched && (
+        <div className="rounded-3xl border border-brand-line bg-gradient-to-br from-brand-lilac/30 via-white to-brand-warm/40 p-8 text-center space-y-3 shadow-xs">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-purple/10 text-brand-purple shadow-xs">
+            <Camera className="h-6 w-6" />
+          </div>
+          <h3 className="font-brand text-lg font-bold text-brand-deep">
+            Explore Verified Seat Views & 360° Sightlines
+          </h3>
+          <p className="text-xs text-muted max-w-md mx-auto leading-relaxed">
+            Choose a venue or event above and click <span className="font-bold text-brand-purple">&quot;Find Seat Views&quot;</span> to browse real photos taken by fans before buying your tickets.
+          </p>
+        </div>
+      )}
 
       {/* Results Section - Only appears after searching */}
       {hasSearched && (
@@ -94,26 +123,17 @@ export function EasePixView({
                 Results
               </h3>
               <p className="text-xs text-muted">
-                {gallerySearchFilter?.eventId
-                  ? `Showing seat views for ${eventTitle}${
+                {gallerySearchFilter?.eventId || seatVenueInput
+                  ? `Showing seat views for ${seatEventIdInput ? `${eventTitle} (${venueTitle})` : venueTitle}${
                       selectedGallerySection !== "all"
                         ? ` · ${selectedGallerySection}`
-                        : gallerySearchFilter.section
+                        : gallerySearchFilter?.section
                           ? ` · ${gallerySearchFilter.section}`
                           : ""
                     }`
                   : "Real, unedited photos shared by fans who sat there"}
               </p>
             </div>
-            {gallerySearchFilter && (
-              <button
-                type="button"
-                onClick={onClearSearchFilter}
-                className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:underline"
-              >
-                <X className="h-3.5 w-3.5" /> Clear search filter
-              </button>
-            )}
           </div>
 
           {/* EaseExplore Venue Banner ("EaseExplore line") */}
@@ -148,16 +168,16 @@ export function EasePixView({
           </div>
 
           {/* Section Segmentation & Options Selector */}
-          {!seatEventIdInput && !gallerySearchFilter?.eventId ? (
+          {!seatVenueInput && !seatEventIdInput && !gallerySearchFilter?.eventId ? (
             <div className="rounded-3xl border border-dashed border-brand-purple/25 bg-brand-warm/30 p-10 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-lilac text-brand-purple shadow-sm mb-3">
                 <Camera className="h-6 w-6" />
               </div>
               <h4 className="font-brand text-base font-bold text-brand-deep">
-                Select an event above
+                Select a venue above
               </h4>
               <p className="mt-1 text-xs text-muted max-w-sm mx-auto">
-                Choose an event from the search bar to inspect actual verified
+                Choose a venue from the search bar to inspect actual verified
                 fan seat views, camera angles, and 360° sightlines for its real
                 sections.
               </p>

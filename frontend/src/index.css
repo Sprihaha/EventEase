@@ -190,4 +190,82 @@ body {
   color: #fff;
 }
 
+/* Sidebar Nav Hover - directly defined to guarantee hover fires on all displays including touchscreen laptops */
+.dashboard-nav-item {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dashboard-nav-item:not([aria-pressed="true"]):hover {
+  background-color: color-mix(in srgb, var(--color-brand-purple) 15%, transparent) !important;
+  border-color: color-mix(in srgb, var(--color-brand-purple) 40%, transparent) !important;
+  color: var(--color-brand-deep) !important;
+  transform: translateX(6px) !important;
+  box-shadow: 0 4px 12px -2px rgba(116, 56, 232, 0.15) !important;
+}
+
+.dashboard-nav-item:not([aria-pressed="true"]):hover svg {
+  color: var(--color-brand-orange) !important;
+  transform: scale(1.15) !important;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dashboard-nav-item:not([aria-pressed="true"]):hover .nav-chevron {
+  opacity: 1 !important;
+  transform: translateX(0) !important;
+  color: var(--color-brand-purple) !important;
+}
+
+/* Universal Dropdown Item Hover & Selected Logic (No physical motion) */
+.dropdown-menu-item {
+  transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover on unselected item: soft purple pill, purple border, brand deep text, orange scaled icon */
+.dropdown-menu-item:not([aria-pressed="true"]):not([aria-selected="true"]):not(.is-selected):not(.danger-menu-item):hover {
+  background-color: color-mix(in srgb, var(--color-brand-purple) 15%, transparent) !important;
+  border-color: color-mix(in srgb, var(--color-brand-purple) 40%, transparent) !important;
+  color: var(--color-brand-deep) !important;
+  box-shadow: 0 2px 8px -1px rgba(116, 56, 232, 0.12) !important;
+}
+
+.dropdown-menu-item:not([aria-pressed="true"]):not([aria-selected="true"]):not(.is-selected):not(.danger-menu-item):hover svg:not(.info-tooltip-icon) {
+  color: var(--color-brand-orange) !important;
+  transform: scale(1.15) !important;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Selected item in dropdown: solid dark purple pill, white text, orange icon */
+.dropdown-menu-item[aria-pressed="true"],
+.dropdown-menu-item[aria-selected="true"],
+.dropdown-menu-item.is-selected {
+  background-color: var(--color-brand-deep) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  border-color: var(--color-brand-deep) !important;
+}
+
+.dropdown-menu-item[aria-pressed="true"] svg:not(.info-tooltip-icon),
+.dropdown-menu-item[aria-selected="true"] svg:not(.info-tooltip-icon),
+.dropdown-menu-item.is-selected svg:not(.info-tooltip-icon) {
+  color: var(--color-brand-orange) !important;
+}
+
+/* Danger item hover (e.g. Sign out) */
+.danger-menu-item:hover {
+  background-color: color-mix(in srgb, var(--color-danger) 10%, transparent) !important;
+  border-color: color-mix(in srgb, var(--color-danger) 25%, transparent) !important;
+  color: var(--color-danger) !important;
+}
+
+.danger-menu-item:hover svg {
+  transform: scale(1.15) !important;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+
 

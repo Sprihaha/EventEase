@@ -35,9 +35,11 @@ export function CommunityHeroBanner({
 
         {/* Hero Content */}
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-brand-deep/60 px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-widest text-brand-lilac backdrop-blur-md">
-            <span className="inline-block h-2 w-2 rounded-full bg-brand-orange shadow-[0_0_0_4px_rgba(255,101,0,0.35)] animate-pulse" />
-            EASECOMMS
+          <div className="inline-flex items-center gap-3 rounded-full border border-white/30 bg-brand-deep/60 px-4 py-2 backdrop-blur-md">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-brand-orange shadow-[0_0_0_4px_rgba(255,101,0,0.35)] animate-pulse" />
+            <span className="font-feature italic font-black text-2xl tracking-tight text-brand-orange leading-none">
+              EaseComms
+            </span>
           </div>
 
           <h1 className="mt-4 font-brand text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[0.96] drop-shadow-md">

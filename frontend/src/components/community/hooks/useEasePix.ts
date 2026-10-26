@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { fetchSeats, type LiveSeat } from "../../../lib/ticketingApi"
 import {
   backendGetEventLayout,
@@ -40,6 +40,13 @@ export function useEasePix({
   onShowToast,
   scrollToSection,
 }: UseEasePixParams) {
+  const [seatVenueInput, setSeatVenueInput] = useState<string>(() => {
+    if (initialEventId) {
+      const ev = events.find((e) => e.id === initialEventId)
+      return ev?.venue ?? ""
+    }
+    return ""
+  })
   const [seatEventIdInput, setSeatEventIdInput] =
     useState<string>(initialEventId)
   const [seatSectionInput, setSeatSectionInput] = useState("")
@@ -63,14 +70,25 @@ export function useEasePix({
   const [eventSeats, setEventSeats] = useState<LiveSeat[]>([])
   const [loadingSeats, setLoadingSeats] = useState(false)
 
+  const effectiveEventId = useMemo(() => {
+    if (seatEventIdInput) return seatEventIdInput
+    if (seatVenueInput) {
+      const match = events.find(
+        (e) => e.venue.toLowerCase() === seatVenueInput.toLowerCase(),
+      )
+      return match?.id ?? ""
+    }
+    return ""
+  }, [seatEventIdInput, seatVenueInput, events])
+
   useEffect(() => {
-    if (!seatEventIdInput) {
+    if (!effectiveEventId) {
       setEventSeats([])
       return
     }
     let active = true
     setLoadingSeats(true)
-    fetchSeats(seatEventIdInput)
+    fetchSeats(effectiveEventId)
       .then((seats) => {
         if (active) {
           setEventSeats(seats)
@@ -86,13 +104,67 @@ export function useEasePix({
     return () => {
       active = false
     }
-  }, [seatEventIdInput])
+  }, [effectiveEventId])
 
-  const selectedEvent = events.find((e) => e.id === seatEventIdInput)
+  const selectedEvent = events.find((e) => e.id === effectiveEventId)
+
+  // Venue options
+  const venueOptions: SearchableOption[] = useMemo(() => {
+    const uniqueVenues = Array.from(
+      new Set(events.map((e) => e.venue).filter(Boolean)),
+    )
+    return uniqueVenues.map((v) => ({
+      value: v,
+      label: v,
+    }))
+  }, [events])
+
+  // Event options (filtered by selected venue if a venue is selected)
+  const eventOptions: SearchableOption[] = useMemo(() => {
+    const filteredEvents = seatVenueInput
+      ? events.filter(
+          (e) => e.venue.toLowerCase() === seatVenueInput.toLowerCase(),
+        )
+      : events
+    return filteredEvents.map((ev) => ({
+      value: ev.id,
+      label: ev.title,
+    }))
+  }, [events, seatVenueInput])
+
+  const handleSeatVenueInputChange = (venue: string) => {
+    setSeatVenueInput(venue)
+    setSeatEventIdInput("")
+    setSeatSectionInput("")
+    setSeatRowInput("")
+    const matchingEv = events.find(
+      (e) => e.venue.toLowerCase() === venue.toLowerCase(),
+    )
+    setGallerySearchFilter(matchingEv?.id ? { eventId: matchingEv.id } : null)
+    setHasSearched(false)
+    setSelectedGallerySection("all")
+  }
+
+  const handleSeatEventIdInputChange = (eventId: string) => {
+    setSeatEventIdInput(eventId)
+    const selectedEv = events.find((e) => e.id === eventId)
+    if (
+      selectedEv &&
+      (!seatVenueInput ||
+        seatVenueInput.toLowerCase() !== selectedEv.venue.toLowerCase())
+    ) {
+      setSeatVenueInput(selectedEv.venue)
+    }
+    setSeatSectionInput("")
+    setSeatRowInput("")
+    setGallerySearchFilter(eventId ? { eventId } : null)
+    setHasSearched(false)
+    setSelectedGallerySection("all")
+  }
 
   // Section options
   const sectionOptions: SearchableOption[] = useMemo(() => {
-    if (!seatEventIdInput || !selectedEvent) return []
+    if (!effectiveEventId || !selectedEvent) return []
 
     const seatSections = Array.from(
       new Set(
@@ -125,12 +197,16 @@ export function useEasePix({
       }))
     }
 
-    return []
-  }, [seatEventIdInput, selectedEvent, eventSeats])
+    return [
+      { value: "Cat 1", label: "Cat 1", sublabel: "Premier Sightlines" },
+      { value: "Cat 2", label: "Cat 2", sublabel: "Standard Seating" },
+      { value: "General Admission", label: "General Admission", sublabel: "Free Seating" },
+    ]
+  }, [effectiveEventId, selectedEvent, eventSeats])
 
   // Row and seat options
   const rowSeatOptions: SearchableOption[] = useMemo(() => {
-    if (!seatEventIdInput || !selectedEvent) return []
+    if (!effectiveEventId || !selectedEvent) return []
 
     const filteredSeats = seatSectionInput
       ? eventSeats.filter(
@@ -187,8 +263,69 @@ export function useEasePix({
       return generated
     }
 
-    return []
-  }, [seatEventIdInput, selectedEvent, seatSectionInput, eventSeats])
+    return [
+      { value: "Row A", label: "Row A", sublabel: "Front Row" },
+      { value: "Row B", label: "Row B", sublabel: "Tier 1" },
+      { value: "Row C", label: "Row C", sublabel: "Tier 1" },
+      { value: "General", label: "General", sublabel: "Open Seating" },
+    ]
+  }, [effectiveEventId, selectedEvent, seatSectionInput, eventSeats])
+
+  // When venue changes or is cleared, reset event, section and row/seat selections to empty
+  const prevVenueRef = useRef(seatVenueInput)
+  useEffect(() => {
+    if (prevVenueRef.current !== seatVenueInput) {
+      prevVenueRef.current = seatVenueInput
+      setSeatEventIdInput("")
+      setSeatSectionInput("")
+      setSeatRowInput("")
+    }
+  }, [seatVenueInput])
+
+  // When event changes or is cleared, reset section and row/seat selections to empty
+  const prevEventIdRef = useRef(seatEventIdInput)
+  useEffect(() => {
+    if (prevEventIdRef.current !== seatEventIdInput) {
+      prevEventIdRef.current = seatEventIdInput
+      setSeatSectionInput("")
+      setSeatRowInput("")
+    }
+  }, [seatEventIdInput])
+
+  // When section changes, reset row/seat selection to empty
+  const prevSectionRef = useRef(seatSectionInput)
+  useEffect(() => {
+    if (prevSectionRef.current !== seatSectionInput) {
+      prevSectionRef.current = seatSectionInput
+      setSeatRowInput("")
+    }
+  }, [seatSectionInput])
+
+  // If selected section becomes invalid when options change, clear it (do not auto-populate)
+  useEffect(() => {
+    if (
+      seatSectionInput &&
+      sectionOptions.length > 0 &&
+      !sectionOptions.some(
+        (s) => s.value.toLowerCase() === seatSectionInput.toLowerCase(),
+      )
+    ) {
+      setSeatSectionInput("")
+    }
+  }, [sectionOptions, seatSectionInput])
+
+  // If selected row/seat becomes invalid when options change, clear it (do not auto-populate)
+  useEffect(() => {
+    if (
+      seatRowInput &&
+      rowSeatOptions.length > 0 &&
+      !rowSeatOptions.some(
+        (r) => r.value.toLowerCase() === seatRowInput.toLowerCase(),
+      )
+    ) {
+      setSeatRowInput("")
+    }
+  }, [rowSeatOptions, seatRowInput])
 
   // Open 360 viewer modal
   const handleOpenEaseExplore = useCallback(
@@ -281,8 +418,8 @@ export function useEasePix({
 
   // Find seat views search action
   const handleFindSeatViews = () => {
-    if (!seatEventIdInput) {
-      onShowToast("Please select an event to search seat views")
+    if (!seatVenueInput && !seatEventIdInput) {
+      onShowToast("Please select a venue to search seat views")
       return
     }
     setHasSearched(true)
@@ -324,12 +461,16 @@ export function useEasePix({
 
     const evTitle =
       events.find((e) => e.id === seatEventIdInput)?.title ?? "Selected Event"
+    const venueName =
+      seatVenueInput ||
+      events.find((e) => e.id === seatEventIdInput)?.venue ||
+      evTitle
     if (targetSection !== "all" && searchedRow) {
       onShowToast(`Showing ${targetSection} · ${searchedRow} (Highlighted)`)
     } else if (targetSection !== "all") {
       onShowToast(`Showing ${targetSection} seat views`)
     } else {
-      onShowToast(`Showing seat views for ${evTitle}`)
+      onShowToast(`Showing seat views for ${venueName}`)
     }
     scrollToSection("seat-search-results")
   }
@@ -339,6 +480,7 @@ export function useEasePix({
     setGallerySearchFilter(null)
     setHasSearched(false)
     setSelectedGallerySection("all")
+    setSeatVenueInput("")
     setSeatEventIdInput("")
     setSeatSectionInput("")
     setSeatRowInput("")
@@ -347,17 +489,28 @@ export function useEasePix({
 
   // Dynamic section calculation
   const { orderedSections, sectionsToDisplay, totalPhotos } = useMemo(() => {
-    const targetEventId = gallerySearchFilter?.eventId || seatEventIdInput
+    const targetEventId = gallerySearchFilter?.eventId || effectiveEventId
     if (!targetEventId) {
       return { orderedSections: [], sectionsToDisplay: [], totalPhotos: 0 }
     }
 
-    const userEventPhotos = displayPosts.filter(
-      (p) => p.photo && p.eventId === targetEventId,
-    )
-    const backendEventPix = backendEasePixList.filter(
-      (pix) => pix.eventId === targetEventId,
-    )
+    const venueEvents = seatVenueInput
+      ? events
+          .filter((e) => e.venue.toLowerCase() === seatVenueInput.toLowerCase())
+          .map((e) => e.id)
+      : []
+
+    const userEventPhotos = displayPosts.filter((p) => {
+      if (!p.photo) return false
+      if (seatEventIdInput) return p.eventId === seatEventIdInput
+      if (venueEvents.length > 0) return venueEvents.includes(p.eventId)
+      return p.eventId === targetEventId
+    })
+    const backendEventPix = backendEasePixList.filter((pix) => {
+      if (seatEventIdInput) return pix.eventId === seatEventIdInput
+      if (venueEvents.length > 0) return venueEvents.includes(pix.eventId)
+      return pix.eventId === targetEventId
+    })
 
     const searchedRow = (gallerySearchFilter?.row || seatRowInput || "").trim()
     const matchesSearchedSeat = (seatStr: string) =>
@@ -576,8 +729,14 @@ export function useEasePix({
   ])
 
   return {
+    seatVenueInput,
+    setSeatVenueInput,
+    venueOptions,
+    handleSeatVenueInputChange,
     seatEventIdInput,
     setSeatEventIdInput,
+    eventOptions,
+    handleSeatEventIdInputChange,
     seatSectionInput,
     setSeatSectionInput,
     seatRowInput,

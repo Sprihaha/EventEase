@@ -1,6 +1,5 @@
-import { useRef } from "react"
 import { useNavigate } from "react-router"
-import { Flame, ImageIcon, X, Camera, Tag, Send } from "lucide-react"
+import { Flame, ImageIcon, X, Camera, Send } from "lucide-react"
 import { Button, Textarea } from "../../ui"
 import type { AttachedEasePix, EventItem, User } from "../types"
 
@@ -160,22 +159,6 @@ export function FeedComposer({
           >
             <Camera className="h-3.5 w-3.5" /> Upload EasePix
           </button>
-
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-brand-line bg-white px-3 py-1 text-xs font-bold text-muted">
-            <Tag className="h-3.5 w-3.5 text-brand-orange" />
-            <select
-              aria-label="Tag event"
-              value={selectedEventId}
-              onChange={(e) => onSelectedEventIdChange(e.target.value)}
-              className="cursor-pointer bg-transparent text-xs text-brand-deep outline-none"
-            >
-              {events.map((ev) => (
-                <option key={ev.id} value={ev.id}>
-                  {ev.title}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
         <Button

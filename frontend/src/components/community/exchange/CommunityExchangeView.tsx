@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router"
+import { useNavigate, useSearchParams } from "react-router"
 import { LogIn, Repeat, ShieldCheck, Tag, Users } from "lucide-react"
 import SecureExchange from "../../SecureExchange"
 import { ExchangeHeroArt } from "./ExchangeHeroArt"
@@ -10,23 +10,27 @@ interface CommunityExchangeViewProps {
 
 export function CommunityExchangeView({ user }: CommunityExchangeViewProps) {
   const navigate = useNavigate()
+  const [, setSearchParams] = useSearchParams()
 
   return (
-    <div id="exchange-view" className="max-w-5xl mx-auto pt-0.5 pb-6 space-y-5">
+    <div id="exchange-view" className="w-full pt-0.5 pb-6 space-y-5">
       {/* Section Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-1">
         <div>
-          <h2 className="font-brand text-2xl font-bold tracking-tight text-brand-deep">
-            Ticket Swaps
+          <h2 className="font-brand text-2xl font-bold tracking-tight text-brand-deep flex items-center gap-2">
+            <span className="font-feature italic font-black text-brand-purple">
+              EaseXchange
+            </span>
+            <span>Platform</span>
           </h2>
-          <p className="text-xs text-muted">
-            Face-value ticket swaps backed by community verification
+          <p className="text-xs text-muted mt-1.5">
+            Browse active face-value listings, create exchange requests, and swap tickets securely.
           </p>
         </div>
       </div>
 
       {/* Hero Section */}
-      <div className="rounded-3xl border border-brand-line bg-white p-6 sm:p-10 lg:p-12 shadow-sm">
+      <div className="rounded-3xl border-2 border-brand-purple/20 bg-white p-6 sm:p-10 lg:p-12 shadow-sm">
         <div className="grid grid-cols-1 lg:grid-cols-[1.12fr_1fr] gap-8 lg:gap-12 items-center">
           {/* Left Column: Hero Copy */}
           <div className="max-w-xl">
@@ -71,11 +75,22 @@ export function CommunityExchangeView({ user }: CommunityExchangeViewProps) {
                   type="button"
                   id="try-easexchange-btn"
                   onClick={() => {
-                    const el = document.getElementById("easexchange-app")
-                    if (el) {
-                      el.scrollIntoView({ behavior: "smooth" })
-                    } else {
-                      navigate("/community?tab=exchange")
+                    const container = document.getElementById("community-scroll-viewport")
+                    const el =
+                      document.getElementById("create-request-btn") ||
+                      document.getElementById("exchange-controls") ||
+                      document.getElementById("easexchange-app")
+
+                    if (container && el) {
+                      const containerRect = container.getBoundingClientRect()
+                      const elRect = el.getBoundingClientRect()
+                      const offsetInContainer = elRect.top - containerRect.top + container.scrollTop
+                      container.scrollTo({
+                        top: Math.max(0, Math.round(offsetInContainer - 16)),
+                        behavior: "smooth",
+                      })
+                    } else if (el) {
+                      el.scrollIntoView({ behavior: "smooth", block: "start" })
                     }
                   }}
                   className="cursor-pointer inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand-purple/25 transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
@@ -199,21 +214,7 @@ export function CommunityExchangeView({ user }: CommunityExchangeViewProps) {
 
         {/* EaseXchange Platform: Only available to users who have signed in */}
         {user && (
-          <div id="easexchange-app" className="pt-6 border-t border-brand-line">
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <h3 className="font-brand text-2xl font-bold tracking-tight text-brand-deep flex items-center gap-2">
-                  <span className="font-feature italic font-black text-brand-purple">
-                    EaseXchange
-                  </span>
-                  <span>Platform</span>
-                </h3>
-                <p className="text-xs text-muted">
-                  Browse active face-value listings, create exchange requests,
-                  and swap tickets securely.
-                </p>
-              </div>
-            </div>
+          <div id="easexchange-app" className="pt-8 border-t border-brand-line">
             <SecureExchange key={user.id} />
           </div>
         )}

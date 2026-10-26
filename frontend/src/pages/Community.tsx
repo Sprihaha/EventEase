@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router";
-import { Sparkles, Camera, Rotate3d, Users } from "lucide-react";
+import { Sparkles, Camera, Rotate3d, Users, Bookmark, Clock } from "lucide-react";
 import { cx } from "../components/ui";
 import { useStore } from "../lib/store";
 import {
@@ -18,7 +18,6 @@ import { parseSeatParts } from "../components/community/utils/seatMatching";
 
 import { CommunityHeroBanner } from "../components/community/navigation/CommunityHeroBanner";
 import { CommunityHeaderNav } from "../components/community/navigation/CommunityHeaderNav";
-import { CommunitySidebar } from "../components/community/navigation/CommunitySidebar";
 
 import { EaseConnectFeed } from "../components/community/feed/EaseConnectFeed";
 import { FeedRightRail } from "../components/community/feed/FeedRightRail";
@@ -46,7 +45,6 @@ export default function Community() {
 
   const [backendPosts, setBackendPosts] = useState<BackendCommunityPost[]>([]);
   const [backendEasePixList, setBackendEasePixList] = useState<BackendEasePix[]>([]);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<number | null>(null);
 
@@ -275,189 +273,231 @@ export default function Community() {
         onExploreViews={() => setTab("views")}
       />
 
-      {/* 2. Top-level side-by-side tabs: EaseComms vs EaseExchange */}
+      {/* 2. Primary 3-tab navigation: EaseConnect vs EasePix & EaseXplore vs EaseXchange */}
       <CommunityHeaderNav
-        mainSection={mainSection}
-        onSelectComms={() => {
-          setTab(lastCommsTab);
-          scrollToTabsIfAbove();
-        }}
-        onSelectExchange={() => {
-          setTab("exchange");
+        activeTab={tab as "feed" | "views" | "exchange"}
+        onSelectTab={(newTab) => {
+          setTab(newTab);
           scrollToTabsIfAbove();
         }}
       />
 
-      {/* 3. Main Content: EaseComms vs EaseExchange (Internal Scroll Viewport) */}
+      {/* 3. Main Content: EaseConnect / EasePix & EaseXplore vs EaseXchange */}
       <div
         ref={scrollContainerRef}
         id="community-scroll-viewport"
-        className="community-scroll-container overflow-y-auto max-h-[calc(100vh-175px)] pr-2 sm:pr-3"
+        className="community-scroll-container overflow-y-auto max-h-[calc(100vh-65px)] pr-2 sm:pr-3"
       >
-        {mainSection === "comms" ? (
+        {tab === "feed" && (
           <div
             id="comms-workspace"
-            className={cx(
-              "grid grid-cols-1 gap-6 transition-all duration-300",
-              isSidebarCollapsed
-                ? (tab === "feed" ? "lg:grid-cols-[72px_minmax(0,1fr)_280px]" : "lg:grid-cols-[72px_minmax(0,1fr)]")
-                : (tab === "feed" ? "lg:grid-cols-[240px_minmax(0,1fr)_280px]" : "lg:grid-cols-[240px_minmax(0,1fr)]"),
-            )}
+            className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px]"
           >
-            {/* Left Rail */}
-            <CommunitySidebar
-              tab={tab as "feed" | "views"}
-              onSelectTab={setTab}
-              isSidebarCollapsed={isSidebarCollapsed}
-              onToggleCollapse={setIsSidebarCollapsed}
-              onShowToast={showToast}
-            />
-
             {/* Center Column */}
             <main className="min-w-0 space-y-5">
-              {/* Channel Header Banner */}
-              <div className="rounded-3xl border border-brand-line bg-white p-5 shadow-sm">
+              {/* Section Header */}
+              <div className="space-y-3 px-1">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    {tab === "views" ? (
-                      <div className="flex items-center -space-x-1.5 shrink-0">
-                        <div
-                          title="EasePix: Seat View Photos"
-                          className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-lilac text-brand-purple border-2 border-white shadow-xs"
-                        >
-                          <Camera className="h-5 w-5" />
-                        </div>
-                        <div
-                          title="EaseXplore: 360° Views"
-                          className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-brand-orange border-2 border-white shadow-xs"
-                        >
-                          <Rotate3d className="h-5 w-5" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-lilac text-brand-purple shadow-xs shrink-0">
-                        <Users className="h-5 w-5" />
-                      </div>
-                    )}
-                    <div>
-                      <h2 className="font-brand text-2xl font-bold tracking-tight text-brand-deep">
-                        {tab === "feed" && "Community"}
-                        {tab === "views" && "EasePix & EaseXplore"}
-                      </h2>
-                      <p className="text-xs text-muted">
-                        {tab === "feed" && "What fans are talking about right now across Singapore"}
-                        {tab === "views" && "Share your seat view and browse verified community photos before buying"}
-                      </p>
-                    </div>
+                  <div>
+                    <h2 className="font-feature italic font-black text-2xl tracking-tight text-brand-purple leading-none">
+                      EaseConnect
+                    </h2>
+                    <p className="text-xs text-muted mt-1.5">
+                      What fans are talking about right now across Singapore
+                    </p>
                   </div>
+                </div>
+
+                {/* Horizontal Quick Actions: Saved posts, My groups, Recent activity */}
+                <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap pt-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-muted mr-1">
+                    Your space:
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!user}
+                    title={!user ? "Log in to view saved posts" : "View your saved posts"}
+                    onClick={() => {
+                      if (!user) {
+                        showToast("Please log in to view your saved posts");
+                        return;
+                      }
+                      showToast("You have 4 saved posts.");
+                    }}
+                    className={cx(
+                      "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs",
+                      user
+                        ? "cursor-pointer border-brand-line/70 bg-white text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple hover:border-brand-purple/30"
+                        : "cursor-not-allowed opacity-45 bg-gray-100 text-gray-400 border-gray-200 shadow-none",
+                    )}
+                  >
+                    <Bookmark className={cx("h-3.5 w-3.5", user ? "text-brand-purple" : "text-gray-400")} />
+                    <span>Saved posts</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!user}
+                    title={!user ? "Log in to view your groups" : "View your groups"}
+                    onClick={() => {
+                      if (!user) {
+                        showToast("Please log in to view your groups");
+                        return;
+                      }
+                      showToast("You are part of: Live Music Fans & Festival Crew");
+                    }}
+                    className={cx(
+                      "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs",
+                      user
+                        ? "cursor-pointer border-brand-line/70 bg-white text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple hover:border-brand-purple/30"
+                        : "cursor-not-allowed opacity-45 bg-gray-100 text-gray-400 border-gray-200 shadow-none",
+                    )}
+                  >
+                    <Users className={cx("h-3.5 w-3.5", user ? "text-brand-magenta" : "text-gray-400")} />
+                    <span>My groups</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!user}
+                    title={!user ? "Log in to view recent activity" : "View recent activity"}
+                    onClick={() => {
+                      if (!user) {
+                        showToast("Please log in to view recent activity");
+                        return;
+                      }
+                      showToast("All recent activity is up to date.");
+                    }}
+                    className={cx(
+                      "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs",
+                      user
+                        ? "cursor-pointer border-brand-line/70 bg-white text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple hover:border-brand-purple/30"
+                        : "cursor-not-allowed opacity-45 bg-gray-100 text-gray-400 border-gray-200 shadow-none",
+                    )}
+                  >
+                    <Clock className={cx("h-3.5 w-3.5", user ? "text-brand-orange" : "text-gray-400")} />
+                    <span>Recent activity</span>
+                  </button>
+                  {!user && (
+                    <span className="text-[11px] text-muted italic ml-1">
+                      (Log in to access)
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* EaseConnect Feed Tab */}
-              {tab === "feed" && (
-                <EaseConnectFeed
-                  user={user}
-                  events={events}
-                  posts={feed.filteredPosts}
-                  eventName={eventName}
-                  filter={feed.filter}
-                  onFilterChange={feed.setFilter}
-                  draft={feed.draft}
-                  onDraftChange={feed.setDraft}
-                  selectedEventId={feed.selectedEventId}
-                  onSelectedEventIdChange={feed.setSelectedEventId}
-                  photoUrl={feed.photoUrl}
-                  onPhotoUrlChange={feed.setPhotoUrl}
-                  showPhotoInput={feed.showPhotoInput}
-                  onTogglePhotoInput={feed.setShowPhotoInput}
-                  attachedEasePix={feed.attachedEasePix}
-                  onDetachEasePix={() => {
-                    feed.setAttachedEasePix(null);
-                    feed.setPhotoUrl("");
-                    showToast("EasePix detached from draft");
-                  }}
-                  onOpenUploadModal={() => {
-                    easePix.setShareModalOrigin("composer");
-                    easePix.setSeatPhotoInput(feed.attachedEasePix?.photo || feed.photoUrl || "");
-                    if (!easePix.seatEventIdInput && feed.selectedEventId) {
-                      easePix.setSeatEventIdInput(feed.selectedEventId);
-                    }
-                    easePix.setIsShareModalOpen(true);
-                  }}
-                  onSubmitPost={feed.submitPost}
-                  likedPosts={feed.likedPosts}
-                  likesCount={feed.likesCount}
-                  onToggleLike={feed.toggleLike}
-                  openCommentsForPost={feed.openCommentsForPost}
-                  onToggleComments={(id) =>
-                    feed.setOpenCommentsForPost((prev) => ({ ...prev, [id]: !prev[id] }))
+              {/* EaseConnect Feed */}
+              <EaseConnectFeed
+                user={user}
+                events={events}
+                posts={feed.filteredPosts}
+                eventName={eventName}
+                filter={feed.filter}
+                onFilterChange={feed.setFilter}
+                draft={feed.draft}
+                onDraftChange={feed.setDraft}
+                selectedEventId={feed.selectedEventId}
+                onSelectedEventIdChange={feed.setSelectedEventId}
+                photoUrl={feed.photoUrl}
+                onPhotoUrlChange={feed.setPhotoUrl}
+                showPhotoInput={feed.showPhotoInput}
+                onTogglePhotoInput={feed.setShowPhotoInput}
+                attachedEasePix={feed.attachedEasePix}
+                onDetachEasePix={() => {
+                  feed.setAttachedEasePix(null);
+                  feed.setPhotoUrl("");
+                  showToast("EasePix detached from draft");
+                }}
+                onOpenUploadModal={() => {
+                  easePix.setShareModalOrigin("composer");
+                  easePix.setSeatPhotoInput(feed.attachedEasePix?.photo || feed.photoUrl || "");
+                  if (!easePix.seatEventIdInput && feed.selectedEventId) {
+                    easePix.setSeatEventIdInput(feed.selectedEventId);
                   }
-                  replyDrafts={feed.replyDrafts}
-                  onReplyDraftChange={(id, text) =>
-                    feed.setReplyDrafts((prev) => ({ ...prev, [id]: text }))
-                  }
-                  onSubmitReply={feed.submitReply}
-                  submittingReply={feed.submittingReply}
-                  onPreview360={(p) => easePix.setPreview360Photo(p)}
-                  onShowToast={showToast}
-                  composerRef={feed.composerRef}
-                  textareaRef={feed.textareaRef}
-                />
-              )}
-
-              {/* EasePix Tab */}
-              {tab === "views" && (
-                <EasePixView
-                  user={user}
-                  events={events}
-                  seatEventIdInput={easePix.seatEventIdInput}
-                  onSeatEventIdInputChange={(val) => {
-                    easePix.setSeatEventIdInput(val);
-                    easePix.setSeatSectionInput("");
-                    easePix.setSeatRowInput("");
-                    easePix.setSelectedGallerySection("all");
-                    easePix.setGallerySearchFilter(val ? { eventId: val } : null);
-                    easePix.setHasSearched(false);
-                  }}
-                  seatSectionInput={easePix.seatSectionInput}
-                  onSeatSectionInputChange={(val) => {
-                    easePix.setSeatSectionInput(val);
-                    easePix.setSeatRowInput("");
-                  }}
-                  seatRowInput={easePix.seatRowInput}
-                  onSeatRowInputChange={easePix.setSeatRowInput}
-                  sectionOptions={easePix.sectionOptions}
-                  rowSeatOptions={easePix.rowSeatOptions}
-                  loadingSeats={easePix.loadingSeats}
-                  hasSearched={easePix.hasSearched}
-                  gallerySearchFilter={easePix.gallerySearchFilter}
-                  selectedGallerySection={easePix.selectedGallerySection}
-                  onSelectGallerySection={easePix.setSelectedGallerySection}
-                  sectionsToDisplay={easePix.sectionsToDisplay}
-                  orderedSections={easePix.orderedSections}
-                  totalPhotos={easePix.totalPhotos}
-                  onFindSeatViews={easePix.handleFindSeatViews}
-                  onClearSearchFilter={easePix.handleClearSearchFilter}
-                  onOpenUploadModal={(sectionName) => {
-                    easePix.setShareModalOrigin("easepix");
-                    if (sectionName) easePix.setSeatSectionInput(sectionName);
-                    if (!easePix.seatEventIdInput && events.length > 0) {
-                      easePix.setSeatEventIdInput(events[0].id);
-                    }
-                    easePix.setIsShareModalOpen(true);
-                  }}
-                  onOpenEaseExplore={(sectionName) => easePix.handleOpenEaseExplore(sectionName)}
-                  onLikeEasePix={easePix.handleLikeEasePix}
-                />
-              )}
+                  easePix.setIsShareModalOpen(true);
+                }}
+                onSubmitPost={feed.submitPost}
+                likedPosts={feed.likedPosts}
+                likesCount={feed.likesCount}
+                onToggleLike={feed.toggleLike}
+                openCommentsForPost={feed.openCommentsForPost}
+                onToggleComments={(id) =>
+                  feed.setOpenCommentsForPost((prev) => ({ ...prev, [id]: !prev[id] }))
+                }
+                replyDrafts={feed.replyDrafts}
+                onReplyDraftChange={(id, text) =>
+                  feed.setReplyDrafts((prev) => ({ ...prev, [id]: text }))
+                }
+                onSubmitReply={feed.submitReply}
+                submittingReply={feed.submittingReply}
+                onPreview360={(p) => easePix.setPreview360Photo(p)}
+                onShowToast={showToast}
+                composerRef={feed.composerRef}
+                textareaRef={feed.textareaRef}
+              />
             </main>
 
-            {/* Right Rail: Only visible on EaseConnect feed */}
-            {tab === "feed" && (
-              <FeedRightRail events={events} onShowToast={showToast} />
-            )}
+            {/* Right Rail: Visible on EaseConnect feed */}
+            <FeedRightRail events={events} onShowToast={showToast} />
           </div>
-        ) : (
+        )}
+
+        {tab === "views" && (
+          <div className="space-y-5 min-h-[580px] pb-10">
+            {/* Section Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+              <div>
+                <h2 className="font-feature italic font-black text-2xl tracking-tight text-brand-purple leading-none">
+                  EasePix & EaseXplore
+                </h2>
+                <p className="text-xs text-muted mt-1.5">
+                  Share your seat view and browse verified community photos before buying
+                </p>
+              </div>
+            </div>
+
+            {/* EasePix & EaseXplore View without sidebar */}
+            <EasePixView
+              user={user}
+              events={events}
+              seatVenueInput={easePix.seatVenueInput}
+              onSeatVenueInputChange={easePix.handleSeatVenueInputChange}
+              venueOptions={easePix.venueOptions}
+              seatEventIdInput={easePix.seatEventIdInput}
+              onSeatEventIdInputChange={easePix.handleSeatEventIdInputChange}
+              eventOptions={easePix.eventOptions}
+              seatSectionInput={easePix.seatSectionInput}
+              onSeatSectionInputChange={(val) => {
+                easePix.setSeatSectionInput(val);
+                easePix.setSeatRowInput("");
+              }}
+              seatRowInput={easePix.seatRowInput}
+              onSeatRowInputChange={easePix.setSeatRowInput}
+              sectionOptions={easePix.sectionOptions}
+              rowSeatOptions={easePix.rowSeatOptions}
+              loadingSeats={easePix.loadingSeats}
+              hasSearched={easePix.hasSearched}
+              gallerySearchFilter={easePix.gallerySearchFilter}
+              selectedGallerySection={easePix.selectedGallerySection}
+              onSelectGallerySection={easePix.setSelectedGallerySection}
+              sectionsToDisplay={easePix.sectionsToDisplay}
+              orderedSections={easePix.orderedSections}
+              totalPhotos={easePix.totalPhotos}
+              onFindSeatViews={easePix.handleFindSeatViews}
+              onClearSearchFilter={easePix.handleClearSearchFilter}
+              onOpenUploadModal={(sectionName) => {
+                easePix.setShareModalOrigin("easepix");
+                if (sectionName) easePix.setSeatSectionInput(sectionName);
+                if (!easePix.seatEventIdInput && events.length > 0) {
+                  easePix.setSeatEventIdInput(events[0].id);
+                }
+                easePix.setIsShareModalOpen(true);
+              }}
+              onOpenEaseExplore={(sectionName) => easePix.handleOpenEaseExplore(sectionName)}
+              onLikeEasePix={easePix.handleLikeEasePix}
+            />
+          </div>
+        )}
+
+        {tab === "exchange" && (
           /* Dedicated EaseExchange View */
           <CommunityExchangeView user={user} />
         )}

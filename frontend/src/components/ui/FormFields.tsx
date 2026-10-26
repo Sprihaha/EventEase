@@ -23,9 +23,7 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cx(inputCls, props.className)} />;
 }
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={cx(inputCls, "appearance-none pr-8", props.className)} />;
-}
+export { Select, type CustomSelectProps } from "./CustomSelect";
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
   (props, ref) => {

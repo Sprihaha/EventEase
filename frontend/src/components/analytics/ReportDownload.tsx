@@ -96,9 +96,9 @@ export default function ReportDownload({ label, buildPath, fallbackName, validat
               type="button"
               role="menuitem"
               onClick={() => run(id)}
-              className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-brand-purple/5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
+              className="dropdown-menu-item group flex w-full cursor-pointer items-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
             >
-              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-brand-purple" />
+              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-brand-purple transition-all duration-150" />
               <span>
                 <span className="block text-sm font-semibold text-brand-deep">{name}</span>
                 <span className="block text-xs text-muted">{hint}</span>
