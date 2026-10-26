@@ -461,9 +461,24 @@ export default function Login() {
 
               {portal !== "ADMIN" && (
                 <div className="mt-8 border-t border-brand-purple/10 pt-6 text-center">
-                  <p className="text-sm text-muted">New to EventEase?</p>
-                  <Button className="mt-3" variant="outline" onClick={() => goToSignUp()}>
-                    <UserPlus className="h-4 w-4" /> Sign up as a new user
+                  <p className="text-sm text-muted">
+                    {portal === "ORGANISER" ? "New organiser or event company?" : "New to EventEase?"}
+                  </p>
+                  <Button
+                    className="mt-3"
+                    variant="outline"
+                    onClick={() => {
+                      if (portal === "ORGANISER") {
+                        openSignUpForm("ORGANISER", {});
+                      } else {
+                        goToSignUp();
+                      }
+                    }}
+                  >
+                    <UserPlus className="h-4 w-4" />{" "}
+                    {portal === "ORGANISER"
+                      ? "Sign up as an organiser / register company"
+                      : "Sign up as a new user"}
                   </Button>
                 </div>
               )}
