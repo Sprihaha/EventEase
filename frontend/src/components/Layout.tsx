@@ -14,6 +14,7 @@ import {
   Settings,
   KeyRound,
   Route,
+  User,
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { Button, InfoTooltip, cx } from "./ui";
@@ -178,8 +179,12 @@ export default function Layout() {
                       }}
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30"
                     >
-                      <LayoutDashboard className="h-4 w-4 text-brand-purple" />
-                      <span className="capitalize">{user.role} dashboard</span>
+                      {user.role === "customer" ? (
+                        <User className="h-4 w-4 text-brand-purple" />
+                      ) : (
+                        <LayoutDashboard className="h-4 w-4 text-brand-purple" />
+                      )}
+                      <span className="capitalize">{user.role === "customer" ? "Profile" : `${user.role} dashboard`}</span>
                     </button>
                     <div className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold text-brand-text transition hover:bg-brand-lilac hover:text-brand-purple">
                       <button
