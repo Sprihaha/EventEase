@@ -37,6 +37,7 @@ import {
   type NewEventInput,
 } from "./backendApi";
 import { isTokenExpired, getTokenExpirationMs, notifySessionExpired, onSessionExpired, clearSavedExpiredReturnTo } from "./session";
+import { clearCurrentOrganisation } from "./organisation";
 
 import { fetchBookings, bookingForStore } from "./ticketingApi";
 
@@ -206,6 +207,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Store>(() => {
     // Loads the signed-in user's data from a backend session (after login or a password reset).
     const startSession = async (auth: BackendAuth): Promise<User> => {
+      // Each sign-in starts without an organisation; organisers choose one next.
+      clearCurrentOrganisation();
       const role = auth.user.role === "ORGANISER" ? "organizer" : (auth.user.role.toLowerCase() as Role);
       const account: User = {
         id: auth.user.id,
@@ -243,6 +246,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       logout: () => {
         void backendLogout();
         clearSavedExpiredReturnTo();
+        clearCurrentOrganisation();
         accountId.current = null;
         accountRole.current = null;
         setUser(null);

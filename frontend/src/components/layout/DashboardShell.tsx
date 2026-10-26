@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Navigate, useNavigate } from "react-router";
 import { useStore } from "../../lib/store";
+import { getCurrentOrganisation } from "../../lib/organisation";
 import type { Role } from "../../lib/data";
 import { cx } from "../ui";
 import { PanelLeftClose, PanelLeftOpen, ChevronRight, type LucideIcon } from "lucide-react";
@@ -53,6 +54,8 @@ export function DashboardShell({
   if (sessionLoading) return <p role="status" className="p-10">Restoring session…</p>;
   if (!user) return <Navigate to="/login" replace />;
   if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
+  // Organisers work under a chosen organisation (picked after signing in).
+  if (user.role === "organizer" && !getCurrentOrganisation()) return <Navigate to="/select-organisation" replace />;
   if (user.role !== role) return <Navigate to={`/dashboard/${user.role}`} replace />;
 
   return (

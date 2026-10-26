@@ -12,6 +12,7 @@ import Verify from "./pages/Verify";
 import VerifyEmail from "./pages/VerifyEmail";
 import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
+import SelectOrganisation from "./pages/SelectOrganisation";
 import SignUpChoice from "./pages/SignUpChoice";
 import AccessibilitySettings from "./pages/AccessibilitySettings";
 import AssistanceRequestForm from "./pages/AssistanceRequestForm";
@@ -61,6 +62,7 @@ export const router = createBrowserRouter([
       { path: "verify-email/:code", Component: VerifyEmail },
       { path: "reset-password", Component: ResetPassword },
       { path: "change-password", Component: ChangePassword },
+      { path: "select-organisation", Component: SelectOrganisation },
       // The backend sends administrators who must change their password here.
       { path: "admin/change-password", Component: ChangePassword },
       { path: "settings/accessibility", Component: AccessibilitySettings },

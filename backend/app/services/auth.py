@@ -33,7 +33,7 @@ from app.rules.organisation import check_organisation
 from app.rules.password import check_password
 from app.rules.protected_accounts import check_not_protected, is_protected_username
 from app.rules.username import USERNAME_TAKEN
-from app.services import audit, fraud
+from app.services import audit, fraud, organisations
 from app.services.email_verification import send_signup_verification
 from app.services.mail.base import send_safely
 from app.services.usernames import check_username_available, suggest_usernames
@@ -304,6 +304,8 @@ def signup(db: Session, settings: Settings, *, username: str, password: str, ema
     if organisation is not None:
         db.add(OrganiserApplication(user_id=user.id, organisation_name=organisation[0],
                                     organisation_email=organisation[1]))
+        # The chosen organisation is approved or rejected together with the account request.
+        organisations.add_signup_membership(db, user, organisation[0], organisation[1])
     send_signup_verification(db, settings, user, awaiting_approval=organisation is not None)
     fraud.on_signup(db, user=user, ip=ip)
     return user

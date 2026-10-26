@@ -12,6 +12,7 @@ from app.db.models import (
     FraudSeverity,
     FraudSignalType,
     FraudStatus,
+    MembershipStatus,
     OrganiserApplicationStatus,
     Role,
     SourceKind,
@@ -37,6 +38,8 @@ from app.services.demo_reset import reset_demo_data, reset_target
 from app.services import admin as admin_service
 from app.services import audit
 from app.services import organiser_applications
+from app.services import organisations as organisation_service
+from app.schemas.organisations import OrganisationRequestOut
 from app.services.ingestion.base import get_or_create_source, sync_source, upsert_external_events
 from app.services.ingestion.manual import parse_rows, validate_rows
 from app.services.ingestion.ticketmaster import configured_adapter
@@ -207,6 +210,32 @@ def reject_organiser_request(request_id: str, body: OptionalReason, request: Req
                              admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     return organiser_applications.decide(db, get_settings(), admin, request_id, approve=False, note=body.reason,
                                          ip=client_ip(request))
+
+
+# --------------------------------------------------------------------------- organisation requests
+
+
+@router.get("/organisation-requests", response_model=Page[OrganisationRequestOut],
+            summary="Organisers asking to add an organisation (contact details masked)")
+def list_organisation_requests(db: Session = Depends(get_db),
+                               status_filter: MembershipStatus | None = Query(None, alias="status"),
+                               page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100, alias="pageSize")):
+    return organisation_service.list_requests(db, status=status_filter, page=page, page_size=page_size)
+
+
+@router.post("/organisation-requests/{request_id}/approve", response_model=OrganisationRequestOut,
+             summary="Approve: the organisation is added to the organiser's account")
+def approve_organisation_request(request_id: str, request: Request, admin: User = Depends(require_admin),
+                                 db: Session = Depends(get_db)):
+    return organisation_service.decide(db, get_settings(), admin, request_id, approve=True, note=None,
+                                       ip=client_ip(request))
+
+
+@router.post("/organisation-requests/{request_id}/reject", response_model=OrganisationRequestOut)
+def reject_organisation_request(request_id: str, body: OptionalReason, request: Request,
+                                admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return organisation_service.decide(db, get_settings(), admin, request_id, approve=False, note=body.reason,
+                                       ip=client_ip(request))
 
 
 # --------------------------------------------------------------------------- audit log

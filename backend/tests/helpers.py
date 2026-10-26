@@ -19,7 +19,9 @@ def unique_name(prefix: str = "user") -> str:
     return f"{prefix}{next(_counter)}"[:15]
 
 
-def make_user(db, role: Role = Role.CUSTOMER, username: str | None = None, **fields) -> User:
+def make_user(db, role: Role = Role.CUSTOMER, username: str | None = None, *, organisation: bool = True,
+              **fields) -> User:
+    """Organisers get an approved test organisation unless organisation=False."""
     username = username or unique_name(role.value.lower()[:4])
     user = User(
         username=username,
@@ -31,7 +33,28 @@ def make_user(db, role: Role = Role.CUSTOMER, username: str | None = None, **fie
     )
     db.add(user)
     db.commit()
+    if role == Role.ORGANISER and organisation:
+        add_membership(db, user)
     return user
+
+
+def add_membership(db, user: User, name: str = "Test Organisation", status=None):
+    """Give a user an organisation membership (approved by default), creating the organisation if needed."""
+    from sqlalchemy import select
+
+    from app.db.models import MembershipSource, MembershipStatus, Organisation, OrganisationMembership
+
+    organisation = db.scalar(select(Organisation).where(Organisation.name == name))
+    if organisation is None:
+        organisation = Organisation(name=name, listed=True)
+        db.add(organisation)
+        db.flush()
+    membership = OrganisationMembership(user_id=user.id, organisation_id=organisation.id,
+                                        organisation_email=f"{user.username}@org.example.com",
+                                        status=status or MembershipStatus.APPROVED, source=MembershipSource.ADMIN)
+    db.add(membership)
+    db.commit()
+    return membership
 
 
 def login(client, identifier: str, password: str = PASSWORD) -> dict:

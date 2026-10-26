@@ -18,6 +18,18 @@ class OrganiserApplicationStatus(StrEnum):
     REJECTED = "REJECTED"
 
 
+class MembershipStatus(StrEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class MembershipSource(StrEnum):
+    SIGNUP = "SIGNUP"  # chosen at organiser sign-up; decided with the account request
+    REQUEST = "REQUEST"  # added later by a signed-in organiser; decided on its own
+    ADMIN = "ADMIN"  # set up by an administrator or a data migration
+
+
 class EventCategory(StrEnum):
     # Stored as plain text (no DB constraint) so new categories need no migration.
     CONCERT = "CONCERT"

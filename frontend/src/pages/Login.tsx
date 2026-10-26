@@ -23,7 +23,8 @@ import {
 } from "../lib/backendApi";
 import type { SignUpPrefill, SignUpRole } from "./SignUpChoice";
 import { getSavedExpiredReturnTo, clearSavedExpiredReturnTo, resolveReturnUrl } from "../lib/session";
-import { Badge, Button, Card, Field, Input } from "../components/ui";
+import { Badge, Button, Card, Field, Input, Select } from "../components/ui";
+import { OTHERS, fetchOrganisations, type Organisation } from "../lib/organisation";
 
 type SignUp = {
   userId: string;
@@ -87,6 +88,12 @@ export default function Login() {
   // The login tab; the backend only accepts accounts with this role.
   const [portal, setPortal] = useState<LoginPortal>("CUSTOMER");
   const [approvalRequired, setApprovalRequired] = useState(false);
+  // Organiser sign-up: a listed organisation (by id) or OTHERS for a new one.
+  const [organisations, setOrganisations] = useState<Organisation[]>([]);
+  const [organisationChoice, setOrganisationChoice] = useState("");
+  useEffect(() => {
+    if (mode === "signup" && signUpRole === "ORGANISER") fetchOrganisations().then(setOrganisations).catch(() => setOrganisations([]));
+  }, [mode, signUpRole]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -99,7 +106,7 @@ export default function Login() {
       clearSavedExpiredReturnTo();
       const destination = user.mustChangePassword
         ? "/change-password"
-        : resolveReturnUrl(user.role, returnTo);
+        : user.role === "organizer" ? "/select-organisation" : resolveReturnUrl(user.role, returnTo);
       navigate(destination, { replace: true });
     }
   }, [sessionLoading, user, returnTo, navigate]);
@@ -211,7 +218,7 @@ export default function Login() {
         clearSavedExpiredReturnTo();
         const destination = account.mustChangePassword
           ? "/change-password"
-          : resolveReturnUrl(account.role, returnTo);
+          : account.role === "organizer" ? "/select-organisation" : resolveReturnUrl(account.role, returnTo);
         navigate(destination, { replace: true });
         return;
       }
@@ -276,6 +283,10 @@ export default function Login() {
 
   const handleSignUp = async (event: FormEvent) => {
     event.preventDefault();
+    if (signUpRole === "ORGANISER" && !organisationChoice) {
+      setSignUpError("Please select your organisation.");
+      return;
+    }
     setSigningUp(true);
     setSignUpError("");
     try {
@@ -493,15 +504,32 @@ export default function Login() {
                 </div>
                 {signUpRole === "ORGANISER" && (
                   <>
-                    <Field label="Organisation name">
-                      <Input
-                        value={signUp.organisationName}
-                        onChange={(e) => update("organisationName", e.target.value)}
-                        minLength={2}
-                        maxLength={200}
-                        required
-                      />
+                    <Field label="Organisation">
+                      <Select
+                        value={organisationChoice}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setOrganisationChoice(value);
+                          update("organisationName", value === OTHERS ? "" : organisations.find((o) => o.id === value)?.name ?? "");
+                        }}
+                        placeholder="Select your organisation"
+                      >
+                        <option value="" disabled>Select your organisation</option>
+                        {organisations.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                        <option value={OTHERS}>Others</option>
+                      </Select>
                     </Field>
+                    {organisationChoice === OTHERS && (
+                      <Field label="Organisation name">
+                        <Input
+                          value={signUp.organisationName}
+                          onChange={(e) => update("organisationName", e.target.value)}
+                          minLength={2}
+                          maxLength={200}
+                          required
+                        />
+                      </Field>
+                    )}
                     <Field label="Organisation email">
                       <Input
                         type="email"

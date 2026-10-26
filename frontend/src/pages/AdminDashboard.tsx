@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   CalendarCheck,
   Building2,
+  Briefcase,
   ShieldAlert,
   BarChart3,
   Check,
@@ -26,6 +27,8 @@ import EaseVoiceNarration from "./EaseVoiceNarration";
 import ResetDemoData from "../components/ResetDemoData";
 import OrganiserRequests from "../components/OrganiserRequests";
 import { countPendingOrganiserRequests } from "../lib/backendApi";
+import OrganisationRequestsAdmin from "../components/OrganisationRequestsAdmin";
+import { countPendingOrganisationRequests } from "../lib/organisation";
 
 export default function AdminDashboard() {
   const { events, fraud, assistanceRequests } = useStore();
@@ -36,6 +39,12 @@ export default function AdminDashboard() {
     countPendingOrganiserRequests().then(setPendingOrgs).catch(() => setPendingOrgs(0));
   }, []);
   useEffect(refreshPendingOrgs, [refreshPendingOrgs]);
+  // Organisers asking to add an organisation to their account.
+  const [pendingOrganisations, setPendingOrganisations] = useState(0);
+  const refreshPendingOrganisations = useCallback(() => {
+    countPendingOrganisationRequests().then(setPendingOrganisations).catch(() => setPendingOrganisations(0));
+  }, []);
+  useEffect(refreshPendingOrganisations, [refreshPendingOrganisations]);
   const openFraud = fraud.filter((f) => !f.resolved).length;
   const openAssistance = assistanceRequests.filter((request) =>
     ["Submitted", "Assigned", "In progress"].includes(request.status),
@@ -45,6 +54,7 @@ export default function AdminDashboard() {
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "events", label: "Event approvals", icon: CalendarCheck, badge: pendingEvents },
     { id: "organizers", label: "Organiser requests", icon: Building2, badge: pendingOrgs },
+    { id: "organisations", label: "Organisation requests", icon: Briefcase, badge: pendingOrganisations },
     { id: "fraud", label: "Fraud monitor", icon: ShieldAlert, badge: openFraud },
     { id: "sales", label: "Sales status", icon: CircleDollarSign },
     { id: "assistance", label: "Assistance queue", icon: ClipboardList, badge: openAssistance },
@@ -68,6 +78,7 @@ export default function AdminDashboard() {
           {active === "overview" && <><Overview /><div className="mt-8"><ResetDemoData /></div></>}
           {active === "events" && <EventApprovals />}
           {active === "organizers" && <OrganiserRequests onChanged={refreshPendingOrgs} />}
+          {active === "organisations" && <OrganisationRequestsAdmin onChanged={refreshPendingOrganisations} />}
           {active === "fraud" && <FraudMonitor />}
           {active === "sales" && <SalesStatus />}
           {active === "seats" && <OperationsSeatMap events={events} eyebrow="Platform seat maps" />}

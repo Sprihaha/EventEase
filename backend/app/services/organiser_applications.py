@@ -11,7 +11,7 @@ from app.core.errors import AppError
 from app.core.security import utcnow
 from app.db.models import OrganiserApplication, OrganiserApplicationStatus, User
 from app.rules.contact import mask_email, mask_phone
-from app.services import audit
+from app.services import audit, organisations
 from app.services.mail.base import send_safely
 
 
@@ -72,6 +72,7 @@ def decide(db: Session, settings: Settings, admin: User, raw_id: str, *, approve
                  before={"status": OrganiserApplicationStatus.PENDING.value},
                  after={"status": application.status.value, "userId": str(user.id),
                         "organisation": application.organisation_name, "note": application.review_note}, ip=ip)
+    organisations.decide_signup_membership(db, user, admin, approve=approve, note=application.review_note)
     db.commit()
     if user.email_verified_at is not None:
         _email_decision(settings, user, application)

@@ -19,6 +19,8 @@ from app.db.models.enums import (
     FraudSeverity,
     FraudSignalType,
     FraudStatus,
+    MembershipSource,
+    MembershipStatus,
     OrganiserApplicationStatus,
     PaymentKind,
     PaymentStatus,
@@ -30,6 +32,7 @@ from app.db.models.enums import (
 )
 from app.db.models.event import Event, EventSource, TicketCategory
 from app.db.models.monitoring import AuditLog, FraudSignal
+from app.db.models.organisation import Organisation, OrganisationMembership
 from app.db.models.organiser import OrganiserApplication
 from app.db.models.user import (
     EmailVerificationToken,
@@ -45,6 +48,7 @@ __all__ = [
     "EventSeat", "SeatClaim", "ExchangeSettlement",
     "Venue", "VenueSeat", "VenueSection",
     "OrganiserApplication", "OrganiserApplicationStatus",
+    "Organisation", "OrganisationMembership", "MembershipStatus", "MembershipSource",
     "ExchangeMatch",
     "ExchangeMatchStatus",
     "ExchangeRequest",

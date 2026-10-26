@@ -5,12 +5,13 @@ from collections.abc import Callable
 import jwt
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.security import decode_access_token
-from app.db.models import Role, User, UserStatus
+from app.db.models import MembershipStatus, OrganisationMembership, Role, User, UserStatus
 from app.db.session import get_db
 
 bearer_scheme = HTTPBearer(auto_error=False, description="Access token from /api/v1/auth/login")
@@ -98,5 +99,16 @@ def require_roles(*roles: Role) -> Callable[..., User]:
 
 
 require_customer = require_roles(Role.CUSTOMER)
-require_organiser = require_roles(Role.ORGANISER)
+# Any organiser account, even one still waiting for an organisation (to view or request one).
+require_organiser_account = require_roles(Role.ORGANISER)
+
+
+def require_organiser(user: User = Depends(require_organiser_account), db: Session = Depends(get_db)) -> User:
+    """Organiser features need at least one admin-approved organisation membership."""
+    approved = db.scalar(select(OrganisationMembership.id).where(
+        OrganisationMembership.user_id == user.id, OrganisationMembership.status == MembershipStatus.APPROVED).limit(1))
+    if approved is None:
+        raise AppError(403, "ORGANISATION_REQUIRED", "add an organisation and wait for approval to use organiser features",
+                       {"redirectTo": "/select-organisation"})
+    return user
 require_admin = require_roles(Role.ADMIN)

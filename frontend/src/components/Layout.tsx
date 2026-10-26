@@ -29,6 +29,7 @@ import {
 } from "../lib/session";
 
 import { AccessibilityBar } from "./layout/AccessibilityBar";
+import { OrganisationSwitcher } from "./layout/OrganisationSwitcher";
 
 const navLinks = [
   { to: "/events", label: "Discover", icon: Search },
@@ -151,6 +152,7 @@ export default function Layout() {
             <div className="hidden lg:block">
               <AccessibilityBar />
             </div>
+            {user?.role === "organizer" && <OrganisationSwitcher />}
             {user ? (
               <div ref={userMenu} className="relative">
                 <Button
