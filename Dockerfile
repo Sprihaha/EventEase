@@ -58,7 +58,7 @@ COPY monolith/nginx.conf /etc/nginx/conf.d/default.conf
 RUN rm -f /etc/nginx/sites-enabled/default
 
 # ── supervisord config ───────────────────────────────────────────────────
-COPY monolith/supervisord.conf /etc/supervisor/conf.d/eventease.conf
+COPY monolith/supervisord.conf /etc/supervisor/supervisord.conf
 
 # Render injects PORT but in the monolith Nginx always listens on 10000
 # (Render's free plan expects port 10000 by default when using Docker).
