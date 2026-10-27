@@ -1,4 +1,4 @@
-import secrets
+﻿import secrets
 import os
 import warnings
 from functools import lru_cache
@@ -239,6 +239,34 @@ class Settings(BaseSettings):
             port=self.DB_PORT,
             database=self.DB_NAME,
         )
+
+
+def _sanitise_database_url(url: str) -> str:
+    """Normalise a Supabase (or any PostgreSQL) DATABASE_URL for use inside Docker.
+
+    Supabase connection strings sometimes include ``sslmode=verify-full`` and
+    ``sslrootcert=/root/.postgresql/postgresql.crt``.  When the container runs
+    as a non-root user (uid 10001) that path is unreadable, crashing startup.
+    We downgrade to ``sslmode=require`` (still encrypted, no cert file needed)
+    and strip any explicit ``sslrootcert`` parameter so the driver does not try
+    to open a file it cannot read.
+    """
+    from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
+    url = url.replace("postgres://", "postgresql://", 1)
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query, keep_blank_values=True)
+
+    # Downgrade verify-full / verify-ca -> require; keep require / prefer / disable as-is.
+    ssl_mode = params.get("sslmode", ["require"])[0]
+    if ssl_mode in ("verify-full", "verify-ca"):
+        params["sslmode"] = ["require"]
+
+    # Remove the cert-file pointer — it points to /root/ which non-root users cannot read.
+    params.pop("sslrootcert", None)
+
+    new_query = urlencode({k: v[0] for k, v in params.items()})
+    return urlunparse(parsed._replace(query=new_query))
 
 
 _ephemeral_secret: str | None = None
