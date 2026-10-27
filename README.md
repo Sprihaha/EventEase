@@ -80,10 +80,11 @@ EventEase/
 │   │   ├── pages/          # Application views (Home, Browse, Dashboards, Verify, etc.)
 │   │   ├── routes.tsx      # React Router 7 route definitions
 │   │   └── App.tsx         # Main application container
-│   ├── public/             # Static public assets
+│   ├── public/             # Static public assets (logos, icons, robots, sitemap)
 │   ├── package.json        # Frontend scripts and dependencies
 │   └── vite.config.ts      # Vite build configuration
-├── docker-compose.yml      # Multi-container orchestration
+├── logos/                  # Brand wordmark and logo asset files
+├── docker-compose.yml      # Multi-container full-stack orchestration
 └── README.md               # Unified project documentation
 ```
 
@@ -92,7 +93,7 @@ EventEase/
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Node.js**: `v18.0.0` or higher (`v20+` recommended) & `npm` / `pnpm`
+- **Node.js**: `v18.0.0` or higher (`v20+` recommended) & `npm`
 - **Python**: `3.12+`
 - **Database**: PostgreSQL 14+ (local instance, Docker, or hosted Supabase)
 
@@ -151,7 +152,7 @@ EventEase/
 3. **Configure environment variables**:
    ```bash
    cp .env.example .env
-   # Ensure VITE_API_URL points to your backend (default: http://localhost:8000)
+   # Ensure VITE_API_BASE_URL points to your backend (default: http://localhost:8000)
    ```
 
 4. **Start the frontend development server**:
@@ -164,11 +165,15 @@ EventEase/
 
 ### 3. Docker Compose (Alternative)
 
-To spin up the entire application stack (PostgreSQL database, FastAPI backend, and React frontend) using Docker:
+To spin up the entire application stack using Docker:
 
 ```bash
 docker compose up --build
 ```
+
+* **Frontend Application**: `http://localhost:3000`
+* **FastAPI Backend & Docs**: `http://localhost:8000/api/docs`
+* **PostgreSQL Database**: `localhost:5432`
 
 ---
 

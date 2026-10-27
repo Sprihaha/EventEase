@@ -1,0 +1,71 @@
+# Full-Stack Docker Compose for EventEase (PostgreSQL + FastAPI + React)
+# Usage:
+#   docker compose up --build
+#
+# Services:
+#   - Database:  PostgreSQL 17 on port 5432
+#   - Backend:   FastAPI REST API on http://localhost:8000 (Docs: http://localhost:8000/api/docs)
+#   - Frontend:  React (Nginx SPA) on http://localhost:3000
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: eventease-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eventease}
+      POSTGRES_USER: ${POSTGRES_USER:-eventease}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eventease} -d ${POSTGRES_DB:-eventease}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eventease-api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-eventease}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-eventease}
+      DB_SSLMODE: disable
+      DB_SCHEMA: public
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_at_least_32_characters_long_for_security}
+      APP_ENV: ${APP_ENV:-development}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      PAYMENT_PROVIDER: mock
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    container_name: eventease-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:

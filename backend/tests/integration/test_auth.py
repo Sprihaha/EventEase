@@ -284,7 +284,7 @@ def test_refresh_rejects_foreign_origin(client, db):
     login(client, user.username)
     response = client.post("/api/v1/auth/refresh", headers={"Origin": "https://evil.example.com"})
     assert response.status_code == 403 and error_of(response)["code"] == "ORIGIN_NOT_ALLOWED"
-    assert client.post("/api/v1/auth/refresh", headers={"Origin": "https://myapp.figma.site"}).status_code == 200
+    assert client.post("/api/v1/auth/refresh", headers={"Origin": "https://eventease-frontend-invd.onrender.com"}).status_code == 200
 
 
 def test_logout_revokes_refresh_token(client, db):

@@ -32,7 +32,7 @@ services:
       - key: CORS_ORIGINS
         sync: false
       - key: CORS_ORIGIN_REGEX
-        value: https://([a-z0-9-]+\.)*(figma\.(site|com)|onrender\.com)
+        value: https://([a-z0-9-]+\.)*onrender\.com
       - key: FRONTEND_URL
         value: https://eventease-frontend-invd.onrender.com
 

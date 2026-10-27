@@ -53,10 +53,10 @@ def test_security_headers(client):
     assert response.headers["Cache-Control"] == "no-store"
 
 
-def test_cors_allows_figma_origin_with_credentials(client):
+def test_cors_allows_onrender_origin_with_credentials(client):
     response = client.options("/api/v1/auth/login", headers={
-        "Origin": "https://eventease.figma.site", "Access-Control-Request-Method": "POST"})
-    assert response.headers["access-control-allow-origin"] == "https://eventease.figma.site"
+        "Origin": "https://eventease-frontend-invd.onrender.com", "Access-Control-Request-Method": "POST"})
+    assert response.headers["access-control-allow-origin"] == "https://eventease-frontend-invd.onrender.com"
     assert response.headers["access-control-allow-credentials"] == "true"
     blocked = client.options("/api/v1/auth/login", headers={
         "Origin": "https://evil.example.com", "Access-Control-Request-Method": "POST"})
