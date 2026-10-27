@@ -20,13 +20,19 @@ export default function SEO({
   title,
   description = DEFAULT_DESC,
   canonicalPath,
-  image = DEFAULT_IMAGE,
+  image,
   type = "website",
   structuredData,
 }: SEOProps) {
   const [searchable] = useWebSearchable();
 
   useEffect(() => {
+    const siteUrl = typeof window !== "undefined" && window.location.origin
+      ? window.location.origin
+      : "https://eventease-frontend-invd.onrender.com";
+    const defaultImage = `${siteUrl}/EventEase_logo.png`;
+    const resolvedImage = image || defaultImage;
+
     // 1. Update Document Title
     const fullTitle = title ? `${title} | EventEase` : DEFAULT_TITLE;
     document.title = fullTitle;
@@ -52,13 +58,13 @@ export default function SEO({
     setMeta("property", "og:title", fullTitle);
     setMeta("property", "og:description", description);
     setMeta("property", "og:type", type);
-    const absoluteImg = image.startsWith("http")
-      ? image
-      : `${SITE_URL}${image.startsWith("/") ? "" : "/"}${image}`;
+    const absoluteImg = resolvedImage.startsWith("http")
+      ? resolvedImage
+      : `${siteUrl}${resolvedImage.startsWith("/") ? "" : "/"}${resolvedImage}`;
     setMeta("property", "og:image", absoluteImg);
 
     const canonicalUrl = canonicalPath
-      ? `${SITE_URL}${canonicalPath.startsWith("/") ? "" : "/"}${canonicalPath}`
+      ? `${siteUrl}${canonicalPath.startsWith("/") ? "" : "/"}${canonicalPath}`
       : window.location.href;
     setMeta("property", "og:url", canonicalUrl);
 

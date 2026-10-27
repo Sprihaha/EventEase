@@ -14,5 +14,6 @@ Disallow: /change-password
 Disallow: /assistance/request/
 
 # Sitemaps
+Sitemap: https://eventease-frontend-invd.onrender.com/sitemap.xml
 Sitemap: https://eventease-frontend.onrender.com/sitemap.xml
 Sitemap: https://eventease-backend-qkbl.onrender.com/api/v1/sitemap.xml
