@@ -60,15 +60,12 @@ RUN rm -f /etc/nginx/sites-enabled/default
 # ── supervisord config ───────────────────────────────────────────────────
 COPY monolith/supervisord.conf /etc/supervisor/conf.d/eventease.conf
 
-# Non-root user for the Python process (Nginx still needs root for port 80)
-RUN useradd --create-home --uid 10001 eventease
-
 # Render injects PORT but in the monolith Nginx always listens on 10000
 # (Render's free plan expects port 10000 by default when using Docker).
 EXPOSE 10000
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:10000/health')"
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:10000/health')"
 
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
 
