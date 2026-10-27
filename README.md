@@ -11,6 +11,10 @@
 
 **EventEase** is a modern, accessible, full-stack event discovery, ticketing, and venue operations platform tailored for concerts, theatre, sports, and cultural events in Singapore. Built with a **React 19** frontend and a **FastAPI + PostgreSQL** backend, EventEase bridges attendee accessibility with enterprise-grade ticketing and venue management.
 
+> 🚀 **Live Deployments:**
+> - **Frontend Application**: [https://eventease-frontend-invd.onrender.com](https://eventease-frontend-invd.onrender.com)
+> - **Backend API & Docs**: [https://eventease-backend-qkbl.onrender.com](https://eventease-backend-qkbl.onrender.com) | [Swagger UI](https://eventease-backend-qkbl.onrender.com/api/docs) | [Health Check](https://eventease-backend-qkbl.onrender.com/health)
+
 ---
 
 ## 🌟 Key Features
