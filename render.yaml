@@ -1,0 +1,89 @@
+# Render Blueprint: Full-Stack EventEase (Backend API + Frontend Client)
+# Docs: https://render.com/docs/blueprint-spec
+#
+# This single blueprint deploys both services together:
+# 1. eventease-backend (FastAPI + PostgreSQL connection)
+# 2. eventease-frontend (React 19 + Nginx SPA)
+
+services:
+  # ==========================================
+  # 1. Backend REST API Service
+  # ==========================================
+  - type: web
+    name: eventease-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        value: eventease_db
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSLMODE
+        value: require
+      - key: DB_SCHEMA
+        value: public
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: eventeaseadmin
+      # Set ADMIN_PASSWORD in the Render dashboard or seed via shell
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CORS_ORIGIN_REGEX
+        value: https://([a-z0-9-]+\.)*onrender\.com
+      - key: FRONTEND_URL
+        value: https://eventease-frontend-invd.onrender.com
+
+      - key: TICKETMASTER_API_KEY
+        sync: false
+      - key: PAYMENT_PROVIDER
+        value: mock
+      # Mail: using SendGrid over HTTPS (works on Render free plan, no domain needed).
+      # Set SENDGRID_API_KEY in the Render dashboard — never commit it.
+      - key: MAIL_TRANSPORT
+        value: sendgrid
+      - key: MAIL_FROM
+        value: "EventEase <admin.gendol@gmail.com>"
+      - key: SENDGRID_API_KEY
+        sync: false
+      # Resend and SMTP are not used on Render; kept here in case of future switch.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+
+  # ==========================================
+  # 2. Frontend Web Client (Nginx SPA)
+  # ==========================================
+  - type: web
+    name: eventease-frontend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - key: PORT
+        value: "80"
+      - key: VITE_API_BASE_URL
+        value: https://eventease-backend-qkbl.onrender.com
+      - key: VITE_TICKETMASTER_API_KEY
+        sync: false

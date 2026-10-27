@@ -73,7 +73,7 @@ class ResendMailer:
 
 
 class SendGridMailer:
-    """Live transactional email delivery via SendGrid v3 REST API."""
+    """Live transactional email delivery via the official SendGrid Python SDK."""
 
     def __init__(self, settings: Settings | None = None) -> None:
         cfg = settings or get_settings()
@@ -83,13 +83,10 @@ class SendGridMailer:
             raise RuntimeError("SENDGRID_API_KEY must be set when MAIL_TRANSPORT=sendgrid")
 
     def send(self, to: str, subject: str, body: str) -> None:
-        import httpx
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import From, Mail, PlainTextContent, To
 
-        url = "https://api.sendgrid.com/v3/mail/send"
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        # Parse "Display Name <email@addr>" format
         from_email = self.mail_from
         from_name = None
         if "<" in from_email and ">" in from_email:
@@ -97,22 +94,23 @@ class SendGridMailer:
             from_name = parts[0].strip()
             from_email = parts[1].rstrip(">").strip()
 
-        from_obj: dict[str, str] = {"email": from_email}
-        if from_name:
-            from_obj["name"] = from_name
-
-        payload = {
-            "personalizations": [{"to": [{"email": to}]}],
-            "from": from_obj,
-            "subject": subject,
-            "content": [{"type": "text/plain", "value": body}],
-        }
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.post(url, headers=headers, json=payload)
-            if resp.is_error:
-                logger.error("SendGrid delivery failed (%s): %s", resp.status_code, resp.text)
-                resp.raise_for_status()
-            logger.info("SendGrid mail sent successfully to %s", to)
+        message = Mail(
+            from_email=From(email=from_email, name=from_name),
+            to_emails=To(email=to),
+            subject=subject,
+            plain_text_content=PlainTextContent(body),
+        )
+        try:
+            sg = SendGridAPIClient(self.api_key)
+            response = sg.send(message)
+            logger.info(
+                "SendGrid mail sent successfully to %s (status: %s)",
+                to,
+                response.status_code,
+            )
+        except Exception as e:
+            logger.error("SendGrid delivery failed: %s", getattr(e, "message", str(e)))
+            raise
 
 
 class SmtpMailer:
