@@ -13,8 +13,8 @@ services:
     name: eventease
     runtime: docker
     plan: free
-    # Root-level Dockerfile builds both frontend + backend in one image
-    dockerfilePath: ./Dockerfile
+    rootDir: project
+    dockerfilePath: Dockerfile
     dockerContext: .
     # Render health-check hits this path on the public port (10000 → Nginx → Uvicorn)
     healthCheckPath: /health
