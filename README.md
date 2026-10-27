@@ -1,332 +1,267 @@
-# EventEase Backend
+# EventEase
 
-REST API for EventEase, a ticketing platform for concerts, theatre, sports and
-cultural events in Singapore. Built with **FastAPI, SQLAlchemy 2, Alembic and
-PostgreSQL**. All endpoints are versioned under `/api/v1`, and interactive docs
-are served at **`/api/docs`**.
+[![React](https://img.shields.io/badge/React-19.0-blue?logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-6.0-purple?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14%2B-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-red?logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
 
-- Currency is SGD; every price is an **integer number of cents**.
-- Timestamps are stored in UTC. Date-only filters and timezone-less input are
-  interpreted as Asia/Singapore time.
-- Every error uses one shape:
-  `{"error": {"code": "USERNAME_TAKEN", "message": "username is taken", "details": {}}}`
+**EventEase** is a modern, accessible, full-stack event discovery, ticketing, and venue operations platform tailored for concerts, theatre, sports, and cultural events in Singapore. Built with a **React 19** frontend and a **FastAPI + PostgreSQL** backend, EventEase bridges attendee accessibility with enterprise-grade ticketing and venue management.
 
-## Contents
+---
 
-1. [Quick start](#quick-start)
-2. [Configuration](#configuration)
-3. [Database, migrations and seeding](#database-migrations-and-seeding)
-4. [Running the tests](#running-the-tests)
-5. [API overview](#api-overview)
-6. [Design notes and assumptions](#design-notes-and-assumptions)
-7. [Deployment](#deployment)
+## 🌟 Key Features
 
-## Quick start
+### 🎟️ Event Discovery & Frictionless Ticketing
+- **Live Event Catalog**: Real-time search, category filtering (Music, Tech, Sports, Arts, Community), date range, and price sorting.
+- **Interactive Seat Map**: Dynamic venue layout visualization with tier pricing, capacity limits, and seat selection.
+- **Concurrency-Safe Reservation**: 10-minute temporary seat holding backed by atomic database row updates to prevent overselling.
+- **Purchase Limits**: Configurable customer limits (default: max 6 tickets per event) to mitigate scalping.
+- **Digital QR Passes**: Automatic QR code pass generation (`qrcode`) and instant gate verification at `/verify/:ref`.
 
-Requirements: Python 3.12 and a PostgreSQL 14+ database (local, Docker or Supabase).
+### ♿ Inclusive by Design (EaseVoice & Accessibility)
+- **EaseVoice Audio Narration**: Client-side speech synthesis providing vocal walkthroughs of event listings and schedules for visually impaired attendees.
+- **Accessibility Engine**: User-toggleable high-contrast themes, dyslexia-friendly typography, customizable text scaling, and reduced motion settings.
+- **On-Site Assistance Requests**: Integrated workflow allowing attendees to submit specialized on-site accessibility requirements (e.g., wheelchair access, guide dogs, audio loops) linked to their bookings.
 
-```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate      macOS/Linux: source .venv/bin/activate
-pip install -r requirements-dev.txt
+### 👥 Role-Based Portals & Dashboards
+- **Customer Portal** (`/dashboard/customer`): Manage active passes, download QR entry passes, inspect order history, process eligible cancellations (up to 48 hours before events), and submit assistance requests.
+- **Organizer Portal** (`/dashboard/organizer`): Create and edit events, configure ticket tiers, monitor real-time sales and quotas, inspect live venue occupancy (`OperationsSeatMap`), and manage attendee assistance requests.
+- **Administrator Portal** (`/dashboard/admin`): System-wide health monitoring (`EaseAnalytics`), ticket gate verification scanner, EaseVoice narration configuration, external event ingestion, and fraud signal auditing.
 
-cp .env.example .env              # PowerShell: Copy-Item .env.example .env
-# edit .env: database settings and JWT_SECRET (any 32+ random characters)
+### 🛡️ Security, Privacy & Integrity
+- **Authentication**: JWT access tokens (15-min TTL) paired with secure HTTP-only refresh cookies.
+- **Role-Based Access Control (RBAC)**: Strict separation between `CUSTOMER`, `ORGANISER`, and `ADMIN` privileges.
+- **PDPA Compliance**: Automated 90-day retention policies for authentication logs and IP histories; sensitive contact details are masked across administrative interfaces.
+- **Fraud & Scalping Detection**: Automated rate-limiting, failed login lockout counters, and heuristic fraud alerts.
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | [React 19](https://react.dev/), [TypeScript 5.7](https://www.typescriptlang.org/), [Vite](https://vitejs.dev/), [React Router 7](https://reactrouter.com/) |
+| **Styling & Icons** | [Tailwind CSS v4](https://tailwindcss.com/) via `@tailwindcss/vite`, [Lucide React](https://lucide.dev/) |
+| **Backend API** | [FastAPI](https://fastapi.tiangolo.com/) (Python 3.12), [Pydantic v2](https://docs.pydantic.dev/) |
+| **Database & ORM** | [PostgreSQL 14+](https://www.postgresql.org/), [SQLAlchemy 2.0](https://www.sqlalchemy.org/), [Alembic](https://alembic.sqlalchemy.org/) |
+| **Payments & Integrations** | Stripe / Mock Payment Provider, Ticketmaster Discovery API Adapter |
+| **Testing & Tooling** | `pytest`, `Docker Compose`, `qrcode`, Web Speech API |
+
+---
+
+## 📂 Project Structure
+
+```text
+EventEase/
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/         # Versioned REST endpoints (auth, events, bookings, admin, etc.)
+│   │   ├── core/           # Security, config, rate limiting, and dependencies
+│   │   ├── db/             # SQLAlchemy models, sessions, and database migrations
+│   │   ├── schemas/        # Pydantic validation schemas
+│   │   ├── services/       # Business logic (ticketing, fraud, payments, email)
+│   │   ├── cli.py          # Administrative CLI commands (seeding, maintenance)
+│   │   └── main.py         # FastAPI application entry point
+│   ├── tests/              # Pytest test suite (unit and integration)
+│   ├── alembic/            # Database schema migrations
+│   └── requirements.txt    # Python production and development dependencies
+├── frontend/
+│   ├── src/
+│   │   ├── components/     # UI primitives, SeatMap, EaseAnalytics, AssistanceQueue
+│   │   ├── lib/            # API client (backendApi.ts), global store, accessibility context
+│   │   ├── pages/          # Application views (Home, Browse, Dashboards, Verify, etc.)
+│   │   ├── routes.tsx      # React Router 7 route definitions
+│   │   └── App.tsx         # Main application container
+│   ├── public/             # Static public assets
+│   ├── package.json        # Frontend scripts and dependencies
+│   └── vite.config.ts      # Vite build configuration
+├── docker-compose.yml      # Multi-container orchestration
+└── README.md               # Unified project documentation
 ```
 
-Before starting the application, complete the separately authorized migration
-release step described below. The required schema head is **0007**. Application
-startup does not run Alembic or create the required schema.
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- **Node.js**: `v18.0.0` or higher (`v20+` recommended) & `npm` / `pnpm`
+- **Python**: `3.12+`
+- **Database**: PostgreSQL 14+ (local instance, Docker, or hosted Supabase)
+
+---
+
+### 1. Backend Setup
+
+1. **Navigate to the backend directory and activate a virtual environment**:
+   ```bash
+   cd backend
+   python -m venv .venv
+   # Windows:
+   .venv\Scripts\activate
+   # macOS/Linux:
+   source .venv/bin/activate
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+3. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   # Update database connection settings and set a secure JWT_SECRET
+   ```
+
+4. **Apply database migrations and seed default data**:
+   ```bash
+   alembic upgrade head
+   python -m app.cli seed-admin      # Generates initial administrator credentials
+   python -m app.cli seed-sample     # Optional: Populates sample events for local development
+   ```
+
+5. **Start the API development server**:
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
+   Interactive Swagger documentation will be available at: **`http://localhost:8000/api/docs`**
+
+---
+
+### 2. Frontend Setup
+
+1. **Navigate to the frontend directory**:
+   ```bash
+   cd ../frontend
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   # Ensure VITE_API_URL points to your backend (default: http://localhost:8000)
+   ```
+
+4. **Start the frontend development server**:
+   ```bash
+   npm run dev
+   ```
+   The application will be live at: **`http://localhost:5173`**
+
+---
+
+### 3. Docker Compose (Alternative)
+
+To spin up the entire application stack (PostgreSQL database, FastAPI backend, and React frontend) using Docker:
 
 ```bash
-python -m app.cli seed-admin      # prints the generated admin password ONCE
-python -m app.cli seed-sample     # optional: labelled sample events (dev only)
-uvicorn app.main:app --reload     # http://localhost:8000/api/docs
+docker compose up --build
 ```
 
-### With Docker Compose (Postgres + API)
+---
 
-```bash
-cp .env.example .env              # set POSTGRES_PASSWORD (any local value) and JWT_SECRET
-docker compose up -d db
-```
+## ⚙️ Configuration & Environment Variables
 
-Stop here until the selected database has reached revision **0007** through a
-separately authorized migration release step. Starting the database service does
-not apply migrations. Only after the required schema exists, start the API:
-
-```bash
-docker compose up --build api
-docker compose exec api python -m app.cli seed-admin
-```
-
-Container/application startup does **not** automatically run Alembic migrations.
-
-### npm-style aliases
-
-`package.json` maps the spec's commands onto the Python CLI. Activate the
-virtualenv first.
-
-| npm script | Runs |
-|---|---|
-| `npm run seed:admin` | `python -m app.cli seed-admin` |
-| `npm run admin:reset-password -- --username eventeaseadmin` | `python -m app.cli admin-reset-password --username eventeaseadmin` |
-| `npm run migrate` | `alembic upgrade head` |
-| `npm test` | `python -m pytest` |
-
-## Configuration
-
-All configuration comes from environment variables or `.env`. See
-[.env.example](.env.example) for the full list. Never commit `.env`.
+### Backend Configuration (`backend/.env`)
 
 | Variable | Default | Purpose |
-|---|---|---|
-| `APP_ENV` | `development` | `development`, `test` or `production` |
-| `DATABASE_URL` *or* `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME` | – | PostgreSQL connection |
-| `DB_SSLMODE` | `require` | `disable` for local Docker |
-| `DB_SCHEMA` | `public` | Schema holding the EventEase tables |
-| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | `5` / `5` | Keep the total below your pooler's client limit (Supabase session pooler: 15) |
-| `JWT_SECRET` | – | **Required in production**, at least 32 characters |
-| `ACCESS_TOKEN_TTL_MINUTES` / `REFRESH_TOKEN_TTL_DAYS` | `15` / `7` | Token lifetimes |
-| `ADMIN_USERNAME` | `eventeaseadmin` | Default administrator |
-| `ADMIN_PASSWORD` | *(blank)* | Optional; leave blank to generate one on first seed |
-| `AUTO_SEED_ADMIN` | `true` | Seed on startup if no admin exists (see [Default administrator](#default-administrator)) |
-| `CORS_ORIGINS` / `CORS_ORIGIN_REGEX` | localhost / `*.figma.site`, `*.figma.com` | Allowed frontend origins (credentials enabled) |
-| `FRONTEND_URL` | `http://localhost:5173` | Used in password-reset links |
-| `TICKETMASTER_API_KEY` | *(blank)* | Enables the Ticketmaster Discovery adapter |
-| `PURCHASE_LIMIT_PER_EVENT` | `6` | Max tickets per customer per event |
-| `BOOKING_HOLD_MINUTES` | `10` | Seats held while awaiting payment |
-| `CANCELLATION_CUTOFF_HOURS` | `48` | Customers can cancel up to this long before the event |
-| `PAYMENT_PROVIDER` | `mock` | `mock` or `stripe` (with `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) |
-| `MAIL_TRANSPORT` | `console` | Development transport that prints emails to stdout |
-| `RATE_*` | see `app/core/config.py` | Per-IP / per-identifier rate limits (`count/seconds`) |
-| `FRAUD_*` | see `app/core/config.py` | Fraud detection thresholds |
-| `DATA_RETENTION_DAYS` | `90` | PDPA retention for login attempts and sign-up IPs |
+| :--- | :--- | :--- |
+| `APP_ENV` | `development` | Environment mode (`development`, `test`, `production`) |
+| `DATABASE_URL` | — | PostgreSQL connection string (`postgresql://user:pass@host:5432/dbname`) |
+| `DB_SCHEMA` | `public` | Database schema name |
+| `JWT_SECRET` | — | Secret key used for signing JWT access tokens (minimum 32 characters) |
+| `ACCESS_TOKEN_TTL_MINUTES` | `15` | Access token lifetime |
+| `REFRESH_TOKEN_TTL_DAYS` | `7` | Refresh token cookie lifetime |
+| `FRONTEND_URL` | `http://localhost:5173` | Allowed frontend origin for CORS and password reset redirection |
+| `PURCHASE_LIMIT_PER_EVENT` | `6` | Maximum tickets a single customer can reserve per event |
+| `BOOKING_HOLD_MINUTES` | `10` | Temporary seat hold expiration window |
+| `CANCELLATION_CUTOFF_HOURS`| `48` | Minimum advance notice required for customer refunds |
+| `PAYMENT_PROVIDER` | `mock` | Payment gateway (`mock` or `stripe`) |
+| `TICKETMASTER_API_KEY` | — | Optional API key for syncing external Ticketmaster events |
+| `DATA_RETENTION_DAYS` | `90` | PDPA data retention window for security logs and IPs |
 
-## Database, migrations and seeding
+### Frontend Configuration (`frontend/.env`)
 
-The configured application schema is **`DB_SCHEMA=public`**. The current required
-code head is **0007**. Revisions **0006** and **0007** have already been applied
-successfully to the real Supabase database, which is at **0007 (head)**.
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `VITE_API_BASE_URL` | `http://localhost:8000/api/v1` | Base URL for FastAPI REST service |
 
-Migrations are a deliberate, separately authorized release step, never an
-application-startup action. For a future release or a different database, verify
-the intended target and revision, preserve a verified backup, and obtain approval
-before applying pending migrations. Production/deployment must start the updated
-application only after its required schema revision has been applied. A code push
-or container restart does not perform that step.
+---
 
-The following are manual maintenance commands, not startup hooks. Run only the
-command authorized for the selected database; routine startup requires none of
-these migration or seeding commands.
+## 📡 Core API Reference
 
-```bash
-alembic upgrade head                                   # apply migrations
-alembic revision --autogenerate -m "describe change"   # after editing app/db/models
-python -m app.cli seed-admin                           # idempotent
-python -m app.cli admin-reset-password --username eventeaseadmin
-python -m app.cli seed-sample                          # refuses to run in production
-python -m app.cli ingest-events                        # Ticketmaster sync (needs API key)
-python -m app.cli purge-old-data                       # PDPA retention (also runs daily in the API)
-```
+All backend endpoints are prefixed with `/api/v1`. Full interactive documentation and schema definitions are served at `/api/docs`.
 
-### Legacy tables
+### Authentication (`/api/v1/auth`)
+- `POST /login` — Authenticate user and issue access token with HTTP-only refresh cookie
+- `POST /signup` — Register customer or organizer account
+- `GET /username-available` — Real-time validation of username availability
+- `POST /refresh` — Refresh access token using secure session cookie
+- `POST /logout` — Revoke session and clear cookies
+- `POST /forgot-password` & `POST /reset-password` — Password recovery workflow
+- `POST /change-password` 🔒 — Mandatory or voluntary password update
 
-Migration `0001` renames the old `users`, `events` and `eventease_state` tables
-to `legacy_*`. No data is dropped. It only renames tables in `DB_SCHEMA`.
+### Events (`/api/v1/events`)
+- `GET /events` — Public catalog search with category, date, price, and pagination filters
+- `GET /events/{id}` 🔒 — Retrieve detailed event specifications, venue seating, and pricing tiers
 
-On Supabase, those tables are owned by `postgres`, not by the application role.
-In that case the migration stops with instructions instead of guessing.
+### Customer & Bookings (`/api/v1`)
+- `POST /bookings` 🔒 — Reserve seats with temporary 10-minute hold (supports `Idempotency-Key`)
+- `POST /bookings/{id}/pay` 🔒 — Confirm payment and transition hold to confirmed booking
+- `GET /me/bookings` 🔒 — Retrieve attendee's upcoming and past bookings
+- `POST /me/bookings/{id}/cancel` 🔒 — Cancel reservation and initiate inventory restock and refund
+- `GET /verify/{ref}` — Verify authenticity of a ticket reference or digital QR pass
 
-**EventEase uses `DB_SCHEMA=public`**, as configured in `render.yaml` and
-`.env.example`. The legacy rename behavior belongs to initial migration `0001`;
-it is not part of routine startup or the already completed 0006/0007 upgrade.
-Do not rerun legacy-table preparation against the migrated deployment.
+### Organizer Operations (`/api/v1/organiser`)
+- `GET /events` & `POST /events` 🔒 — View and create managed events
+- `PATCH /events/{id}` 🔒 — Modify event parameters and venue schedules
+- `POST /events/{id}/ticket-categories` 🔒 — Configure ticket tiers, quotas, and pricing
+- `GET /events/{id}/sales` 🔒 — Inspect sales figures, ticket distribution, and remaining capacity
 
-### Default administrator
+### Administration (`/api/v1/admin`)
+- `GET /events` & `POST /events/{id}/approve|reject|suspend` 🔒 — Event moderation pipeline
+- `POST /events/import` 🔒 — Bulk ingestion of curated events (CSV / JSON)
+- `POST /sources/ticketmaster/sync` 🔒 — Synchronize external events via Ticketmaster Discovery API
+- `GET /users` & `POST /users/{id}/suspend` 🔒 — User account governance
+- `GET /fraud-signals` & `GET /audit-logs` 🔒 — Platform security and compliance monitoring
 
-- Username: `ADMIN_USERNAME` (default `eventeaseadmin`). It is reserved, so
-  sign-up treats it as taken.
-- Password: no password is ever hard-coded.
-  - If `ADMIN_PASSWORD` is set and passes the password rules, it is used.
-  - Otherwise a 20-character password is generated with a CSPRNG and printed
-    **once** to the console. It is never logged or written to a file.
-- The account has no email address, so forgot-password does not apply to it.
-  Recover access with `admin-reset-password`, which works on the server only,
-  never over HTTP.
-- The account is created with `mustChangePassword = true`. Until the password
-  is changed:
-  - login returns `"redirectTo": "/admin/change-password"`;
-  - every admin route returns `403 PASSWORD_CHANGE_REQUIRED`.
-- **In production, startup seeding only happens when `ADMIN_PASSWORD` is set.**
-  A generated password would otherwise end up in the host's log store. If you
-  don't set it, run `python -m app.cli seed-admin` from the Render shell.
+---
 
-## Running the tests
+## 🧪 Testing & Quality Assurance
+
+### Running Backend Tests
+The backend test suite covers authentication rules, concurrency safeguards, overselling prevention, fraud detection, and role guards:
 
 ```bash
-python -m pytest            # about 213 tests
-python -m pytest tests/unit # rule tests only; no database needed
+cd backend
+
+# Run the complete test suite
+python -m pytest
+
+# Run unit tests only (no database required)
+python -m pytest tests/unit
 ```
 
-Integration tests run against real PostgreSQL inside an isolated schema
-(`TEST_DB_SCHEMA`, default `eventease_test`):
+### Frontend Code Quality
+Validate TypeScript types and formatting:
 
-- The schema is created by running the real Alembic migrations and dropped at
-  the end.
-- The suite refuses to run against `public`.
-- Point `TEST_DATABASE_URL` at a dedicated test database to keep tests off a
-  shared server.
-- Set `KEEP_TEST_SCHEMA=1` to inspect the schema after a run.
+```bash
+cd frontend
 
-Coverage highlights:
-
-- Every username, password, email and phone rule, with exact error messages.
-- Login (unknown user, wrong password, lockout, redirect for each role).
-- Sign-up suggestions are verified against the database.
-- An admin cannot be created through sign-up.
-- The admin seed is idempotent and contains no hard-coded password.
-- Role guards, plus a deny-by-default check over every route.
-- Organisers are isolated from each other's events.
-- **Concurrent booking cannot oversell.**
-- Cancellation restores inventory and issues a refund.
-- Every fraud detector.
-
-## API overview
-
-Endpoints marked 🔒 need `Authorization: Bearer <accessToken>`.
-
-**Auth** (`/api/v1/auth`)
-
-- Login and sign-up:
-  - `POST /login`: body `{identifier, password}`. Unknown identifier → `404 SIGNUP_REQUIRED`; wrong password → `401 INVALID_CREDENTIALS`.
-  - `POST /signup`: role is `CUSTOMER` or `ORGANISER` only; `ADMIN` → `403 ROLE_NOT_ALLOWED`.
-  - `GET /username-available?username=`: same codes and suggestions as sign-up.
-- Passwords:
-  - `POST /forgot-password`: always `200`.
-  - `POST /reset-password`.
-  - 🔒 `POST /change-password`.
-- Session:
-  - `POST /refresh` and `POST /logout`: use the httpOnly refresh cookie.
-  - 🔒 `GET /me`.
-
-**Events**
-
-- `GET /api/v1/events`: public. Query params: `q`, `category`, `dateFrom`, `dateTo`, `location`, `priceMin`, `priceMax` (SGD), `sort` (`date`, `-date`, `price`, `-price`), `page`, `pageSize`.
-- 🔒 `GET /api/v1/events/{id}`: returns `401 LOGIN_REQUIRED` with `details.eventId` when not logged in.
-
-**Customer** 🔒
-
-- `POST /api/v1/bookings` (optional `Idempotency-Key` header)
-- `POST /api/v1/bookings/{id}/pay`
-- `GET /api/v1/me/bookings?when=upcoming|past|all`
-- `GET /api/v1/me/bookings/{id}`
-- `POST /api/v1/me/bookings/{id}/cancel`
-- `GET /api/v1/me/tickets/history`
-
-**Organiser** 🔒 (`/api/v1/organiser/events`)
-
-- `POST` · `GET` · `GET /{id}` · `PATCH /{id}`
-- `GET|POST /{id}/ticket-categories` · `PATCH|DELETE /{id}/ticket-categories/{categoryId}`
-- `GET /{id}/sales`
-
-**Admin** 🔒 (`/api/v1/admin`)
-
-- Events:
-  - `GET /events` · `GET /events/{id}`
-  - `POST /events/{id}/approve | reject | suspend | unsuspend`
-  - `POST /events/import` (CSV or JSON)
-  - `POST /sources/ticketmaster/sync`
-- Users: `GET /users` · `POST /users/{id}/suspend | unsuspend`
-- Monitoring:
-  - `GET /fraud-signals` · `POST /fraud-signals/{id}/review | dismiss`
-  - `GET /audit-logs`
-
-### Login responses for the frontend
-
-```json
-{ "accessToken": "...", "tokenType": "Bearer", "expiresIn": 900,
-  "user": { "id": "...", "username": "...", "role": "CUSTOMER" },
-  "redirectTo": "/customer/dashboard", "mustChangePassword": false }
+# Run TypeScript type check
+npm run build
 ```
 
-- Keep the access token in memory. The refresh token is set as an httpOnly
-  cookie scoped to `/api/v1/auth`.
-- Call `/refresh` with `credentials: "include"`.
-- In production the cookie is `SameSite=None; Secure`, because the frontend and
-  API live on different sites.
+---
 
-### Importing curated events
+## 📄 License & Attribution
 
-CSV columns or JSON keys:
-
-- **Required:** `sourceName`, `title`, `category`, `venueName`, `startAt`, `externalUrl`.
-- **Optional:** `externalId`, `shortDescription`, `description`, `area`, `endAt`, `imageUrl`, `priceMin`, `priceMax` (SGD).
-
-Rows are de-duplicated by `(sourceName, externalId)`. If `externalId` is
-missing, it is derived from the URL. Invalid rows are reported per row and do
-not block the rest of the import.
-
-## Design notes and assumptions
-
-- **Real events only.** Imported and Ticketmaster events have
-  `origin = EXTERNAL`. They are never purchasable here and link to the official
-  page instead. Sample data is fictional, titled `[SAMPLE] …`, flagged
-  `is_sample` and hidden in production.
-- **Ticketmaster Discovery API.** Terms were checked on 2026-10-17:
-  - default quota is 5,000 calls/day at 5 requests/second;
-  - content may only be cached for reasonable periods, and must be removed
-    within 24 hours on request;
-  - you may not derive revenue from the API.
-
-  The adapter only lists events, links back to Ticketmaster, and prunes them a
-  week after they end. **Confirm with Ticketmaster before any commercial use.**
-- **Overselling.** Each purchase reserves seats with one conditional
-  `UPDATE … WHERE total - sold - held >= n`. A DB check constraint
-  (`sold + held <= total`) backs it up.
-- **Purchase limit.** The limit is enforced under a row lock on the customer.
-  It counts both PENDING_PAYMENT and CONFIRMED tickets.
-- **Ticket pricing.** "Price cannot be reduced below what's sold" is read as:
-  once a category has sales, its price may go up but not down, and quantity
-  cannot fall below sold + held.
-- **Suspensions.** Suspending an event cancels unpaid holds and emails affected
-  customers. Confirmed bookings are **not** refunded automatically.
-- **Event status.** Besides `REVIEW_IN_PROGRESS`, `APPROVED` and `REJECTED`,
-  events can be `SUSPENDED`.
-- **Account enumeration (accepted).** Login returns `SIGNUP_REQUIRED` for
-  unknown identifiers, and `username-available` reveals taken names. Both are
-  required by the spec and mitigated with rate limits.
-- **Lockout.** 5 consecutive failures lock an account for 15 minutes. The
-  counter lives in the database. `forgotPasswordAvailable` is `false` for the
-  admin, which has no email.
-- **Username and password rules.**
-  - Usernames allow digits 0–8 only (9 is rejected, as specified).
-  - An empty username fails with `USERNAME_INVALID_CHARS`.
-  - A password "symbol" is any character that isn't an ASCII letter, a digit or
-    whitespace. Passwords are capped at 128 characters.
-- **PDPA.**
-  - Contact details are only returned to their owner (`/auth/me`). Admin views
-    mask them.
-  - Fraud signals store a masked phone number, never the raw one.
-  - Login attempts and sign-up IPs are purged after `DATA_RETENTION_DAYS`.
-- **Rate limiting** is in memory, which is fine for one instance. Use a shared
-  store before scaling out. Lockout and fraud data are already in the database.
-- **Connection pooling.** The Supabase session pooler ignores libpq startup
-  options, so `search_path` is set on every new connection. Use the session
-  pooler (port 5432) or a direct connection, **not** transaction mode (6543).
-
-## Deployment
-
-The Render blueprint is in [render.yaml](render.yaml).
-
-1. Set the database variables, `ADMIN_PASSWORD` (or seed later from the shell),
-   `CORS_ORIGINS` and `FRONTEND_URL`. `JWT_SECRET` is generated automatically.
-2. Set **`DB_SCHEMA=public`**. The current required schema head is **0007**.
-3. Before starting the updated application, verify that the target database has
-   the required revision. Apply any pending migrations only as a separate,
-   explicitly authorized release step after backup and readiness checks. The
-   real Supabase deployment has already reached **0007 (head)**.
-4. Start the application only after that schema prerequisite is satisfied. The
-   container starts Uvicorn with `--proxy-headers`, so client IPs come from
-   `X-Forwarded-For`. It does **not** automatically run Alembic migrations.
-5. `/health` reports `{"status": "healthy", "database": "connected"}`.
+This project is developed as part of the NTU Mini Capstone (Full Stack) Project. All rights reserved.
