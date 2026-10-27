@@ -1,11 +1,10 @@
-# Full-Stack Docker Compose for EventEase (PostgreSQL + FastAPI + React)
+# Full-Stack Docker Compose for EventEase (PostgreSQL + Monolith App)
 # Usage:
 #   docker compose up --build
 #
 # Services:
-#   - Database:  PostgreSQL 17 on port 5432
-#   - Backend:   FastAPI REST API on http://localhost:8000 (Docs: http://localhost:8000/api/docs)
-#   - Frontend:  React (Nginx SPA) on http://localhost:3000
+#   - Database: PostgreSQL 17 on port 5432
+#   - App:      EventEase Monolith (React SPA + FastAPI) on http://localhost:10000
 
 services:
   db:
@@ -26,46 +25,32 @@ services:
       retries: 10
     restart: unless-stopped
 
-  api:
+  app:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: eventease-api
+    container_name: eventease-app
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-eventease}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-eventease}
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${POSTGRES_DB:-eventease}
+      DB_USER: ${POSTGRES_USER:-eventease}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       DB_SSLMODE: disable
       DB_SCHEMA: public
       JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_at_least_32_characters_long_for_security}
+      ADMIN_USERNAME: eventeaseadmin
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-AdminPass123!}
       APP_ENV: ${APP_ENV:-development}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:10000}
+      CORS_ORIGINS: http://localhost:10000,http://localhost:5173
       PAYMENT_PROVIDER: mock
     ports:
-      - "8000:8000"
+      - "10000:10000"
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
-    container_name: eventease-frontend
-    ports:
-      - "3000:80"
-    environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
-    depends_on:
-      - api
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
 volumes:
   pgdata:
