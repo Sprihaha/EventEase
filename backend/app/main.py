@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import contextlib
 import logging
 from contextlib import asynccontextmanager
@@ -129,10 +129,12 @@ def create_app() -> FastAPI:
         return response
 
     @app.get("/", tags=["System"], include_in_schema=False)
+    @app.head("/", tags=["System"], include_in_schema=False)
     def root():
         return {"name": "EventEase API", "docs": "/api/docs", "health": "/health"}
 
     @app.get("/health", tags=["System"])
+    @app.head("/health", tags=["System"])
     def health(db: Session = Depends(get_db)):
         try:
             db.execute(text("SELECT 1"))
