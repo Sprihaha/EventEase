@@ -1,0 +1,18 @@
+# robots.txt for EventEase
+User-agent: *
+Allow: /
+Allow: /events
+Allow: /events/*
+Allow: /community
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /settings/
+Disallow: /verify/
+Disallow: /verify-email/
+Disallow: /reset-password
+Disallow: /change-password
+Disallow: /assistance/request/
+
+# Sitemaps
+Sitemap: https://eventease-frontend.onrender.com/sitemap.xml
+Sitemap: https://eventease-backend-qkbl.onrender.com/api/v1/sitemap.xml

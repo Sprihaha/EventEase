@@ -25,6 +25,7 @@ import { OperationsSeatMap } from "../components/OperationsSeatMap";
 import AssistanceQueue from "../components/AssistanceQueue";
 import EaseVoiceNarration from "./EaseVoiceNarration";
 import ResetDemoData from "../components/ResetDemoData";
+import { WebSearchableControl } from "../components/common";
 import OrganiserRequests from "../components/OrganiserRequests";
 import { countPendingOrganiserRequests } from "../lib/backendApi";
 import OrganisationRequestsAdmin from "../components/OrganisationRequestsAdmin";
@@ -75,7 +76,15 @@ export default function AdminDashboard() {
             <StatCard label="Organiser requests" value={String(pendingOrgs)} tone={pendingOrgs ? "accent" : undefined} />
           </div>
 
-          {active === "overview" && <><Overview /><div className="mt-8"><ResetDemoData /></div></>}
+          {active === "overview" && (
+            <>
+              <Overview />
+              <div className="mt-8 space-y-6">
+                <WebSearchableControl />
+                <ResetDemoData />
+              </div>
+            </>
+          )}
           {active === "events" && <EventApprovals />}
           {active === "organizers" && <OrganiserRequests onChanged={refreshPendingOrgs} />}
           {active === "organisations" && <OrganisationRequestsAdmin onChanged={refreshPendingOrganisations} />}

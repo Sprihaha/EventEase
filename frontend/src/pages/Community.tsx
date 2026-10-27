@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router";
 import { Sparkles, Camera, Rotate3d, Users, Bookmark, Clock } from "lucide-react";
 import { cx } from "../components/ui";
+import { SEO } from "../components/common";
 import { useStore } from "../lib/store";
 import {
   backendListPosts,
@@ -277,8 +278,33 @@ export default function Community() {
     }
   };
 
+  const commsTitle =
+    tab === "exchange"
+      ? "EaseXchange — Verified Fan-to-Fan Ticket Exchange"
+      : tab === "views"
+      ? "EasePix & Venue Views — Real Fan Seat Photos"
+      : "EaseComms — Fan Community & Event Discussions";
+  const commsDesc =
+    tab === "exchange"
+      ? "Exchange and buy verified event tickets safely without scalpers or fraudulent markups on EventEase."
+      : tab === "views"
+      ? "Browse real community seat photos, stage visibility, and 360 degree venue views before you buy tickets."
+      : "Connect with fellow event attendees in Singapore, discuss concerts and upcoming shows, and share your experiences.";
+
   return (
     <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <SEO
+        title={commsTitle}
+        description={commsDesc}
+        canonicalPath={`/community${tab !== "feed" ? `?tab=${tab}` : ""}`}
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": commsTitle,
+          "description": commsDesc,
+          "url": `https://eventease-frontend.onrender.com/community${tab !== "feed" ? `?tab=${tab}` : ""}`,
+        }}
+      />
       {/* 1. Cinematic Hero Banner */}
       <CommunityHeroBanner
         user={user}

@@ -5,6 +5,7 @@ import { useStore } from "../lib/store";
 import { categoryList, type Category } from "../lib/data";
 import { EventCard } from "../components/EventCard";
 import { Eyebrow, Input, Select, cx } from "../components/ui";
+import { SEO } from "../components/common";
 
 export default function Browse() {
   const { publicEvents: events, eventsSource, eventsError } = useStore();
@@ -44,8 +45,25 @@ export default function Browse() {
     syncParams(q, c);
   };
 
+  const pageTitle = cat !== "All" ? `${cat} Events & Tickets` : "Explore Events & Shows";
+  const pageDesc = q
+    ? `Search results for "${q}" across upcoming events on EventEase.`
+    : "Browse upcoming accessible concerts, arts festivals, and entertainment with real-time seat availability.";
+
   return (
     <div className="mx-auto max-w-7xl px-5 py-12">
+      <SEO
+        title={pageTitle}
+        description={pageDesc}
+        canonicalPath="/events"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          "name": pageTitle,
+          "description": pageDesc,
+          "url": "https://eventease-frontend.onrender.com/events"
+        }}
+      />
       <Eyebrow>Discover</Eyebrow>
       <h1 className="mt-2 font-brand text-4xl sm:text-5xl font-bold tracking-tight text-brand-deep">
         Browse events

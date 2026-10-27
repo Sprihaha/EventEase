@@ -1,8 +1,11 @@
 {
-  "title": "EventEase - The Ultimate Event Experience",
-  "description": "Manage and purchase event tickets with tailored dashboards for customers, organizers, and admins, ensuring role-based access and seamless event management.",
+  "title": "EventEase - Accessible Events, Discovery & Community Ticketing",
+  "description": "Discover, book, and experience accessible events with EventEase. Inclusive ticketing, seat companion requests, and community ticket exchange.",
   "robots": {
-    "index": false
+    "index": true
+  },
+  "openGraph": {
+    "image": "/EventEase_logo.png"
   },
   "accessibility": {
     "addBypassLinks": false,

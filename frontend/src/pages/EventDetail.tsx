@@ -6,10 +6,11 @@ import { fetchTicketingEvent, fetchSeats, holdSeats, holdCategories, payBooking,
   type BackendBooking, type LiveSeat, type TicketingEvent } from "../lib/ticketingApi";
 import { SeatMap } from "../components/SeatMap";
 import { Badge, Button, Card, QRCode, ticketPayload } from "../components/ui";
+import { SEO } from "../components/common";
 
 export default function EventDetail() {
   const { id = "" } = useParams();
-  const { user, sessionLoading, refreshBookings } = useStore();
+  const { user, sessionLoading, refreshBookings, publicEvents } = useStore();
   const [event, setEvent] = useState<TicketingEvent | null>(null);
   const [seats, setSeats] = useState<LiveSeat[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -72,11 +73,57 @@ export default function EventDetail() {
     await cancelHeldBooking(booking.id); setBooking(null); setSelected([]); setQuantities({}); key.current = null;
     await refreshBookings(); await loadSeats();
   });
-  if (sessionLoading) return <p className="p-12" role="status">Restoring your session…</p>;
-  if (!user) return <div className="mx-auto max-w-xl p-12 text-center"><h1 className="font-brand text-3xl">Sign in to book tickets</h1><Link to="/login" state={{ returnTo: `/events/${id}` }}><Button className="mt-5">Sign in</Button></Link></div>;
-  if (loading) return <p className="p-12" role="status">Loading event and seats…</p>;
-  if (!event) return <div className="p-12"><p role="alert">{error || "Event not found."}</p><Link to="/events">Back to events</Link></div>;
+
+  const publicEv = publicEvents.find(e => e.id === id);
+  const displayTitle = event?.title ?? publicEv?.title;
+  const displayDesc = event?.description ?? publicEv?.blurb ?? "View event details, seat map and ticketing information.";
+  const displayVenue = event?.venueName ?? publicEv?.venue ?? "Singapore";
+  const displayImage = event?.imageUrl ?? publicEv?.image ?? "/EventEase_logo.png";
+  const displayDate = event?.startAt ?? publicEv?.date;
+
+  const eventStructuredData = displayTitle ? {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    "name": displayTitle,
+    "description": displayDesc,
+    "startDate": displayDate,
+    "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+    "eventStatus": "https://schema.org/EventScheduled",
+    "location": {
+      "@type": "Place",
+      "name": displayVenue,
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Singapore",
+        "addressCountry": "SG"
+      }
+    },
+    "image": [displayImage.startsWith("http") ? displayImage : `https://eventease-frontend.onrender.com${displayImage.startsWith("/") ? "" : "/"}${displayImage}`],
+    "offers": {
+      "@type": "AggregateOffer",
+      "priceCurrency": "SGD",
+      "availability": "https://schema.org/InStock",
+      "url": `https://eventease-frontend.onrender.com/events/${id}`
+    }
+  } : undefined;
+
+  const seoComponent = (
+    <SEO
+      title={displayTitle ? `${displayTitle} - Tickets & Info` : "Event Details"}
+      description={displayDesc}
+      canonicalPath={`/events/${id}`}
+      image={displayImage}
+      type="event"
+      structuredData={eventStructuredData}
+    />
+  );
+
+  if (sessionLoading) return <><SEO title="Event Details" canonicalPath={`/events/${id}`} /><p className="p-12" role="status">Restoring your session…</p></>;
+  if (!user) return <div className="mx-auto max-w-xl p-12 text-center">{seoComponent}<h1 className="font-brand text-3xl">Sign in to book tickets</h1><Link to="/login" state={{ returnTo: `/events/${id}` }}><Button className="mt-5">Sign in</Button></Link></div>;
+  if (loading) return <><SEO title={displayTitle ? `${displayTitle} - Tickets & Info` : "Event Details"} canonicalPath={`/events/${id}`} /><p className="p-12" role="status">Loading event and seats…</p></>;
+  if (!event) return <div className="p-12">{seoComponent}<p role="alert">{error || "Event not found."}</p><Link to="/events">Back to events</Link></div>;
   return <div className="mx-auto max-w-7xl px-5 py-10">
+    {seoComponent}
     <div className="relative mb-8 h-64 overflow-hidden rounded-3xl">
       <img src={event.imageUrl ?? "/event-placeholder.svg"} alt={event.title} className="h-full w-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/70 to-transparent" />

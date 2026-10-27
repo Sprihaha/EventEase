@@ -144,6 +144,11 @@ def create_app() -> FastAPI:
                 content={"status": "unhealthy", "database": "disconnected"},
             )
 
+    @app.get("/sitemap.xml", tags=["SEO"], include_in_schema=False)
+    def sitemap_root(db: Session = Depends(get_db)):
+        from app.api.v1.sitemap import sitemap_xml
+        return sitemap_xml(db)
+
     # Legacy QR links resolve only authoritative tickets. The old unauthenticated
     # /state mock-store write routes are deliberately no longer exposed.
     @app.get("/tickets/{ref}", tags=["Tickets"], include_in_schema=False)

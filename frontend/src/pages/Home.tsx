@@ -20,6 +20,36 @@ import { useStore } from "../lib/store";
 import { categoryList } from "../lib/data";
 import { EventCard } from "../components/EventCard";
 import { Badge, Button, Eyebrow, Input } from "../components/ui";
+import { SEO } from "../components/common";
+
+const homeStructuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://eventease-frontend.onrender.com/#website",
+      "url": "https://eventease-frontend.onrender.com",
+      "name": "EventEase",
+      "description": "Accessible events, discovery and community ticketing platform.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://eventease-frontend.onrender.com/events?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://eventease-frontend.onrender.com/#organization",
+      "name": "EventEase",
+      "url": "https://eventease-frontend.onrender.com",
+      "logo": "https://eventease-frontend.onrender.com/EventEase_logo.png",
+      "description": "Accessible ticketing platform designed for inclusive event experiences."
+    }
+  ]
+};
 
 const promises = [
   { icon: ShieldCheck, h: "No hidden fees", p: "The price you see is the price you pay. Every fee itemised at checkout." },
@@ -45,6 +75,12 @@ export default function Home() {
 
   return (
     <div className="bg-brand-warm text-brand-text">
+      <SEO
+        title="Find & Experience Accessible Events"
+        description="Discover and book accessible concerts, theatre, festivals, and sports events with ease. Companion assistance and verified community ticket exchange."
+        canonicalPath="/"
+        structuredData={homeStructuredData}
+      />
       <section className="home-hero relative overflow-hidden text-white">
         <div
           aria-hidden

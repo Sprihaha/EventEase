@@ -66,11 +66,12 @@ class Settings(BaseSettings):
     # CORS / frontend
     CORS_ORIGINS: str = (
         "http://localhost:5173,http://localhost:8000,http://localhost:8443,"
-        "https://eventease-frontend-invd.onrender.com"
+        "https://eventease-frontend-invd.onrender.com,"
+        "https://eventease-frontend.onrender.com"
     )
     CORS_ORIGIN_REGEX: str = r"https://([a-z0-9-]+\.)*(figma\.(site|com)|onrender\.com)"
     # Links in emails point here; defaults to live Render frontend or local Vite 8443
-    FRONTEND_URL: str = "https://eventease-frontend-invd.onrender.com"
+    FRONTEND_URL: str = "https://eventease-frontend.onrender.com"
 
 
     # Default administrator
