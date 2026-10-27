@@ -1,12 +1,20 @@
-import type { Category, EventItem, EventStatus } from "./data";
+﻿import type { Category, EventItem, EventStatus } from "./data";
 
-const API_ORIGIN =
-  ((import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL) as string | undefined)?.replace(/\/$/, "") ??
-  "https://eventease-backend-qkbl.onrender.com";
-if ((import.meta.env.VITE_LOCAL_SANDBOX === "true" || import.meta.env.VITE_LOCAL_ONLY === "true") && !["localhost", "127.0.0.1", "[::1]"].includes(new URL(API_ORIGIN).hostname)) {
+// In the monolith deployment VITE_API_BASE_URL is intentionally left empty so
+// that API calls go to the same origin as the page (Nginx proxies /api/* to
+// Uvicorn internally).  An explicit URL is still honoured when set (e.g. for
+// local dev pointing at a separate backend or the two-service Render setup).
+const _rawApiUrl = ((import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL) as string | undefined)?.trim().replace(/\/$/, "");
+const API_ORIGIN = _rawApiUrl || "";   // empty string → same-origin (relative)
+const API_ROOT   = API_ORIGIN ? `${API_ORIGIN}/api/v1` : "/api/v1";
+
+if (
+  (import.meta.env.VITE_LOCAL_SANDBOX === "true" || import.meta.env.VITE_LOCAL_ONLY === "true") &&
+  API_ORIGIN &&
+  !["localhost", "127.0.0.1", "[::1]"].includes(new URL(API_ORIGIN).hostname)
+) {
   throw new Error("Local testing refuses a nonlocal API URL.");
 }
-const API_ROOT = `${API_ORIGIN}/api/v1`;
 import { TOKEN_KEY, isTokenExpired, notifySessionExpired } from "./session";
 
 export class ApiError extends Error {

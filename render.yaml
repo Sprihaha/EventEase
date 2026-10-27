@@ -1,24 +1,30 @@
-# Render Blueprint: Full-Stack EventEase (Backend API + Frontend Client)
+# Render Blueprint: EventEase Monolith
 # Docs: https://render.com/docs/blueprint-spec
 #
-# This single blueprint deploys both services together:
-# 1. eventease-backend (FastAPI + PostgreSQL connection)
-# 2. eventease-frontend (React 19 + Nginx SPA)
+# One container serves everything:
+#   Nginx (port 10000) → React SPA at /
+#                      → proxy /api/* and /health to Uvicorn (127.0.0.1:8000)
+#
+# The separate backend/render.yaml and frontend/render.yaml are kept intact
+# as a fallback; only this root file is used by the Render Blueprint.
 
 services:
-  # ==========================================
-  # 1. Backend REST API Service
-  # ==========================================
   - type: web
-    name: eventease-backend
+    name: eventease
     runtime: docker
     plan: free
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    # Root-level Dockerfile builds both frontend + backend in one image
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Render health-check hits this path on the public port (10000 → Nginx → Uvicorn)
     healthCheckPath: /health
+
     envVars:
+      # ── App ─────────────────────────────────────────────────────────
       - key: APP_ENV
         value: production
+
+      # ── Database (set these in the Render dashboard) ─────────────────
       - key: DB_HOST
         sync: false
       - key: DB_PORT
@@ -33,33 +39,39 @@ services:
         value: require
       - key: DB_SCHEMA
         value: public
+
+      # ── Auth ─────────────────────────────────────────────────────────
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_USERNAME
         value: eventeaseadmin
-      # Set ADMIN_PASSWORD in the Render dashboard or seed via shell
+      # Set ADMIN_PASSWORD in the Render dashboard
       - key: ADMIN_PASSWORD
         sync: false
+
+      # ── CORS — same-origin monolith: loosen only for the onrender.com host ──
       - key: CORS_ORIGINS
         sync: false
       - key: CORS_ORIGIN_REGEX
         value: https://([a-z0-9-]+\.)*onrender\.com
+      # FRONTEND_URL = the same service URL (used by backend for email links etc.)
       - key: FRONTEND_URL
-        value: https://eventease-frontend-invd.onrender.com
+        sync: false
 
+      # ── External APIs ────────────────────────────────────────────────
       - key: TICKETMASTER_API_KEY
         sync: false
       - key: PAYMENT_PROVIDER
         value: mock
-      # Mail: using SendGrid over HTTPS (works on Render free plan, no domain needed).
-      # Set SENDGRID_API_KEY in the Render dashboard — never commit it.
+
+      # ── Mail (SendGrid works on Render free — no outbound SMTP block) ──
       - key: MAIL_TRANSPORT
         value: sendgrid
       - key: MAIL_FROM
         value: "EventEase <admin.gendol@gmail.com>"
       - key: SENDGRID_API_KEY
         sync: false
-      # Resend and SMTP are not used on Render; kept here in case of future switch.
+      # Resend / SMTP kept as optional fallbacks; set in dashboard if needed
       - key: RESEND_API_KEY
         sync: false
       - key: SMTP_HOST
@@ -69,21 +81,4 @@ services:
       - key: SMTP_USERNAME
         sync: false
       - key: SMTP_PASSWORD
-        sync: false
-
-  # ==========================================
-  # 2. Frontend Web Client (Nginx SPA)
-  # ==========================================
-  - type: web
-    name: eventease-frontend
-    runtime: docker
-    plan: free
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
-    envVars:
-      - key: PORT
-        value: "80"
-      - key: VITE_API_BASE_URL
-        value: https://eventease-backend-qkbl.onrender.com
-      - key: VITE_TICKETMASTER_API_KEY
         sync: false
