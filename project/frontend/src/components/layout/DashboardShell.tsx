@@ -71,7 +71,7 @@ export function DashboardShell({
     <div
       className={cx(
         "mx-auto max-w-7xl gap-8 px-5 py-8 lg:grid transition-all duration-300",
-        collapsed ? "lg:grid-cols-[76px_1fr]" : "lg:grid-cols-[240px_1fr]",
+        collapsed ? "lg:grid-cols-[76px_1fr]" : "lg:grid-cols-[264px_1fr]",
       )}
     >
       {/* Sidebar */}
@@ -128,10 +128,10 @@ export function DashboardShell({
                       "dashboard-nav-item group relative flex cursor-pointer items-center rounded-xl transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/20 active:scale-[0.98]",
                       collapsed
                         ? "h-11 w-11 justify-center p-0 lg:w-full hover:bg-brand-purple/15 hover:scale-105"
-                        : "gap-2.5 px-3.5 py-2.5 text-sm whitespace-nowrap lg:w-full",
+                        : "gap-2 px-3 py-2.5 text-sm whitespace-nowrap lg:w-full",
                       isSelected
                         ? "bg-brand-deep text-white shadow-sm font-semibold"
-                        : "text-brand-deep/80 border border-transparent font-medium hover:border-brand-purple/40 hover:bg-brand-purple/15 hover:text-brand-deep hover:shadow-xs hover:translate-x-1.5",
+                        : "text-brand-deep/80 border border-transparent font-medium hover:border-brand-purple/40 hover:bg-brand-purple/15 hover:text-brand-deep hover:shadow-xs hover:translate-x-1",
                     )}
                   >
                     <n.icon
@@ -146,7 +146,7 @@ export function DashboardShell({
                     {!collapsed && (
                       <span
                         className={cx(
-                          "flex-1 text-left transition-colors duration-150",
+                          "flex-1 min-w-0 text-left transition-colors duration-150 truncate",
                           n.label.startsWith("Ease") ? "font-feature italic font-black tracking-tight" : "",
                           isSelected ? "" : "group-hover:font-semibold group-hover:text-brand-deep",
                         )}
@@ -154,8 +154,8 @@ export function DashboardShell({
                         {n.label}
                       </span>
                     )}
-                    {!collapsed && !isSelected && (
-                      <ChevronRight className="nav-chevron h-4 w-4 shrink-0 text-brand-purple opacity-0 -translate-x-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-x-0" />
+                    {!collapsed && !isSelected && !n.badge && (
+                      <ChevronRight className="nav-chevron ml-auto h-4 w-4 shrink-0 text-brand-purple opacity-0 -translate-x-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-x-0" />
                     )}
                     {n.badge ? (
                       collapsed ? (
@@ -165,7 +165,7 @@ export function DashboardShell({
                       ) : (
                         <span
                           className={cx(
-                            "rounded-full px-2 py-0.5 text-[10px] font-bold transition-all duration-200 group-hover:scale-105",
+                            "ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold transition-all duration-200 group-hover:scale-105",
                             isSelected ? "bg-white/20 text-white" : "bg-danger/10 text-danger group-hover:bg-danger/15",
                           )}
                         >

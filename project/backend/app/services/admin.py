@@ -23,7 +23,8 @@ from app.db.models import (
     UserStatus,
 )
 from app.rules.contact import mask_email, mask_phone
-from app.services import audit, fraud, inventory
+from app.core import events
+from app.services import audit, inventory
 from app.services.auth import revoke_all_refresh_tokens
 from app.services.events import escape_like, parse_event_id
 from app.services.mail.base import send_safely
@@ -131,7 +132,7 @@ def reject_event(db: Session, admin: User, raw_id: str, reason: str, ip: str | N
     db.commit()
     _notify_organiser(db, event, f"Changes needed: {event.title}",
                       f"Your event '{event.title}' was not approved.\nReason: {reason}\n\nEdit it to resubmit.")
-    fraud.on_event_rejected(db, event=event)
+    events.publish(db, "event.rejected", event=event)
     return event_detail(db, raw_id)
 
 

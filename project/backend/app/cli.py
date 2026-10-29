@@ -9,12 +9,12 @@ import argparse
 import sys
 
 from app.core.config import get_settings
-from app.db.session import SessionLocal
+from app.db.session import create_session
 from app.services.admin_accounts import SeedError, SeedResult, reset_admin_password, seed_admin
 
 
 def cmd_seed_admin(_: argparse.Namespace) -> int:
-    with SessionLocal() as db:
+    with create_session() as db:
         result = seed_admin(db, get_settings())
     if result is SeedResult.ALREADY_EXISTS:
         print("Admin account already exists; nothing changed.")
@@ -22,7 +22,7 @@ def cmd_seed_admin(_: argparse.Namespace) -> int:
 
 
 def cmd_reset_password(args: argparse.Namespace) -> int:
-    with SessionLocal() as db:
+    with create_session() as db:
         reset_admin_password(db, args.username)
     return 0
 
@@ -30,7 +30,7 @@ def cmd_reset_password(args: argparse.Namespace) -> int:
 def cmd_seed_sample(_: argparse.Namespace) -> int:
     from app.services.ingestion.sample import seed_sample_events
 
-    with SessionLocal() as db:
+    with create_session() as db:
         count = seed_sample_events(db)
     print(f"Seeded {count} sample events (is_sample=true, hidden in production).")
     return 0
@@ -44,7 +44,7 @@ def cmd_ingest(_: argparse.Namespace) -> int:
     if adapter is None:
         print("TICKETMASTER_API_KEY is not set; nothing to ingest.", file=sys.stderr)
         return 1
-    with SessionLocal() as db:
+    with create_session() as db:
         result = sync_source(db, adapter, auto_approve=get_settings().INGEST_AUTO_APPROVE)
     print(f"Ticketmaster: {result.created} created, {result.updated} updated.")
     return 0
@@ -54,7 +54,7 @@ def cmd_verification_reminders(args: argparse.Namespace) -> int:
     from app.services.email_verification import reminder_recipients, send_verification_reminders
 
     settings = get_settings()
-    with SessionLocal() as db:
+    with create_session() as db:
         recipients = send_verification_reminders(db, settings) if args.send else reminder_recipients(db)
     for r in recipients:
         status = f"SKIPPED ({r.skipped_reason})" if r.skipped_reason else ("sent" if args.send else "would send")
@@ -69,7 +69,7 @@ def cmd_verification_reminders(args: argparse.Namespace) -> int:
 def cmd_purge(_: argparse.Namespace) -> int:
     from app.services.retention import purge_old_data
 
-    with SessionLocal() as db:
+    with create_session() as db:
         print(f"Purged: {purge_old_data(db)}")
     return 0
 

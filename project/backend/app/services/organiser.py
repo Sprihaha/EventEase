@@ -8,7 +8,8 @@ from app.core.errors import AppError
 from app.core.security import utcnow
 from app.db.models import BookingItem, Event, EventOrigin, EventStatus, EventSeat, TicketCategory, User
 from app.schemas.organiser import EventCreate, EventUpdate, TicketCategoryCreate, TicketCategoryUpdate
-from app.services import audit, fraud, venues
+from app.core import events
+from app.services import audit, venues
 from app.services.events import parse_event_id
 from app.services.timeparse import to_utc
 
@@ -188,7 +189,7 @@ def create_category(db: Session, organiser: User, raw_id: str, data: TicketCateg
     _check_sales_window(category, event)
     db.add(category)
     db.commit()
-    fraud.on_ticket_pricing(db, event=event, organiser=organiser)
+    events.publish(db, "event.pricing_updated", event=event, organiser=organiser)
     return category
 
 
@@ -216,7 +217,7 @@ def update_category(db: Session, organiser: User, raw_id: str, category_id: str,
             setattr(category, key, to_utc(changes[key]) if changes[key] else None)
     _check_sales_window(category, event)
     db.commit()
-    fraud.on_ticket_pricing(db, event=event, organiser=organiser)
+    events.publish(db, "event.pricing_updated", event=event, organiser=organiser)
     return category
 
 

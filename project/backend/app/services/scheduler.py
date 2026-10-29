@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.clock import get_business_date, get_business_now
 from app.core.config import get_settings
 from app.db.models.scheduler import SchedulerJob, SchedulerJobLog
-from app.db.session import SessionLocal
+from app.db.session import SessionFactory, get_session_factory
 
 logger = logging.getLogger("eventease.scheduler")
 
@@ -109,7 +109,11 @@ JOB_ACTIONS: dict[str, Callable[[Session], str]] = {
 
 # ── Execution Logic ────────────────────────────────────────────────────────
 
-def execute_job(job_id: str, triggered_by: str = "SCHEDULE") -> dict[str, Any]:
+def execute_job(
+    job_id: str,
+    triggered_by: str = "SCHEDULE",
+    session_factory: SessionFactory | None = None,
+) -> dict[str, Any]:
     """Executes a scheduled job by ID, captures duration & output, and writes to log history."""
     if job_id not in JOB_ACTIONS:
         raise ValueError(f"Unknown job ID: {job_id}")
@@ -121,8 +125,9 @@ def execute_job(job_id: str, triggered_by: str = "SCHEDULE") -> dict[str, Any]:
     start_time = datetime.now(timezone.utc)
     t0 = time.perf_counter()
     log_id = uuid.uuid4()
+    factory = session_factory or get_session_factory()
 
-    with SessionLocal() as db:
+    with factory() as db:
         job = db.get(SchedulerJob, job_id)
         if not job:
             _running_jobs.discard(job_id)
@@ -278,13 +283,15 @@ def get_job_logs(db: Session, job_id: str, limit: int = 15) -> list[dict[str, An
 
 # ── Background Worker Loop ─────────────────────────────────────────────────
 
-async def _scheduler_loop() -> None:
+async def _scheduler_loop(session_factory: SessionFactory | None = None) -> None:
     logger.info("Quartz-Modeled Background Scheduler engine started")
     from fastapi.concurrency import run_in_threadpool
 
+    factory = session_factory or get_session_factory()
+
     # Seed initial next_run_at for any active jobs that have none
     try:
-        with SessionLocal() as db:
+        with factory() as db:
             active_jobs = db.scalars(select(SchedulerJob).where(SchedulerJob.is_active.is_(True))).all()
             now = datetime.now(timezone.utc)
             for j in active_jobs:
@@ -299,7 +306,7 @@ async def _scheduler_loop() -> None:
             now = datetime.now(timezone.utc)
             due_job_ids = []
 
-            with SessionLocal() as db:
+            with factory() as db:
                 due = db.scalars(
                     select(SchedulerJob.id)
                     .where(
@@ -313,7 +320,7 @@ async def _scheduler_loop() -> None:
             for jid in due_job_ids:
                 if jid not in _running_jobs:
                     # Execute in background threadpool so async loop is unblocked
-                    asyncio.create_task(run_in_threadpool(execute_job, jid, "SCHEDULE"))
+                    asyncio.create_task(run_in_threadpool(execute_job, jid, "SCHEDULE", session_factory=factory))
 
         except Exception as e:
             logger.exception("Error in scheduler loop: %s", e)
@@ -321,10 +328,10 @@ async def _scheduler_loop() -> None:
         await asyncio.sleep(5)  # Poll every 5s
 
 
-def start_scheduler() -> None:
+def start_scheduler(session_factory: SessionFactory | None = None) -> None:
     global _worker_task
     if _worker_task is None or _worker_task.done():
-        _worker_task = asyncio.create_task(_scheduler_loop())
+        _worker_task = asyncio.create_task(_scheduler_loop(session_factory=session_factory))
 
 
 async def stop_scheduler() -> None:

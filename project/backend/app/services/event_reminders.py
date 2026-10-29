@@ -30,8 +30,7 @@ def send_pre_event_reminders(
     # Find events happening on target_date
     events = db.scalars(
         select(Event)
-        .options(joinedload(Event.venue))
-        .where(Event.status == EventStatus.PUBLISHED)
+        .where(Event.status == EventStatus.APPROVED)
     ).unique().all()
 
     matching_events = [e for e in events if e.start_at.astimezone(tz).date() == target_date]
@@ -48,24 +47,24 @@ def send_pre_event_reminders(
             .where(Booking.event_id == event.id, Booking.status == BookingStatus.CONFIRMED)
         ).unique().all()
 
-        venue_name = event.venue.name if event.venue else "EventEase Partner Venue"
+        venue_name = event.venue_name or "EventEase Partner Venue"
         start_str = event.start_at.astimezone(tz).strftime("%A, %d %B %Y at %I:%M %p")
 
         for b in bookings:
             if not b.user or not b.user.email:
                 continue
 
-            ticket_lines = [f"  • Seat {t.seat_label or t.seat_number or 'General'} (Code: {t.ticket_code})" for t in b.tickets]
+            ticket_lines = [f"  • Code: {t.code}" for t in b.tickets]
             tickets_text = "\n".join(ticket_lines) if ticket_lines else "  • Valid digital passes on file"
 
             subject = f"Reminder: Your tickets for {event.title} tomorrow!"
             body = (
-                f"Hello {b.user.name},\n\n"
+                f"Hello {b.user.username},\n\n"
                 f"This is a reminder that your upcoming event is happening tomorrow:\n\n"
                 f"Event: {event.title}\n"
                 f"Date & Time: {start_str} (SGT)\n"
                 f"Venue: {venue_name}\n"
-                f"Booking Reference: {b.reference or str(b.id)[:8]}\n\n"
+                f"Booking Reference: {str(b.id)[:8]}\n\n"
                 f"Your Tickets:\n{tickets_text}\n\n"
                 f"You can view your QR passes and venue guidance at:\n"
                 f"{settings.FRONTEND_URL}/dashboard/customer\n\n"

@@ -14,7 +14,7 @@ import {
   parseSeatKey,
   isSeatMatch,
   matchesSectionQuery,
-} from "../utils/seatMatching"
+} from "./seatMatching"
 import type { SectionSegment, SectionSeatPhoto, User } from "../types"
 
 interface EasePixSectionGridProps {

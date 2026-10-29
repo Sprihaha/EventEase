@@ -5,7 +5,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.message import EmailMessage
-from typing import Protocol
+from typing import Callable, Protocol
 
 from app.core.config import Settings, get_settings
 
@@ -140,6 +140,22 @@ class SmtpMailer:
             smtp.send_message(message)
 
 
+MailerFactory = Callable[[Settings], Mailer]
+
+_MAILER_REGISTRY: dict[str, MailerFactory] = {}
+
+
+def register_mailer(name: str, factory: MailerFactory) -> None:
+    """Registers a mailer factory for the given transport name (case-insensitive)."""
+    _MAILER_REGISTRY[name.strip().lower()] = factory
+
+
+# Built-in transport registrations (Open for Extension)
+register_mailer("console", lambda settings: ConsoleMailer())
+register_mailer("resend", lambda settings: ResendMailer(settings))
+register_mailer("sendgrid", lambda settings: SendGridMailer(settings))
+register_mailer("smtp", lambda settings: SmtpMailer(settings))
+
 _mailer: Mailer | None = None
 
 
@@ -150,28 +166,24 @@ def set_mailer(mailer: Mailer | None) -> None:
 
 
 def get_mailer() -> Mailer:
+    """Resolves the configured mailer from the extensible registry (Closed for Modification)."""
     global _mailer
     if _mailer is None:
         settings = get_settings()
-        transport = settings.MAIL_TRANSPORT.lower()
-        if transport == "console":
-            _mailer = ConsoleMailer()
-        elif transport == "resend":
-            _mailer = ResendMailer(settings)
-        elif transport == "sendgrid":
-            _mailer = SendGridMailer(settings)
-        elif transport == "smtp":
-            _mailer = SmtpMailer(settings)
-        else:  # pragma: no cover - rejected by Settings validation
-            raise RuntimeError(f"Unsupported MAIL_TRANSPORT {transport}")
+        transport = settings.MAIL_TRANSPORT.strip().lower()
+        factory = _MAILER_REGISTRY.get(transport)
+        if factory is None:
+            available = ", ".join(sorted(_MAILER_REGISTRY.keys()))
+            raise RuntimeError(f"Unsupported MAIL_TRANSPORT '{transport}'. Registered transports: {available}")
+        _mailer = factory(settings)
     return _mailer
 
 
-def send_safely(to: str | None, subject: str, body: str) -> None:
+def send_safely(to: str | None, subject: str, body: str, mailer: Mailer | None = None) -> None:
     """Notifications must never break the request that triggered them."""
     if not to:
         return
     try:
-        get_mailer().send(to, subject, body)
+        (mailer or get_mailer()).send(to, subject, body)
     except Exception:
         logger.exception("Failed to send mail to %s", to)

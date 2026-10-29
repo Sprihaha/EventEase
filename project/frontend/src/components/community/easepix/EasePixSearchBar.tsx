@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router"
 import { Camera, Sparkles, Search, X } from "lucide-react"
-import { SearchableCombobox } from "../common/SearchableCombobox"
+import { SearchableCombobox } from "../../ui"
 import type { SearchableOption, EventItem, User } from "../types"
 
 interface EasePixSearchBarProps {

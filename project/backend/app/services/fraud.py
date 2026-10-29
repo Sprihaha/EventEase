@@ -233,3 +233,55 @@ def on_event_rejected(db: Session, *, event: Event) -> None:
                      dedupe_key=f"REPEATED_REJECTIONS:{event.organiser_id}", user_id=event.organiser_id,
                      event_id=event.id, details={"rejections": rejections, "windowDays": s.FRAUD_REJECTION_WINDOW_DAYS,
                                                  "thisEventRejections": event.rejection_count})
+
+
+# --------------------------------------------------------------------------- event bus subscriptions (OCP)
+
+from app.core import events
+
+
+def _listener_booking_created(db: Session, **kw) -> None:
+    on_booking(db, booking=kw["booking"], user=kw["user"], ip=kw.get("ip"))
+
+
+def _listener_booking_cancelled(db: Session, **kw) -> None:
+    on_cancellation(db, user=kw["user"])
+
+
+def _listener_payment_failed(db: Session, **kw) -> None:
+    on_payment_failed(db, user=kw["user"], booking=kw["booking"])
+
+
+def _listener_login_failed(db: Session, **kw) -> None:
+    on_login_failure(db, ip=kw.get("ip"), identifier=kw.get("identifier", ""), user=kw.get("user"))
+
+
+def _listener_account_locked(db: Session, **kw) -> None:
+    on_account_locked(db, user=kw["user"], ip=kw.get("ip"))
+
+
+def _listener_signup(db: Session, **kw) -> None:
+    on_signup(db, user=kw["user"], ip=kw.get("ip"))
+
+
+def _listener_event_rejected(db: Session, **kw) -> None:
+    on_event_rejected(db, event=kw["event"])
+
+
+def _listener_pricing_updated(db: Session, **kw) -> None:
+    on_ticket_pricing(db, event=kw["event"], organiser=kw["organiser"])
+
+
+def register_fraud_listeners() -> None:
+    """Subscribes fraud detection heuristics to core domain events."""
+    events.subscribe("booking.created", _listener_booking_created)
+    events.subscribe("booking.cancelled", _listener_booking_cancelled)
+    events.subscribe("payment.failed", _listener_payment_failed)
+    events.subscribe("auth.login_failed", _listener_login_failed)
+    events.subscribe("auth.account_locked", _listener_account_locked)
+    events.subscribe("auth.signup", _listener_signup)
+    events.subscribe("event.rejected", _listener_event_rejected)
+    events.subscribe("event.pricing_updated", _listener_pricing_updated)
+
+
+register_fraud_listeners()

@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
@@ -35,9 +35,28 @@ def _build_engine():
 engine = _build_engine()
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
+SessionFactory = Callable[[], Session]
+_session_factory: SessionFactory = SessionLocal
+
+
+def get_session_factory() -> SessionFactory:
+    """Returns the configured session factory abstraction (DIP compliance)."""
+    return _session_factory
+
+
+def set_session_factory(factory: SessionFactory) -> None:
+    """Overrides the session factory abstraction (e.g. for testing or isolated contexts)."""
+    global _session_factory
+    _session_factory = factory
+
+
+def create_session() -> Session:
+    """Creates a new session using the configured session factory abstraction."""
+    return get_session_factory()()
+
 
 def get_db() -> Iterator[Session]:
-    db = SessionLocal()
+    db = create_session()
     try:
         yield db
     finally:

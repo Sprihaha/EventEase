@@ -6,7 +6,7 @@ import { fetchOwnedTickets, payBooking, type OwnedTicket } from "../lib/ticketin
 import { DashboardShell, type NavItem } from "../components/DashboardShell";
 import { QRCode, ticketPayload, Button, Badge, Card } from "../components/ui";
 
-import ExchangeActivityPanel from "../components/ExchangeActivityPanel";
+import { ExchangeActivityPanel } from "../components/community";
 
 const nav: NavItem[] = [
   { id: "tickets", label: "Dashboard", icon: LayoutDashboard },

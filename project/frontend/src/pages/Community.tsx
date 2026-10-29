@@ -12,27 +12,24 @@ import {
   type BackendEasePix,
 } from "../lib/backendApi";
 
-// Modular Community components, types, hooks, and constants
-import { allTabs } from "../components/community/constants";
-import type { CommsChannelId } from "../components/community/types";
-import { parseSeatParts } from "../components/community/utils/seatMatching";
-
-import { CommunityHeroBanner } from "../components/community/navigation/CommunityHeroBanner";
-import { CommunityHeaderNav } from "../components/community/navigation/CommunityHeaderNav";
-
-import { EaseConnectFeed } from "../components/community/feed/EaseConnectFeed";
-import { FeedRightRail } from "../components/community/feed/FeedRightRail";
-
-import { EasePixView } from "../components/community/easepix/EasePixView";
-import { CommunityExchangeView } from "../components/community/exchange/CommunityExchangeView";
-
-import { ShareSeatViewModal } from "../components/community/modals/ShareSeatViewModal";
-import { EaseXplore360Modal } from "../components/community/modals/EaseXplore360Modal";
-import { CommunityVoiceWidget } from "../components/community/widgets/CommunityVoiceWidget";
-
-import { useCommunityFeed } from "../components/community/hooks/useCommunityFeed";
-import { useEasePix } from "../components/community/hooks/useEasePix";
-import { useFeedVoiceNarrator } from "../components/community/hooks/useFeedVoiceNarrator";
+// Standardized Community domain barrel import
+import {
+  allTabs,
+  type CommsChannelId,
+  parseSeatParts,
+  CommunityHeroBanner,
+  CommunityHeaderNav,
+  EaseConnectFeed,
+  FeedRightRail,
+  EasePixView,
+  CommunityExchangeView,
+  ShareSeatViewModal,
+  EaseXplore360Modal,
+  CommunityVoiceWidget,
+  useCommunityFeed,
+  useEasePix,
+  useFeedVoiceNarrator,
+} from "../components/community";
 
 export default function Community() {
   const { posts, events, user, addPost } = useStore();
