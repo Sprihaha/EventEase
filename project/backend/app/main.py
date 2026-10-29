@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import contextlib
 import logging
 from contextlib import asynccontextmanager
@@ -83,14 +83,13 @@ async def lifespan(_: FastAPI):
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
     _bootstrap_admin()
-    sweeper = None
     if settings.BACKGROUND_JOBS_ENABLED:
-        sweeper = asyncio.create_task(_background_jobs(settings.HOLD_SWEEP_INTERVAL_SECONDS))
+        from app.services.scheduler import start_scheduler, stop_scheduler
+        start_scheduler()
     yield
-    if sweeper:
-        sweeper.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await sweeper
+    if settings.BACKGROUND_JOBS_ENABLED:
+        from app.services.scheduler import stop_scheduler
+        await stop_scheduler()
 
 
 def create_app() -> FastAPI:

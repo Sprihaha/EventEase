@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { useStore } from "../../lib/store";
 import { getCurrentOrganisation } from "../../lib/organisation";
 import type { Role } from "../../lib/data";
@@ -23,9 +23,17 @@ export function DashboardShell({
   children: (active: string) => ReactNode;
 }) {
   const { user, sessionLoading } = useStore();
-  const [active, setActive] = useState(nav[0].id);
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [active, setActive] = useState(() => (tabParam && nav.some((n) => n.id === tabParam) ? tabParam : nav[0].id));
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (tabParam && nav.some((n) => n.id === tabParam) && tabParam !== active) {
+      setActive(tabParam);
+    }
+  }, [tabParam, nav, active]);
 
   useEffect(() => {
     const pages: Partial<Record<Role, Record<string, string>>> = {
@@ -43,6 +51,7 @@ export function DashboardShell({
         assistance: "assistance-queue",
         narration: "easevoice-narration",
         analytics: "platform-analytics",
+        developer: "developer-settings",
       },
     };
     const page = pages[role]?.[active];

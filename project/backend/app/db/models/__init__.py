@@ -34,6 +34,7 @@ from app.db.models.event import Event, EventSource, TicketCategory
 from app.db.models.monitoring import AuditLog, FraudSignal
 from app.db.models.organisation import Organisation, OrganisationMembership
 from app.db.models.organiser import OrganiserApplication
+from app.db.models.scheduler import SchedulerJob, SchedulerJobLog, SystemConfiguration
 from app.db.models.user import (
     EmailVerificationToken,
     LoginAttempt,
@@ -75,7 +76,10 @@ __all__ = [
     "PaymentStatus",
     "RefreshToken",
     "Role",
+    "SchedulerJob",
+    "SchedulerJobLog",
     "SourceKind",
+    "SystemConfiguration",
     "Ticket",
     "TicketCategory",
     "TicketCategoryType",

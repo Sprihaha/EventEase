@@ -17,6 +17,7 @@ import {
   Clock3,
   ClipboardList,
   Volume2,
+  Code2,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
@@ -30,6 +31,7 @@ import OrganiserRequests from "../components/OrganiserRequests";
 import { countPendingOrganiserRequests } from "../lib/backendApi";
 import OrganisationRequestsAdmin from "../components/OrganisationRequestsAdmin";
 import { countPendingOrganisationRequests } from "../lib/organisation";
+import DeveloperSettings from "../components/DeveloperSettings";
 
 export default function AdminDashboard() {
   const { events, fraud, assistanceRequests } = useStore();
@@ -63,6 +65,7 @@ export default function AdminDashboard() {
     { id: "seats", label: "Seat maps", icon: Armchair },
     { id: "guide", label: "EaseGuide requests", icon: Route, badge: 3 },
     { id: "analytics", label: "Platform analytics", icon: BarChart3 },
+    { id: "developer", label: "Developer settings", icon: Code2 },
   ];
 
   return (
@@ -95,6 +98,7 @@ export default function AdminDashboard() {
           {active === "narration" && <EaseVoiceNarration embedded />}
           {active === "guide" && <EaseGuideRequests />}
           {active === "analytics" && <PlatformAnalytics />}
+          {active === "developer" && <DeveloperSettings embedded />}
         </>
       )}
     </DashboardShell>

@@ -69,6 +69,7 @@ export const router = createBrowserRouter([
       { path: "assistance", Component: AssistanceRequests },
       { path: "assistance/request/:bookingId", Component: AssistanceRequestForm },
       { path: "admin/easevoice-narration", Component: EaseVoiceNarration },
+      { path: "admin/developer-settings", Component: () => <Navigate to="/dashboard/admin?tab=developer" replace /> },
       { path: "*", Component: NotFound },
     ],
   },
