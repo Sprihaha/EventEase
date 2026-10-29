@@ -30,6 +30,7 @@ import {
 
 import { AccessibilityBar } from "./layout/AccessibilityBar";
 import { OrganisationSwitcher } from "./layout/OrganisationSwitcher";
+import { WebSearchableControl } from "./common";
 
 const navLinks = [
   { to: "/events", label: "Discover", icon: Search },
@@ -111,6 +112,7 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-full flex-col bg-brand-warm text-brand-text">
+      <WebSearchableControl variant="banner" />
       <header className="sticky top-0 z-40 border-b border-brand-purple/10 bg-white/95 text-brand-deep shadow-[0_2px_15px_-4px_rgba(50,19,79,0.06)] backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-5 sm:gap-3 lg:gap-6">
           <Link
@@ -148,6 +150,7 @@ export default function Layout() {
           )}
 
           <div className="ml-auto flex items-center gap-3">
+            <WebSearchableControl variant="compact" />
             <div className="hidden lg:block">
               <AccessibilityBar />
             </div>

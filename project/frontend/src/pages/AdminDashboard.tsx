@@ -26,6 +26,7 @@ import { OperationsSeatMap } from "../components/OperationsSeatMap";
 import AssistanceQueue from "../components/AssistanceQueue";
 import EaseVoiceNarration from "./EaseVoiceNarration";
 import ResetDemoData from "../components/ResetDemoData";
+import { WebSearchableControl } from "../components/common";
 import OrganiserRequests from "../components/OrganiserRequests";
 import { countPendingOrganiserRequests } from "../lib/backendApi";
 import OrganisationRequestsAdmin from "../components/OrganisationRequestsAdmin";
@@ -82,6 +83,7 @@ export default function AdminDashboard() {
             <>
               <Overview />
               <div className="mt-8 space-y-6">
+                <WebSearchableControl />
                 <ResetDemoData />
               </div>
             </>
