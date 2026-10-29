@@ -19,7 +19,9 @@ import {
   Sliders,
   Check,
   Sparkles,
+  Globe,
 } from "lucide-react";
+import { WebSearchableControl } from "./common";
 import {
   advanceBusinessDate,
   getBusinessDateState,
@@ -415,6 +417,11 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
             💡 <strong>How Business Date works:</strong> All date-sensitive operations (e.g. pre-event ticket reminders, hold releases, cancellation cutoffs, and exchange settlements) reference this active business date. User login tokens and passwords still use real UTC timestamps for safety.
           </p>
         </Card>
+
+        {/* Web Search & Engine Indexing Controls */}
+        <div className="pt-2">
+          <WebSearchableControl />
+        </div>
       </section>
 
       {/* ── SECTION 2: Quartz Scheduler Jobs ── */}
