@@ -75,17 +75,17 @@ export function DashboardShell({
       )}
     >
       {/* Sidebar */}
-      <aside className="mb-6 lg:mb-0 transition-all duration-300">
-        <div className="lg:sticky lg:top-24">
+      <aside className="mb-6 lg:mb-0 lg:self-start transition-all duration-300">
+        <div className="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:flex lg:flex-col">
           <div
             className={cx(
-              "rounded-3xl border border-brand-purple/15 bg-white shadow-sm transition-all duration-300",
+              "flex flex-col max-h-full rounded-3xl border border-brand-purple/15 bg-white shadow-sm transition-all duration-300",
               collapsed ? "p-2.5" : "p-4",
             )}
           >
             <div
               className={cx(
-                "flex items-center pb-2 border-b border-brand-purple/10",
+                "shrink-0 flex items-center pb-2 border-b border-brand-purple/10",
                 collapsed ? "justify-center" : "justify-between px-2 pt-0.5",
               )}
             >
@@ -112,8 +112,8 @@ export function DashboardShell({
 
             <nav
               className={cx(
-                "mt-3 flex flex-wrap gap-1.5 lg:flex-col lg:flex-nowrap",
-                collapsed && "lg:items-center",
+                "mt-3 flex flex-wrap gap-1.5 lg:flex-col lg:flex-nowrap lg:overflow-y-auto lg:overflow-x-hidden custom-scrollbar",
+                collapsed ? "lg:items-center" : "pr-1",
               )}
             >
               {nav.map((n) => {
