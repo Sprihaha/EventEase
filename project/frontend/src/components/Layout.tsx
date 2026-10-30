@@ -38,7 +38,7 @@ const navLinks = [
 ];
 
 export default function Layout() {
-  const { user, logout } = useStore();
+  const { user, logout, keepLoggedIn } = useStore();
   const isCustomerOrAdmin = !user || user.role === "customer" || user.role === "admin";
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,10 +82,20 @@ export default function Layout() {
     const returnTo = expiredReturnTo || getSavedExpiredReturnTo();
     setSessionExpiredOpen(false);
     clearExpiredRedirect();
+    logout();
     navigate("/login", {
       replace: true,
       state: returnTo ? { returnTo } : undefined,
     });
+  };
+
+  const handleKeepLoggedIn = async () => {
+    const success = await keepLoggedIn();
+    if (success) {
+      setSessionExpiredOpen(false);
+    } else {
+      handleConfirmSessionExpired();
+    }
   };
 
   // Only reset scroll to top when navigating to /login
@@ -183,6 +193,21 @@ export default function Layout() {
                   >
                     <button
                       role="menuitem"
+                      aria-pressed={location.pathname === "/profile"}
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate("/profile");
+                      }}
+                      className={cx(
+                        "dropdown-menu-item group flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30",
+                        location.pathname === "/profile" && "is-selected",
+                      )}
+                    >
+                      <User className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
+                      <span>Profile</span>
+                    </button>
+                    <button
+                      role="menuitem"
                       aria-pressed={location.pathname.startsWith(dash)}
                       onClick={() => {
                         setUserMenuOpen(false);
@@ -193,12 +218,8 @@ export default function Layout() {
                         location.pathname.startsWith(dash) && "is-selected",
                       )}
                     >
-                      {user.role === "admin" ? (
-                        <LayoutDashboard className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
-                      ) : (
-                        <User className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
-                      )}
-                      <span className="capitalize">{user.role === "admin" ? "Admin dashboard" : "Profile"}</span>
+                      <LayoutDashboard className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
+                      <span className="capitalize">{user.role === "admin" ? "Admin dashboard" : `${user.role} dashboard`}</span>
                     </button>
                     <div
                       aria-pressed={location.pathname === "/settings/accessibility"}
@@ -311,6 +332,7 @@ export default function Layout() {
       <SessionExpiredModal
         isOpen={sessionExpiredOpen}
         onConfirm={handleConfirmSessionExpired}
+        onKeepLoggedIn={handleKeepLoggedIn}
       />
 
       <footer className="mt-20 border-t border-white/10 bg-brand-deep text-white">

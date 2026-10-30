@@ -29,6 +29,7 @@ import {
   backendCreateEvent,
   backendLogin,
   backendLogout,
+  backendRefresh,
   backendSetEventStatus,
   fetchBackendEvents,
   fetchBackendRoleEvents,
@@ -36,7 +37,7 @@ import {
   type LoginPortal,
   type NewEventInput,
 } from "./backendApi";
-import { isTokenExpired, getTokenExpirationMs, notifySessionExpired, onSessionExpired, clearSavedExpiredReturnTo } from "./session";
+import { isTokenExpired, getTokenExpirationMs, notifySessionExpired, onSessionExpired, clearExpiredRedirect, clearSavedExpiredReturnTo } from "./session";
 import { clearCurrentOrganisation, setCurrentOrganisation } from "./organisation";
 
 import { fetchBookings, bookingForStore } from "./ticketingApi";
@@ -56,6 +57,7 @@ type Store = {
   user: User | null;
   authenticate: (username: string, password: string, portal?: LoginPortal, organisation?: string) => Promise<User | null>;
   startSession: (auth: BackendAuth) => Promise<User>;
+  keepLoggedIn: () => Promise<boolean>;
   logout: () => void;
 
   events: EventItem[];
@@ -196,11 +198,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Handle session expired broadcast: clean up local store state
   useEffect(() => {
     return onSessionExpired(() => {
-      accountId.current = null;
-      accountRole.current = null;
-      setUser(null);
-      setBookings([]);
-      setBookingsError(null);
+      // Keep user state intact during the 5s countdown so users who click
+      // "Keep me logged in" remain on their current view.
     });
   }, []);
 
@@ -246,6 +245,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authenticate: async (username, password, portal, organisation) =>
         startSession(await backendLogin(username.trim().toLowerCase(), password, portal, organisation)),
       startSession,
+      keepLoggedIn: async (): Promise<boolean> => {
+        try {
+          const auth = await backendRefresh();
+          await startSession(auth);
+          clearExpiredRedirect();
+          clearSavedExpiredReturnTo();
+          return true;
+        } catch {
+          return false;
+        }
+      },
       logout: () => {
         void backendLogout();
         clearSavedExpiredReturnTo();

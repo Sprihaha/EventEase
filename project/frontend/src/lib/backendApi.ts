@@ -295,6 +295,19 @@ export function backendLogout() {
   return operation;
 }
 
+export async function backendRefresh(): Promise<BackendAuth> {
+  const auth = await request<BackendAuth>(
+    "/auth/refresh",
+    {
+      method: "POST",
+      credentials: "include",
+    },
+    false,
+  );
+  sessionStorage.setItem(TOKEN_KEY, auth.accessToken);
+  return auth;
+}
+
 export function backendSetEventStatus(id: string, status: EventStatus) {
   if (status === "published") {
     return request(`/admin/events/${id}/approve`, { method: "POST" }, true);
@@ -384,15 +397,20 @@ export async function resetDemoData(input: { confirmation: string; username: str
   return result;
 }
 
+export type UserProfile = {
+  id: string;
+  username: string;
+  role: BackendRole;
+  email: string | null;
+  phone: string | null;
+  mustChangePassword: boolean;
+  emailVerified: boolean;
+  passwordChangeable: boolean;
+  createdAt: string;
+};
+
 export function backendMe() {
-  return request<{
-    id: string;
-    username: string;
-    role: BackendRole;
-    email: string | null;
-    mustChangePassword: boolean;
-    passwordChangeable: boolean;
-  }>("/auth/me", {}, true);
+  return request<UserProfile>("/auth/me", {}, true);
 }
 
 export async function backendChangePassword(currentPassword: string, newPassword: string) {

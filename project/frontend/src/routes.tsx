@@ -18,6 +18,7 @@ import AccessibilitySettings from "./pages/AccessibilitySettings";
 import AssistanceRequestForm from "./pages/AssistanceRequestForm";
 import AssistanceRequests from "./pages/AssistanceRequests";
 import EaseVoiceNarration from "./pages/EaseVoiceNarration";
+import Profile from "./pages/Profile";
 
 import type { ComponentType } from "react";
 import { useStore } from "./lib/store";
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
       { path: "exchange", Component: () => <CustomerOrAdminRoute Component={() => <Navigate to="/community?tab=exchange" replace />} /> },
       { path: "easexchange", Component: () => <CustomerOrAdminRoute Component={() => <Navigate to="/community?tab=exchange" replace />} /> },
       { path: "login", Component: Login },
+      { path: "profile", Component: Profile },
       { path: "signup", Component: SignUpChoice },
       { path: "dashboard/customer", Component: CustomerDashboard },
       { path: "dashboard/organizer", Component: OrganizerDashboard },
