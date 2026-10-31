@@ -1,15 +1,15 @@
 import math
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.security import utcnow
-from app.db.models import Event, EventCategory, EventOrigin, EventStatus, Role, TicketCategory, User
+from app.db.models import Event, EventCategory, EventOrigin, EventStatus, Organisation, Role, TicketCategory, User
 
 SortKey = Literal["date", "-date", "price", "-price"]
 
@@ -84,6 +84,11 @@ def list_public_events(
     }
 
 
+def sales_close_at(event: Event, settings: Settings | None = None) -> datetime:
+    """Ticket sales for every event close this long before it starts; QR codes are released then."""
+    return event.start_at - timedelta(days=(settings or get_settings()).SALES_CLOSE_DAYS_BEFORE_EVENT)
+
+
 def list_item(event: Event, pmin: int | None, pmax: int | None) -> dict:
     return {
         "id": event.id,
@@ -102,6 +107,8 @@ def list_item(event: Event, pmin: int | None, pmax: int | None) -> dict:
         "origin": event.origin,
         "purchasable": event.origin == EventOrigin.ORGANISER,
         "is_sample": event.is_sample,
+        "imported": event.origin == EventOrigin.ORGANISER and event.source_name is not None,
+        "sales_close_at": sales_close_at(event) if event.origin == EventOrigin.ORGANISER else None,
     }
 
 
@@ -117,6 +124,7 @@ def category_on_sale(category: TicketCategory, event: Event, now: datetime) -> b
         event.status == EventStatus.APPROVED
         and event.origin == EventOrigin.ORGANISER
         and event.start_at > now
+        and now < sales_close_at(event)
         and (category.sales_start_at is None or category.sales_start_at <= now)
         and (category.sales_end_at is None or category.sales_end_at > now)
         and category.remaining > 0
@@ -142,11 +150,13 @@ def event_detail(db: Session, event_id: uuid.UUID, user: User) -> dict:
     pmin = min(prices) if prices else event.external_price_min_cents
     pmax = max(prices) if prices else (event.external_price_max_cents or event.external_price_min_cents)
     organiser = db.get(User, event.organiser_id) if event.organiser_id else None
+    organisation = db.get(Organisation, event.organisation_id) if event.organisation_id else None
     return {
         **list_item(event, pmin, pmax),
         "description": event.description,
         "status": event.status,
         "organiser_username": organiser.username if organiser else None,
+        "organisation_name": organisation.name if organisation else None,
         "purchase_limit_per_event": get_settings().PURCHASE_LIMIT_PER_EVENT,
         "ticket_categories": [
             {

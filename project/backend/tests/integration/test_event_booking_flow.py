@@ -8,7 +8,7 @@ from app.db.models import Role
 def test_organiser_submission_admin_approval_customer_booking(client,db):
     organiser,admin,customer=make_user(db,Role.ORGANISER),make_user(db,Role.ADMIN),make_user(db)
     ho,ha,hc=(auth_header(client,u.username) for u in (organiser,admin,customer))
-    start=utcnow()+timedelta(days=30)
+    start=utcnow()+timedelta(days=60)
     venue=make_venue(db,organiser,("Hall","A",1,10),name="Test Hall")
     response=client.post("/api/v1/organiser/events",headers=ho,json={
         "title":"Created through organiser API","category":"CONCERT","venueId":str(venue.id),

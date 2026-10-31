@@ -1,6 +1,7 @@
 """Shared test helpers. Test passwords are generated at runtime, never hard-coded."""
 
 import itertools
+import uuid
 from functools import lru_cache
 
 from app.core.security import generate_password, hash_password
@@ -75,9 +76,10 @@ def error_of(response) -> dict:
     return response.json()["error"]
 
 
-def make_event(db, *, organiser=None, origin=None, status=None, days=10, hours=3, title="Sample Event",
+def make_event(db, *, organiser=None, origin=None, status=None, days=60, hours=3, title="Sample Event",
                categories=(), **fields):
-    """Create an event `days` from now. categories: iterable of (type, price_cents, quantity)."""
+    """Create an event `days` from now (default: past the 30-day ticket sales cut-off).
+    categories: iterable of (type, price_cents, quantity)."""
     from datetime import timedelta
 
     from app.core.security import utcnow
@@ -140,3 +142,23 @@ def make_venue(db, organiser, *lines, name=None, area="Marina Bay"):
     db.add(venue)
     db.commit()
     return venue
+
+
+def with_ticket_codes(db, booking: dict) -> dict:
+    """Customers only see ticket codes once QR codes are released; read them from the database."""
+    from app.db.models import Ticket
+
+    db.expire_all()
+    for ticket in booking["tickets"]:
+        ticket["code"] = db.get(Ticket, uuid.UUID(ticket["id"])).code
+    return booking
+
+
+def release_qr(db, booking_id) -> None:
+    """Mark a booking's QR codes as released, as the QR_RELEASE job does when sales close."""
+    from app.core.security import utcnow
+    from app.db.models import Booking
+
+    db.expire_all()
+    db.get(Booking, uuid.UUID(str(booking_id))).qr_released_at = utcnow()
+    db.commit()

@@ -11,6 +11,7 @@ from app.core.security import utcnow
 from app.db.models import (
     Booking,
     BookingStatus,
+    Event,
     EventOrigin,
     EventStatus,
     Payment,
@@ -26,7 +27,7 @@ from app.schemas.bookings import BookingCreate
 from app.services import bookings as booking_service
 from app.services.mail.base import get_mailer
 from app.services.payments.base import MockPaymentProvider, RefundResult, set_payment_provider
-from tests.helpers import auth_header, error_of, make_event, make_user
+from tests.helpers import auth_header, error_of, make_event, make_user, with_ticket_codes
 
 
 @pytest.fixture(autouse=True)
@@ -41,7 +42,7 @@ def organiser(db):
     return make_user(db, role=Role.ORGANISER)
 
 
-def on_sale_event(db, organiser, quantity=100, price=5000, days=30, **fields):
+def on_sale_event(db, organiser, quantity=100, price=5000, days=60, **fields):
     event = make_event(db, organiser=organiser, days=days, categories=[("STANDARD", price, quantity)], **fields)
     category = db.scalar(select(TicketCategory).where(TicketCategory.event_id == event.id))
     return event, category
@@ -71,7 +72,7 @@ def test_book_pay_and_receive_unique_tickets(client, db, organiser):
 
     paid = client.post(f"/api/v1/bookings/{body['id']}/pay", headers=headers, json={})
     assert paid.status_code == 200, paid.text
-    paid = paid.json()
+    paid = with_ticket_codes(db, paid.json())
     assert paid["status"] == "CONFIRMED" and len(paid["tickets"]) == 3
     codes = {t["code"] for t in paid["tickets"]}
     assert len(codes) == 3 and all(len(code) >= 22 for code in codes)
@@ -239,11 +240,14 @@ def test_cancelling_pending_booking_releases_hold(client, db, organiser):
 
 
 def test_cancellation_cutoff(client, db, organiser):
-    event, category = on_sale_event(db, organiser, days=1)  # starts in 24h; cut-off is 48h before
+    event, category = on_sale_event(db, organiser)
     headers = auth_header(client, make_user(db).username)
     booking = book(client, headers, event, category, 1).json()
-    paid = client.post(f"/api/v1/bookings/{booking['id']}/pay", headers=headers).json()
-    assert paid["cancellable"] is False
+    client.post(f"/api/v1/bookings/{booking['id']}/pay", headers=headers)
+    moved = reload(db, Event, event.id)  # now starts in 24h; the cut-off is 48h before
+    moved.start_at, moved.end_at = utcnow() + timedelta(days=1), utcnow() + timedelta(days=1, hours=3)
+    db.commit()
+    assert client.get(f"/api/v1/me/bookings/{booking['id']}", headers=headers).json()["cancellable"] is False
     response = client.post(f"/api/v1/me/bookings/{booking['id']}/cancel", headers=headers)
     assert response.status_code == 409 and error_of(response)["code"] == "CANCELLATION_WINDOW_CLOSED"
     assert "cutoffAt" in error_of(response)["details"]
@@ -270,7 +274,7 @@ def test_refund_failure_leaves_booking_untouched(client, db, organiser):
 def test_my_bookings_filters_and_isolation(client, db, organiser):
     customer, other = make_user(db), make_user(db)
     headers = auth_header(client, customer.username)
-    soon, soon_cat = on_sale_event(db, organiser, days=5, title="Soon")
+    soon, soon_cat = on_sale_event(db, organiser, days=40, title="Soon")
     book(client, headers, soon, soon_cat, 1)
     past = make_event(db, organiser=organiser, days=-10, title="Past")
     db.add(Booking(user_id=customer.id, event_id=past.id, status=BookingStatus.CONFIRMED, total_cents=0))

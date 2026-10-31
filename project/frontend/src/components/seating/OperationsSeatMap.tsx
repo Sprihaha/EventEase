@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Armchair, MapPin } from "lucide-react";
 import type { EventItem } from "../../lib/data";
-import { fmtDate } from "../../lib/store";
+import { fmtDate, fmtTime } from "../../lib/store";
 import { fetchSeats, type LiveSeat } from "../../lib/ticketingApi";
 import { SeatMap } from "./SeatMap";
 import { Badge, Card, Select } from "../ui";
@@ -60,7 +60,7 @@ export function OperationsSeatMap({
           </div>
           <div>
             <div className="text-xs text-muted">Date & time</div>
-            <div className="mt-1 font-medium text-brand-deep">{fmtDate(selected.date)} · {selected.time}</div>
+            <div className="mt-1 font-medium text-brand-deep">{fmtDate(selected.date)} · {fmtTime(selected.date)}</div>
           </div>
           <div className="flex items-center justify-between border-t border-line pt-3">
             <span className="text-muted">Tickets sold</span>

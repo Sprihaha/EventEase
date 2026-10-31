@@ -26,6 +26,8 @@ class Booking(UUIDPk, Timestamps, Base):
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the QR codes were released and emailed (once ticket sales close, 30 days before the event).
+    qr_released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancel_reason: Mapped[str | None] = mapped_column(String(64))
     idempotency_key: Mapped[str | None] = mapped_column(String(100))
     created_ip: Mapped[str | None] = mapped_column(String(64))

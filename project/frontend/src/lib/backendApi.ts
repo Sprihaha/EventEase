@@ -1,4 +1,5 @@
 import type { Category, EventItem, EventStatus } from "./data";
+import { currentOrganisationId } from "./currentOrganisation";
 
 // In the monolith deployment VITE_API_BASE_URL is intentionally left empty so
 // that API calls go to the same origin as the page (Nginx proxies /api/* to
@@ -52,6 +53,8 @@ type BackendEvent = {
   sourceName: string | null;
   purchasable: boolean;
   isSample: boolean;
+  imported?: boolean;
+  salesCloseAt?: string | null;
 };
 
 type BackendTicketCategory = {
@@ -70,6 +73,9 @@ type BackendManagedEvent = {
   status: string;
   organiserUsername?: string | null;
   organiserId?: string | null;
+  organisationName?: string | null;
+  imported?: boolean;
+  sourceName?: string | null;
   shortDescription?: string | null;
   description?: string | null;
   venueName: string;
@@ -106,6 +112,8 @@ export async function request<T>(path: string, init: RequestInit = {}, authentic
       }
       headers.set("Authorization", `Bearer ${token}`);
     }
+    const organisationId = currentOrganisationId();
+    if (organisationId) headers.set("X-Organisation-Id", organisationId);
   }
   const response = await fetch(`${API_ROOT}${path}`, { ...init, headers });
   if (!response.ok) {
@@ -151,7 +159,7 @@ function mapEvent(event: BackendEvent, index: number): EventItem {
       "/event-placeholder.svg",
     blurb: event.shortDescription ?? "An upcoming EventEase experience.",
     organizerId: "",
-    organizerName: event.sourceName ?? "EventEase Organizer",
+    organizerName: event.imported ? "Imported by System" : event.sourceName ?? "EventEase Organizer",
     status: "published",
     featured: index < 6,
     rows: 0,
@@ -159,6 +167,8 @@ function mapEvent(event: BackendEvent, index: number): EventItem {
     tiers: [],
     priceFrom: event.priceRange ? event.priceRange.minCents / 100 : undefined,
     purchasable: event.purchasable,
+    imported: event.imported,
+    salesCloseAt: event.salesCloseAt,
   };
 }
 
@@ -193,9 +203,11 @@ function mapManagedEvent(event: BackendManagedEvent, index: number, ownerId = ""
       "/event-placeholder.svg",
     blurb: event.description ?? event.shortDescription ?? "An EventEase organizer event.",
     organizerId: event.organiserId ?? ownerId,
-    organizerName: event.organiserUsername ?? "EventEase Organizer",
+    organizerName: event.organiserUsername ?? (event.imported || event.sourceName ? "Imported by System" : "EventEase Organizer"),
     status: managedStatus(event.status),
     rejectionReason: event.rejectionReason,
+    imported: event.imported || !!event.sourceName,
+    organisationName: event.organisationName,
     featured: index < 6,
     rows: 0,
     cols: 0,
@@ -206,6 +218,9 @@ function mapManagedEvent(event: BackendManagedEvent, index: number, ownerId = ""
 export async function fetchBackendEvents() {
   return (await pages<BackendEvent>("/events?sort=date")).filter(event => !event.isSample).map(mapEvent);
 }
+
+export const updateTicketTier = (eventId: string, tierId: string, changes: { priceCents: number; quantity: number }) =>
+  request(`/organiser/events/${eventId}/ticket-categories/${tierId}`, { method: "PATCH", body: JSON.stringify(changes) }, true);
 
 export async function fetchBackendRoleEvents(role: BackendRole, ownerId = "") {
   if (role === "ORGANISER") {
@@ -960,4 +975,4 @@ export async function updateSchedulerJob(jobId: string, payload: { is_active?: b
 
 export async function getSchedulerJobLogs(jobId: string, limit = 15): Promise<SchedulerJobLog[]> {
   return request<SchedulerJobLog[]>(`/admin/developer/scheduler/jobs/${encodeURIComponent(jobId)}/logs?limit=${limit}`, undefined, true);
-}
+}

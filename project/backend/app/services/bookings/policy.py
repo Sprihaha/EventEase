@@ -17,6 +17,7 @@ from app.db.models import (
     EventStatus,
     TicketCategory,
 )
+from app.services.events import sales_close_at
 
 ACTIVE = (BookingStatus.PENDING_PAYMENT, BookingStatus.CONFIRMED)
 
@@ -48,6 +49,9 @@ def validate_event_purchasable(event: Event | None, now: datetime) -> None:
                        {"externalUrl": event.external_url})
     if event.status != EventStatus.APPROVED or event.start_at <= now:
         raise AppError(409, "EVENT_NOT_ON_SALE", "this event is not currently on sale", {"status": event.status.value})
+    closes = sales_close_at(event)
+    if now >= closes:
+        raise AppError(409, "SALES_CLOSED", "ticket sales for this event have closed", {"closedAt": closes.isoformat()})
 
 
 def validate_purchase_limit(db: Session, settings: Settings, user_id: uuid.UUID, event_id: uuid.UUID, requested: int) -> None:

@@ -36,14 +36,20 @@ class Event(UUIDPk, Timestamps, Base):
             "origin <> 'EXTERNAL' OR (external_url IS NOT NULL AND source_name IS NOT NULL)",
             name="external_has_source",
         ),
-        CheckConstraint("origin <> 'ORGANISER' OR organiser_id IS NOT NULL", name="organiser_event_has_owner"),
+        CheckConstraint("origin <> 'ORGANISER' OR organiser_id IS NOT NULL OR organisation_id IS NOT NULL",
+                        name="organiser_event_has_owner"),
         Index("ix_events_status_start_at", "status", "start_at"),
         Index("ix_events_category_start_at", "category", "start_at"),
         Index("ix_events_organiser_id", "organiser_id"),
+        Index("ix_events_organisation_id", "organisation_id"),
     )
 
     origin: Mapped[EventOrigin] = mapped_column(str_enum(EventOrigin, "event_origin"), nullable=False)
     organiser_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id", ondelete="RESTRICT"))
+    # Events of a self-managed organisation (EventEase) are shared by all its members. Imported events
+    # belong to the organisation only, with no individual organiser.
+    organisation_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("organisations.id", ondelete="RESTRICT"))
     source_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("event_sources.id", ondelete="SET NULL"))
     source_name: Mapped[str | None] = mapped_column(String(100))
     external_id: Mapped[str | None] = mapped_column(String(200))

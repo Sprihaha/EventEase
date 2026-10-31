@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { Navigate } from "react-router";
 import { Building2, CheckCircle2, Clock3, Plus } from "lucide-react";
 import { Badge, Button, Card, Field, Input, Select } from "../components/ui";
 import { useStore } from "../lib/store";
@@ -17,7 +17,6 @@ import {
 // After an organiser signs in (or clicks their organisation in the header): pick an approved
 // organisation, or ask to add another one, which an administrator must approve.
 export default function SelectOrganisation() {
-  const navigate = useNavigate();
   const { user, sessionLoading } = useStore();
   const current = getCurrentOrganisation();
   const [memberships, setMemberships] = useState<Membership[]>([]);
@@ -60,7 +59,8 @@ export default function SelectOrganisation() {
 
   const select = (organisation: Organisation) => {
     setCurrentOrganisation(organisation);
-    navigate("/dashboard/organizer", { replace: true });
+    // A full load: the dashboard's events depend on the chosen organisation.
+    window.location.replace("/dashboard/organizer");
   };
 
   const submit = async (event: FormEvent) => {

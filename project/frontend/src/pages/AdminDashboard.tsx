@@ -1,3 +1,4 @@
+import type { EventItem } from "../lib/data";
 import { useCallback, useEffect, useState } from "react";
 import {
   LayoutDashboard,
@@ -260,10 +261,37 @@ function EventApprovals() {
     catch (cause) { setError(cause instanceof Error ? cause.message : "Event update failed."); }
     finally { setPending(null); }
   };
-  const list = [...events].sort((a) => (a.status === "pending" ? -1 : 1));
+  const sorted = [...events].sort((a) => (a.status === "pending" ? -1 : 1));
+  const groups = [
+    { title: "EventEase events", list: sorted.filter((e) => e.organisationName) },
+    { title: "Other organisers", list: sorted.filter((e) => !e.organisationName) },
+  ];
+  return (
+    <div className="space-y-6">
+      {error && <p role="alert" className="text-danger">{error}</p>}
+      {groups.map((group) => (
+        <section key={group.title}>
+          <h2 className="mb-3 font-brand text-xl font-bold text-brand-deep">
+            {group.title} <span className="text-sm font-medium text-muted">({group.list.length})</span>
+          </h2>
+          {group.list.length ? (
+            <ApprovalTable list={group.list} pending={pending} update={update} />
+          ) : (
+            <Card className="p-6 text-center text-sm text-muted">No events here yet.</Card>
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function ApprovalTable({ list, pending, update }: {
+  list: EventItem[];
+  pending: string | null;
+  update: (id: string, status: "published" | "rejected") => Promise<void>;
+}) {
   return (
     <Card className="overflow-hidden">
-      {error && <p role="alert" className="p-4 text-danger">{error}</p>}
       <table className="w-full text-sm">
         <thead className="border-b border-brand-purple/10 bg-brand-purple/5 text-left text-xs uppercase tracking-wide text-muted">
           <tr>

@@ -5,21 +5,28 @@
 * Later: a signed-in organiser asks to add an organisation (REQUEST), decided by an admin.
 * Approving a request that names a new organisation ("Others") creates it and lists it in
   the dropdown for everyone.
+* Self-managed organisations (EventEase) have a manager who creates their member accounts
+  directly; nobody can sign up for or request them, and they are hidden from sign-up.
 Organisers need at least one approved membership to use the organiser features.
 """
 
 import math
 import uuid
+from collections.abc import Callable
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from app.core.config import Settings
 from app.core.errors import AppError
-from app.core.security import utcnow
-from app.db.models import MembershipSource, MembershipStatus, Organisation, OrganisationMembership, User
-from app.rules.contact import mask_email
+from app.core.security import hash_password, utcnow
+from app.db.models import MembershipSource, MembershipStatus, Organisation, OrganisationMembership, Role, User
+from app.rules.contact import EMAIL_TAKEN, mask_email, normalise_email
+from app.rules.errors import RuleError
 from app.rules.organisation import check_organisation
+from app.rules.password import check_password
+from app.rules.username import USERNAME_TAKEN, check_username_format
 from app.services import audit
 from app.services.mail.base import send_safely
 
@@ -32,6 +39,12 @@ def find_by_name(db: Session, name: str) -> Organisation | None:
 
 def listed(db: Session) -> list[Organisation]:
     return list(db.scalars(select(Organisation).where(Organisation.listed.is_(True)).order_by(Organisation.name)))
+
+
+def sign_in_choices(db: Session) -> list[Organisation]:
+    """The organiser sign-in dropdown: listed organisations plus self-managed ones, which sign-up hides."""
+    return list(db.scalars(select(Organisation).where(
+        or_(Organisation.listed.is_(True), Organisation.manager_id.is_not(None))).order_by(Organisation.name)))
 
 
 def has_approved_membership(db: Session, user: User) -> bool:
@@ -50,6 +63,8 @@ def _mine_row(membership: OrganisationMembership, organisation: Organisation | N
         "organisation_name": _name(membership, organisation), "organisation_email": membership.organisation_email,
         "status": membership.status, "source": membership.source, "submitted_at": membership.created_at,
         "reviewed_at": membership.reviewed_at, "review_note": membership.review_note,
+        "is_manager": organisation is not None and organisation.manager_id == membership.user_id,
+        "self_managed": organisation is not None and organisation.self_managed,
     }
 
 
@@ -79,6 +94,9 @@ def _check_not_already_open(db: Session, user: User, organisation: Organisation 
 
 def _new_membership(db: Session, user: User, name: str, email: str, source: MembershipSource) -> OrganisationMembership:
     organisation = find_by_name(db, name)
+    if organisation is not None and organisation.self_managed:
+        raise AppError(409, "ORGANISATION_INVITE_ONLY",
+                       f"{organisation.name} accounts are created by its manager; it cannot be requested")
     _check_not_already_open(db, user, organisation, name)
     membership = OrganisationMembership(
         user_id=user.id, organisation_id=organisation.id if organisation else None,
@@ -205,3 +223,153 @@ def decide(db: Session, settings: Settings, admin: User, raw_id: str, *, approve
                         f"Hi {user.username},\n\nYour request to add '{name}' to your account was not approved."
                         f"{reason}\n\nThe EventEase team")
     return _admin_row(membership, user, organisation, admin.username)
+
+
+# --------------------------------------------------------------------------- self-managed organisations
+
+
+class SeedError(RuntimeError):
+    pass
+
+
+def approved_organisation(db: Session, user: User, raw_id: str | None) -> Organisation | None:
+    """The organisation the organiser chose for this session, if they are an approved member of it."""
+    try:
+        organisation_id = uuid.UUID(raw_id) if raw_id else None
+    except ValueError:
+        return None
+    if organisation_id is None:
+        return None
+    return db.scalar(select(Organisation).join(
+        OrganisationMembership, OrganisationMembership.organisation_id == Organisation.id).where(
+        Organisation.id == organisation_id, OrganisationMembership.user_id == user.id,
+        OrganisationMembership.status == MembershipStatus.APPROVED))
+
+
+def eventease_organisation(db: Session, settings: Settings) -> Organisation | None:
+    organisation = find_by_name(db, settings.EVENTEASE_ORGANISATION_NAME)
+    return organisation if organisation is not None and organisation.self_managed else None
+
+
+def seed_eventease(db: Session, settings: Settings, out: Callable[[str], None] = print) -> None:
+    """Create the EventEase organisation and its manager account if missing (idempotent).
+
+    Never changes an existing account's username, password or role.
+    """
+    name, username = settings.EVENTEASE_ORGANISATION_NAME, settings.EVENTEASE_MANAGER_USERNAME
+    organisation = find_by_name(db, name)
+    if organisation is None:
+        organisation = Organisation(name=name, listed=False)
+        db.add(organisation)
+        db.flush()
+        out(f"Created organisation '{name}' (hidden from sign-up).")
+    elif organisation.listed:
+        organisation.listed = False
+        out(f"Organisation '{organisation.name}' is now hidden from sign-up.")
+
+    manager = db.scalar(select(User).where(func.lower(User.username) == username.lower()))
+    if manager is None:
+        if not settings.EVENTEASE_MANAGER_EMAIL or not settings.EVENTEASE_MANAGER_PASSWORD:
+            raise SeedError("set EVENTEASE_MANAGER_EMAIL and EVENTEASE_MANAGER_PASSWORD to create the manager account")
+        try:
+            check_username_format(username)
+            check_password(settings.EVENTEASE_MANAGER_PASSWORD)
+            email = normalise_email(settings.EVENTEASE_MANAGER_EMAIL)
+        except RuleError as error:
+            raise SeedError(error.message) from error
+        if db.scalar(select(User.id).where(func.lower(User.email) == email.lower())):
+            raise SeedError(f"{email} already belongs to another account")
+        now = utcnow()
+        manager = User(username=username, email=email,
+                       password_hash=hash_password(settings.EVENTEASE_MANAGER_PASSWORD), role=Role.ORGANISER,
+                       must_change_password=False, password_changed_at=now, email_verified_at=now,
+                       email_verification_required=False)
+        db.add(manager)
+        db.flush()
+        audit.record(db, actor=None, action="ORGANISATION_MANAGER_SEEDED", entity_type="User", entity_id=manager.id,
+                     after={"username": username, "role": "ORGANISER", "organisation": organisation.name})
+        out(f"Created organiser '{username}'.")
+    elif manager.role != Role.ORGANISER:
+        raise SeedError(f"'{username}' already exists and is not an organiser account")
+
+    membership = db.scalar(select(OrganisationMembership).where(
+        OrganisationMembership.user_id == manager.id, OrganisationMembership.organisation_id == organisation.id,
+        OrganisationMembership.status == MembershipStatus.APPROVED))
+    if membership is None:
+        db.add(OrganisationMembership(user_id=manager.id, organisation_id=organisation.id,
+                                      organisation_email=manager.email, status=MembershipStatus.APPROVED,
+                                      source=MembershipSource.ADMIN, reviewed_at=utcnow()))
+        out(f"'{username}' is now an approved member of '{organisation.name}'.")
+    if organisation.manager_id is None:
+        organisation.manager_id = manager.id
+        out(f"'{username}' manages '{organisation.name}' and can create its member accounts.")
+    elif organisation.manager_id != manager.id:
+        raise SeedError(f"'{organisation.name}' already has a different manager")
+    db.commit()
+
+
+def _managed_organisation(db: Session, manager: User) -> Organisation:
+    organisation = db.scalar(select(Organisation).where(Organisation.manager_id == manager.id))
+    if organisation is None:
+        raise AppError(403, "NOT_ORGANISATION_MANAGER", "only the organisation's manager can manage its accounts")
+    return organisation
+
+
+def _member_row(user: User, membership: OrganisationMembership, organisation: Organisation) -> dict:
+    return {"user_id": user.id, "username": user.username, "email_masked": mask_email(user.email),
+            "is_manager": organisation.manager_id == user.id, "status": user.status,
+            "must_change_password": user.must_change_password, "added_at": membership.created_at}
+
+
+def list_members(db: Session, manager: User) -> dict:
+    organisation = _managed_organisation(db, manager)
+    rows = db.execute(select(User, OrganisationMembership).join(
+        OrganisationMembership, OrganisationMembership.user_id == User.id).where(
+        OrganisationMembership.organisation_id == organisation.id,
+        OrganisationMembership.status == MembershipStatus.APPROVED).order_by(OrganisationMembership.created_at)).all()
+    return {"organisation_id": organisation.id, "organisation_name": organisation.name,
+            "items": [_member_row(user, membership, organisation) for user, membership in rows]}
+
+
+def create_member(db: Session, settings: Settings, manager: User, *, username: str, email: str, password: str,
+                  ip: str | None) -> dict:
+    """The manager creates an organiser account that is approved and verified at once.
+
+    The member signs in with the temporary password and must change it first. No admin request is made.
+    """
+    from app.services.usernames import check_username_available
+
+    organisation = _managed_organisation(db, manager)
+    username = username.strip()
+    check_username_available(db, username)
+    check_password(password)
+    normalised_email = normalise_email(email)
+    if db.scalar(select(User.id).where(func.lower(User.email) == normalised_email.lower())):
+        raise RuleError(*EMAIL_TAKEN, status_code=409)
+    now = utcnow()
+    member = User(username=username, email=normalised_email, password_hash=hash_password(password),
+                  role=Role.ORGANISER, must_change_password=True, password_changed_at=now,
+                  email_verified_at=now, email_verification_required=False, signup_ip=ip)
+    db.add(member)
+    try:
+        db.flush()
+    except IntegrityError as error:
+        db.rollback()
+        if "uq_users_username_lower" in str(error.orig):
+            raise RuleError(*USERNAME_TAKEN, status_code=409) from error
+        raise RuleError(*EMAIL_TAKEN, status_code=409) from error
+    membership = OrganisationMembership(user_id=member.id, organisation_id=organisation.id,
+                                        organisation_email=normalised_email, status=MembershipStatus.APPROVED,
+                                        source=MembershipSource.ADMIN, reviewed_by_id=manager.id, reviewed_at=now)
+    db.add(membership)
+    db.flush()
+    audit.record(db, actor=manager, action="ORGANISATION_MEMBER_CREATED", entity_type="User", entity_id=member.id,
+                 after={"username": member.username, "organisation": organisation.name}, ip=ip)
+    db.commit()
+    send_safely(member.email, f"Your {organisation.name} organiser account",
+                f"Hi {member.username},\n\n{manager.username} has created an organiser account for you in "
+                f"{organisation.name} on EventEase.\n\nSign in at {settings.FRONTEND_URL.rstrip('/')}/login with "
+                f"your username and the temporary password {manager.username} gave you, and choose "
+                f"{organisation.name} as your organisation. You will be asked to set your own password first."
+                f"\n\nThe EventEase team")
+    return _member_row(member, membership, organisation)

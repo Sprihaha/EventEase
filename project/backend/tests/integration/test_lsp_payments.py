@@ -68,7 +68,7 @@ def test_stripe_webhook_endpoint_with_mock_provider():
     with SessionLocal() as db:
         user = make_user(db, role=Role.CUSTOMER, username=f"lsp{sfx}", email=f"lsp_{sfx}@example.com")
         organiser = make_user(db, role=Role.ORGANISER, username=f"org{sfx}", email=f"org_{sfx}@example.com")
-        event = make_event(db, organiser=organiser, days=7, categories=[("STANDARD", 2000, 10)])
+        event = make_event(db, organiser=organiser, days=60, categories=[("STANDARD", 2000, 10)])
         cat = db.query(TicketCategory).filter(TicketCategory.event_id == event.id).first()
 
         booking_data = BookingCreate(

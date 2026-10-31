@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     TICKETMASTER_API_KEY: str | None = None
     TICKETMASTER_MAX_PAGES: int = 5
     INGEST_AUTO_APPROVE: bool = True
+    # Eventfinda Singapore API (HTTP Basic auth). Imported events go to the EventEase organisation.
+    EVENTFINDA_USERNAME: str | None = None
+    EVENTFINDA_PASSWORD: str | None = None
+    EVENTFINDA_BASE_URL: str = "https://api.eventfinda.sg/v2"
     INCLUDE_SAMPLE_EVENTS: bool | None = None
     IMPORT_MAX_BYTES: int = 2_000_000
     IMPORT_MAX_ROWS: int = 1000
@@ -98,7 +102,16 @@ class Settings(BaseSettings):
     PURCHASE_LIMIT_PER_EVENT: int = 6
     BOOKING_HOLD_MINUTES: int = 10
     CANCELLATION_CUTOFF_HOURS: int = 48
+    # Ticket sales close this many days before an event starts; QR codes are released at the same time.
+    SALES_CLOSE_DAYS_BEFORE_EVENT: int = Field(default=30, ge=0, le=365)
     BACKGROUND_JOBS_ENABLED: bool = True
+
+    # EventEase's own organisation (self-managed, hidden from sign-up) and its manager account,
+    # created by `python -m app.cli seed-eventease`. The password is read from the environment only.
+    EVENTEASE_ORGANISATION_NAME: str = "EventEase"
+    EVENTEASE_MANAGER_USERNAME: str = "admin_eventease"
+    EVENTEASE_MANAGER_EMAIL: str | None = None
+    EVENTEASE_MANAGER_PASSWORD: str | None = None
     HOLD_SWEEP_INTERVAL_SECONDS: int = 30
 
     # EaseXchange policy, independent of Package B's booking hold duration.

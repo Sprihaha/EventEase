@@ -990,6 +990,6 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString("en-SG")
 }
 
-function HistoryTicket({ label, ticket }: { label: string; ticket: import("../../lib/exchangeTypes").ExchangeTicket }) {
+function HistoryTicket({ label, ticket }: { label: string; ticket: import("../../../lib/exchangeTypes").ExchangeTicket }) {
   return <p className="text-sm text-muted"><span className="font-semibold">{label}:</span> {ticket.categoryType} · Section {ticket.seatSection} · Seat {ticket.seatLabel ?? "Unassigned"}{ticket.price != null && ` · S$${ticket.price.toFixed(2)}`}</p>
 }

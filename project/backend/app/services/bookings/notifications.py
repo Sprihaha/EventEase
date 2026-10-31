@@ -11,8 +11,11 @@ from app.services.mail.base import Mailer, send_safely
 
 
 def send_booking_confirmation(db: Session, booking_id: uuid.UUID, mailer: Mailer | None = None) -> None:
-    """Formats and dispatches ticket confirmation email with ticket codes to the customer."""
+    """Payment and ticket confirmation. No ticket codes: QR codes are emailed when ticket sales close."""
+    from app.core.config import get_settings
+    from app.services.bookings.qr_release import qr_released
     from app.services.bookings.queries import load_booking
+    from app.services.events import sales_close_at
 
     booking = load_booking(db, booking_id)
     if not booking:
@@ -22,11 +25,19 @@ def send_booking_confirmation(db: Session, booking_id: uuid.UUID, mailer: Mailer
     if not user or not event:
         return
 
-    codes = "\n".join(f"  - {t.code}" for t in booking.tickets)
+    settings = get_settings()
+    if qr_released(booking, event):
+        tickets = "Your QR tickets are ready in your EventEase dashboard."
+    else:
+        release = sales_close_at(event, settings).astimezone(settings.tz).strftime("%d %B %Y")
+        tickets = (f"Your QR tickets will be emailed to you on {release}, when ticket sales close. "
+                   f"Until then you can still swap tickets on EaseXchange.")
     send_safely(
         user.email,
         f"Your tickets for {event.title}",
-        f"Hi {user.username},\n\nYour booking is confirmed.\nTicket codes:\n{codes}\n",
+        f"Hi {user.username},\n\nPayment received - your booking for '{event.title}' is confirmed "
+        f"({len(booking.tickets)} ticket(s), S${booking.total_cents / 100:.2f}).\n\n{tickets}\n\n"
+        f"{settings.FRONTEND_URL.rstrip('/')}/dashboard/customer\n\nThe EventEase team",
         mailer=mailer,
     )
 

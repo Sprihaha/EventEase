@@ -16,9 +16,11 @@ export interface TicketingEvent {
   id: string; title: string; description: string | null; startAt: string; endAt: string;
   venueName: string; imageUrl: string | null; purchasable: boolean; externalUrl: string | null;
   purchaseLimitPerEvent: number; ticketCategories: TicketCategory[];
+  imported?: boolean; organisationName?: string | null; salesCloseAt?: string | null;
 }
 export interface IssuedTicket {
-  id: string; code: string; status: string; ticketCategoryId: string;
+  // The code (what the QR encodes) is null until QR codes are released, when ticket sales close.
+  id: string; code: string | null; status: string; ticketCategoryId: string;
   seatLabel: string | null; checkedInAt: string | null;
 }
 export interface BackendBooking {
@@ -26,10 +28,11 @@ export interface BackendBooking {
   event: { id: string; title: string; startAt: string; endAt: string; venueName: string; imageUrl: string | null };
   items: { ticketCategoryId: string; name: string; quantity: number; unitPriceCents: number }[];
   tickets: IssuedTicket[]; totalCents: number; currency: string; holdExpiresAt: string | null;
-  createdAt: string; cancellable: boolean;
+  createdAt: string; cancellable: boolean; qrReleased?: boolean; qrAvailableFrom?: string | null;
 }
 export interface OwnedTicket {
-  id: string; code: string; status: string; bookingId: string; bookingStatus: string;
+  id: string; code: string | null; status: string; bookingId: string; bookingStatus: string;
+  qrAvailableFrom?: string | null;
   event: BackendBooking["event"]; categoryType: string; categoryName: string;
   unitPriceCents: number; seatLabel: string | null; seatSection: string | null; checkedInAt: string | null;
 }

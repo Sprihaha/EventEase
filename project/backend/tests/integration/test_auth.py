@@ -64,7 +64,7 @@ def test_signup_username_rules_in_order(client):
     assert error_of(too_long) == {"code": "USERNAME_TOO_LONG", "message": "length exceeded", "details": {}}
     bad_chars = signup(client, username="fan9")
     assert error_of(bad_chars)["code"] == "USERNAME_INVALID_CHARS"
-    assert error_of(bad_chars)["message"] == "Username can only contain letters and digits 0 to 8"
+    assert error_of(bad_chars)["message"] == "Username can only contain letters, digits 0 to 8 and underscores"
     assert signup(client, username="abcdefghijklmno").status_code == 201  # exactly 15
 
 

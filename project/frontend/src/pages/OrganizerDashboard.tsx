@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   CalendarPlus,
   Ticket,
@@ -7,15 +8,22 @@ import {
   Building2,
   Armchair,
   MapPin,
+  CheckCircle2,
+  Wrench,
+  Clock3,
+  Users,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { type EventItem } from "../lib/data";
-import { DashboardShell, type NavItem } from "../components/DashboardShell";
-import { Button, Badge, Card } from "../components/ui";
+import { BarChart, DashboardShell, type NavItem } from "../components/DashboardShell";
+import { Button, Badge, Card, Eyebrow } from "../components/ui";
 import EaseAnalytics from "../components/EaseAnalytics";
 import VenueSetup from "../components/VenueSetup";
 import CreateEventForm from "../components/CreateEventForm";
 import VenueSeatMap from "../components/VenueSeatMap";
+import OrganisationTeam from "../components/OrganisationTeam";
+import TicketTierEditor from "../components/TicketTierEditor";
+import { fetchMyOrganisations, getCurrentOrganisation } from "../lib/organisation";
 
 const nav: NavItem[] = [
   { id: "analytics", label: "EaseAnalytics", icon: BarChart3 },
@@ -30,16 +38,29 @@ const nav: NavItem[] = [
 
 export default function OrganizerDashboard() {
   const { user, events, createEvent } = useStore();
-  const mine = events.filter((e) => e.organizerId === user?.id);
+  // The backend already returns only the events this organiser manages: their own, plus the
+  // shared events of a self-managed organisation chosen for this session.
+  const mine = events;
+  const [isManager, setIsManager] = useState(false);
+
+  useEffect(() => {
+    const chosen = getCurrentOrganisation();
+    if (!chosen) return;
+    fetchMyOrganisations()
+      .then((memberships) => setIsManager(memberships.some((m) => m.organisationId === chosen.id && m.isManager)))
+      .catch(() => setIsManager(false));
+  }, []);
+
+  const items = isManager ? [...nav, { id: "team", label: "Team", icon: Users }] : nav;
 
   return (
     <DashboardShell
       role="organizer"
       title={(active) => {
         if (active === "analytics") return `Welcome, ${user?.name || "organizer"}!`;
-        return nav.find((n) => n.id === active)?.label ?? "Organizer studio";
+        return items.find((n) => n.id === active)?.label ?? "Organizer studio";
       }}
-      nav={nav}
+      nav={items}
     >
       {(active) => (
         <>
@@ -51,6 +72,7 @@ export default function OrganizerDashboard() {
           {active === "events" && <EventsTable mine={mine} />}
           {active === "create" && <CreateEventForm onCreate={createEvent} />}
           {active === "promos" && <Promotions />}
+          {active === "team" && isManager && <OrganisationTeam />}
         </>
       )}
     </DashboardShell>
@@ -169,6 +191,7 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
                   <Badge tone={e.status === "published" ? "live" : e.status === "pending" ? "warn" : "neutral"}>
                     {e.status}
                   </Badge>
+                  {e.imported && <Badge tone="accent">Imported by System</Badge>}
                 </div>
                 <div className="text-sm text-muted">{e.venue} · {e.category}</div>
               </div>
@@ -197,6 +220,7 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line">
               <div className="h-full rounded-full bg-brand-orange" style={{ width: `${pct}%` }} />
             </div>
+            {e.status === "published" && e.tiers.length > 0 && <TicketTierEditor event={e} />}
           </Card>
         );
       })}

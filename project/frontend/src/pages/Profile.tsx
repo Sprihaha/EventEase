@@ -131,8 +131,8 @@ export default function Profile() {
     user.role === "admin"
       ? "danger"
       : user.role === "organizer"
-      ? "warning"
-      : "brand";
+      ? "warn"
+      : "accent";
 
   const dashboardPath = `/dashboard/${user.role}`;
 
@@ -176,7 +176,7 @@ export default function Profile() {
                     {roleLabel}
                   </Badge>
                   {profile?.emailVerified && (
-                    <Badge tone="success" className="font-bold inline-flex items-center gap-1">
+                    <Badge tone="live" className="font-bold inline-flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3" />
                       <span>Verified</span>
                     </Badge>
@@ -370,7 +370,7 @@ export default function Profile() {
                       {currentOrg?.name || "No organisation selected"}
                     </h3>
                   </div>
-                  <Badge tone="warning" className="font-bold">
+                  <Badge tone="warn" className="font-bold">
                     Primary
                   </Badge>
                 </div>
@@ -401,7 +401,7 @@ export default function Profile() {
                           </span>
                         </div>
                         <Badge
-                          tone={org.status === "APPROVED" ? "success" : "neutral"}
+                          tone={org.status === "APPROVED" ? "live" : "neutral"}
                           className="text-xs font-semibold"
                         >
                           {org.status}

@@ -27,6 +27,8 @@ class EventListItem(CamelModel):
     origin: EventOrigin
     purchasable: bool
     is_sample: bool
+    imported: bool = False
+    sales_close_at: datetime | None = None
 
 
 class PublicTicketCategory(CamelModel):
@@ -46,6 +48,7 @@ class EventDetail(EventListItem):
     description: str | None
     status: EventStatus
     organiser_username: str | None
+    organisation_name: str | None = None
     ticket_categories: list[PublicTicketCategory]
     purchase_limit_per_event: int
 

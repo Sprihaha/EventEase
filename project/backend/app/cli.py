@@ -3,6 +3,7 @@
     python -m app.cli seed-admin
     python -m app.cli admin-reset-password --username eventeaseadmin
     python -m app.cli send-verification-reminders [--send]
+    python -m app.cli seed-eventease
 """
 
 import argparse
@@ -24,6 +25,19 @@ def cmd_seed_admin(_: argparse.Namespace) -> int:
 def cmd_reset_password(args: argparse.Namespace) -> int:
     with create_session() as db:
         reset_admin_password(db, args.username)
+    return 0
+
+
+def cmd_seed_eventease(_: argparse.Namespace) -> int:
+    from app.services.organisations import SeedError as OrganisationSeedError, seed_eventease
+
+    try:
+        with create_session() as db:
+            seed_eventease(db, get_settings())
+    except OrganisationSeedError as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+    print("EventEase organisation and manager account are ready.")
     return 0
 
 
@@ -99,6 +113,9 @@ def build_parser() -> argparse.ArgumentParser:
     reset.add_argument("--username", required=True)
     reset.set_defaults(func=cmd_reset_password)
 
+    sub.add_parser("seed-eventease",
+                   help="Create the EventEase organisation and its manager account if missing (idempotent)"
+                   ).set_defaults(func=cmd_seed_eventease)
     sub.add_parser("seed-sample", help="Insert labelled sample events (development only)").set_defaults(func=cmd_seed_sample)
     sub.add_parser("ingest-events", help="Sync Singapore events from configured external sources").set_defaults(func=cmd_ingest)
     sub.add_parser("purge-old-data", help="Delete personal data past DATA_RETENTION_DAYS (PDPA)").set_defaults(func=cmd_purge)

@@ -20,7 +20,7 @@ from app.schemas.exchange import CreateExchangeRequest
 from app.services import exchanges
 from app.services.exchange_ticketing import RelationalTicketingGateway
 from app.services.payments.base import MockPaymentProvider, set_payment_provider
-from tests.helpers import auth_header, make_event, make_user
+from tests.helpers import auth_header, make_event, make_user, with_ticket_codes
 
 ROOT = "/api/v1/exchanges"
 
@@ -29,10 +29,10 @@ ROOT = "/api/v1/exchanges"
 def world(client, db):
     set_payment_provider(MockPaymentProvider())
     organiser = make_user(db, role=Role.ORGANISER)
-    event = make_event(db, organiser=organiser, days=30, categories=[("STANDARD", 5049, 100), ("VIP", 10000, 100)])
+    event = make_event(db, organiser=organiser, days=60, categories=[("STANDARD", 5049, 100), ("VIP", 10000, 100)])
     categories = list(db.scalars(select(TicketCategory).where(TicketCategory.event_id == event.id).order_by(TicketCategory.price_cents)))
     a, b, outsider = make_user(db), make_user(db), make_user(db)
-    w = SimpleNamespace(event=event, category=categories[0], vip=categories[1], a=a, b=b, outsider=outsider,
+    w = SimpleNamespace(db=db, event=event, category=categories[0], vip=categories[1], a=a, b=b, outsider=outsider,
                         ha=auth_header(client, a.username), hb=auth_header(client, b.username),
                         hx=auth_header(client, outsider.username), ho=auth_header(client, organiser.username))
     yield w
@@ -45,7 +45,7 @@ def ticket(client, headers, w, category=None, quantity=1):
     assert response.status_code == 201, response.text
     response = client.post(f"/api/v1/bookings/{response.json()['id']}/pay", headers=headers, json={})
     assert response.status_code == 200, response.text
-    return response.json()
+    return with_ticket_codes(w.db, response.json())
 
 
 def offer(client, headers, ticket_id, **extra):
@@ -207,7 +207,7 @@ def test_ticket_interest_rechecks_changes_after_loading_candidates(client, db, w
         request.created_at = utcnow() - timedelta(days=2)
         request.expires_at = utcnow() - timedelta(days=1)
     else:
-        other = make_event(db, organiser=db.get(type(w.a), w.event.organiser_id), days=35,
+        other = make_event(db, organiser=db.get(type(w.a), w.event.organiser_id), days=65,
                            categories=[("STANDARD", 5049, 100)])
         db.get(Booking, uuid.UUID(bb["id"])).event_id = other.id
     db.commit()
@@ -339,9 +339,9 @@ def test_cross_tier_and_bilateral_preferences(client, world):
 def test_different_events_and_same_user_cannot_match(client, db, world):
     w = world
     a, b, _, _ = pair(client, w)
-    other = make_event(db, organiser=db.get(type(w.a), w.event.organiser_id), days=35, categories=[("STANDARD", 5049, 100)])
+    other = make_event(db, organiser=db.get(type(w.a), w.event.organiser_id), days=65, categories=[("STANDARD", 5049, 100)])
     category = db.scalar(select(TicketCategory).where(TicketCategory.event_id == other.id))
-    other_booking = ticket(client, w.hb, SimpleNamespace(event=other, category=category))
+    other_booking = ticket(client, w.hb, SimpleNamespace(db=w.db, event=other, category=category))
     c = offer(client, w.hb, other_booking["tickets"][0]["id"]).json()
     assert client.post(f"{ROOT}/{a['id']}/interest", headers=w.ha, json={"targetRequestId": c["id"]}).status_code == 409
     own_booking = ticket(client, w.ha, w)

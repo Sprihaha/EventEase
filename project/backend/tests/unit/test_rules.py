@@ -7,7 +7,7 @@ from app.rules.password import check_password, is_strong_password
 from app.rules.username import check_username_format
 
 WEAK_MESSAGE = "Password must contain at least 8 string long, with upper and lower case, at least a digit and a symbol"
-CHARS_MESSAGE = "Username can only contain letters and digits 0 to 8"
+CHARS_MESSAGE = "Username can only contain letters, digits 0 to 8 and underscores"
 
 
 def _error(fn, value) -> RuleError:
@@ -35,7 +35,7 @@ def test_username_16_chars_is_too_long():
 
 def test_length_rule_is_checked_before_characters():
     # 16 characters AND invalid characters: the first rule (length) wins.
-    assert _error(check_username_format, "abc_def_ghi_jklm").code == "USERNAME_TOO_LONG"
+    assert _error(check_username_format, "abc-def-ghi-jklm").code == "USERNAME_TOO_LONG"
 
 
 @pytest.mark.parametrize("username", ["user9", "9", "abc99", "nine9nine"])
@@ -44,7 +44,7 @@ def test_digit_9_is_rejected(username):
     assert (error.code, error.message) == ("USERNAME_INVALID_CHARS", CHARS_MESSAGE)
 
 
-@pytest.mark.parametrize("username", ["", "abc_def", "abc def", "abc-1", "a.b", "user!", "名字", "émile", "!!!!", " abc"])
+@pytest.mark.parametrize("username", ["", "abc def", "abc-1", "a.b", "user!", "名字", "émile", "!!!!", " abc"])
 def test_invalid_characters(username):
     error = _error(check_username_format, username)
     assert (error.code, error.message) == ("USERNAME_INVALID_CHARS", CHARS_MESSAGE)

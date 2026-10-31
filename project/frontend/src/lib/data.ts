@@ -33,6 +33,9 @@ export type EventItem = {
   earlyBird?: number; // percent off
   priceFrom?: number;
   purchasable?: boolean;
+  imported?: boolean; // created by the Eventfinda import ("Imported by System")
+  organisationName?: string | null;
+  salesCloseAt?: string | null;
 };
 
 export type SeatBooking = { seat: string; tier: string };
@@ -47,7 +50,7 @@ export type Booking = {
   purchasedAt: string;
   status: "confirmed" | "cancelled" | "refunded" | "listed" | "pending_payment";
   cancellable?: boolean;
-  tickets?: { id: string; code: string; status: string; seatLabel: string | null; checkedInAt: string | null }[];
+  tickets?: { id: string; code: string | null; status: string; seatLabel: string | null; checkedInAt: string | null }[];
   event?: { title: string; date: string; venue: string; image: string };
   promo?: string;
 };

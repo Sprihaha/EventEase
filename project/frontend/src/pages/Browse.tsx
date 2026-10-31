@@ -1,11 +1,14 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { useStore } from "../lib/store";
 import { categoryList, type Category } from "../lib/data";
 import { EventCard } from "../components/EventCard";
-import { Eyebrow, Input, Select, cx } from "../components/ui";
+import { Button, Eyebrow, Input, Select, cx } from "../components/ui";
 import { SEO } from "../components/common";
+
+const PAGE_SIZES = [10, 20, 50];
+const DEFAULT_PAGE_SIZE = 10;
 
 export default function Browse() {
   const { publicEvents: events, eventsSource, eventsError } = useStore();
@@ -19,6 +22,11 @@ export default function Browse() {
   });
   const [sort, setSort] = useState("date");
   const [maxPrice, setMaxPrice] = useState(400);
+  const [page, setPage] = useState(() => Math.max(1, Math.floor(Number(params.get("page"))) || 1));
+  const [pageSize, setPageSize] = useState(() => {
+    const fromUrl = Number(params.get("size"));
+    return PAGE_SIZES.includes(fromUrl) ? fromUrl : DEFAULT_PAGE_SIZE;
+  });
 
   const results = useMemo(() => {
     let list = events.filter((e) => e.status === "published");
@@ -33,16 +41,35 @@ export default function Browse() {
     return list;
   }, [events, cat, q, sort, maxPrice]);
 
-  const syncParams = (nextQ: string, nextCat: Category | "All") => {
+  const pageCount = Math.max(1, Math.ceil(results.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const firstShown = (currentPage - 1) * pageSize;
+  const shown = results.slice(firstShown, firstShown + pageSize);
+
+  // New filters start again from page 1.
+  const syncParams = (nextQ: string, nextCat: Category | "All", nextPage = 1, nextSize = pageSize) => {
     const next = new URLSearchParams();
     if (nextQ.trim()) next.set("q", nextQ.trim());
     if (nextCat !== "All") next.set("cat", nextCat);
+    if (nextPage > 1) next.set("page", String(nextPage));
+    if (nextSize !== DEFAULT_PAGE_SIZE) next.set("size", String(nextSize));
+    setPage(nextPage);
     setParams(next, { replace: true });
   };
 
   const setCategory = (c: Category | "All") => {
     setCat(c);
     syncParams(q, c);
+  };
+
+  const goToPage = (target: number) => {
+    syncParams(q, cat, target);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const changePageSize = (size: number) => {
+    setPageSize(size);
+    syncParams(q, cat, 1, size);
   };
 
   const pageTitle = cat !== "All" ? `${cat} Events & Tickets` : "Explore Events & Shows";
@@ -129,14 +156,17 @@ export default function Browse() {
               max={400}
               step={10}
               value={maxPrice}
-              onChange={(e) => setMaxPrice(+e.target.value)}
+              onChange={(e) => {
+                setMaxPrice(+e.target.value);
+                syncParams(q, cat);
+              }}
               className="mt-3 w-full accent-brand-orange cursor-pointer"
             />
           </div>
 
           <div className="mt-5">
             <div className="text-xs font-bold uppercase tracking-wider text-muted">Sort by</div>
-            <Select value={sort} onChange={(e) => setSort(e.target.value)} className="mt-2">
+            <Select value={sort} onChange={(e) => { setSort(e.target.value); syncParams(q, cat); }} className="mt-2">
               <option value="date">Date — soonest</option>
               <option value="price">Price — lowest</option>
             </Select>
@@ -145,18 +175,51 @@ export default function Browse() {
 
         {/* Results */}
         <div>
-          <div className="mb-5 flex items-center justify-between text-sm font-medium text-muted">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 text-sm font-medium text-muted">
             <span>
-              Showing {results.length} {results.length === 1 ? "event" : "events"}
+              {results.length
+                ? `Showing ${firstShown + 1}–${firstShown + shown.length} of ${results.length} ${results.length === 1 ? "event" : "events"}`
+                : "Showing 0 events"}
               {q.trim() ? ` for “${q.trim()}”` : ""}
             </span>
+            <label className="flex items-center gap-2">
+              <span>Per page</span>
+              <span className="w-24">
+                <Select aria-label="Events per page" value={String(pageSize)} onChange={(e) => changePageSize(Number(e.target.value))}>
+                  {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+                </Select>
+              </span>
+            </label>
           </div>
           {results.length ? (
-            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-              {results.map((ev) => (
-                <EventCard key={ev.id} ev={ev} />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {shown.map((ev) => (
+                  <EventCard key={ev.id} ev={ev} />
+                ))}
+              </div>
+              {pageCount > 1 && (
+                <nav aria-label="Event pages" className="mt-8 flex flex-wrap items-center justify-center gap-2">
+                  <Button size="sm" variant="ghost" aria-label="Previous page" disabled={currentPage === 1} onClick={() => goToPage(currentPage - 1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {Array.from({ length: pageCount }, (_, index) => index + 1).map((number) => (
+                    <Button
+                      key={number}
+                      size="sm"
+                      variant={number === currentPage ? "primary" : "ghost"}
+                      aria-current={number === currentPage ? "page" : undefined}
+                      onClick={() => goToPage(number)}
+                    >
+                      {number}
+                    </Button>
+                  ))}
+                  <Button size="sm" variant="ghost" aria-label="Next page" disabled={currentPage === pageCount} onClick={() => goToPage(currentPage + 1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </nav>
+              )}
+            </>
           ) : (
             <div className="rounded-3xl border border-dashed border-brand-purple/20 bg-white/60 p-16 text-center text-muted">
               No events match your filters.

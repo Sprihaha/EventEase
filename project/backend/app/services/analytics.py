@@ -9,6 +9,7 @@ from app.core.errors import AppError
 from app.db.models import Booking, BookingItem, BookingStatus, Event, TicketCategory, TicketCategoryType, User
 from app.services import audit
 from app.services.events import parse_event_id
+from app.services.organiser import managed_by
 from app.services.reports import analytics_report
 
 CURRENCY = "SGD"
@@ -27,14 +28,14 @@ def _owned_event_id(db: Session, organiser: User, raw_event_id: str | None) -> u
     if raw_event_id is None:
         return None
     event_id = parse_event_id(raw_event_id)
-    owned = db.scalar(select(Event.id).where(Event.id == event_id, Event.organiser_id == organiser.id))
+    owned = db.scalar(select(Event.id).where(Event.id == event_id, managed_by(organiser)))
     if owned is None:  # other organisers' events look like missing ones
         raise AppError(404, "EVENT_NOT_FOUND", "event not found")
     return event_id
 
 
 def _scope(organiser: User, event_id: uuid.UUID | None) -> list:
-    conditions = [Event.organiser_id == organiser.id, Booking.status == BookingStatus.CONFIRMED]
+    conditions = [managed_by(organiser), Booking.status == BookingStatus.CONFIRMED]
     if event_id is not None:
         conditions.append(Event.id == event_id)
     return conditions
@@ -67,7 +68,7 @@ def sales(db: Session, organiser: User, raw_event_id: str | None) -> dict:
         .select_from(Event)
         .outerjoin(Booking, and_(Booking.event_id == Event.id, Booking.status == BookingStatus.CONFIRMED))
         .outerjoin(BookingItem, BookingItem.booking_id == Booking.id)
-        .where(Event.organiser_id == organiser.id)
+        .where(managed_by(organiser))
         .group_by(Event.id, Event.title)
         .order_by(_revenue().desc(), Event.title)
     )

@@ -16,7 +16,7 @@ from app.db.session import SessionLocal
 from app.schemas.bookings import BookingCreate
 from app.services import bookings
 from app.services.payments.base import MockPaymentProvider, set_payment_provider
-from tests.helpers import auth_header, make_event, make_user
+from tests.helpers import auth_header, make_event, make_user, release_qr, with_ticket_codes
 
 X = "/api/v1/exchanges"
 
@@ -25,7 +25,7 @@ X = "/api/v1/exchanges"
 def world(client, db):
     set_payment_provider(MockPaymentProvider())
     staff, a, b = make_user(db, Role.ORGANISER), make_user(db), make_user(db)
-    event = make_event(db, organiser=staff, days=30, categories=[("STANDARD", 7549, 10), ("VIP", 15000, 10)])
+    event = make_event(db, organiser=staff, days=60, categories=[("STANDARD", 7549, 10), ("VIP", 15000, 10)])
     cats = list(db.scalars(select(TicketCategory).where(TicketCategory.event_id == event.id).order_by(TicketCategory.price_cents)))
     seats = []
     for row, cat, section in (("B", cats[0], "West"), ("A", cats[1], "Front")):
@@ -34,7 +34,7 @@ def world(client, db):
             seat = EventSeat(event_id=event.id, ticket_category_id=cat.id, label=f"{row}{n}", row_label=row, number=n)
             db.add(seat); seats.append(seat)
     db.commit()
-    yield SimpleNamespace(staff=staff,a=a,b=b,event=event,seats=seats,
+    yield SimpleNamespace(db=db,staff=staff,a=a,b=b,event=event,seats=seats,
         ha=auth_header(client,a.username),hb=auth_header(client,b.username),hs=auth_header(client,staff.username))
     set_payment_provider(None)
 
@@ -50,7 +50,7 @@ def paid(client, w, headers, seats):
     held=hold(client,w,headers,seats); assert held.status_code==201,held.text
     result=client.post(f"/api/v1/bookings/{held.json()['id']}/pay",headers=headers,json={})
     assert result.status_code==200,result.text
-    return result.json()
+    return with_ticket_codes(w.db,result.json())
 
 
 def ready(client,w,ta,tb):
@@ -78,7 +78,7 @@ def test_live_seats_hold_decline_retry_issue_refund(client,db,world):
     assert next(s for s in client.get(path).json() if s["id"]==str(w.seats[0].id))["status"]=="HELD"
     assert hold(client,w,w.hb,[w.seats[0]]).status_code==409
     assert client.post(f"/api/v1/bookings/{b['id']}/pay",headers=w.ha,json={"paymentMethod":"mock_fail"}).status_code==402
-    p=client.post(f"/api/v1/bookings/{b['id']}/pay",headers=w.ha,json={}).json()
+    p=with_ticket_codes(db,client.post(f"/api/v1/bookings/{b['id']}/pay",headers=w.ha,json={}).json())
     assert p["tickets"][0]["seatLabel"]=="B1"
     t=p["tickets"][0]
     assert client.get(f"/api/v1/tickets/{t['code']}/verify").json()["valid"]
@@ -143,6 +143,7 @@ def test_price_delta_decline_retry_and_payer_authorization(client,db,world):
 def test_checkin_is_authorized_persistent_and_blocks_refund_exchange(client,world):
     w=world
     b=paid(client,w,w.ha,[w.seats[0]]); t=b["tickets"][0]; path=f"/api/v1/tickets/{t['code']}"
+    release_qr(w.db,b["id"])
     assert client.post(path+"/checkin",json={}).status_code==401
     assert client.post(path+"/checkin",headers=w.ha,json={}).status_code==403
     assert client.post(path+"/checkin",headers=w.hs,json={}).json()["result"]=="ADMITTED"

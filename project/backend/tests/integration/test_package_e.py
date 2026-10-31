@@ -22,7 +22,7 @@ def mock_provider():
 
 
 def on_sale_event(db, organiser, quantity=50, price=5000, **fields):
-    event = make_event(db, organiser=organiser, days=30, categories=[("STANDARD", price, quantity)], **fields)
+    event = make_event(db, organiser=organiser, days=60, categories=[("STANDARD", price, quantity)], **fields)
     category = db.scalar(select(TicketCategory).where(TicketCategory.event_id == event.id))
     return event, category
 

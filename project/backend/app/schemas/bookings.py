@@ -42,7 +42,7 @@ class BookingItemOut(CamelModel):
 
 class TicketOut(CamelModel):
     id: uuid.UUID
-    code: str
+    code: str | None = Field(None, description="Hidden (null) until the QR code is released, when ticket sales close")
     status: TicketStatus
     ticket_category_id: uuid.UUID
     seat_label: str | None = None
@@ -72,11 +72,13 @@ class BookingOut(CamelModel):
     payment: PaymentInfo | None
     cancellable: bool
     cancellation_cutoff_at: datetime
+    qr_released: bool = False
+    qr_available_from: datetime | None = None
 
 
 class TicketHistoryItem(CamelModel):
     id: uuid.UUID
-    code: str
+    code: str | None = Field(None, description="Hidden (null) until the QR code is released, when ticket sales close")
     status: TicketStatus
     issued_at: datetime
     booking_id: uuid.UUID
@@ -88,3 +90,4 @@ class TicketHistoryItem(CamelModel):
     seat_label: str | None = None
     seat_section: str | None = None
     checked_in_at: datetime | None = None
+    qr_available_from: datetime | None = None

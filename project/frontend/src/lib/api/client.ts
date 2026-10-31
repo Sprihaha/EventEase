@@ -1,4 +1,5 @@
 import { TOKEN_KEY, isTokenExpired, notifySessionExpired } from "../session";
+import { currentOrganisationId } from "../currentOrganisation";
 
 // In the monolith deployment VITE_API_BASE_URL is intentionally left empty so
 // that API calls go to the same origin as the page (Nginx proxies /api/* to
@@ -53,6 +54,8 @@ export async function request<T>(path: string, init: RequestInit = {}, authentic
       }
       headers.set("Authorization", `Bearer ${token}`);
     }
+    const organisationId = currentOrganisationId();
+    if (organisationId) headers.set("X-Organisation-Id", organisationId);
   }
   const response = await fetch(`${API_ROOT}${path}`, { ...init, headers });
   if (!response.ok) {

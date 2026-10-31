@@ -91,18 +91,21 @@ export default function CustomerDashboard() {
             <Card key={t.id} className="flex flex-wrap items-center justify-between gap-4 p-6">
               <div>
                 <Badge tone={t.status === "VALID" && !t.checkedInAt ? "live" : "neutral"}>
-                  {t.checkedInAt ? "Admitted" : t.status}
+                  {t.checkedInAt ? "Admitted" : !t.code && t.status === "VALID" ? "Confirmed" : t.status}
                 </Badge>
                 <h2 className="mt-2 font-brand text-xl font-bold">{t.event.title}</h2>
                 <p className="mt-1 text-sm text-muted">{fmtDate(t.event.startAt)} · {t.event.venueName}</p>
                 <p className="mt-2 font-semibold">{t.seatLabel ?? "General Admission"} · {t.categoryName} · {t.seatSection}</p>
                 <p className="mt-1 text-sm">Purchase price: {currency(t.unitPriceCents / 100)}</p>
+                {!t.code && t.qrAvailableFrom && (
+                  <p className="mt-1 text-sm text-muted">Your QR code will be available from {fmtDate(t.qrAvailableFrom)}.</p>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button disabled={t.status !== "VALID" || t.bookingStatus !== "CONFIRMED" || !!t.checkedInAt} onClick={() => setQr(t)}>
+                <Button disabled={!t.code || t.status !== "VALID" || t.bookingStatus !== "CONFIRMED" || !!t.checkedInAt} onClick={() => setQr(t)}>
                   <QrCode className="h-4 w-4" /> Show ticket
                 </Button>
-                {t.status === "VALID" && !t.checkedInAt && (
+                {t.status === "VALID" && !t.checkedInAt && !t.code && (
                   <Link to={`/community?tab=exchange&view=create&ticket=${encodeURIComponent(t.id)}`}>
                     <Button variant="outline">Exchange ticket</Button>
                   </Link>
@@ -159,7 +162,7 @@ export default function CustomerDashboard() {
         </Card>
       </div>
     )}
-    {qr && <div role="dialog" aria-modal="true" aria-label="Digital ticket" className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-5"><Card className="relative w-full max-w-md p-7 text-center"><button aria-label="Close ticket" className="absolute right-4 top-4" onClick={() => setQr(null)}><X className="h-5 w-5"/></button><h2 className="font-brand text-2xl font-bold">{qr.event.title}</h2><p className="my-4">Seat {qr.seatLabel ?? "General Admission"} · {qr.categoryName}</p><div className="mx-auto w-max"><QRCode value={ticketPayload(qr.code)} size={180}/></div><Link className="mt-5 block text-brand-purple underline" to={`/verify/${encodeURIComponent(qr.code)}`}>Open verification page</Link><p className="mt-3 break-all text-xs text-muted">{qr.code}</p></Card></div>}
+    {qr?.code && <div role="dialog" aria-modal="true" aria-label="Digital ticket" className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-5"><Card className="relative w-full max-w-md p-7 text-center"><button aria-label="Close ticket" className="absolute right-4 top-4" onClick={() => setQr(null)}><X className="h-5 w-5"/></button><h2 className="font-brand text-2xl font-bold">{qr.event.title}</h2><p className="my-4">Seat {qr.seatLabel ?? "General Admission"} · {qr.categoryName}</p><div className="mx-auto w-max"><QRCode value={ticketPayload(qr.code)} size={180}/></div><Link className="mt-5 block text-brand-purple underline" to={`/verify/${encodeURIComponent(qr.code)}`}>Open verification page</Link><p className="mt-3 break-all text-xs text-muted">{qr.code}</p></Card></div>}
   </>)}</DashboardShell>
   );
 }

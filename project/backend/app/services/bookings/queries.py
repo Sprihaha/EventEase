@@ -20,6 +20,8 @@ from app.db.models import (
     User,
 )
 from app.services.bookings.policy import cancellation_cutoff
+from app.services.bookings.qr_release import qr_released
+from app.services.events import sales_close_at
 
 
 def load_booking(db: Session, booking_id: uuid.UUID, *, lock: bool = False) -> Booking | None:
@@ -57,6 +59,7 @@ def booking_view(db: Session, booking: Booking, settings: Settings | None = None
     item_category = {i.id: i.ticket_category_id for i in booking.items}
     latest = booking.payments[-1] if booking.payments else None
     cutoff = cancellation_cutoff(event, settings)
+    released = qr_released(booking, event)  # until then the code (what the QR encodes) stays hidden
     return {
         "id": booking.id,
         "status": booking.status,
@@ -64,7 +67,7 @@ def booking_view(db: Session, booking: Booking, settings: Settings | None = None
         "items": [{"ticket_category_id": i.ticket_category_id, "type": categories[i.ticket_category_id].type,
                    "name": categories[i.ticket_category_id].name, "quantity": i.quantity,
                    "unit_price_cents": i.unit_price_cents} for i in booking.items],
-        "tickets": [{"id": t.id, "code": t.code, "status": t.status,
+        "tickets": [{"id": t.id, "code": t.code if released else None, "status": t.status,
                      "seat_label": db.get(EventSeat, t.seat_id).label if t.seat_id else None,
                      "checked_in_at": t.checked_in_at,
                      "ticket_category_id": item_category[t.booking_item_id]} for t in booking.tickets
@@ -82,6 +85,8 @@ def booking_view(db: Session, booking: Booking, settings: Settings | None = None
         or (booking.status == BookingStatus.CONFIRMED and utcnow() <= cutoff
             and not any(t.checked_in_at or t.exchanged_at or (t.owner_user_id and t.owner_user_id != booking.user_id) for t in booking.tickets)),
         "cancellation_cutoff_at": cutoff,
+        "qr_released": released,
+        "qr_available_from": sales_close_at(event, settings),
     }
 
 
@@ -116,7 +121,8 @@ def ticket_history(db: Session, user: User) -> list[dict]:
         .where(func.coalesce(Ticket.owner_user_id, Booking.user_id) == user.id)
         .order_by(Ticket.issued_at.desc(), Ticket.id)
     ).all()
-    return [{"id": t.id, "code": t.code, "status": t.status, "issued_at": t.issued_at, "booking_id": b.id,
+    return [{"id": t.id, "code": t.code if qr_released(b, e) else None, "status": t.status,
+             "issued_at": t.issued_at, "booking_id": b.id, "qr_available_from": sales_close_at(e),
              "booking_status": b.status, "event": e, "category_type": c.type, "category_name": c.name,
              "unit_price_cents": i.unit_price_cents,
              "seat_label": db.get(EventSeat, t.seat_id).label if t.seat_id else None,

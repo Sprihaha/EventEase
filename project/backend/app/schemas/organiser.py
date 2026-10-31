@@ -79,6 +79,7 @@ class OrganiserEventOut(CamelModel):
     image_url: str | None
     capacity: int | None
     venue_id: uuid.UUID | None = None
+    source_name: str | None = None
     status: EventStatus
     rejection_reason: str | None
     suspension_reason: str | None

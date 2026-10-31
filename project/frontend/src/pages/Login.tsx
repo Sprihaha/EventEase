@@ -24,7 +24,7 @@ import {
 import type { SignUpPrefill, SignUpRole } from "./SignUpChoice";
 import { getSavedExpiredReturnTo, clearSavedExpiredReturnTo, resolveReturnUrl } from "../lib/session";
 import { Badge, Button, Card, Field, Input, Select } from "../components/ui";
-import { OTHERS, fetchOrganisations, getCurrentOrganisation, type Organisation } from "../lib/organisation";
+import { OTHERS, fetchOrganisations, fetchSignInOrganisations, getCurrentOrganisation, type Organisation } from "../lib/organisation";
 
 type SignUp = {
   userId: string;
@@ -90,14 +90,22 @@ export default function Login() {
   const [approvalRequired, setApprovalRequired] = useState(false);
   // Organiser sign-up & sign-in: organisations fetched dynamically from Supabase db
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
+  // Sign-in also lists organisations hidden from sign-up (EventEase).
+  const [signInOrganisations, setSignInOrganisations] = useState<Organisation[]>([]);
   const [loadingOrganisations, setLoadingOrganisations] = useState(false);
   const [organisationChoice, setOrganisationChoice] = useState("");
   const [signInOrgName, setSignInOrgName] = useState("");
   useEffect(() => {
     setLoadingOrganisations(true);
-    fetchOrganisations()
-      .then((data) => setOrganisations(data ?? []))
-      .catch(() => setOrganisations([]))
+    Promise.all([fetchOrganisations(), fetchSignInOrganisations()])
+      .then(([signUpChoices, signInChoices]) => {
+        setOrganisations(signUpChoices ?? []);
+        setSignInOrganisations(signInChoices ?? []);
+      })
+      .catch(() => {
+        setOrganisations([]);
+        setSignInOrganisations([]);
+      })
       .finally(() => setLoadingOrganisations(false));
   }, []);
 
@@ -415,14 +423,14 @@ export default function Login() {
                       value={signInOrgName}
                       onChange={(event) => setSignInOrgName(event.target.value)}
                       required
-                      disabled={loadingOrganisations && organisations.length === 0}
+                      disabled={loadingOrganisations && signInOrganisations.length === 0}
                     >
                       <option value="" disabled>
-                        {loadingOrganisations && organisations.length === 0
+                        {loadingOrganisations && signInOrganisations.length === 0
                           ? "Loading organisations from database…"
                           : "Select your company / organisation"}
                       </option>
-                      {organisations.map((org) => (
+                      {signInOrganisations.map((org) => (
                         <option key={org.id} value={org.name}>{org.name}</option>
                       ))}
                     </Select>

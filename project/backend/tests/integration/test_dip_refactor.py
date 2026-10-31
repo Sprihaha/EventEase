@@ -69,7 +69,7 @@ def test_dip_service_constructor_injection():
     with SessionLocal() as db:
         user = make_user(db, role=Role.CUSTOMER, username=f"dip{sfx}", email=f"dip_{sfx}@example.com")
         organiser = make_user(db, role=Role.ORGANISER, username=f"dorg{sfx}", email=f"dorg_{sfx}@example.com")
-        event = make_event(db, organiser=organiser, days=10, categories=[("STANDARD", 5000, 10)])
+        event = make_event(db, organiser=organiser, days=60, categories=[("STANDARD", 5000, 10)])
         cat = db.query(TicketCategory).filter(TicketCategory.event_id == event.id).first()
 
         # Constructor dependency injection: high-level service depends on abstract interfaces

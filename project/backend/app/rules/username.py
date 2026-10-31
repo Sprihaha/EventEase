@@ -3,11 +3,12 @@ import re
 from app.rules.errors import RuleError
 
 USERNAME_MAX_LENGTH = 15
-# Letters A-Z, a-z and digits 0-8 only (the digit 9 is deliberately excluded).
-USERNAME_PATTERN = re.compile(r"^[A-Za-z0-8]+$")
+# Letters A-Z, a-z, digits 0-8 (the digit 9 is deliberately excluded) and underscores.
+USERNAME_PATTERN = re.compile(r"^[A-Za-z0-8_]+$")
 
 USERNAME_TOO_LONG = ("USERNAME_TOO_LONG", "length exceeded")
-USERNAME_INVALID_CHARS = ("USERNAME_INVALID_CHARS", "Username can only contain letters and digits 0 to 8")
+USERNAME_INVALID_CHARS = ("USERNAME_INVALID_CHARS",
+                          "Username can only contain letters, digits 0 to 8 and underscores")
 USERNAME_TAKEN = ("USERNAME_TAKEN", "username is taken")
 
 # Names nobody can sign up with, in addition to the configured ADMIN_USERNAME.

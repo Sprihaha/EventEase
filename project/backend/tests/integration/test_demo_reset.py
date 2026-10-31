@@ -47,7 +47,7 @@ def reset_world(client, db, monkeypatch):
     headers = {u.id: auth_header(client, u.username) for u in users}
     source = EventSource(name="reset-fixture", kind=SourceKind.MANUAL)
     db.add(source); db.commit()
-    ev = make_event(db, organiser=org, days=30, categories=[("STANDARD", 5000, 20)], source_id=source.id)
+    ev = make_event(db, organiser=org, days=60, categories=[("STANDARD", 5000, 20)], source_id=source.id)
     cat = db.scalar(select(TicketCategory).where(TicketCategory.event_id == ev.id))
     seats = [EventSeat(event_id=ev.id, ticket_category_id=cat.id, label=f"A{i}", row_label="A", number=i) for i in (1, 2)]
     db.add_all(seats); db.commit()

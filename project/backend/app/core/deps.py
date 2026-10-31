@@ -103,12 +103,24 @@ require_customer = require_roles(Role.CUSTOMER)
 require_organiser_account = require_roles(Role.ORGANISER)
 
 
-def require_organiser(user: User = Depends(require_organiser_account), db: Session = Depends(get_db)) -> User:
-    """Organiser features need at least one admin-approved organisation membership."""
+ORGANISATION_HEADER = "X-Organisation-Id"
+
+
+def require_organiser(request: Request, user: User = Depends(require_organiser_account),
+                      db: Session = Depends(get_db)) -> User:
+    """Organiser features need at least one admin-approved organisation membership.
+
+    The organisation chosen for this session (sent as X-Organisation-Id) is attached as
+    `user.selected_organisation` when the user is an approved member of it; events of a
+    self-managed organisation are shared by its members (see services.organiser).
+    """
+    from app.services.organisations import approved_organisation
+
     approved = db.scalar(select(OrganisationMembership.id).where(
         OrganisationMembership.user_id == user.id, OrganisationMembership.status == MembershipStatus.APPROVED).limit(1))
     if approved is None:
         raise AppError(403, "ORGANISATION_REQUIRED", "add an organisation and wait for approval to use organiser features",
                        {"redirectTo": "/select-organisation"})
+    user.selected_organisation = approved_organisation(db, user, request.headers.get(ORGANISATION_HEADER))
     return user
 require_admin = require_roles(Role.ADMIN)

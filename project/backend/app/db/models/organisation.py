@@ -20,6 +20,13 @@ class Organisation(UUIDPk, Timestamps, Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     # Listed organisations appear in the sign-up and "add organisation" dropdowns.
     listed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # The member who creates this organisation's accounts. Set only for self-managed organisations
+    # (EventEase): their members are added by the manager, and nobody can request to join.
+    manager_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id", ondelete="SET NULL"))
+
+    @property
+    def self_managed(self) -> bool:
+        return self.manager_id is not None
 
 
 class OrganisationMembership(UUIDPk, Timestamps, Base):

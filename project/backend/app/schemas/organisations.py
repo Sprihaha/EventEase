@@ -22,6 +22,8 @@ class MembershipOut(CamelModel):
     submitted_at: datetime
     reviewed_at: datetime | None
     review_note: str | None
+    is_manager: bool = Field(False, description="True when this user creates the organisation's member accounts")
+    self_managed: bool = Field(False, description="Members are created by the organisation's manager")
 
 
 class MembershipRequest(CamelModel):
@@ -42,3 +44,25 @@ class OrganisationRequestOut(CamelModel):
     reviewed_at: datetime | None
     reviewed_by: str | None
     review_note: str | None
+
+
+class MemberCreate(CamelModel):
+    username: str = Field(..., max_length=15)
+    email: str = Field(..., max_length=320)
+    password: str = Field(..., max_length=128, description="Temporary password; the member must change it at first login")
+
+
+class MemberOut(CamelModel):
+    user_id: uuid.UUID
+    username: str
+    email_masked: str | None
+    is_manager: bool
+    status: str
+    must_change_password: bool
+    added_at: datetime
+
+
+class MembersOut(CamelModel):
+    organisation_id: uuid.UUID
+    organisation_name: str
+    items: list[MemberOut]

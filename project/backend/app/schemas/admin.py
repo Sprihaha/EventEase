@@ -35,6 +35,9 @@ class AdminEventListItem(CamelModel):
     origin: EventOrigin
     organiser_id: uuid.UUID | None
     organiser_username: str | None
+    organisation_id: uuid.UUID | None = None
+    organisation_name: str | None = Field(None, description="Set for events of a self-managed organisation (EventEase)")
+    imported: bool = Field(False, description="Imported by the system from an external source (Eventfinda)")
     venue_name: str
     start_at: datetime
     end_at: datetime

@@ -18,6 +18,7 @@ from app.db.models import (
     Event,
     EventOrigin,
     EventStatus,
+    Organisation,
     Role,
     User,
     UserStatus,
@@ -41,10 +42,12 @@ def _page(total: int, page: int, page_size: int, items: list) -> dict:
 # --------------------------------------------------------------------------- events
 
 
-def _event_row(event: Event, organiser_username: str | None) -> dict:
+def _event_row(event: Event, organiser_username: str | None, organisation_name: str | None = None) -> dict:
     return {
         "id": event.id, "title": event.title, "category": event.category, "status": event.status,
         "origin": event.origin, "organiser_id": event.organiser_id, "organiser_username": organiser_username,
+        "organisation_id": event.organisation_id, "organisation_name": organisation_name,
+        "imported": event.origin == EventOrigin.ORGANISER and event.source_name is not None,
         "venue_name": event.venue_name, "start_at": event.start_at, "end_at": event.end_at,
         "source_name": event.source_name, "is_sample": event.is_sample, "rejection_count": event.rejection_count,
         "created_at": event.created_at,
@@ -53,7 +56,8 @@ def _event_row(event: Event, organiser_username: str | None) -> dict:
 
 def list_events(db: Session, *, status: EventStatus | None, organiser_id: uuid.UUID | None, origin: EventOrigin | None,
                 date_from: datetime | None, date_to: datetime | None, q: str | None, page: int, page_size: int) -> dict:
-    stmt = select(Event, User.username).outerjoin(User, User.id == Event.organiser_id)
+    stmt = (select(Event, User.username, Organisation.name).outerjoin(User, User.id == Event.organiser_id)
+            .outerjoin(Organisation, Organisation.id == Event.organisation_id))
     if status:
         stmt = stmt.where(Event.status == status)
     if organiser_id:
@@ -68,7 +72,7 @@ def list_events(db: Session, *, status: EventStatus | None, organiser_id: uuid.U
         stmt = stmt.where(Event.title.ilike(f"%{escape_like(q)}%", escape="\\"))
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     rows = db.execute(stmt.order_by(Event.created_at.desc(), Event.id).offset((page - 1) * page_size).limit(page_size)).all()
-    return _page(total, page, page_size, [_event_row(e, name) for e, name in rows])
+    return _page(total, page, page_size, [_event_row(e, name, organisation) for e, name, organisation in rows])
 
 
 def _event(db: Session, raw_id: str, *, lock: bool = False) -> Event:
@@ -83,8 +87,9 @@ def event_detail(db: Session, raw_id: str) -> dict:
     db.expire_all()
     event = _event(db, raw_id)
     organiser = db.get(User, event.organiser_id) if event.organiser_id else None
+    organisation = db.get(Organisation, event.organisation_id) if event.organisation_id else None
     return {
-        **_event_row(event, organiser.username if organiser else None),
+        **_event_row(event, organiser.username if organiser else None, organisation.name if organisation else None),
         "short_description": event.short_description, "description": event.description, "area": event.area,
         "image_url": event.image_url, "capacity": event.capacity, "external_url": event.external_url,
         "external_id": event.external_id, "rejection_reason": event.rejection_reason,

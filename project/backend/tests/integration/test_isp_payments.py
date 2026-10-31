@@ -84,7 +84,7 @@ def test_isolated_refund_processor():
         set_payment_provider(MockPaymentProvider())
         user = make_user(db, role=Role.CUSTOMER, username=f"isp_c{sfx}", email=f"isp_c_{sfx}@example.com")
         organiser = make_user(db, role=Role.ORGANISER, username=f"isp_o{sfx}", email=f"isp_o_{sfx}@example.com")
-        event = make_event(db, organiser=organiser, days=14, categories=[("STANDARD", 4000, 10)])
+        event = make_event(db, organiser=organiser, days=60, categories=[("STANDARD", 4000, 10)])
         cat = db.query(TicketCategory).filter(TicketCategory.event_id == event.id).first()
 
         # 1. Create and pay booking using standard flow
@@ -118,7 +118,7 @@ def test_isolated_charge_canceller():
         set_payment_provider(MockPaymentProvider())
         user = make_user(db, role=Role.CUSTOMER, username=f"isp_h{sfx}", email=f"isp_h_{sfx}@example.com")
         organiser = make_user(db, role=Role.ORGANISER, username=f"isp_ho{sfx}", email=f"isp_ho_{sfx}@example.com")
-        event = make_event(db, organiser=organiser, days=14, categories=[("STANDARD", 2500, 10)])
+        event = make_event(db, organiser=organiser, days=60, categories=[("STANDARD", 2500, 10)])
         cat = db.query(TicketCategory).filter(TicketCategory.event_id == event.id).first()
 
         booking_data = BookingCreate(

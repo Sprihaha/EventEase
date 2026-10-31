@@ -19,6 +19,14 @@ from app.core.deps import require_customer, require_roles
 from app.core.security import utcnow
 from app.db.models import Booking, BookingItem, BookingStatus, Event, EventStatus, EventSeat, Role, Ticket, TicketCategory, TicketStatus, User
 from app.db.session import get_db
+from app.services import organiser as organiser_service
+from app.services.bookings.qr_release import qr_released
+
+
+def _check_qr_released(db: Session, ticket: Ticket) -> None:
+    booking = db.get(Booking, ticket.booking_id)
+    if not qr_released(booking, db.get(Event, booking.event_id)):
+        raise AppError(409, "QR_NOT_RELEASED", "this ticket's QR code is released when ticket sales close")
 from app.schemas.common import CamelModel
 
 router = APIRouter(tags=["Tickets & Verification"])
@@ -107,6 +115,7 @@ def get_ticket_qr(
     ticket = db.scalar(select(Ticket).where(Ticket.code == code))
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
+    _check_qr_released(db, ticket)
 
     payload = f"{get_settings().FRONTEND_URL}/verify/{code}"
 
@@ -152,8 +161,9 @@ def check_in_ticket(code: str, body: CheckInRequest | None = None, db: Session =
         raise AppError(404, "TICKET_NOT_FOUND", "ticket QR has been replaced")
     booking = db.get(Booking, ticket.booking_id, populate_existing=True)
     event = db.get(Event, booking.event_id)
-    if user.role == Role.ORGANISER and event.organiser_id != user.id:
+    if user.role == Role.ORGANISER and not organiser_service.can_manage(db, user, event):
         raise AppError(403, "FORBIDDEN", "this event belongs to another organiser")
+    _check_qr_released(db, ticket)
     result, message = "ADMITTED", "Admit this guest. Check-in recorded."
     if ticket.checked_in_at:
         result, message = "DUPLICATE_SCAN", "This ticket has already been admitted."

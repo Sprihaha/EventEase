@@ -92,15 +92,18 @@ class RelationalTicketingGateway:
             .join(User, User.id == func.coalesce(Ticket.owner_user_id, Booking.user_id))
             .where(Ticket.id.in_(ids)).execution_options(populate_existing=True)
         ).all()
+        from app.services.bookings.qr_release import qr_released
+
         result = {}
         for t, b, i, c, e, u in rows:
             seat = db.get(EventSeat, t.seat_id) if t.seat_id else None
             section = ((seat.section_name if seat else None) or c.seat_section or "").strip() or "General Admission"
             # Preferences remain section-based; actual seat identity is included
             # in the revision so changes invalidate consent.
+            # Swaps close once QR codes are released (ticket sales close 30 days before the event).
             valid = (t.status == TicketStatus.VALID and b.status == BookingStatus.CONFIRMED
                      and e.origin == EventOrigin.ORGANISER and e.status == EventStatus.APPROVED
-                     and e.start_at > now and u.status == UserStatus.ACTIVE
+                     and e.start_at > now and not qr_released(b, e, now) and u.status == UserStatus.ACTIVE
                      and not u.must_change_password and not t.checked_in_at
                      and b.currency == "SGD" and i.unit_price_cents >= 0)
             # Include code only in the hash so reissues invalidate stale consent;

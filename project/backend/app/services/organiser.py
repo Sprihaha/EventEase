@@ -1,12 +1,23 @@
 import math
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError
 from app.core.security import utcnow
-from app.db.models import BookingItem, Event, EventOrigin, EventStatus, EventSeat, TicketCategory, User
+from app.db.models import (
+    BookingItem,
+    Event,
+    EventOrigin,
+    EventSeat,
+    EventStatus,
+    MembershipStatus,
+    Organisation,
+    OrganisationMembership,
+    TicketCategory,
+    User,
+)
 from app.schemas.organiser import EventCreate, EventUpdate, TicketCategoryCreate, TicketCategoryUpdate
 from app.core import events
 from app.services import audit, venues
@@ -26,8 +37,30 @@ def _validate_dates(start, end) -> None:
         raise AppError(400, "INVALID_EVENT_DATES", "endAt must be after startAt", {"field": "endAt"})
 
 
+def managed_by(organiser: User) -> ColumnElement[bool]:
+    """Events this organiser manages: their own, plus every event of the self-managed organisation
+    (EventEase) they chose for this session, including events imported by the system."""
+    organisation = getattr(organiser, "selected_organisation", None)
+    if organisation is not None and organisation.self_managed:
+        return or_(Event.organiser_id == organiser.id, Event.organisation_id == organisation.id)
+    return Event.organiser_id == organiser.id
+
+
+def can_manage(db: Session, user: User, event: Event) -> bool:
+    """Like managed_by, for checks without a chosen organisation (e.g. gate check-in)."""
+    if event.organiser_id == user.id:
+        return True
+    if event.organisation_id is None:
+        return False
+    return db.scalar(select(Organisation.id).join(
+        OrganisationMembership, OrganisationMembership.organisation_id == Organisation.id).where(
+        Organisation.id == event.organisation_id, Organisation.manager_id.is_not(None),
+        OrganisationMembership.user_id == user.id, OrganisationMembership.status == MembershipStatus.APPROVED,
+    ).limit(1)) is not None
+
+
 def _own_event(db: Session, organiser: User, raw_id: str, *, lock: bool = False) -> Event:
-    stmt = select(Event).where(Event.id == parse_event_id(raw_id), Event.organiser_id == organiser.id)
+    stmt = select(Event).where(Event.id == parse_event_id(raw_id), managed_by(organiser))
     stmt = stmt.with_for_update() if lock else stmt.options(selectinload(Event.ticket_categories))
     event = db.scalar(stmt)
     if event is None:  # other organisers' events are indistinguishable from missing ones
@@ -59,6 +92,9 @@ def create_event(db: Session, organiser: User, data: EventCreate, ip: str | None
         description=data.description, venue_name=venue.name, area=venue.area, start_at=start, end_at=end,
         image_url=data.image_url, capacity=capacity, status=EventStatus.REVIEW_IN_PROGRESS,
     )
+    organisation = getattr(organiser, "selected_organisation", None)
+    if organisation is not None and organisation.self_managed:
+        event.organisation_id = organisation.id  # shared with the organisation's members
     db.add(event)
     db.flush()
     for initial in data.initial_categories:
@@ -82,7 +118,7 @@ def create_event(db: Session, organiser: User, data: EventCreate, ip: str | None
 
 
 def list_own_events(db: Session, organiser: User, status: EventStatus | None, page: int, page_size: int) -> dict:
-    stmt = select(Event).where(Event.organiser_id == organiser.id)
+    stmt = select(Event).where(managed_by(organiser))
     if status:
         stmt = stmt.where(Event.status == status)
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))

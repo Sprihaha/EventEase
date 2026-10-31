@@ -71,14 +71,16 @@ def _run_retention_purge(db: Session) -> str:
     return f"PDPA Retention Purge: {purged}"
 
 
-def _run_ticketmaster_sync(db: Session) -> str:
-    from app.services.ingestion.base import sync_source
-    from app.services.ingestion.ticketmaster import configured_adapter
-    adapter = configured_adapter()
-    if adapter is None:
-        return "Skipped: TICKETMASTER_API_KEY is not configured"
-    result = sync_source(db, adapter, auto_approve=get_settings().INGEST_AUTO_APPROVE)
-    return f"Ticketmaster sync completed: {result.created} created, {result.updated} updated"
+def _run_eventfinda_import(db: Session) -> str:
+    from app.services.ingestion.eventfinda import run_import
+    return run_import(db, get_settings(), now=get_business_now(db))
+
+
+def _run_qr_release(db: Session) -> str:
+    from app.services.bookings.qr_release import release_due_qr_codes
+    now = get_business_now(db)
+    released = release_due_qr_codes(db, get_settings(), now=now)
+    return f"Released QR codes for {released} booking(s) whose ticket sales have closed (reference time: {now.isoformat()})"
 
 
 def _run_verify_reminders(db: Session) -> str:
@@ -101,7 +103,8 @@ JOB_ACTIONS: dict[str, Callable[[Session], str]] = {
     "HOLD_SWEEPER": _run_hold_sweeper,
     "EXCHANGE_MATCHER": _run_exchange_matcher,
     "RETENTION_PURGE": _run_retention_purge,
-    "TICKETMASTER_SYNC": _run_ticketmaster_sync,
+    "EVENTFINDA_SYNC": _run_eventfinda_import,
+    "QR_RELEASE": _run_qr_release,
     "VERIFY_REMINDERS": _run_verify_reminders,
     "PRE_EVENT_REMINDERS": _run_pre_event_reminders,
 }

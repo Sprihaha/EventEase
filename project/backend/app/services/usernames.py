@@ -33,7 +33,7 @@ def username_taken(db: Session, username: str) -> bool:
 def suggest_usernames(db: Session, requested: str, count: int = 3) -> list[str]:
     """Random available usernames that pass every username rule, verified against the DB."""
     admin_username = get_settings().ADMIN_USERNAME
-    stem = re.sub(r"[^A-Za-z0-8]", "", requested)[:11]
+    stem = re.sub(r"[^A-Za-z0-8_]", "", requested)[:11]
     found: dict[str, str] = {}
     for _ in range(5):
         candidates = {}

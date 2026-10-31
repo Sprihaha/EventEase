@@ -30,7 +30,7 @@ def test_bookings_srp_refactor():
     with SessionLocal() as db:
         user = make_user(db, role=Role.CUSTOMER, username=f"c{sfx}", email=f"c_{sfx}@example.com")
         organiser = make_user(db, role=Role.ORGANISER, username=f"o{sfx}", email=f"o_{sfx}@example.com")
-        event = make_event(db, organiser=organiser, days=10, categories=[("STANDARD", 3500, 10)])
+        event = make_event(db, organiser=organiser, days=60, categories=[("STANDARD", 3500, 10)])
         cat = db.query(TicketCategory).filter(TicketCategory.event_id == event.id).first()
 
         # 1. Test Policy Module

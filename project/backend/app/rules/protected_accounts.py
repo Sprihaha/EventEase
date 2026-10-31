@@ -1,4 +1,5 @@
-"""The team's shared role accounts provisioned by migration 0004.
+"""The team's shared role accounts provisioned by migration 0004, plus the EventEase
+organisation's manager account (created by `python -m app.cli seed-eventease`).
 
 Their username, password and role are fixed: no API route, CLI command or
 service may change them. The ORM guard in app.db.models.user enforces this for
@@ -8,7 +9,7 @@ before any side effect (e.g. a reset email).
 
 from app.rules.errors import RuleError
 
-PROTECTED_USERNAMES = frozenset({"janice", "john", "jay"})
+PROTECTED_USERNAMES = frozenset({"janice", "john", "jay", "admin_eventease"})
 PROTECTED_FIELDS = ("username", "password_hash", "role")
 
 ACCOUNT_PROTECTED = (

@@ -33,6 +33,7 @@ import {
   backendSetEventStatus,
   fetchBackendEvents,
   fetchBackendRoleEvents,
+  updateTicketTier,
   type BackendAuth,
   type LoginPortal,
   type NewEventInput,
@@ -67,6 +68,7 @@ type Store = {
   eventsError: string | null;
   bookingsError: string | null;
   refreshBookings: () => Promise<void>;
+  updateTier: (eventId: string, tierId: string, changes: { priceCents: number; quantity: number }) => Promise<void>;
   bookings: Booking[];
   posts: CommunityPost[];
   fraud: FraudAlert[];
@@ -287,6 +289,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ]),
       createEvent: async (input) => {
         await backendCreateEvent(input);
+        if (user) setEvents(await fetchBackendRoleEvents("ORGANISER", user.id));
+      },
+      updateTier: async (eventId, tierId, changes) => {
+        await updateTicketTier(eventId, tierId, changes);
         if (user) setEvents(await fetchBackendRoleEvents("ORGANISER", user.id));
       },
       setEventStatus: async (id, status) => {
