@@ -1,15 +1,19 @@
 # Handover: Eventfinda import, EventEase organisation, sales cut-off and QR release
 
-Status at 31 Oct 2026. Base commit: `45b1041` on `main`, level with GitHub when this was written.
+Status at 31 Oct 2026.
 
 **Where things stand**
 
-- The backend and website code is written, but **nothing is committed or pushed**. All of it is in the working folder.
+- The backend and website code is **committed and pushed to `main`**.
+- **Migration 0015 is applied to the shared database** (step 3 is done). The migration went on before the team's OK was collected, at the user's decision, so **tell the team now** (step 2).
+- The EventEase organisation and `admin_eventease` account **exist**.
+- **The `QR_RELEASE` job is switched OFF** in the database so no real customers get emailed. Switch it on only after decision B in section 4.
+- The `EVENTFINDA_SYNC` job is on, but only backends with the Eventfinda login can import. Backends without it log "Skipped".
 - Backend tests pass, apart from 12 failures that were already there before this work.
 - The website type-checks and builds, but **it has never been opened and clicked through**.
-- **Migration 0015 has not been applied to the shared database**, so the app cannot run against that database until step 3 is done. The new code expects the new columns.
-- The EventEase organisation and `admin_eventease` account do not exist yet.
-- The import has never run against a real database.
+- The import has never run against the real database.
+
+**Next up:** step 2 (tell the team), step 4 (run the import), step 5 (click through), step 7 (Render).
 
 Passwords and API logins are not in this file. They are in `project/backend/.env`, which Git ignores.
 
