@@ -24,6 +24,7 @@ from app.schemas.admin import (
     AdminEventDetail,
     AdminEventListItem,
     AdminUser,
+    CreateAdminInput,
     AuditLogOut,
     FraudSignalOut,
     OptionalReason,
@@ -37,6 +38,8 @@ from app.schemas.demo_reset import DemoResetRequest, DemoResetResult, DemoResetT
 from app.services.demo_reset import reset_demo_data, reset_target
 from app.services import admin as admin_service
 from app.services import audit
+from app.services.admin_accounts import create_admin
+from sqlalchemy import select
 from app.services import organiser_applications
 from app.services import organisations as organisation_service
 from app.schemas.organisations import OrganisationRequestOut
@@ -152,6 +155,17 @@ def unsuspend_event(event_id: str, request: Request, admin: User = Depends(requi
 
 
 # --------------------------------------------------------------------------- users
+
+@router.get("/administrators", response_model=list[AdminUser], summary="List administrator accounts")
+def list_administrators(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    admins = db.scalars(select(User).where(User.role == Role.ADMIN).order_by(User.created_at.asc())).all()
+    return [admin_service.user_row(u) for u in admins]
+
+
+@router.post("/administrators", response_model=AdminUser, summary="Create a new administrator account (system_admin only)")
+def create_administrator(body: CreateAdminInput, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    new_admin = create_admin(db, admin, username=body.username, password=body.password, email=body.email, phone=body.phone)
+    return admin_service.user_row(new_admin)
 
 
 @router.get("/users", response_model=Page[AdminUser], summary="Users (contact details masked)")

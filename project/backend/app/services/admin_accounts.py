@@ -146,3 +146,55 @@ def reset_admin_password(db: Session, username: str, *, out: Callable[[str], Non
     db.commit()
     print_password_banner(user.username, password, out, title="ADMIN PASSWORD RESET")
     return password
+
+
+def create_admin(
+    db: Session,
+    actor: User,
+    *,
+    username: str,
+    password: str,
+    email: str | None = None,
+    phone: str | None = None,
+) -> User:
+    """Create a new administrator account. Only the default system administrator (system_admin) can do this."""
+    from app.core.errors import AppError
+    from app.rules.contact import EMAIL_TAKEN, normalise_email, normalise_sg_phone
+    from app.services.usernames import check_username_available
+
+    if actor.username.lower() != "system_admin":
+        raise AppError(403, "PERMISSION_DENIED", "Only the default system administrator (system_admin) has permission to create administrator accounts")
+
+    check_username_format(username)
+    check_username_available(db, username)
+    check_password(password)
+
+    normalised_email = normalise_email(email) if email else None
+    if normalised_email and db.scalar(select(func.count()).select_from(User).where(func.lower(User.email) == normalised_email.lower())):
+        raise RuleError(*EMAIL_TAKEN, status_code=409)
+
+    phone_e164 = normalise_sg_phone(phone) if phone else None
+
+    new_admin = User(
+        username=username,
+        email=normalised_email,
+        phone_e164=phone_e164,
+        password_hash=hash_password(password),
+        role=Role.ADMIN,
+        must_change_password=True,
+        email_verification_required=False,
+        email_verified_at=utcnow(),
+        password_changed_at=utcnow(),
+    )
+    db.add(new_admin)
+    db.flush()
+    audit.record(
+        db,
+        actor=actor,
+        action="ADMIN_CREATED",
+        entity_type="User",
+        entity_id=new_admin.id,
+        after={"username": username, "role": "ADMIN", "createdBy": actor.username},
+    )
+    db.commit()
+    return new_admin

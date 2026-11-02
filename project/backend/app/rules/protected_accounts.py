@@ -9,7 +9,7 @@ before any side effect (e.g. a reset email).
 
 from app.rules.errors import RuleError
 
-PROTECTED_USERNAMES = frozenset({"janice", "john", "jay", "admin_eventease"})
+PROTECTED_USERNAMES = frozenset({"janice", "john", "jay", "admin_eventease", "system_admin"})
 PROTECTED_FIELDS = ("username", "password_hash", "role")
 
 ACCOUNT_PROTECTED = (

@@ -75,7 +75,7 @@ class Settings(BaseSettings):
 
 
     # Default administrator
-    ADMIN_USERNAME: str = "eventeaseadmin"
+    ADMIN_USERNAME: str = "system_admin"
     ADMIN_PASSWORD: str | None = None
     AUTO_SEED_ADMIN: bool = True
     # Deliberately disabled until a prototype operator explicitly enables it.

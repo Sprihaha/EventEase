@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Volume2,
   Code2,
+  ShieldCheck,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
@@ -32,6 +33,7 @@ import { countPendingOrganiserRequests } from "../lib/backendApi";
 import OrganisationRequestsAdmin from "../components/OrganisationRequestsAdmin";
 import { countPendingOrganisationRequests } from "../lib/organisation";
 import DeveloperSettings from "../components/DeveloperSettings";
+import AdminManagement from "../components/AdminManagement";
 
 export default function AdminDashboard() {
   const { events, fraud, assistanceRequests } = useStore();
@@ -65,6 +67,7 @@ export default function AdminDashboard() {
     { id: "seats", label: "Seat maps", icon: Armchair },
     { id: "guide", label: "EaseGuide requests", icon: Route, badge: 3 },
     { id: "analytics", label: "Platform analytics", icon: BarChart3 },
+    { id: "administrators", label: "Administrators", icon: ShieldCheck },
     { id: "developer", label: "Developer settings", icon: Code2 },
   ];
 
@@ -97,6 +100,7 @@ export default function AdminDashboard() {
           {active === "narration" && <EaseVoiceNarration embedded />}
           {active === "guide" && <EaseGuideRequests />}
           {active === "analytics" && <PlatformAnalytics />}
+          {active === "administrators" && <AdminManagement />}
           {active === "developer" && <DeveloperSettings embedded />}
         </>
       )}

@@ -81,3 +81,34 @@ export async function decideOrganiserRequest(id: string, approve: boolean, reaso
   );
 }
 
+
+
+export type AdminAccount = {
+  id: string;
+  username: string;
+  role: string;
+  status: string;
+  emailMasked: string | null;
+  phoneMasked: string | null;
+  createdAt: string;
+};
+
+export async function fetchAdministrators(): Promise<AdminAccount[]> {
+  return request<AdminAccount[]>("/admin/administrators", {}, true);
+}
+
+export async function createAdministrator(data: {
+  username: string;
+  password: string;
+  email?: string;
+  phone?: string;
+}): Promise<AdminAccount> {
+  return request<AdminAccount>(
+    "/admin/administrators",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    true,
+  );
+}

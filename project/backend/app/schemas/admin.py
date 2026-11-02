@@ -123,3 +123,10 @@ class FraudSignalOut(CamelModel):
 
 class ReviewRequest(CamelModel):
     note: str | None = Field(None, max_length=1000)
+
+
+class CreateAdminInput(CamelModel):
+    username: str
+    password: str
+    email: str | None = None
+    phone: str | None = None
