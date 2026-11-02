@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { BarChart3, CalendarDays, CircleDollarSign, Ticket, Users } from "lucide-react";
 import type { EventItem } from "../../lib/data";
 import {
   fetchAnalyticsRevenueVelocity,
   fetchAnalyticsSales,
   fetchAnalyticsTierDemand,
+  type AnalyticsRevenuePoint,
   type AnalyticsRevenueVelocity,
   type AnalyticsSales,
   type AnalyticsTierDemand,
@@ -76,8 +77,6 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
   }, [range, liveFilter, filterHasRecords]);
 
   const loading = filterHasRecords && !error && (sales === null || tiers === null);
-  const daily = velocity?.points.map((point) => point.revenueCents) ?? [];
-  const running = velocity?.points.map((point) => point.cumulativeRevenueCents) ?? [];
   const tierDemand = (tiers?.tiers ?? []).filter((tier) => tier.ticketsSold > 0);
   const noSales = !filterHasRecords || (sales !== null && sales.confirmedBookings === 0);
   // "–" while loading, so nobody mistakes an unloaded figure for zero sales.
@@ -175,7 +174,7 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
               </div>
             </div>
             {velocity ? (
-              <RevenueChart daily={daily} running={running} />
+              <RevenueChart points={velocity.points} />
             ) : (
               <p className="mt-7 text-sm text-muted">Loading revenue…</p>
             )}
@@ -266,28 +265,77 @@ function Metric({
   );
 }
 
-function RevenueChart({ daily, running }: { daily: number[]; running: number[] }) {
+// Backend days are Singapore calendar dates ("2026-10-24"); format them without shifting the day.
+const dayLabel = (day: string) =>
+  new Intl.DateTimeFormat("en-SG", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+    .format(new Date(`${day}T00:00:00Z`));
+
+function RevenueChart({ points: data }: { points: AnalyticsRevenuePoint[] }) {
   const width = 700;
   const height = 240;
   const inset = 24;
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [active, setActive] = useState<number | null>(null);
+
+  const daily = data.map((point) => point.revenueCents);
+  const running = data.map((point) => point.cumulativeRevenueCents);
   const max = Math.max(...running, 1);
-  const points = (values: number[]) =>
-    values
-      .map((value, index) => {
-        const x = inset + (index / Math.max(values.length - 1, 1)) * (width - inset * 2);
-        const y = height - inset - (value / max) * (height - inset * 2);
-        return `${x},${y}`;
-      })
-      .join(" ");
+  const xAt = (index: number) => inset + (index / Math.max(data.length - 1, 1)) * (width - inset * 2);
+  const yAt = (value: number) => height - inset - (value / max) * (height - inset * 2);
+  const line = (values: number[]) => values.map((value, index) => `${xAt(index)},${yAt(value)}`).join(" ");
+
+  // Snap the pointer to the nearest day.
+  const pick = (event: PointerEvent<SVGSVGElement>) => {
+    const box = svgRef.current?.getBoundingClientRect();
+    if (!box || data.length === 0) return;
+    const x = ((event.clientX - box.left) / box.width) * width;
+    const index = Math.round(((x - inset) / (width - inset * 2)) * (data.length - 1));
+    setActive(Math.min(data.length - 1, Math.max(0, index)));
+  };
+
+  // Keyboard: arrows move day by day, Home/End jump to the ends, Escape hides the tooltip.
+  const onKey = (event: KeyboardEvent<SVGSVGElement>) => {
+    const last = data.length - 1;
+    const moves: Record<string, number> = {
+      ArrowRight: Math.min(last, (active ?? -1) + 1),
+      ArrowLeft: Math.max(0, (active ?? last + 1) - 1),
+      Home: 0,
+      End: last,
+    };
+    if (event.key === "Escape") setActive(null);
+    else if (event.key in moves) {
+      event.preventDefault();
+      setActive(moves[event.key]);
+    }
+  };
+
+  const point = active === null ? null : data[active];
+  const left = active === null ? 0 : (xAt(active) / width) * 100;
+  // Keep the tooltip inside the chart near the edges.
+  const shift = left > 70 ? "-100%" : left < 30 ? "0%" : "-50%";
 
   return (
     <div className="mt-7">
       <div className="flex flex-wrap gap-4 text-xs text-muted">
         <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-accent" /> Running total</span>
         <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-live" /> Daily revenue</span>
+        <span className="ml-auto hidden sm:inline">Hover, or focus the chart and use ← → to see each day.</span>
       </div>
-      <div className="mt-4 overflow-hidden rounded-2xl bg-mist/40 p-3">
-        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Revenue over time line chart" className="h-auto w-full">
+      <div className="mt-4 rounded-2xl bg-mist/40 p-3">
+        <div className="relative">
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          tabIndex={0}
+          aria-label={`Revenue over the last ${data.length} days. Use the left and right arrow keys to read each day.`}
+          className="h-auto w-full cursor-crosshair touch-none rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple"
+          onPointerMove={pick}
+          onPointerDown={pick}
+          onPointerLeave={(event: PointerEvent<SVGSVGElement>) => event.pointerType === "mouse" && setActive(null)}
+          onKeyDown={onKey}
+          onBlur={() => setActive(null)}
+        >
           {[0.25, 0.5, 0.75].map((position) => (
             <line
               key={position}
@@ -299,12 +347,42 @@ function RevenueChart({ daily, running }: { daily: number[]; running: number[] }
               strokeDasharray="5 7"
             />
           ))}
-          <polyline points={points(daily)} fill="none" className="stroke-live" strokeWidth="3" strokeLinejoin="round" />
-          <polyline points={points(running)} fill="none" className="stroke-accent" strokeWidth="4" strokeLinejoin="round" />
+          <polyline points={line(daily)} fill="none" className="stroke-live" strokeWidth="3" strokeLinejoin="round" />
+          <polyline points={line(running)} fill="none" className="stroke-accent" strokeWidth="4" strokeLinejoin="round" />
+          {point && active !== null && (
+            <g pointerEvents="none">
+              <line x1={xAt(active)} x2={xAt(active)} y1={inset / 2} y2={height - inset} className="stroke-muted" strokeDasharray="3 4" />
+              <circle cx={xAt(active)} cy={yAt(point.cumulativeRevenueCents)} r="6" className="fill-white stroke-accent" strokeWidth="3" />
+              <circle cx={xAt(active)} cy={yAt(point.revenueCents)} r="5" className="fill-white stroke-live" strokeWidth="3" />
+            </g>
+          )}
         </svg>
+        {point && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="pointer-events-none absolute top-3 z-10 min-w-48 rounded-xl border border-line bg-white px-3.5 py-2.5 text-xs shadow-lg"
+            style={{ left: `${left}%`, transform: `translateX(${shift})` }}
+          >
+            <div className="font-semibold text-brand-deep">{dayLabel(point.day)}</div>
+            <div className="mt-1.5 flex items-center justify-between gap-4">
+              <span className="flex items-center gap-1.5 text-muted"><span className="h-2 w-2 rounded-full bg-live" /> Daily revenue</span>
+              <span className="font-semibold text-brand-deep">{money(point.revenueCents)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-4">
+              <span className="text-muted">Tickets sold</span>
+              <span className="font-semibold text-brand-deep">{point.ticketsSold}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-4">
+              <span className="flex items-center gap-1.5 text-muted"><span className="h-2 w-2 rounded-full bg-accent" /> Running total</span>
+              <span className="font-semibold text-brand-deep">{money(point.cumulativeRevenueCents)}</span>
+            </div>
+          </div>
+        )}
+        </div>
       </div>
       <div className="mt-3 flex justify-between text-xs text-muted">
-        <span>{daily.length} days ago</span>
+        <span>{data.length ? dayLabel(data[0].day) : ""}</span>
         <span>Today · {money(running.at(-1) ?? 0)} total</span>
       </div>
     </div>
