@@ -301,21 +301,35 @@ export default function Home() {
                   className="relative mx-4 my-4 h-44 rounded-2xl overflow-hidden flex items-center justify-center p-4 bg-black/25 border border-white/15 backdrop-blur-md shadow-inner"
                   aria-label="Illustrative community preview"
                 >
-                  <div className="w-[94%] rounded-xl bg-white/95 p-3.5 shadow-lg border border-white/40 text-brand-deep -rotate-2 transform transition-transform hover:rotate-0">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-purple text-[9px] font-bold text-white">
+                  {/* Layered back bubble */}
+                  <div
+                    aria-hidden
+                    className="absolute top-4 left-6 right-7 rounded-xl bg-white/75 p-3 shadow-md border border-white/30 text-brand-deep rotate-3 opacity-70 pointer-events-none flex items-center gap-2.5"
+                  >
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-purple text-[9px] font-bold text-white shrink-0">
+                      J
+                    </span>
+                    <div className="flex-1 space-y-1">
+                      <div className="h-1.5 w-24 rounded bg-brand-purple/20" />
+                      <div className="h-1.5 w-16 rounded bg-brand-purple/15" />
+                    </div>
+                    <span className="text-brand-purple text-xs">♡</span>
+                  </div>
+
+                  {/* Layered front bubble */}
+                  <div className="relative w-[92%] rounded-xl bg-white/95 p-3.5 shadow-lg border border-white/40 text-brand-deep -rotate-1 transform transition-transform hover:rotate-0 mt-4">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-[10px] font-bold text-white shrink-0 shadow-xs">
                         S
                       </span>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
-                        Sarah T. · Fan Discussion
-                      </span>
-                    </div>
-                    <p className="text-xs font-medium text-brand-deep leading-relaxed">
-                      Anyone heading to the show? Let’s share tips on accessible entrance B!
-                    </p>
-                    <div className="mt-2 text-[10px] flex items-center gap-3 font-semibold text-brand-purple">
-                      <span className="flex items-center gap-1">♡ 14 Likes</span>
-                      <span className="flex items-center gap-1">↳ 6 Replies</span>
+                      <div className="flex-1 min-w-0">
+                        <strong className="text-xs font-bold text-brand-deep block leading-tight">
+                          Who’s heading to the show?
+                        </strong>
+                        <span className="text-[10px] font-semibold text-brand-purple flex items-center gap-1 mt-0.5">
+                          Join the conversation ↗
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <span className="absolute right-3 bottom-3 rounded-full bg-brand-deep/90 text-white px-2.5 py-1 text-[10px] font-bold border border-brand-orange/40 shadow-lg backdrop-blur flex items-center gap-1.5">
@@ -368,8 +382,10 @@ export default function Home() {
                     to="/community"
                     className="mt-auto pt-4 border-t border-white/15 flex items-center justify-between text-xs font-bold text-white group hover:text-brand-orange transition-colors"
                   >
-                    <span>Explore the community</span>
-                    <ArrowUpRight className="h-4 w-4 text-brand-orange group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    <span>Explore EaseComms</span>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-brand-orange group-hover:bg-white/10 transition-colors">
+                      <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </span>
                   </Link>
                 </div>
               </article>
@@ -484,7 +500,9 @@ export default function Home() {
                     className="mt-auto pt-4 border-t border-white/15 flex items-center justify-between text-xs font-bold text-white group hover:text-brand-orange transition-colors"
                   >
                     <span>Explore seat views</span>
-                    <ArrowUpRight className="h-4 w-4 text-brand-orange group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-brand-orange group-hover:bg-white/10 transition-colors">
+                      <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </span>
                   </Link>
                 </div>
               </article>
@@ -593,7 +611,9 @@ export default function Home() {
                     className="mt-auto pt-4 border-t border-white/15 flex items-center justify-between text-xs font-bold text-white group hover:text-brand-orange transition-colors"
                   >
                     <span>Explore event-day support</span>
-                    <ArrowUpRight className="h-4 w-4 text-brand-orange group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 text-brand-orange group-hover:bg-white/10 transition-colors">
+                      <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </span>
                   </Link>
                 </div>
               </article>
