@@ -25,6 +25,8 @@ export type BackendEvent = {
   sourceName: string | null;
   purchasable: boolean;
   isSample: boolean;
+  imported?: boolean;
+  salesCloseAt?: string | null;
 };
 
 export type BackendManagedEvent = {
@@ -34,6 +36,9 @@ export type BackendManagedEvent = {
   status: string;
   organiserUsername?: string | null;
   organiserId?: string | null;
+  organisationName?: string | null;
+  imported?: boolean;
+  sourceName?: string | null;
   shortDescription?: string | null;
   description?: string | null;
   venueName: string;
@@ -77,7 +82,7 @@ function mapEvent(event: BackendEvent, index: number): EventItem {
     image: event.imageUrl ?? "/event-placeholder.svg",
     blurb: event.shortDescription ?? "An upcoming EventEase experience.",
     organizerId: "",
-    organizerName: event.sourceName ?? "EventEase Organizer",
+    organizerName: event.imported ? "Imported by System" : event.sourceName ?? "EventEase Organizer",
     status: "published",
     featured: index < 6,
     rows: 0,
@@ -85,6 +90,8 @@ function mapEvent(event: BackendEvent, index: number): EventItem {
     tiers: [],
     priceFrom: event.priceRange ? event.priceRange.minCents / 100 : undefined,
     purchasable: event.purchasable,
+    imported: event.imported,
+    salesCloseAt: event.salesCloseAt,
   };
 }
 
@@ -117,9 +124,11 @@ function mapManagedEvent(event: BackendManagedEvent, index: number, ownerId = ""
     image: event.imageUrl ?? "/event-placeholder.svg",
     blurb: event.description ?? event.shortDescription ?? "An EventEase organizer event.",
     organizerId: event.organiserId ?? ownerId,
-    organizerName: event.organiserUsername ?? "EventEase Organizer",
+    organizerName: event.organiserUsername ?? (event.imported || event.sourceName ? "Imported by System" : "EventEase Organizer"),
     status: managedStatus(event.status),
     rejectionReason: event.rejectionReason,
+    imported: event.imported || !!event.sourceName,
+    organisationName: event.organisationName,
     featured: index < 6,
     rows: 0,
     cols: 0,

@@ -50,19 +50,6 @@ def cmd_seed_sample(_: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_ingest(_: argparse.Namespace) -> int:
-    from app.services.ingestion.base import sync_source
-    from app.services.ingestion.ticketmaster import configured_adapter
-
-    adapter = configured_adapter()
-    if adapter is None:
-        print("TICKETMASTER_API_KEY is not set; nothing to ingest.", file=sys.stderr)
-        return 1
-    with create_session() as db:
-        result = sync_source(db, adapter, auto_approve=get_settings().INGEST_AUTO_APPROVE)
-    print(f"Ticketmaster: {result.created} created, {result.updated} updated.")
-    return 0
-
 
 def cmd_verification_reminders(args: argparse.Namespace) -> int:
     from app.services.email_verification import reminder_recipients, send_verification_reminders
@@ -117,7 +104,6 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Create the EventEase organisation and its manager account if missing (idempotent)"
                    ).set_defaults(func=cmd_seed_eventease)
     sub.add_parser("seed-sample", help="Insert labelled sample events (development only)").set_defaults(func=cmd_seed_sample)
-    sub.add_parser("ingest-events", help="Sync Singapore events from configured external sources").set_defaults(func=cmd_ingest)
     sub.add_parser("purge-old-data", help="Delete personal data past DATA_RETENTION_DAYS (PDPA)").set_defaults(func=cmd_purge)
 
     remind = sub.add_parser("send-verification-reminders",

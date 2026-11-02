@@ -136,6 +136,15 @@ def can_view(event: Event, user: User) -> bool:
         return True
     if event.organiser_id == user.id:
         return True
+    # EventEase members can preview events belonging to their self-managed organisation
+    # even while the event is still in review (handover known issue 4).
+    selected_org = getattr(user, "selected_organisation", None)
+    if (
+        selected_org is not None
+        and selected_org.self_managed
+        and event.organisation_id == selected_org.id
+    ):
+        return True
     if event.status != EventStatus.APPROVED:
         return False
     return not event.is_sample or get_settings().include_sample_events

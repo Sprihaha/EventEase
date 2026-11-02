@@ -1,4 +1,4 @@
-﻿import secrets
+import secrets
 import os
 import warnings
 from functools import lru_cache
@@ -83,8 +83,6 @@ class Settings(BaseSettings):
     ALLOW_PRODUCTION_DEMO_RESET: bool = False
 
     # Events / ingestion
-    TICKETMASTER_API_KEY: str | None = None
-    TICKETMASTER_MAX_PAGES: int = 5
     INGEST_AUTO_APPROVE: bool = True
     # Eventfinda Singapore API (HTTP Basic auth). Imported events go to the EventEase organisation.
     EVENTFINDA_USERNAME: str | None = None

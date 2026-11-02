@@ -42,7 +42,6 @@ from app.services import organisations as organisation_service
 from app.schemas.organisations import OrganisationRequestOut
 from app.services.ingestion.base import get_or_create_source, sync_source, upsert_external_events
 from app.services.ingestion.manual import parse_rows, validate_rows
-from app.services.ingestion.ticketmaster import configured_adapter
 from app.services.timeparse import parse_bound
 
 router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(require_admin)])
@@ -101,20 +100,6 @@ async def import_events(request: Request, admin: User = Depends(require_admin), 
     db.commit()
     return {"created": created, "updated": updated, "failed": len(errors), "errors": errors}
 
-
-@router.post("/sources/ticketmaster/sync", response_model=ImportResult, summary="Fetch Singapore events from Ticketmaster")
-def sync_ticketmaster(request: Request, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
-    adapter = configured_adapter()
-    if adapter is None:
-        raise AppError(503, "SOURCE_NOT_CONFIGURED", "set TICKETMASTER_API_KEY to enable this source")
-    try:
-        result = sync_source(db, adapter, auto_approve=get_settings().INGEST_AUTO_APPROVE)
-    except Exception as error:
-        raise AppError(502, "SOURCE_UNAVAILABLE", "the event source could not be reached") from error
-    audit.record(db, actor=admin, action="SOURCE_SYNCED", entity_type="EventSource", entity_id=adapter.name,
-                 after={"created": result.created, "updated": result.updated}, ip=client_ip(request))
-    db.commit()
-    return {"created": result.created, "updated": result.updated, "failed": 0, "errors": []}
 
 
 # --------------------------------------------------------------------------- approval workflow
