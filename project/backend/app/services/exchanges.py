@@ -4,7 +4,7 @@ import uuid
 from datetime import timedelta
 from decimal import Decimal
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -202,7 +202,7 @@ def create(db, gateway, settings: Settings, user, data: CreateExchangeRequest):
         fail("TICKET_RESERVED", "this ticket already has an active exchange request")
     recipient = None
     if data.request_type == "DIRECT":
-        recipient = db.scalar(select(User).where(User.username == data.recipient_username.lower(),
+        recipient = db.scalar(select(User).where(func.lower(User.username) == data.recipient_username.lower(),
                                                 User.role == Role.CUSTOMER, User.status == UserStatus.ACTIVE))
         if not recipient or recipient.id == user.id:
             fail("INVALID_RECIPIENT", "choose another active customer username", 422)
