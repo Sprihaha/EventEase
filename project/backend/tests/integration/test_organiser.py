@@ -67,6 +67,8 @@ def test_create_event_validation(client, headers, venue):
     assert client.post(BASE, json=event_body(venue, category="OPERA"), headers=headers).status_code == 422
     assert client.post(BASE, json=event_body(venue, capacity=0), headers=headers).status_code == 422
     assert client.post(BASE, json=event_body(venue, imageUrl="ftp://x"), headers=headers).status_code == 422
+    for local in ("http://localhost:8443/event-placeholder.svg", "http://127.0.0.1/a.jpg", "http://192.168.1.17/a.png"):
+        assert client.post(BASE, json=event_body(venue, imageUrl=local), headers=headers).status_code == 422
 
 
 def test_organisers_only_see_their_own_events(client, db, headers, organiser):

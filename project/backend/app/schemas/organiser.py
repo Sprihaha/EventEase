@@ -10,7 +10,24 @@ from app.schemas.common import CamelModel
 def _http_url(value: str | None) -> str | None:
     if value and not value.lower().startswith(("https://", "http://")):
         raise ValueError("must be an http(s) URL")
+    if value and _is_local_address(value):
+        raise ValueError("must be a public web address; localhost and private network addresses only work on one computer")
     return value
+
+
+def _is_local_address(url: str) -> bool:
+    """True for addresses that only work on the uploader's own machine or network."""
+    import ipaddress
+    from urllib.parse import urlsplit
+
+    host = (urlsplit(url).hostname or "").lower()
+    if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_private or address.is_link_local or address.is_unspecified
 
 
 class InitialTicketCategory(CamelModel):
