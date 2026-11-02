@@ -20,6 +20,7 @@ import {
 } from "../../../lib/exchangeTypes"
 import { useStore } from "../../../lib/store"
 import useExchangeResource from "../../../lib/useExchangeResource"
+import { EXCHANGE_ACTIVITY_CHANGED } from "../../../lib/exchangeNotifications"
 import ExchangeMatchPanel from "./ExchangeMatchPanel"
 import SwapRequestPanel from "./SwapRequestPanel"
 import ExchangeActivityPanel from "./ExchangeActivityPanel"
@@ -171,6 +172,7 @@ export default function SecureExchange() {
       return next
     })
   const refresh = () => {
+    window.dispatchEvent(new Event(EXCHANGE_ACTIVITY_CHANGED))
     listings.refresh()
     mine.refresh()
     invitations.refresh()

@@ -20,6 +20,7 @@ import { useStore } from "../lib/store";
 import { Badge, Button, InfoTooltip, cx } from "./ui";
 import EaseVoice from "./EaseVoice";
 import SessionExpiredModal from "./SessionExpiredModal";
+import ExchangeNotifications from "./ExchangeNotifications";
 import {
   onSessionExpired,
   hasExpiredRedirect,
@@ -165,6 +166,7 @@ export default function Layout() {
               <AccessibilityBar />
             </div>
             {user?.role === "organizer" && <OrganisationSwitcher />}
+            {user?.role === "customer" && <ExchangeNotifications key={user.id} userId={user.id} />}
             {user ? (
               <div ref={userMenu} className="relative">
                 <Button
