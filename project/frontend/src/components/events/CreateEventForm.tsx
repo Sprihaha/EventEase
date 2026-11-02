@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, History, Plus, Trash2 } from "lucide-react";
 import {
   backendEventCategories,
   backendListVenues,
@@ -8,10 +8,10 @@ import {
   type Venue,
 } from "../../lib/backendApi";
 import { Badge, Button, Card, Eyebrow, Field, Input, Select, Textarea } from "../ui";
+import { useStore } from "../../lib/store";
+import { currentOrganisationId } from "../../lib/currentOrganisation";
+import { clearDraft, draftKey, emptyDetails, hasContent, readDraft, writeDraft, type TierDraft } from "./createEventDraft";
 
-type TierDraft = { key: number; name: string; type: string; price: string };
-
-const emptyDetails = { title: "", category: "", startAt: "", endAt: "", imageUrl: "", description: "" };
 
 // Backend values are upper-case codes such as "SPECIAL_ASSISTANCE"; show them as "Special assistance".
 function label(code: string) {
@@ -29,12 +29,18 @@ export default function CreateEventForm({ onCreate }: { onCreate: (input: NewEve
   const [tierTypes, setTierTypes] = useState<string[]>([]);
   const [loadError, setLoadError] = useState("");
 
-  const [details, setDetails] = useState(emptyDetails);
-  const [venueId, setVenueId] = useState("");
-  const [tiers, setTiers] = useState<TierDraft[]>([]);
-  const [nextKey, setNextKey] = useState(1);
+  const { user } = useStore();
+  const storageKey = draftKey(user?.id, currentOrganisationId());
+  // Restore any unsaved draft once, when the form opens.
+  const [restored] = useState(() => readDraft(storageKey));
+  const [showRestored, setShowRestored] = useState(restored !== null);
+
+  const [details, setDetails] = useState(restored?.details ?? emptyDetails);
+  const [venueId, setVenueId] = useState(restored?.venueId ?? "");
+  const [tiers, setTiers] = useState<TierDraft[]>(restored?.tiers ?? []);
+  const [nextKey, setNextKey] = useState(restored?.nextKey ?? 1);
   // section id -> tier key ("" = not on sale)
-  const [assignment, setAssignment] = useState<Record<string, number | "">>({});
+  const [assignment, setAssignment] = useState<Record<string, number | "">>(restored?.assignment ?? {});
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -51,6 +57,33 @@ export default function CreateEventForm({ onCreate }: { onCreate: (input: NewEve
   }, []);
 
   const venue = useMemo(() => venues?.find((v) => v.id === venueId) ?? null, [venues, venueId]);
+  const dirty = !done && hasContent({ details, venueId, tiers });
+
+  // Autosave on every change, so switching dashboard tabs or refreshing keeps the work.
+  useEffect(() => {
+    if (!done) writeDraft(storageKey, { details, venueId, tiers, nextKey, assignment });
+  }, [storageKey, done, details, venueId, tiers, nextKey, assignment]);
+
+  // A restored draft may name a venue that has since been removed.
+  useEffect(() => {
+    if (venues && venueId && !venues.some((v) => v.id === venueId)) {
+      setVenueId("");
+      setAssignment({});
+    }
+  }, [venues, venueId]);
+
+  // Closing the browser tab drops sessionStorage, so warn before that happens.
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, []);
   const setDetail = (key: keyof typeof emptyDetails, value: string) => setDetails((d) => ({ ...d, [key]: value }));
 
   const chooseVenue = (id: string) => {
@@ -110,6 +143,7 @@ export default function CreateEventForm({ onCreate }: { onCreate: (input: NewEve
           sectionIds: venue.sections.filter((s) => assignment[s.id] === t.key).map((s) => s.id),
         })),
       });
+      clearDraft(storageKey);
       setDone(true);
     } catch (cause) {
       setError(messageOf(cause));
@@ -119,11 +153,19 @@ export default function CreateEventForm({ onCreate }: { onCreate: (input: NewEve
   };
 
   const startAgain = () => {
+    clearDraft(storageKey);
     setDetails(emptyDetails);
     setVenueId("");
     setTiers([]);
+    setNextKey(1);
     setAssignment({});
+    setError("");
+    setShowRestored(false);
     setDone(false);
+  };
+
+  const discardDraft = () => {
+    if (window.confirm("Discard this draft? Everything you entered will be cleared.")) startAgain();
   };
 
   if (done) {
@@ -158,6 +200,18 @@ export default function CreateEventForm({ onCreate }: { onCreate: (input: NewEve
 
   return (
     <Card className="p-6 sm:p-8">
+      {showRestored && restored && (
+        <div role="status" className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-purple/20 bg-brand-lilac/40 px-4 py-3 text-sm">
+          <span className="flex items-center gap-2 text-brand-deep">
+            <History className="h-4 w-4 text-brand-purple" />
+            We restored your unsaved draft from {new Date(restored.savedAt).toLocaleTimeString("en-SG", { hour: "numeric", minute: "2-digit" })}.
+          </span>
+          <span className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowRestored(false)}>Keep editing</Button>
+            <Button variant="outline" size="sm" onClick={discardDraft}>Start over</Button>
+          </span>
+        </div>
+      )}
       <Eyebrow>New event</Eyebrow>
       <h3 className="mt-1 font-brand text-2xl font-bold text-brand-deep">Event details</h3>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -294,9 +348,21 @@ export default function CreateEventForm({ onCreate }: { onCreate: (input: NewEve
           {error}
         </p>
       )}
-      <Button className="mt-6" disabled={problems.length > 0 || saving} onClick={() => void submit()}>
-        {saving ? "Saving…" : "Submit for approval"}
-      </Button>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <Button disabled={problems.length > 0 || saving} onClick={() => void submit()}>
+          {saving ? "Saving…" : "Submit for approval"}
+        </Button>
+        {dirty && (
+          <>
+            <Button variant="ghost" onClick={discardDraft} disabled={saving}>
+              Discard draft
+            </Button>
+            <span className="text-xs text-muted" aria-live="polite">
+              Draft saved in this browser tab. You can switch tabs and come back.
+            </span>
+          </>
+        )}
+      </div>
     </Card>
   );
 }
