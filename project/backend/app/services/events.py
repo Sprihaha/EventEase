@@ -27,8 +27,10 @@ def escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def publicly_visible(stmt: Select, now: datetime) -> Select:
-    stmt = stmt.where(Event.status == EventStatus.APPROVED, Event.end_at >= now)
+def publicly_visible(stmt: Select, now: datetime | None = None, include_past: bool = True) -> Select:
+    stmt = stmt.where(Event.status == EventStatus.APPROVED)
+    if not include_past and now is not None:
+        stmt = stmt.where(Event.end_at >= now)
     if not get_settings().include_sample_events:
         stmt = stmt.where(Event.is_sample.is_(False))
     return stmt
@@ -47,8 +49,9 @@ def list_public_events(
     price_min_cents: int | None = None,
     price_max_cents: int | None = None,
     sort: SortKey = "date",
+    include_past: bool = True,
 ) -> dict:
-    stmt = publicly_visible(select(Event, PRICE_MIN.label("pmin"), PRICE_MAX.label("pmax")), utcnow())
+    stmt = publicly_visible(select(Event, PRICE_MIN.label("pmin"), PRICE_MAX.label("pmax")), utcnow(), include_past=include_past)
     if q:
         pattern = f"%{escape_like(q.strip())}%"
         stmt = stmt.where(or_(*(col.ilike(pattern, escape="\\") for col in
@@ -90,6 +93,10 @@ def sales_close_at(event: Event, settings: Settings | None = None) -> datetime:
 
 
 def list_item(event: Event, pmin: int | None, pmax: int | None) -> dict:
+    now = utcnow()
+    close_at = sales_close_at(event) if event.origin == EventOrigin.ORGANISER else None
+    sales_closed = (close_at is not None and now >= close_at) or now >= event.start_at
+    is_past = now >= event.end_at
     return {
         "id": event.id,
         "title": event.title,
@@ -108,7 +115,9 @@ def list_item(event: Event, pmin: int | None, pmax: int | None) -> dict:
         "purchasable": event.origin == EventOrigin.ORGANISER,
         "is_sample": event.is_sample,
         "imported": event.origin == EventOrigin.ORGANISER and event.source_name is not None,
-        "sales_close_at": sales_close_at(event) if event.origin == EventOrigin.ORGANISER else None,
+        "sales_close_at": close_at,
+        "sales_closed": sales_closed,
+        "is_past": is_past,
     }
 
 

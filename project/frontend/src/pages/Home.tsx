@@ -67,9 +67,11 @@ export default function Home() {
     return <Navigate to="/dashboard/organizer" replace />;
   }
 
-  // Real upcoming events in Singapore from the backend (approved and not yet over), soonest first.
+  // Real events in Singapore from the backend, prioritizing upcoming shows soonest first.
+  const now = Date.now();
   const published = events.filter((event) => event.status === "published");
-  const upcoming = [...published].sort((a, b) => +new Date(a.date) - +new Date(b.date));
+  const future = published.filter((event) => (event.isPast !== undefined ? !event.isPast : +new Date(event.date) >= now));
+  const upcoming = (future.length ? future : published).sort((a, b) => +new Date(a.date) - +new Date(b.date));
   const heroPicks = upcoming.slice(0, 2);
   const nextUp = upcoming.slice(0, 6);
 

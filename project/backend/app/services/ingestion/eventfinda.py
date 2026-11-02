@@ -238,8 +238,6 @@ def import_events(db: Session, settings: Settings, raw_events: list[dict], *, no
         if item is not None and item.external_id in known:
             result.already_imported += 1
             continue
-        if item is not None and item.start_at - sales_close <= now:
-            reason = "sales already closed"
         if reason is not None:
             result.skipped[reason] += 1
             continue

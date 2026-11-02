@@ -55,6 +55,8 @@ type BackendEvent = {
   isSample: boolean;
   imported?: boolean;
   salesCloseAt?: string | null;
+  salesClosed?: boolean;
+  isPast?: boolean;
 };
 
 type BackendTicketCategory = {
@@ -169,6 +171,9 @@ function mapEvent(event: BackendEvent, index: number): EventItem {
     purchasable: event.purchasable,
     imported: event.imported,
     salesCloseAt: event.salesCloseAt,
+    salesClosed: event.salesClosed ?? (!!event.salesCloseAt && Date.parse(event.salesCloseAt) <= Date.now()),
+    isPast: event.isPast ?? (Date.parse(event.endAt ?? event.startAt) <= Date.now()),
+    endAt: event.endAt,
   };
 }
 
@@ -216,7 +221,7 @@ function mapManagedEvent(event: BackendManagedEvent, index: number, ownerId = ""
 }
 
 export async function fetchBackendEvents() {
-  return (await pages<BackendEvent>("/events?sort=date")).filter(event => !event.isSample).map(mapEvent);
+  return (await pages<BackendEvent>("/events?sort=date&includePast=true")).filter(event => !event.isSample).map(mapEvent);
 }
 
 export const updateTicketTier = (eventId: string, tierId: string, changes: { priceCents: number; quantity: number }) =>

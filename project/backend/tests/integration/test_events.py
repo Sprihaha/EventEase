@@ -13,7 +13,7 @@ def titles(response) -> list[str]:
     return [item["title"] for item in response.json()["items"]]
 
 
-def test_listing_shows_only_approved_current_events(client, db):
+def test_listing_shows_only_approved_events(client, db):
     org = make_user(db, role=Role.ORGANISER)
     make_event(db, title="Future", days=5)
     make_event(db, title="Ongoing", start_at=utcnow() - timedelta(hours=1), hours=3)
@@ -21,7 +21,8 @@ def test_listing_shows_only_approved_current_events(client, db):
     make_event(db, organiser=org, title="Pending", status=EventStatus.REVIEW_IN_PROGRESS)
     make_event(db, organiser=org, title="Rejected", status=EventStatus.REJECTED)
     make_event(db, organiser=org, title="Suspended", status=EventStatus.SUSPENDED)
-    assert titles(client.get("/api/v1/events")) == ["Ongoing", "Future"]
+    assert titles(client.get("/api/v1/events")) == ["Past", "Ongoing", "Future"]
+    assert titles(client.get("/api/v1/events", params={"includePast": False})) == ["Ongoing", "Future"]
 
 
 def test_listing_fields_and_price_range(client, db):

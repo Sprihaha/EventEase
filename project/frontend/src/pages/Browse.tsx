@@ -9,6 +9,7 @@ import { SEO } from "../components/common";
 
 const PAGE_SIZES = [10, 20, 50];
 const DEFAULT_PAGE_SIZE = 10;
+type Availability = "all" | "open" | "closed" | "past";
 
 export default function Browse() {
   const { publicEvents: events, eventsSource, eventsError } = useStore();
@@ -19,6 +20,10 @@ export default function Browse() {
   const [cat, setCat] = useState<Category | "All">(() => {
     const fromUrl = params.get("cat") as Category | null;
     return fromUrl && categoryList.includes(fromUrl) ? fromUrl : "All";
+  });
+  const [availability, setAvailability] = useState<Availability>(() => {
+    const fromUrl = params.get("status") as Availability | null;
+    return fromUrl && ["all", "open", "closed", "past"].includes(fromUrl) ? fromUrl : "all";
   });
   const [sort, setSort] = useState("date");
   const [maxPrice, setMaxPrice] = useState(400);
@@ -34,12 +39,30 @@ export default function Browse() {
     const term = q.trim().toLowerCase();
     if (term) list = list.filter((e) => [e.title, e.venue, e.city, e.blurb, e.category].join(" ").toLowerCase().includes(term));
     list = list.filter(e => e.priceFrom === undefined && !e.tiers.length || (e.priceFrom ?? Math.min(...e.tiers.map(t => t.price))) <= maxPrice);
+
+    const now = Date.now();
+    if (availability === "open") {
+      list = list.filter((e) => {
+        const isPast = e.isPast ?? (Date.parse(e.endAt ?? e.date) <= now);
+        const isClosed = e.salesClosed ?? (!!e.salesCloseAt && Date.parse(e.salesCloseAt) <= now);
+        return !isPast && !isClosed;
+      });
+    } else if (availability === "closed") {
+      list = list.filter((e) => {
+        const isPast = e.isPast ?? (Date.parse(e.endAt ?? e.date) <= now);
+        const isClosed = e.salesClosed ?? (!!e.salesCloseAt && Date.parse(e.salesCloseAt) <= now);
+        return isClosed && !isPast;
+      });
+    } else if (availability === "past") {
+      list = list.filter((e) => e.isPast ?? (Date.parse(e.endAt ?? e.date) <= now));
+    }
+
     list = [...list].sort((a, b) => {
       if (sort === "price") return (a.priceFrom ?? Math.min(...a.tiers.map((t) => t.price))) - (b.priceFrom ?? Math.min(...b.tiers.map((t) => t.price)));
       return +new Date(a.date) - +new Date(b.date);
     });
     return list;
-  }, [events, cat, q, sort, maxPrice]);
+  }, [events, cat, q, sort, maxPrice, availability]);
 
   const pageCount = Math.max(1, Math.ceil(results.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -47,10 +70,17 @@ export default function Browse() {
   const shown = results.slice(firstShown, firstShown + pageSize);
 
   // New filters start again from page 1.
-  const syncParams = (nextQ: string, nextCat: Category | "All", nextPage = 1, nextSize = pageSize) => {
+  const syncParams = (
+    nextQ: string,
+    nextCat: Category | "All",
+    nextAvail: Availability = availability,
+    nextPage = 1,
+    nextSize = pageSize,
+  ) => {
     const next = new URLSearchParams();
     if (nextQ.trim()) next.set("q", nextQ.trim());
     if (nextCat !== "All") next.set("cat", nextCat);
+    if (nextAvail !== "all") next.set("status", nextAvail);
     if (nextPage > 1) next.set("page", String(nextPage));
     if (nextSize !== DEFAULT_PAGE_SIZE) next.set("size", String(nextSize));
     setPage(nextPage);
@@ -59,17 +89,22 @@ export default function Browse() {
 
   const setCategory = (c: Category | "All") => {
     setCat(c);
-    syncParams(q, c);
+    syncParams(q, c, availability);
+  };
+
+  const setAvailabilityFilter = (a: Availability) => {
+    setAvailability(a);
+    syncParams(q, cat, a);
   };
 
   const goToPage = (target: number) => {
-    syncParams(q, cat, target);
+    syncParams(q, cat, availability, target);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const changePageSize = (size: number) => {
     setPageSize(size);
-    syncParams(q, cat, 1, size);
+    syncParams(q, cat, availability, 1, size);
   };
 
   const pageTitle = cat !== "All" ? `${cat} Events & Tickets` : "Explore Events & Shows";
@@ -146,6 +181,31 @@ export default function Browse() {
           </div>
 
           <div className="mt-5">
+            <div className="text-xs font-bold uppercase tracking-wider text-muted">Availability</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[
+                { id: "all", label: "All Events" },
+                { id: "open", label: "Tickets On Sale" },
+                { id: "closed", label: "Sales Closed" },
+                { id: "past", label: "Past Events" },
+              ].map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setAvailabilityFilter(id as Availability)}
+                  className={cx(
+                    "cursor-pointer rounded-full border px-3.5 py-1.5 text-xs sm:text-sm transition",
+                    availability === id
+                      ? "border-brand-purple bg-brand-purple text-white shadow-sm font-semibold"
+                      : "border-brand-purple/15 bg-brand-warm/60 text-brand-text hover:border-brand-purple hover:bg-brand-lilac/50 font-medium",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5">
             <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-muted">
               <span>Max price</span>
               <span className="font-bold text-brand-orange">S${maxPrice}</span>
@@ -158,7 +218,7 @@ export default function Browse() {
               value={maxPrice}
               onChange={(e) => {
                 setMaxPrice(+e.target.value);
-                syncParams(q, cat);
+                syncParams(q, cat, availability);
               }}
               className="mt-3 w-full accent-brand-orange cursor-pointer"
             />
@@ -166,7 +226,7 @@ export default function Browse() {
 
           <div className="mt-5">
             <div className="text-xs font-bold uppercase tracking-wider text-muted">Sort by</div>
-            <Select value={sort} onChange={(e) => { setSort(e.target.value); syncParams(q, cat); }} className="mt-2">
+            <Select value={sort} onChange={(e) => { setSort(e.target.value); syncParams(q, cat, availability); }} className="mt-2">
               <option value="date">Date — soonest</option>
               <option value="price">Price — lowest</option>
             </Select>

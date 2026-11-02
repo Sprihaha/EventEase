@@ -36,6 +36,9 @@ export type EventItem = {
   imported?: boolean; // created by the Eventfinda import ("Imported by System")
   organisationName?: string | null;
   salesCloseAt?: string | null;
+  salesClosed?: boolean;
+  isPast?: boolean;
+  endAt?: string | null;
 };
 
 export type SeatBooking = { seat: string; tier: string };

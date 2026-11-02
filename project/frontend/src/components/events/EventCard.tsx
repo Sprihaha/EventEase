@@ -15,6 +15,9 @@ export function EventCard({
   const { user } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const now = Date.now();
+  const isPast = ev.isPast ?? (Date.parse(ev.endAt ?? ev.date) <= now);
+  const isSalesClosed = ev.salesClosed ?? (!!ev.salesCloseAt && Date.parse(ev.salesCloseAt) <= now);
   const from = ev.priceFrom ?? (ev.tiers.length ? Math.min(...ev.tiers.map((t) => t.price)) : 0);
   const sold = ev.tiers.reduce((a, t) => a + t.sold, 0);
   const total = ev.tiers.reduce((a, t) => a + t.total, 0);
@@ -52,7 +55,15 @@ export function EventCard({
           >
             {ev.category}
           </Badge>
-          {ev.earlyBird ? (
+          {isPast ? (
+            <Badge tone="neutral" className="border-0 bg-slate-900/90 text-white font-bold shadow-sm backdrop-blur">
+              Event Ended
+            </Badge>
+          ) : isSalesClosed ? (
+            <Badge tone="neutral" className="border-0 bg-amber-600/95 text-white font-bold shadow-sm backdrop-blur">
+              Sales Closed
+            </Badge>
+          ) : ev.earlyBird ? (
             <Badge
               tone="accent"
               className="border-0 bg-brand-orange text-white font-bold shadow-sm"
@@ -85,9 +96,19 @@ export function EventCard({
               {ev.priceFrom === undefined && !ev.tiers.length ? "Price TBA" : currency(from)}
             </div>
           </div>
-          <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-orange transition-transform group-hover:translate-x-1">
-            View seats →
-          </span>
+          {isPast ? (
+            <span className="flex items-center gap-1 font-brand text-sm font-semibold text-muted">
+              Event ended
+            </span>
+          ) : isSalesClosed ? (
+            <span className="flex items-center gap-1 font-brand text-sm font-semibold text-amber-700">
+              Sales closed
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-orange transition-transform group-hover:translate-x-1">
+              View seats →
+            </span>
+          )}
         </div>
       </div>
     </article>

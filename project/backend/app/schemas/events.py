@@ -29,6 +29,8 @@ class EventListItem(CamelModel):
     is_sample: bool
     imported: bool = False
     sales_close_at: datetime | None = None
+    sales_closed: bool = False
+    is_past: bool = False
 
 
 class PublicTicketCategory(CamelModel):
