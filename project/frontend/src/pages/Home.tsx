@@ -63,10 +63,6 @@ export default function Home() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
 
-  if (user?.role === "organizer") {
-    return <Navigate to="/dashboard/organizer" replace />;
-  }
-
   // Real events in Singapore from the backend, prioritizing upcoming shows soonest first.
   const now = Date.now();
   const published = events.filter((event) => event.status === "published");

@@ -40,7 +40,6 @@ const navLinks = [
 
 export default function Layout() {
   const { user, logout, keepLoggedIn } = useStore();
-  const isCustomerOrAdmin = !user || user.role === "customer" || user.role === "admin";
   const navigate = useNavigate();
   const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -137,28 +136,26 @@ export default function Layout() {
             />
           </Link>
 
-          {isCustomerOrAdmin && (
-            <nav className="ml-4 hidden items-center gap-1 md:flex">
-              {navLinks.map((l) => (
-                <NavLink
-                  key={l.to}
-                  to={l.to}
-                  className={({ isActive }) =>
-                    cx(
-                      "rounded-full px-4 py-2 text-sm font-semibold transition",
-                      isActive
-                        ? "bg-brand-purple text-white shadow-sm font-bold"
-                        : "text-brand-deep/70 hover:bg-brand-lilac/60 hover:text-brand-deep",
-                    )
-                  }
-                >
-                  <span className={l.label.startsWith("Ease") ? "font-feature italic font-black tracking-tight" : ""}>
-                    {l.label}
-                  </span>
-                </NavLink>
-              ))}
-            </nav>
-          )}
+          <nav className="ml-4 hidden items-center gap-1 md:flex">
+            {navLinks.map((l) => (
+              <NavLink
+                key={l.to}
+                to={l.to}
+                className={({ isActive }) =>
+                  cx(
+                    "rounded-full px-4 py-2 text-sm font-semibold transition",
+                    isActive
+                      ? "bg-brand-purple text-white shadow-sm font-bold"
+                      : "text-brand-deep/70 hover:bg-brand-lilac/60 hover:text-brand-deep",
+                  )
+                }
+              >
+                <span className={l.label.startsWith("Ease") ? "font-feature italic font-black tracking-tight" : ""}>
+                  {l.label}
+                </span>
+              </NavLink>
+            ))}
+          </nav>
 
           <div className="ml-auto flex items-center gap-3">
             <WebSearchableControl variant="compact" />
@@ -222,6 +219,36 @@ export default function Layout() {
                     >
                       <LayoutDashboard className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                       <span className="capitalize">{user.role === "admin" ? "Admin dashboard" : `${user.role} dashboard`}</span>
+                    </button>
+                    <button
+                      role="menuitem"
+                      aria-pressed={location.pathname === "/events"}
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate("/events");
+                      }}
+                      className={cx(
+                        "dropdown-menu-item group flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold transition md:hidden focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30",
+                        location.pathname === "/events" && "is-selected",
+                      )}
+                    >
+                      <Search className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
+                      <span>Discover</span>
+                    </button>
+                    <button
+                      role="menuitem"
+                      aria-pressed={location.pathname === "/community"}
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate("/community");
+                      }}
+                      className={cx(
+                        "dropdown-menu-item group flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold transition md:hidden focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30",
+                        location.pathname === "/community" && "is-selected",
+                      )}
+                    >
+                      <Users className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
+                      <span className="font-feature italic font-black">EaseComms</span>
                     </button>
                     <div
                       aria-pressed={location.pathname === "/settings/accessibility"}
@@ -378,14 +405,11 @@ export default function Layout() {
                 </div>
               </div>
             </div>
-            {(user?.role === "organizer"
-              ? [{ h: "For Organizers", items: ["Create events", "Analytics", "Pricing tools", "Apply to sell"] }]
-              : [
-                  { h: "Discover", items: ["Concerts", "Theatre", "Sports", "Cultural"] },
-                  { h: "Platform", items: ["EaseComms", "Secure Exchange", "Accessibility", "Fraud Shield"] },
-                  { h: "For Organizers", items: ["Create events", "Analytics", "Pricing tools", "Apply to sell"] },
-                ]
-            ).map((col) => (
+            {[
+              { h: "Discover", items: ["Concerts", "Theatre", "Sports", "Cultural"] },
+              { h: "Platform", items: ["EaseComms", "Secure Exchange", "Accessibility", "Fraud Shield"] },
+              { h: "For Organizers", items: ["Create events", "Analytics", "Pricing tools", "Apply to sell"] },
+            ].map((col) => (
               <div key={col.h}>
                 <div className="font-brand text-sm font-bold tracking-wide text-white">{col.h}</div>
                 <ul className="mt-4 space-y-2.5 text-sm text-white/65">
