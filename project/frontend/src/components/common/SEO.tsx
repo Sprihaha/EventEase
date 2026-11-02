@@ -11,7 +11,7 @@ export interface SEOProps {
 }
 
 const SITE_URL = "https://eventease-frontend.onrender.com";
-const DEFAULT_TITLE = "EventEase - Accessible Events, Discovery & Community Ticketing";
+const DEFAULT_TITLE = "EventEase";
 const DEFAULT_DESC =
   "Discover, book, and experience accessible events with EventEase. Inclusive ticketing, seat companion requests, and community ticket exchange.";
 const DEFAULT_IMAGE = `${SITE_URL}/EventEase_logo.png`;
@@ -34,7 +34,7 @@ export default function SEO({
     const resolvedImage = image || defaultImage;
 
     // 1. Update Document Title
-    const fullTitle = title ? `${title} | EventEase` : DEFAULT_TITLE;
+    const fullTitle = !title || title === "EventEase" || title.toLowerCase().includes("find & experience") ? "EventEase" : `${title} | EventEase`;
     document.title = fullTitle;
 
     // Helper to update or create meta tags

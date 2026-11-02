@@ -76,7 +76,7 @@ export default function Home() {
   return (
     <div className="bg-brand-warm text-brand-text">
       <SEO
-        title="Find & Experience Accessible Events"
+        title="EventEase"
         description="Discover and book accessible concerts, theatre, festivals, and sports events with ease. Companion assistance and verified community ticket exchange."
         canonicalPath="/"
         structuredData={homeStructuredData}
