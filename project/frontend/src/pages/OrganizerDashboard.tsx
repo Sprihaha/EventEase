@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import {
   CalendarPlus,
   Ticket,
@@ -12,11 +13,13 @@ import {
   Wrench,
   Clock3,
   Users,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { type EventItem } from "../lib/data";
 import { BarChart, DashboardShell, type NavItem } from "../components/DashboardShell";
-import { Button, Badge, Card, Eyebrow } from "../components/ui";
+import { Button, Badge, Card, Eyebrow, Select, cx } from "../components/ui";
 import EaseAnalytics from "../components/EaseAnalytics";
 import VenueSetup from "../components/VenueSetup";
 import CreateEventForm from "../components/CreateEventForm";
@@ -175,15 +178,97 @@ function VenueStatus({ mine }: { mine: EventItem[] }) {
   );
 }
 
+const PAGE_SIZES = [10, 20, 50];
+const DEFAULT_PAGE_SIZE = 10;
+
 function EventsTable({ mine }: { mine: EventItem[] }) {
+  const [searchParams] = useSearchParams();
+  const targetEventId = searchParams.get("eventId");
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useState(1);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!targetEventId) return;
+    const index = mine.findIndex((e) => e.id === targetEventId);
+    if (index >= 0) {
+      const targetPage = Math.floor(index / pageSize) + 1;
+      setPage(targetPage);
+      setHighlightedId(targetEventId);
+
+      const timer = window.setTimeout(() => {
+        const el = document.getElementById(`event-${targetEventId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 150);
+
+      const clearTimer = window.setTimeout(() => {
+        setHighlightedId(null);
+      }, 4000);
+
+      return () => {
+        window.clearTimeout(timer);
+        window.clearTimeout(clearTimer);
+      };
+    }
+  }, [targetEventId, mine, pageSize]);
+
+  const pageCount = Math.max(1, Math.ceil(mine.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const firstShown = (currentPage - 1) * pageSize;
+  const shown = mine.slice(firstShown, firstShown + pageSize);
+
+  const goToPage = (target: number) => {
+    setPage(target);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const changePageSize = (size: number) => {
+    setPageSize(size);
+    setPage(1);
+  };
+
   return (
     <div className="space-y-4">
-      {mine.map((e) => {
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 text-sm font-medium text-muted">
+        <span>
+          {mine.length
+            ? `Showing ${firstShown + 1}–${firstShown + shown.length} of ${mine.length} ${mine.length === 1 ? "event" : "events"}`
+            : "Showing 0 events"}
+        </span>
+        <label className="flex items-center gap-2">
+          <span>Per page</span>
+          <span className="w-24">
+            <Select
+              aria-label="Events per page"
+              value={String(pageSize)}
+              onChange={(e) => changePageSize(Number(e.target.value))}
+            >
+              {PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </Select>
+          </span>
+        </label>
+      </div>
+
+      {shown.map((e) => {
+        const isTarget = highlightedId === e.id;
         const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
         const cap = e.tiers.reduce((a, t) => a + t.total, 0);
         const pct = Math.round((sold / Math.max(cap, 1)) * 100);
         return (
-          <Card key={e.id} className="p-5">
+          <Card
+            key={e.id}
+            id={`event-${e.id}`}
+            className={cx(
+              "p-5 transition-all duration-500",
+              isTarget && "ring-4 ring-brand-purple/70 shadow-2xl bg-brand-lilac/10",
+            )}
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
@@ -224,6 +309,40 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
           </Card>
         );
       })}
+
+      {pageCount > 1 && (
+        <nav aria-label="Event pages" className="mt-8 flex flex-wrap items-center justify-center gap-2 pt-4">
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Previous page"
+            disabled={currentPage === 1}
+            onClick={() => goToPage(currentPage - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          {Array.from({ length: pageCount }, (_, index) => index + 1).map((number) => (
+            <Button
+              key={number}
+              size="sm"
+              variant={number === currentPage ? "primary" : "ghost"}
+              aria-current={number === currentPage ? "page" : undefined}
+              onClick={() => goToPage(number)}
+            >
+              {number}
+            </Button>
+          ))}
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Next page"
+            disabled={currentPage === pageCount}
+            onClick={() => goToPage(currentPage + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </nav>
+      )}
     </div>
   );
 }

@@ -23,21 +23,27 @@ export function EventCard({
   const total = ev.tiers.reduce((a, t) => a + t.total, 0);
   const pct = total ? Math.round((sold / total) * 100) : 0;
   const nearly = pct >= 85;
+  const isOrganizer = user?.role === "organizer";
+
+  const handleAction = () => {
+    if (isOrganizer) {
+      navigate(`/dashboard/organizer?tab=events&eventId=${ev.id}`);
+    } else {
+      navigate(user ? `/events/${ev.id}` : "/login", {
+        state: { returnTo: `/events/${ev.id}`, from: location.pathname },
+      });
+    }
+  };
+
   return (
     <article
       role="button"
       tabIndex={0}
-      onClick={() =>
-        navigate(user ? `/events/${ev.id}` : "/login", {
-          state: { returnTo: `/events/${ev.id}`, from: location.pathname },
-        })
-      }
+      onClick={handleAction}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          navigate(user ? `/events/${ev.id}` : "/login", {
-            state: { returnTo: `/events/${ev.id}`, from: location.pathname },
-          });
+          handleAction();
         }
       }}
       className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-brand-purple/15 bg-white shadow-[0_10px_35px_-20px_rgba(50,19,79,0.12)] transition-all duration-300 hover:-translate-y-1.5 hover:border-brand-purple/35 hover:shadow-[0_20px_45px_-15px_rgba(50,19,79,0.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30"
@@ -96,7 +102,17 @@ export function EventCard({
               {ev.priceFrom === undefined && !ev.tiers.length ? "Price TBA" : currency(from)}
             </div>
           </div>
-          {isPast ? (
+          {isOrganizer ? (
+            isPast || isSalesClosed ? (
+              <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-purple transition-transform group-hover:translate-x-1">
+                View →
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-purple transition-transform group-hover:translate-x-1">
+                Edit →
+              </span>
+            )
+          ) : isPast ? (
             <span className="flex items-center gap-1 font-brand text-sm font-semibold text-muted">
               Event ended
             </span>
