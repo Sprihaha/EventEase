@@ -85,7 +85,6 @@ export default function Home() {
     .filter((event) => event.status === "published" && !isPastEvent(event) && !isSalesClosedEvent(event))
     .sort((a, b) => +new Date(a.date) - +new Date(b.date));
   const heroPicks = upcoming.slice(0, 2);
-  const nextUp = upcoming.slice(0, 6);
 
   return (
     <div className="bg-brand-warm text-brand-text">
@@ -163,24 +162,6 @@ export default function Home() {
           </div>
 
           <div className="relative ee-rise" style={{ animationDelay: "0.1s" }}>
-            <div className="absolute -right-1 -top-4 z-10 rounded-full border border-white/15 bg-brand-deep/85 px-4 py-2.5 shadow-xl backdrop-blur">
-              <div className="flex items-center gap-2 text-xs font-semibold text-white">
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    eventsSource === "backend"
-                      ? "bg-live"
-                      : "bg-brand-orange"
-                  }`}
-                />
-                {eventsSource === "loading"
-                  ? "Finding upcoming events…"
-                  : eventsSource === "error"
-                    ? "Events are unavailable right now"
-                    : upcoming.length
-                      ? `${upcoming.length} upcoming in Singapore`
-                      : "New events coming soon"}
-              </div>
-            </div>
             <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2 sm:gap-6">
               {heroPicks.map((event, index) => (
                 <div
@@ -220,38 +201,42 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-20 sm:py-24">
-        <div className="flex items-end justify-between gap-6">
-          <div>
-            <Eyebrow>What’s on</Eyebrow>
-            <h2 className="mt-3 font-brand text-4xl font-bold tracking-tight text-brand-deep sm:text-5xl">
-              Upcoming events in Singapore
+      <section className="mx-auto max-w-7xl px-5 py-16 sm:py-20">
+        <div className="relative overflow-hidden rounded-3xl border border-brand-purple/15 bg-gradient-to-br from-white via-brand-warm to-brand-lilac/30 p-8 shadow-sm sm:p-12 md:p-16">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-brand-purple/10 blur-3xl"
+          />
+          <div className="relative max-w-3xl">
+            <Eyebrow>Discover Singapore</Eyebrow>
+            <h2 className="mt-4 font-brand text-4xl font-bold tracking-tight text-brand-deep sm:text-5xl">
+              Discover Singapore’s best live events & experiences
             </h2>
-            <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted">
-              Concerts, theatre, sports and cultural performances—soonest first.
+            <p className="mt-4 text-base leading-relaxed text-muted sm:text-lg">
+              Explore the full lineup of concerts, theatre, sports, and cultural performances across Singapore.
+              Filter seamlessly by active ticket availability, price, and category, preview real seat views,
+              and secure verified tickets with zero hidden fees.
             </p>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Button
+                className="bg-brand-purple text-white shadow-none hover:bg-brand-deep"
+                onClick={() => navigate("/events")}
+              >
+                Go to Discover <ArrowRight className="h-4 w-4" />
+              </Button>
+              <div className="flex flex-wrap gap-2">
+                {categoryList.map((cat) => (
+                  <Link
+                    key={cat}
+                    to={`/events?cat=${cat}`}
+                    className="rounded-full border border-brand-deep/15 bg-white/80 px-4 py-2 text-sm font-medium text-brand-deep transition hover:border-brand-purple hover:bg-brand-lilac hover:text-brand-purple"
+                  >
+                    {cat}
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
-          <Link
-            to="/events"
-            className="hidden items-center gap-2 rounded-full border border-brand-purple/20 bg-white px-5 py-2.5 text-sm font-semibold text-brand-purple transition hover:border-brand-purple hover:bg-brand-lilac focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/20 sm:flex"
-          >
-            Browse all <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-        {eventsSource !== "loading" && !nextUp.length && (
-          <div className="mt-10 rounded-3xl border border-dashed border-brand-purple/25 bg-white p-10 text-center">
-            <p className="font-brand text-xl font-bold text-brand-deep">
-              {eventsSource === "error" ? "We couldn't load events right now." : "No upcoming events yet."}
-            </p>
-            <p className="mt-2 text-sm text-muted">
-              {eventsSource === "error" ? "Please try again in a moment." : "New events are added regularly—check back soon."}
-            </p>
-          </div>
-        )}
-        <div className="mt-10 grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
-          {nextUp.map((event) => (
-            <EventCard key={event.id} ev={event} presentation="home" />
-          ))}
         </div>
       </section>
 

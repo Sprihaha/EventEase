@@ -23,7 +23,7 @@ export default function Browse() {
   });
   const [availability, setAvailability] = useState<Availability>(() => {
     const fromUrl = params.get("status") as Availability | null;
-    return fromUrl && ["all", "open", "closed", "past"].includes(fromUrl) ? fromUrl : "all";
+    return fromUrl && ["all", "open", "closed", "past"].includes(fromUrl) ? fromUrl : "open";
   });
   const [sort, setSort] = useState("date");
   const [maxPrice, setMaxPrice] = useState(400);
@@ -80,7 +80,7 @@ export default function Browse() {
     const next = new URLSearchParams();
     if (nextQ.trim()) next.set("q", nextQ.trim());
     if (nextCat !== "All") next.set("cat", nextCat);
-    if (nextAvail !== "all") next.set("status", nextAvail);
+    if (nextAvail !== "open") next.set("status", nextAvail);
     if (nextPage > 1) next.set("page", String(nextPage));
     if (nextSize !== DEFAULT_PAGE_SIZE) next.set("size", String(nextSize));
     setPage(nextPage);
@@ -184,8 +184,8 @@ export default function Browse() {
             <div className="text-xs font-bold uppercase tracking-wider text-muted">Availability</div>
             <div className="mt-2 flex flex-wrap gap-2">
               {[
-                { id: "all", label: "All Events" },
                 { id: "open", label: "Tickets On Sale" },
+                { id: "all", label: "All Events" },
                 { id: "closed", label: "Sales Closed" },
                 { id: "past", label: "Past Events" },
               ].map(({ id, label }) => (
