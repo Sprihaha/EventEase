@@ -49,9 +49,12 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
     selected && user ? `options:${user.id}:${selected.id}` : null,
     loadOptions,
   );
-  const category = options.data?.find((item) => item.id === desiredCategory);
+  const availableCategories = (options.data ?? []).filter(
+    (item) => allowCrossTier || item.type.toLowerCase() === selected?.categoryType.toLowerCase(),
+  );
+  const category = availableCategories.find((item) => item.id === desiredCategory);
   const sections = [
-    ...new Set((category ? [category] : options.data ?? []).flatMap((item) => item.sections)),
+    ...new Set((category ? [category] : availableCategories).flatMap((item) => item.sections)),
   ];
   const validPreferences =
     options.status === "success" &&
@@ -147,43 +150,19 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
               <option value="DIRECT">Direct</option>
             </ExchangeSelect>
           </Field>
-          <Field label="Desired Category">
-            <ExchangeSelect
-              aria-label="Desired Category"
-              value={desiredCategory}
-              disabled={!selected || options.status !== "success"}
-              onChange={(e) => {
-                setDesiredCategory(e.target.value);
-                setDesiredSection("");
-              }}
-            >
-              <option value="">
-                {selected ? "Any event category" : "Choose Ticket to Offer below first"}
-              </option>
-              {options.data?.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} · {item.type}
-                </option>
-              ))}
-            </ExchangeSelect>
-          </Field>
-          <Field label="Desired Seat Section">
-            <ExchangeSelect
-              aria-label="Desired Seat Section"
-              value={desiredSection}
-              disabled={!selected || options.status !== "success"}
-              onChange={(e) => setDesiredSection(e.target.value)}
-            >
-              <option value="">
-                {selected ? "Any event section" : "Choose Ticket to Offer below first"}
-              </option>
-              {sections.map((section) => (
-                <option key={section} value={section}>
-                  {section}
-                </option>
-              ))}
-            </ExchangeSelect>
-          </Field>
+          {requestType === "DIRECT" && (
+            <Field label="Recipient customer username">
+              <Input
+                required
+                maxLength={100}
+                value={recipientUsername}
+                onChange={(e) => setRecipientUsername(e.target.value)}
+              />
+              <p className="mt-2 text-xs text-muted">
+                Only this recipient can see your invitation and offer a compatible ticket.
+              </p>
+            </Field>
+          )}
           <Field label="Ticket to Offer">
             <ExchangeSelect
               aria-label="Ticket to Offer"
@@ -207,6 +186,70 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
               The offered ticket determines the event and its available categories and sections.
             </p>
           </Field>
+          <div>
+            <label className="flex items-center gap-3 text-sm text-brand-deep">
+              <input
+                type="checkbox"
+                checked={allowCrossTier}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setAllowCrossTier(checked);
+                  const nextCategories = (options.data ?? []).filter(
+                    (item) => checked || item.type.toLowerCase() === selected?.categoryType.toLowerCase(),
+                  );
+                  const nextCategory = nextCategories.find((item) => item.id === desiredCategory);
+                  if (desiredCategory && !nextCategory) setDesiredCategory("");
+                  const nextSections = (nextCategory ? [nextCategory] : nextCategories)
+                    .flatMap((item) => item.sections);
+                  if (desiredSection && !nextSections.includes(desiredSection)) setDesiredSection("");
+                }}
+                className="h-4 w-4 accent-brand-purple"
+              />{" "}
+              Allow cross-tier suggestions
+            </label>
+            <p className="mt-2 text-xs text-muted">
+              {allowCrossTier
+                ? "Choose any available tier for this event. Different tiers may involve a price difference."
+                : "Exchanges stay within the same tier as your offered ticket."}
+            </p>
+          </div>
+          <Field label="Desired Category">
+            <ExchangeSelect
+              aria-label="Desired Category"
+              value={desiredCategory}
+              disabled={!selected || options.status !== "success"}
+              onChange={(e) => {
+                setDesiredCategory(e.target.value);
+                setDesiredSection("");
+              }}
+            >
+              <option value="">
+                {selected ? (allowCrossTier ? "Any event category" : "Any same-tier category") : "Choose Ticket to Offer above first"}
+              </option>
+              {availableCategories.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} · {item.type}
+                </option>
+              ))}
+            </ExchangeSelect>
+          </Field>
+          <Field label="Desired Seat Section">
+            <ExchangeSelect
+              aria-label="Desired Seat Section"
+              value={desiredSection}
+              disabled={!selected || options.status !== "success"}
+              onChange={(e) => setDesiredSection(e.target.value)}
+            >
+              <option value="">
+                {selected ? (allowCrossTier ? "Any event section" : "Any same-tier section") : "Choose Ticket to Offer above first"}
+              </option>
+              {sections.map((section) => (
+                <option key={section} value={section}>
+                  {section}
+                </option>
+              ))}
+            </ExchangeSelect>
+          </Field>
           {selected && options.status === "loading" && (
             <p role="status" className="text-sm text-muted">
               Loading event categories and sections…
@@ -219,28 +262,6 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
                 Retry event options
               </Button>
             </div>
-          )}
-          <label className="flex items-center gap-3 text-sm text-brand-deep">
-            <input
-              type="checkbox"
-              checked={allowCrossTier}
-              onChange={(event) => setAllowCrossTier(event.target.checked)}
-              className="h-4 w-4 accent-brand-purple"
-            />{" "}
-            Allow cross-tier suggestions
-          </label>
-          {requestType === "DIRECT" && (
-            <Field label="Recipient customer username">
-              <Input
-                required
-                maxLength={100}
-                value={recipientUsername}
-                onChange={(e) => setRecipientUsername(e.target.value)}
-              />
-              <p className="mt-2 text-xs text-muted">
-                Only this recipient can see your invitation and offer a compatible ticket.
-              </p>
-            </Field>
           )}
           <p className="text-sm text-muted">
             Compatible matches are selected by the exchange service. After mutual

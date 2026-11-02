@@ -549,6 +549,20 @@ def test_direct_invitation_is_private_and_only_recipient_can_match(client, world
     assert client.get(ROOT+'/invitations', headers=w.hb).json() == []
 
 
+@pytest.mark.parametrize("recipient_username", ["Jeeves", "jeeves", "JEEVES"])
+def test_direct_recipient_username_is_case_insensitive(client, db, world, recipient_username):
+    w = world
+    w.b.username = "Jeeves"
+    db.commit()
+    booking = ticket(client, w.ha, w)
+    response = offer(client, w.ha, booking["tickets"][0]["id"],
+                     requestType="DIRECT", recipientUsername=recipient_username)
+    assert response.status_code == 201, response.text
+    invitations = client.get(ROOT + "/invitations", headers=w.hb)
+    assert invitations.status_code == 200, invitations.text
+    assert [item["requestId"] for item in invitations.json()] == [response.json()["id"]]
+
+
 def test_direct_recipient_validation_and_public_recipient_injection(client, world):
     w = world
     booking = ticket(client, w.ha, w)
