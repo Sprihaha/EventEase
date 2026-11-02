@@ -39,12 +39,14 @@ services:
       DB_SSLMODE: disable
       DB_SCHEMA: public
       JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_at_least_32_characters_long_for_security}
-      ADMIN_USERNAME: eventeaseadmin
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-AdminPass123!}
+      ADMIN_USERNAME: system_admin
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-eeAdmin2!}
       APP_ENV: ${APP_ENV:-development}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:10000}
       CORS_ORIGINS: http://localhost:10000,http://localhost:5173
       PAYMENT_PROVIDER: mock
+      EVENTFINDA_USERNAME: ${EVENTFINDA_USERNAME:-}
+      EVENTFINDA_PASSWORD: ${EVENTFINDA_PASSWORD:-}
     ports:
       - "10000:10000"
     depends_on:
