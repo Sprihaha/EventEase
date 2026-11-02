@@ -63,11 +63,27 @@ export default function Home() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
 
-  // Real events in Singapore from the backend, prioritizing upcoming shows soonest first.
+  // On the first landing page, only display active upcoming events where ticket sales are open
+  // (no events that are past or where ticket sales have closed).
   const now = Date.now();
-  const published = events.filter((event) => event.status === "published");
-  const future = published.filter((event) => (event.isPast !== undefined ? !event.isPast : +new Date(event.date) >= now));
-  const upcoming = (future.length ? future : published).sort((a, b) => +new Date(a.date) - +new Date(b.date));
+  const isPastEvent = (e: (typeof events)[number]) => {
+    if (e.isPast) return true;
+    const end = e.endAt ? Date.parse(e.endAt) : Date.parse(e.date);
+    return !isNaN(end) && end <= now;
+  };
+
+  const isSalesClosedEvent = (e: (typeof events)[number]) => {
+    if (e.salesClosed) return true;
+    if (e.salesCloseAt) {
+      const close = Date.parse(e.salesCloseAt);
+      if (!isNaN(close) && close <= now) return true;
+    }
+    return isPastEvent(e);
+  };
+
+  const upcoming = events
+    .filter((event) => event.status === "published" && !isPastEvent(event) && !isSalesClosedEvent(event))
+    .sort((a, b) => +new Date(a.date) - +new Date(b.date));
   const heroPicks = upcoming.slice(0, 2);
   const nextUp = upcoming.slice(0, 6);
 
@@ -330,7 +346,7 @@ export default function Home() {
 
       <section className="bg-brand-warm px-5 py-8">
         <p className="text-center text-sm text-muted">
-          {published.length} events available · Transparent, verified ticketing by EventEase
+          {upcoming.length} upcoming events available · Transparent, verified ticketing by EventEase
         </p>
       </section>
     </div>
