@@ -58,11 +58,13 @@ services:
       - key: FRONTEND_URL
         sync: false
 
-      # ── External APIs ────────────────────────────────────────────────
+      # ── External APIs & Event Rules ──────────────────────────────────
       - key: EVENTFINDA_USERNAME
         sync: false
       - key: EVENTFINDA_PASSWORD
         sync: false
+      - key: SALES_CLOSE_DAYS_BEFORE_EVENT
+        value: "7"
       - key: PAYMENT_PROVIDER
         value: mock
 

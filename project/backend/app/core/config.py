@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     BOOKING_HOLD_MINUTES: int = 10
     CANCELLATION_CUTOFF_HOURS: int = 48
     # Ticket sales close this many days before an event starts; QR codes are released at the same time.
-    SALES_CLOSE_DAYS_BEFORE_EVENT: int = Field(default=30, ge=0, le=365)
+    SALES_CLOSE_DAYS_BEFORE_EVENT: int = Field(default=7, ge=0, le=365)
     BACKGROUND_JOBS_ENABLED: bool = True
 
     # EventEase's own organisation (self-managed, hidden from sign-up) and its manager account,
