@@ -275,14 +275,14 @@ export default function Home() {
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {/* Card 1: 01 · Connect */}
-              <article className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-[#270d3b] via-[#3a1554] to-[#361726] text-white shadow-xl hover:shadow-2xl hover:border-brand-orange/40 transition-all duration-300 flex flex-col">
+              <article className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-[#4a0e82] via-[#7c2e3a] to-[#c43c00] text-white shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 flex flex-col">
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -right-20 -bottom-20 h-56 w-56 rounded-full bg-brand-orange/20 blur-3xl"
+                  className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-orange/40 blur-2xl"
                 />
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-brand-purple/35 blur-3xl"
+                  className="pointer-events-none absolute -left-16 -bottom-16 h-52 w-52 rounded-full bg-brand-purple/50 blur-2xl"
                 />
 
                 <div className="relative p-6 pb-0 sm:p-7 sm:pb-0">
@@ -375,14 +375,14 @@ export default function Home() {
               </article>
 
               {/* Card 2: 02 · Explore */}
-              <article className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-[#290d3d] via-[#3d1656] to-[#391924] text-white shadow-xl hover:shadow-2xl hover:border-brand-orange/40 transition-all duration-300 flex flex-col">
+              <article className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-[#3d1078] via-[#8a2b28] to-[#d44800] text-white shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 flex flex-col">
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -right-20 -bottom-20 h-56 w-56 rounded-full bg-brand-orange/25 blur-3xl"
+                  className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-orange/45 blur-2xl"
                 />
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-brand-purple/30 blur-3xl"
+                  className="pointer-events-none absolute -left-16 -bottom-16 h-52 w-52 rounded-full bg-brand-purple/45 blur-2xl"
                 />
 
                 <div className="relative p-6 pb-0 sm:p-7 sm:pb-0">
@@ -490,14 +490,14 @@ export default function Home() {
               </article>
 
               {/* Card 3: 03 · Experience */}
-              <article className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-[#260c38] via-[#3a1452] to-[#39182a] text-white shadow-xl hover:shadow-2xl hover:border-brand-orange/40 transition-all duration-300 flex flex-col md:col-span-2 lg:col-span-1">
+              <article className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-[#50107a] via-[#7a2840] to-[#b83c00] text-white shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 flex flex-col md:col-span-2 lg:col-span-1">
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -right-20 -bottom-20 h-56 w-56 rounded-full bg-brand-orange/20 blur-3xl"
+                  className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-brand-orange/40 blur-2xl"
                 />
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-brand-purple/35 blur-3xl"
+                  className="pointer-events-none absolute -left-16 -bottom-16 h-52 w-52 rounded-full bg-brand-purple/50 blur-2xl"
                 />
 
                 <div className="relative p-6 pb-0 sm:p-7 sm:pb-0">
@@ -604,10 +604,14 @@ export default function Home() {
         {/* Tab 2: For Organizers */}
         {audienceTab === "organizers" && (
           <div id="organizers" role="tabpanel" aria-labelledby="organizer-tab" className="mt-12 ee-rise">
-            <div className="relative overflow-hidden rounded-3xl bg-brand-deep text-white p-6 sm:p-10 lg:p-12 shadow-2xl border border-white/10">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#270d3b] via-[#3a1554] to-[#361726] text-white p-6 sm:p-10 lg:p-12 shadow-2xl border border-white/15">
               <div
                 aria-hidden
-                className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-brand-purple/20 blur-3xl"
+                className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-brand-purple/30 blur-3xl"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-brand-orange/15 blur-3xl"
               />
               <div className="relative grid gap-10 lg:grid-cols-[1fr_1.05fr] items-center">
                 <div>
