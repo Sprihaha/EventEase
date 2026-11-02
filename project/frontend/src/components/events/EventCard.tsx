@@ -24,10 +24,13 @@ export function EventCard({
   const pct = total ? Math.round((sold / total) * 100) : 0;
   const nearly = pct >= 85;
   const isOrganizer = user?.role === "organizer";
+  const isAdmin = user?.role === "admin";
 
   const handleAction = () => {
     if (isOrganizer) {
       navigate(`/dashboard/organizer?tab=events&eventId=${ev.id}`);
+    } else if (isAdmin) {
+      navigate(`/dashboard/admin?tab=sales&eventId=${ev.id}`);
     } else {
       navigate(user ? `/events/${ev.id}` : "/login", {
         state: { returnTo: `/events/${ev.id}`, from: location.pathname },
@@ -102,7 +105,11 @@ export function EventCard({
               {ev.priceFrom === undefined && !ev.tiers.length ? "Price TBA" : currency(from)}
             </div>
           </div>
-          {isOrganizer ? (
+          {isAdmin ? (
+            <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-purple transition-transform group-hover:translate-x-1">
+              View →
+            </span>
+          ) : isOrganizer ? (
             isPast || isSalesClosed ? (
               <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-purple transition-transform group-hover:translate-x-1">
                 View →

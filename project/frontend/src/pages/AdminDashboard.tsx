@@ -1,5 +1,6 @@
 import type { EventItem } from "../lib/data";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -20,10 +21,12 @@ import {
   Volume2,
   Code2,
   ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
-import { Button, Badge, Card, Eyebrow, cx } from "../components/ui";
+import { Button, Badge, Card, Eyebrow, Select, cx } from "../components/ui";
 import { OperationsSeatMap } from "../components/OperationsSeatMap";
 import AssistanceQueue from "../components/AssistanceQueue";
 import EaseVoiceNarration from "./EaseVoiceNarration";
@@ -108,17 +111,99 @@ export default function AdminDashboard() {
   );
 }
 
+const SALES_PAGE_SIZES = [10, 20, 50];
+const DEFAULT_SALES_PAGE_SIZE = 10;
+
 function SalesStatus() {
   const { events } = useStore();
+  const [searchParams] = useSearchParams();
+  const targetEventId = searchParams.get("eventId");
+  const [pageSize, setPageSize] = useState(DEFAULT_SALES_PAGE_SIZE);
+  const [page, setPage] = useState(1);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!targetEventId) return;
+    const index = events.findIndex((e) => e.id === targetEventId);
+    if (index >= 0) {
+      const targetPage = Math.floor(index / pageSize) + 1;
+      setPage(targetPage);
+      setHighlightedId(targetEventId);
+
+      const timer = window.setTimeout(() => {
+        const el = document.getElementById(`event-${targetEventId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 150);
+
+      const clearTimer = window.setTimeout(() => {
+        setHighlightedId(null);
+      }, 4000);
+
+      return () => {
+        window.clearTimeout(timer);
+        window.clearTimeout(clearTimer);
+      };
+    }
+  }, [targetEventId, events, pageSize]);
+
+  const pageCount = Math.max(1, Math.ceil(events.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const firstShown = (currentPage - 1) * pageSize;
+  const shown = events.slice(firstShown, firstShown + pageSize);
+
+  const goToPage = (target: number) => {
+    setPage(target);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const changePageSize = (size: number) => {
+    setPageSize(size);
+    setPage(1);
+  };
+
   return (
     <div className="space-y-4">
-      {events.map((event) => {
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 text-sm font-medium text-muted">
+        <span>
+          {events.length
+            ? `Showing ${firstShown + 1}–${firstShown + shown.length} of ${events.length} ${events.length === 1 ? "event" : "events"}`
+            : "Showing 0 events"}
+        </span>
+        <label className="flex items-center gap-2">
+          <span>Per page</span>
+          <span className="w-24">
+            <Select
+              aria-label="Events per page"
+              value={String(pageSize)}
+              onChange={(e) => changePageSize(Number(e.target.value))}
+            >
+              {SALES_PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </Select>
+          </span>
+        </label>
+      </div>
+
+      {shown.map((event) => {
+        const isTarget = highlightedId === event.id;
         const sold = event.tiers.reduce((sum, tier) => sum + tier.sold, 0);
         const capacity = event.tiers.reduce((sum, tier) => sum + tier.total, 0);
         const revenue = event.tiers.reduce((sum, tier) => sum + tier.sold * tier.price, 0);
         const sellThrough = Math.round((sold / Math.max(capacity, 1)) * 100);
         return (
-          <Card key={event.id} className="p-5">
+          <Card
+            key={event.id}
+            id={`event-${event.id}`}
+            className={cx(
+              "p-5 transition-all duration-500",
+              isTarget && "ring-4 ring-brand-purple/70 shadow-2xl bg-brand-lilac/10",
+            )}
+          >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -126,6 +211,7 @@ function SalesStatus() {
                   <Badge tone={event.status === "published" ? "live" : event.status === "pending" ? "warn" : "neutral"}>
                     {event.status}
                   </Badge>
+                  {event.imported && <Badge tone="accent">Imported by System</Badge>}
                 </div>
                 <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
                   <MapPin className="h-4 w-4 text-brand-orange" /> {event.venue} · {event.organizerName}
@@ -156,6 +242,40 @@ function SalesStatus() {
           </Card>
         );
       })}
+
+      {pageCount > 1 && (
+        <nav aria-label="Sales status pages" className="mt-8 flex flex-wrap items-center justify-center gap-2 pt-4">
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Previous page"
+            disabled={currentPage === 1}
+            onClick={() => goToPage(currentPage - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          {Array.from({ length: pageCount }, (_, index) => index + 1).map((number) => (
+            <Button
+              key={number}
+              size="sm"
+              variant={number === currentPage ? "primary" : "ghost"}
+              aria-current={number === currentPage ? "page" : undefined}
+              onClick={() => goToPage(number)}
+            >
+              {number}
+            </Button>
+          ))}
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Next page"
+            disabled={currentPage === pageCount}
+            onClick={() => goToPage(currentPage + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </nav>
+      )}
     </div>
   );
 }
