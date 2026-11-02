@@ -59,7 +59,9 @@ services:
         sync: false
 
       # ── External APIs ────────────────────────────────────────────────
-      - key: TICKETMASTER_API_KEY
+      - key: EVENTFINDA_USERNAME
+        sync: false
+      - key: EVENTFINDA_PASSWORD
         sync: false
       - key: PAYMENT_PROVIDER
         value: mock
