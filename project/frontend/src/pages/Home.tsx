@@ -9,17 +9,22 @@ import {
   Accessibility,
   Sparkles,
   ArrowRight,
+  ArrowUpRight,
   Camera,
   MessageCircle,
   Route,
   BellRing,
   Map,
   CircleCheck,
+  Rotate3d,
+  Volume2,
+  BarChart3,
+  TrendingUp,
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { categoryList } from "../lib/data";
 import { EventCard } from "../components/EventCard";
-import { Badge, Button, Eyebrow, Input } from "../components/ui";
+import { Badge, Button, Eyebrow, Input, cx } from "../components/ui";
 import { SEO } from "../components/common";
 
 const homeStructuredData = {
@@ -62,6 +67,7 @@ export default function Home() {
   const { publicEvents: events, eventsSource, user } = useStore();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const [audienceTab, setAudienceTab] = useState<"customers" | "organizers">("customers");
 
   // On the first landing page, only display active upcoming events where ticket sales are open
   // (no events that are past or where ticket sales have closed).
@@ -240,93 +246,436 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="overflow-hidden bg-brand-deep text-white">
-        <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 py-20 md:grid-cols-[0.9fr_1.1fr] md:py-24">
-          <div>
-            <Badge tone="accent" className="bg-brand-orange text-white">
-              <Users className="h-3 w-3" /> <span className="font-feature italic font-black">EaseComms</span>
-            </Badge>
-            <h2 className="mt-6 max-w-xl font-brand text-4xl font-bold leading-tight tracking-tight md:text-5xl">
-              <span className="font-feature italic font-black text-brand-orange">EaseComms</span>, a community for event discussion and sharing
-            </h2>
-            <p className="mt-5 max-w-lg leading-relaxed text-white/65">
-              Meet fellow fans, share real venue views with <span className="font-feature italic font-black text-brand-orange">EasePix</span>, earn points for useful photos,
-              and exchange eligible tickets securely through <span className="font-feature italic font-black text-brand-magenta">EaseXchange</span>.
-            </p>
-            <Button
-              className="mt-8 bg-brand-purple text-white shadow-none hover:bg-brand-orange"
-              onClick={() => navigate("/community")}
+      {/* The EventEase Experience Section */}
+      <section className="mx-auto max-w-7xl px-5 py-16 sm:py-20 border-t border-brand-purple/10">
+        <header className="text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-orange mb-3">
+            The EventEase experience
+          </p>
+          <h2 className="font-brand text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-brand-deep leading-tight">
+            Great events.<br />
+            <span className="text-brand-purple">Built around you.</span>
+          </h2>
+          <p className="mt-3 text-sm sm:text-base text-muted max-w-xl mx-auto leading-relaxed">
+            In the crowd or behind the scenes, discover your kind of ease.
+          </p>
+          <div
+            className="mt-6 inline-flex rounded-full bg-brand-lilac/70 p-1.5 shadow-inner"
+            role="tablist"
+            aria-label="Choose your audience"
+          >
+            <button
+              id="customer-tab"
+              role="tab"
+              aria-selected={audienceTab === "customers"}
+              aria-controls="customers"
+              tabIndex={audienceTab === "customers" ? 0 : -1}
+              onClick={() => setAudienceTab("customers")}
+              className={cx(
+                "rounded-full px-6 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple",
+                audienceTab === "customers"
+                  ? "bg-brand-deep text-white shadow-md"
+                  : "text-brand-deep/70 hover:text-brand-deep hover:bg-white/50"
+              )}
             >
-              Enter the community
-            </Button>
+              For customers
+            </button>
+            <button
+              id="organizer-tab"
+              role="tab"
+              aria-selected={audienceTab === "organizers"}
+              aria-controls="organizers"
+              tabIndex={audienceTab === "organizers" ? 0 : -1}
+              onClick={() => setAudienceTab("organizers")}
+              className={cx(
+                "rounded-full px-6 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple",
+                audienceTab === "organizers"
+                  ? "bg-brand-deep text-white shadow-md"
+                  : "text-brand-deep/70 hover:text-brand-deep hover:bg-white/50"
+              )}
+            >
+              For organizers
+            </button>
           </div>
+        </header>
 
-          <div className="relative grid gap-4 sm:grid-cols-2">
-            <div
-              aria-hidden
-              className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-magenta/20 blur-3xl"
-            />
-            <div className="relative border-l-2 border-brand-orange bg-white/5 p-7">
-              <Camera className="h-7 w-7 text-brand-orange" />
-              <div className="mt-10 font-feature text-3xl font-black italic tracking-tight text-brand-orange">EasePix</div>
-              <p className="mt-3 text-sm leading-relaxed text-white/60">
-                Upload relevant venue-seat photos and earn community points.
+        {/* Tab 1: For Customers */}
+        {audienceTab === "customers" && (
+          <div id="customers" role="tabpanel" aria-labelledby="customer-tab" className="mt-12 ee-rise">
+            <div className="mb-8">
+              <h3 className="font-brand text-2xl font-bold text-brand-deep tracking-tight">
+                Your event, from every angle.
+              </h3>
+              <p className="mt-1 text-sm text-muted">
+                Connect before the show. Choose with confidence. Feel supported on the day.
               </p>
             </div>
-            <div className="relative border-l-2 border-brand-magenta bg-white/10 p-7 sm:translate-y-8">
-              <Repeat className="h-7 w-7 text-brand-magenta" />
-              <div className="mt-10 font-feature text-3xl font-black italic tracking-tight text-brand-magenta">EaseXchange</div>
-              <p className="mt-3 text-sm leading-relaxed text-white/60">
-                Exchange eligible tickets with verified users under fair criteria.
-              </p>
-            </div>
-            <div className="relative border-t border-white/10 px-2 pt-5 text-sm text-white/65 sm:col-span-2 sm:mt-8">
-              <MessageCircle className="mr-2 inline h-4 w-4 text-brand-orange" />
-              “Section C has the best sightlines—I’ve added a photo from row D.”
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <section className="bg-white">
-        <div className="mx-auto grid max-w-7xl gap-14 px-5 py-20 md:grid-cols-[0.8fr_1.2fr] md:py-24">
-          <div className="md:sticky md:top-28 md:h-max">
-            <Badge tone="accent" className="bg-brand-lilac text-brand-deep">
-              <Route className="h-3 w-3" /> <span className="font-feature italic font-black">EaseGuide</span>
-            </Badge>
-            <h2 className="mt-6 font-brand text-4xl font-bold tracking-tight text-brand-deep md:text-5xl">
-              <span className="font-feature italic font-black text-brand-purple">EaseGuide</span>, make your journey seamless
-            </h2>
-            <p className="mt-5 max-w-md leading-relaxed text-muted">
-              From planning your route to finding the right entrance and seat, get helpful guidance
-              at every step of your event day.
-            </p>
-            <Button
-              className="mt-8 bg-brand-purple text-white shadow-none hover:bg-brand-deep"
-              onClick={() => navigate("/events")}
-            >
-              Plan an event day <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="divide-y divide-brand-deep/10 border-y border-brand-deep/10">
-            {[
-              { icon: Map, number: "01", title: "Plan", copy: "Venue details and accessible routes before you leave." },
-              { icon: BellRing, number: "02", title: "Arrive", copy: "Timely reminders for doors, transport, and entry." },
-              { icon: CircleCheck, number: "03", title: "Enjoy", copy: "Seat guidance and community tips when you need them." },
-            ].map((step) => (
-              <div key={step.number} className="grid grid-cols-[auto_1fr_auto] items-center gap-5 py-7 sm:gap-8 sm:py-9">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-orange/10 text-brand-orange">
-                  <step.icon className="h-5 w-5" />
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {/* Card 1: 01 · Connect */}
+              <article className="rounded-3xl border border-brand-purple/15 bg-white shadow-sm overflow-hidden flex flex-col transition hover:shadow-md">
+                <div className="p-6 pb-0 sm:p-7 sm:pb-0">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-purple">
+                    01 · Connect
+                  </div>
+                  <h4 className="font-brand text-2xl font-bold tracking-tight text-brand-deep mt-2 leading-snug">
+                    Find your people.<br />Share the excitement.
+                  </h4>
                 </div>
+
+                <div
+                  className="mx-4 my-4 h-40 sm:h-44 rounded-2xl relative overflow-hidden flex items-center justify-center p-4 bg-brand-lilac/50 border border-brand-purple/15"
+                  aria-label="Illustrative community preview"
+                >
+                  <div className="w-[94%] rounded-xl bg-white p-3.5 shadow-sm border border-brand-purple/10 -rotate-2 transform">
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-muted">
+                      Fan Discussion · Example
+                    </div>
+                    <p className="mt-1 text-xs font-medium text-brand-deep leading-relaxed">
+                      Anyone heading to the show?<br />Let’s share tips before the doors open.
+                    </p>
+                    <div className="mt-2 text-[10px] flex items-center gap-3 font-semibold text-brand-purple">
+                      <span>♡ Like</span>
+                      <span>↳ Join the conversation</span>
+                    </div>
+                  </div>
+                  <span className="absolute right-3 bottom-3 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-brand-purple border border-brand-purple/15 shadow-sm">
+                    ⇄ Fairer ticket exchanges
+                  </span>
+                </div>
+
+                <div className="p-6 pt-2 sm:p-7 sm:pt-2 flex flex-col flex-1">
+                  <p className="text-xs font-bold text-brand-purple mb-1.5">
+                    <span className="font-feature italic font-black">EaseComms</span> · Your community hub
+                  </p>
+                  <p className="text-xs text-muted leading-relaxed mb-4 min-h-[38px]">
+                    One home for fan conversations, shared experiences, and eligible ticket exchanges.
+                  </p>
+                  <div className="space-y-3 mb-6">
+                    <div>
+                      <div className="font-feature italic font-black text-xs text-brand-deep">EaseConnect</div>
+                      <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                        Ask questions, share tips, and join event-linked fan discussions.
+                      </p>
+                    </div>
+                    <div>
+                      <div className="font-feature italic font-black text-xs text-brand-deep">EaseXchange</div>
+                      <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                        Verified swaps and resale with price caps and barcode reissuance.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    to="/community"
+                    className="mt-auto pt-4 border-t border-brand-purple/10 flex items-center justify-between text-xs font-bold text-brand-deep group hover:text-brand-purple transition-colors"
+                  >
+                    <span>Explore the community</span>
+                    <ArrowUpRight className="h-4 w-4 text-brand-purple group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </Link>
+                </div>
+              </article>
+
+              {/* Card 2: 02 · Explore */}
+              <article className="rounded-3xl border border-brand-purple/15 bg-white shadow-sm overflow-hidden flex flex-col transition hover:shadow-md">
+                <div className="p-6 pb-0 sm:p-7 sm:pb-0">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-purple">
+                    02 · Explore
+                  </div>
+                  <h4 className="font-brand text-2xl font-bold tracking-tight text-brand-deep mt-2 leading-snug">
+                    See your view.<br />Love your seat.
+                  </h4>
+                </div>
+
+                <div
+                  className="mx-4 my-4 h-40 sm:h-44 rounded-2xl relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-b from-[#f8f0ea] via-[#ebd6c1] to-[#c6aaa0] border border-brand-orange/20"
+                  aria-label="Illustration, not a real venue photo"
+                >
+                  <span className="absolute top-4 rounded bg-brand-deep px-5 py-1 text-[9px] font-bold tracking-[0.2em] text-white shadow-sm">
+                    STAGE
+                  </span>
+                  <div className="absolute bottom-9 h-4 w-4 rounded-full bg-brand-orange border-2 border-white shadow-md ring-4 ring-brand-orange/30 animate-pulse" />
+                  <span className="absolute right-3 bottom-3 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-brand-purple border border-brand-purple/15 shadow-sm">
+                    Illustrative 360° venue preview
+                  </span>
+                </div>
+
+                <div className="p-6 pt-2 sm:p-7 sm:pt-2 flex flex-col flex-1">
+                  <p className="text-xs font-bold text-brand-purple mb-1.5">
+                    Inside <span className="font-feature italic font-black">EaseComms</span> · Venue perspectives
+                  </p>
+                  <p className="text-xs text-muted leading-relaxed mb-4 min-h-[38px]">
+                    Get a clearer picture of your venue before choosing where to sit.
+                  </p>
+                  <div className="space-y-3 mb-6">
+                    <div>
+                      <div className="font-feature italic font-black text-xs text-brand-deep">EasePix</div>
+                      <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                        Real seat photos, sightline ratings, accessibility notes, and contributor rewards.
+                      </p>
+                    </div>
+                    <div>
+                      <div className="font-feature italic font-black text-xs text-brand-deep">EaseXplore</div>
+                      <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                        Interactive 360° views to explore venue sections before booking.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    to="/community?tab=views"
+                    className="mt-auto pt-4 border-t border-brand-purple/10 flex items-center justify-between text-xs font-bold text-brand-deep group hover:text-brand-purple transition-colors"
+                  >
+                    <span>Explore seat views</span>
+                    <ArrowUpRight className="h-4 w-4 text-brand-purple group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </Link>
+                </div>
+              </article>
+
+              {/* Card 3: 03 · Experience */}
+              <article className="rounded-3xl border border-brand-purple/15 bg-white shadow-sm overflow-hidden flex flex-col transition hover:shadow-md md:col-span-2 lg:col-span-1">
+                <div className="p-6 pb-0 sm:p-7 sm:pb-0">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-purple">
+                    03 · Experience
+                  </div>
+                  <h4 className="font-brand text-2xl font-bold tracking-tight text-brand-deep mt-2 leading-snug">
+                    Less uncertainty.<br />More enjoyment.
+                  </h4>
+                </div>
+
+                <div
+                  className="mx-4 my-4 h-40 sm:h-44 rounded-2xl relative overflow-hidden flex items-center justify-center p-4 bg-[#fbede4] border border-brand-orange/20"
+                  aria-label="Illustrative accessibility preview"
+                >
+                  <div className="w-[94%] rounded-xl bg-white p-3.5 shadow-sm border border-brand-orange/15 rotate-1 transform">
+                    <div className="text-xs font-bold text-brand-deep">Your journey, made easier</div>
+                    <div className="my-2.5 flex items-center">
+                      <span className="h-2.5 w-2.5 rounded-full bg-brand-orange shrink-0" />
+                      <span className="flex-1 border-t-2 border-dashed border-brand-orange/40" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-brand-purple shrink-0" />
+                      <span className="flex-1 border-t-2 border-dashed border-brand-purple/40" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-live shrink-0" />
+                    </div>
+                    <div className="flex justify-between text-[8px] font-semibold text-muted">
+                      <span>Accessible entrance</span>
+                      <span>Your seat</span>
+                    </div>
+                  </div>
+                  <span className="absolute right-3 bottom-3 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-brand-purple border border-brand-purple/15 shadow-sm">
+                    ▶ EaseVoice · 1×
+                  </span>
+                </div>
+
+                <div className="p-6 pt-2 sm:p-7 sm:pt-2 flex flex-col flex-1">
+                  <p className="text-xs font-bold text-brand-purple mb-1.5">
+                    Accessibility · Support at every step
+                  </p>
+                  <p className="text-xs text-muted leading-relaxed mb-4 min-h-[38px]">
+                    Plan an accessible journey and experience event information your way.
+                  </p>
+                  <div className="space-y-3 mb-6">
+                    <div>
+                      <div className="font-feature italic font-black text-xs text-brand-deep">EaseGuide</div>
+                      <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                        Request assistance, follow accessible routes, and track assigned support staff.
+                      </p>
+                    </div>
+                    <div>
+                      <div className="font-feature italic font-black text-xs text-brand-deep">EaseVoice</div>
+                      <p className="text-xs text-muted mt-0.5 leading-relaxed">
+                        Listen to event and booking details with adjustable narration controls.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    to={user?.role === "customer" ? "/assistance" : "/events"}
+                    className="mt-auto pt-4 border-t border-brand-purple/10 flex items-center justify-between text-xs font-bold text-brand-deep group hover:text-brand-purple transition-colors"
+                  >
+                    <span>Explore event-day support</span>
+                    <ArrowUpRight className="h-4 w-4 text-brand-purple group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </Link>
+                </div>
+              </article>
+            </div>
+
+            <aside className="mt-8 rounded-2xl border border-brand-purple/15 bg-brand-lilac/40 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <span className="text-xs sm:text-sm text-muted leading-relaxed">
+                Bringing an event to life? Discover <span className="font-feature italic font-black text-brand-deep">EaseAnalytics</span> for your organizer team.
+              </span>
+              <button
+                type="button"
+                onClick={() => setAudienceTab("organizers")}
+                className="text-xs sm:text-sm font-bold text-brand-purple hover:text-brand-deep transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                View organizer tools ↗
+              </button>
+            </aside>
+          </div>
+        )}
+
+        {/* Tab 2: For Organizers */}
+        {audienceTab === "organizers" && (
+          <div id="organizers" role="tabpanel" aria-labelledby="organizer-tab" className="mt-12 ee-rise">
+            <div className="relative overflow-hidden rounded-3xl bg-brand-deep text-white p-6 sm:p-10 lg:p-12 shadow-2xl border border-white/10">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-brand-purple/20 blur-3xl"
+              />
+              <div className="relative grid gap-10 lg:grid-cols-[1fr_1.05fr] items-center">
                 <div>
-                  <div className="font-brand text-xl font-bold text-brand-deep">{step.title}</div>
-                  <p className="mt-1 text-sm leading-relaxed text-muted">{step.copy}</p>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold text-brand-lilac uppercase tracking-wider">
+                    <span className="h-1.5 w-1.5 rounded-full bg-brand-orange" />
+                    <span className="font-feature italic font-black">EaseAnalytics</span> · For organizers & admins
+                  </span>
+                  <h3 className="mt-4 font-brand text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight text-white">
+                    Your event.<br />
+                    <span className="text-brand-lilac">The full picture.</span>
+                  </h3>
+                  <p className="mt-4 text-xs sm:text-sm text-white/75 leading-relaxed max-w-lg">
+                    One reporting suite to understand ticket performance, keep sight of event operations, and share the numbers that matter.
+                  </p>
+                  <div className="mt-6 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-brand-lilac text-xs">
+                        ↗
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Live sales & inventory</h4>
+                        <p className="text-xs text-white/60 leading-relaxed mt-0.5">
+                          Track ticket sales velocity, revenue, and inventory across seating tiers.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-brand-lilac text-xs">
+                        ◎
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Attendance & operational insights</h4>
+                        <p className="text-xs text-white/60 leading-relaxed mt-0.5">
+                          Review attendance metrics, companion assistance requests, and ticket exchange activity.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-brand-lilac text-xs">
+                        ↓
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Reports, ready to share</h4>
+                        <p className="text-xs text-white/60 leading-relaxed mt-0.5">
+                          Export financial and operational audit reports in CSV and PDF formats.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-8">
+                    <Link
+                      to={
+                        user?.role === "organiser"
+                          ? "/dashboard/organizer?tab=analytics"
+                          : user?.role === "admin"
+                            ? "/dashboard/admin?tab=sales"
+                            : "/login?portal=ORGANISER"
+                      }
+                      className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-6 py-3 text-xs sm:text-sm font-bold text-brand-deep hover:bg-brand-amber transition shadow-lg"
+                    >
+                      Explore EaseAnalytics <span>↗</span>
+                    </Link>
+                  </div>
                 </div>
-                <span className="font-brand text-sm font-bold text-brand-purple">{step.number}</span>
+
+                <div className="w-full">
+                  <div className="rounded-2xl border border-white/20 bg-white p-5 sm:p-6 text-brand-deep shadow-2xl sm:rotate-1 transform transition-transform hover:rotate-0">
+                    <div className="flex items-center justify-between pb-3.5 border-b border-brand-purple/10">
+                      <span className="text-xs font-bold text-brand-deep">Event overview</span>
+                      <span className="text-[10px] rounded-full border border-brand-purple/20 bg-brand-warm px-2 py-0.5 text-muted">
+                        Sample data
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+                      <div className="rounded-xl border border-brand-purple/10 bg-brand-lilac/30 p-2.5 sm:p-3">
+                        <span className="text-[9px] text-muted block mb-1">Tickets sold</span>
+                        <strong className="text-base sm:text-lg font-bold text-brand-deep block leading-none">1,248</strong>
+                        <small className="text-[8px] text-muted block mt-1">Illustrative total</small>
+                      </div>
+                      <div className="rounded-xl border border-brand-purple/10 bg-brand-lilac/30 p-2.5 sm:p-3">
+                        <span className="text-[9px] text-muted block mb-1">Revenue</span>
+                        <strong className="text-base sm:text-lg font-bold text-brand-deep block leading-none">S$87.4k</strong>
+                        <small className="text-[8px] text-muted block mt-1">Illustrative total</small>
+                      </div>
+                      <div className="rounded-xl border border-brand-purple/10 bg-brand-lilac/30 p-2.5 sm:p-3">
+                        <span className="text-[9px] text-muted block mb-1">Inventory left</span>
+                        <strong className="text-base sm:text-lg font-bold text-brand-deep block leading-none">352</strong>
+                        <small className="text-[8px] text-muted block mt-1">Illustrative total</small>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between text-[10px] mb-2">
+                        <span className="font-bold text-brand-deep">Ticket sales velocity</span>
+                        <span className="text-muted text-[9px]">Example trend</span>
+                      </div>
+                      <div className="h-24 flex items-end gap-2 border-b border-brand-purple/10 pb-1 px-1 bg-[repeating-linear-gradient(to_top,transparent_0_20px,#f5f0fb_20px_21px)]">
+                        <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "24%" }} />
+                        <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "38%" }} />
+                        <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "33%" }} />
+                        <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "55%" }} />
+                        <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "48%" }} />
+                        <div className="flex-1 bg-brand-purple rounded-t" style={{ height: "72%" }} />
+                        <div className="flex-1 bg-brand-purple rounded-t" style={{ height: "91%" }} />
+                      </div>
+                      <div className="flex justify-between text-[8px] text-muted mt-1.5 px-1">
+                        <span>Day 1</span>
+                        <span>Day 7</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 divide-y divide-brand-purple/10 text-[10px]">
+                      <div className="flex items-center justify-between py-1.5 font-medium">
+                        <span className="text-brand-deep">Attendance metrics</span>
+                        <span className="text-brand-purple font-semibold">Review breakdown →</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5 font-medium">
+                        <span className="text-brand-deep">Companion assistance requests</span>
+                        <span className="text-brand-purple font-semibold">Review breakdown →</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5 font-medium">
+                        <span className="text-brand-deep">Ticket exchange activity</span>
+                        <span className="text-brand-purple font-semibold">Review breakdown →</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-brand-purple/10 flex items-center justify-between text-[9px] text-muted">
+                      <span>Financial & operational reports</span>
+                      <div className="flex gap-1.5">
+                        <span className="rounded bg-brand-lilac px-1.5 py-0.5 font-bold text-brand-purple">CSV ↓</span>
+                        <span className="rounded bg-brand-lilac px-1.5 py-0.5 font-bold text-brand-purple">PDF ↓</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[9px] text-white/50 text-right">
+                    Dashboard illustration only. Figures do not represent live platform activity.
+                  </p>
+                </div>
               </div>
-            ))}
+            </div>
+            <p className="mt-3 text-center text-xs text-muted">
+              One core product. Sales intelligence, operational visibility, and reporting—all within <span className="font-feature italic font-black text-brand-deep">EaseAnalytics</span>.
+            </p>
+            <aside className="mt-4 rounded-2xl border border-brand-purple/15 bg-brand-lilac/40 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <span className="text-xs sm:text-sm text-muted leading-relaxed">
+                Looking for community, seat views, or accessibility support?
+              </span>
+              <button
+                type="button"
+                onClick={() => setAudienceTab("customers")}
+                className="text-xs sm:text-sm font-bold text-brand-purple hover:text-brand-deep transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                View customer features ↗
+              </button>
+            </aside>
           </div>
-        </div>
+        )}
       </section>
 
       <section className="bg-brand-warm px-5 py-8">
