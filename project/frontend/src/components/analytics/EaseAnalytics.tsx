@@ -1,27 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { BarChart3, CalendarDays, CircleDollarSign, Ticket, Users } from "lucide-react";
 import type { EventItem } from "../../lib/data";
+import {
+  fetchAnalyticsRevenueVelocity,
+  fetchAnalyticsSales,
+  fetchAnalyticsTierDemand,
+  type AnalyticsRevenueVelocity,
+  type AnalyticsSales,
+  type AnalyticsTierDemand,
+} from "../../lib/api/analytics";
 import { Badge, Button, Card, Select, cx } from "../ui";
 import ReportDownload from "./ReportDownload";
 
 type Range = 7 | 30 | 90;
 
+// Sample and imported events have non-UUID ids and no sales records in the backend.
 const isLiveEventId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-
-type EventSales = {
-  event: EventItem;
-  confirmedBookings: number;
-  ticketsSold: number;
-  revenueCents: number;
-  dailyCents: number[];
-  tiers: { name: string; sold: number }[];
-};
-
-const salesProfiles = [
-  { confirmed: 84, tickets: 142, revenue: 1_854_200, tierSales: [24, 92, 26] },
-  { confirmed: 51, tickets: 78, revenue: 914_600, tierSales: [12, 66, 0] },
-  { confirmed: 29, tickets: 43, revenue: 486_300, tierSales: [8, 35, 0] },
-];
 
 const money = (cents: number) =>
   `S$${new Intl.NumberFormat("en-SG", {
@@ -29,69 +23,66 @@ const money = (cents: number) =>
     maximumFractionDigits: 2,
   }).format(cents / 100)}`;
 
-function buildDaily(totalCents: number, seed: number) {
-  const weights = Array.from({ length: 90 }, (_, index) => {
-    const wave = 1 + Math.sin((index + seed) * 0.55) * 0.38;
-    const weekend = index % 7 > 4 ? 1.3 : 0.9;
-    return Math.max(0.08, wave * weekend);
-  });
-  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-  const daily = weights.map((weight) => Math.round((totalCents * weight) / totalWeight));
-  daily[daily.length - 1] += totalCents - daily.reduce((sum, value) => sum + value, 0);
-  return daily;
-}
+// Backend tier types are codes such as "SPECIAL_ASSISTANCE"; show them as "Special assistance".
+const tierLabel = (code: string) => {
+  const words = code.toLowerCase().split("_");
+  return [words[0].charAt(0).toUpperCase() + words[0].slice(1), ...words.slice(1)].join(" ");
+};
 
-function salesFor(events: EventItem[]): EventSales[] {
-  return events.map((event, index) => {
-    const profile = salesProfiles[index % salesProfiles.length];
-    return {
-      event,
-      confirmedBookings: profile.confirmed,
-      ticketsSold: profile.tickets,
-      revenueCents: profile.revenue,
-      dailyCents: buildDaily(profile.revenue, index * 7),
-      tiers: event.tiers.map((tier, tierIndex) => ({
-        name: tier.name,
-        sold: profile.tierSales[tierIndex] ?? 0,
-      })),
-    };
-  });
-}
+const messageOf = (cause: unknown) =>
+  cause instanceof Error ? cause.message : "EaseAnalytics could not be loaded. Please try again.";
 
 export default function EaseAnalytics({ events }: { events: EventItem[] }) {
   const [eventId, setEventId] = useState("all");
   const [range, setRange] = useState<Range>(30);
-  const allSales = useMemo(() => salesFor(events), [events]);
-  const selected = eventId === "all"
-    ? allSales
-    : allSales.filter((sales) => sales.event.id === eventId);
+  const [sales, setSales] = useState<AnalyticsSales | null>(null);
+  const [tiers, setTiers] = useState<AnalyticsTierDemand | null>(null);
+  const [velocity, setVelocity] = useState<AnalyticsRevenueVelocity | null>(null);
+  const [error, setError] = useState("");
 
-  const totals = selected.reduce(
-    (summary, sales) => ({
-      bookings: summary.bookings + sales.confirmedBookings,
-      tickets: summary.tickets + sales.ticketsSold,
-      revenue: summary.revenue + sales.revenueCents,
-    }),
-    { bookings: 0, tickets: 0, revenue: 0 },
-  );
-  const daily = Array.from({ length: range }, (_, offset) =>
-    selected.reduce(
-      (sum, sales) => sum + (sales.dailyCents[90 - range + offset] ?? 0),
-      0,
-    ),
-  );
-  const running = daily.reduce<number[]>((values, value) => {
-    values.push((values.at(-1) ?? 0) + value);
-    return values;
-  }, []);
+  const liveFilter = eventId === "all" ? undefined : eventId;
+  const filterHasRecords = eventId === "all" || isLiveEventId(eventId);
 
-  const tierMap = new Map<string, number>();
-  selected.forEach((sales) =>
-    sales.tiers.forEach((tier) => tierMap.set(tier.name, (tierMap.get(tier.name) ?? 0) + tier.sold)),
-  );
-  const tierDemand = Array.from(tierMap, ([name, sold]) => ({ name, sold }));
-  const totalTierSales = tierDemand.reduce((sum, tier) => sum + tier.sold, 0);
-  const noSales = totals.bookings === 0 && totals.tickets === 0 && totals.revenue === 0;
+  // Totals and tier demand depend only on the event filter.
+  useEffect(() => {
+    let active = true;
+    setSales(null);
+    setTiers(null);
+    setError("");
+    if (!filterHasRecords) return;
+    Promise.all([fetchAnalyticsSales(liveFilter), fetchAnalyticsTierDemand(liveFilter)])
+      .then(([salesResult, tierResult]) => {
+        if (!active) return;
+        setSales(salesResult);
+        setTiers(tierResult);
+      })
+      .catch((cause) => active && setError(messageOf(cause)));
+    return () => {
+      active = false;
+    };
+  }, [liveFilter, filterHasRecords]);
+
+  // The revenue chart and average daily revenue also depend on the chosen range.
+  useEffect(() => {
+    let active = true;
+    setVelocity(null);
+    if (!filterHasRecords) return;
+    fetchAnalyticsRevenueVelocity(range, liveFilter)
+      .then((result) => active && setVelocity(result))
+      .catch((cause) => active && setError(messageOf(cause)));
+    return () => {
+      active = false;
+    };
+  }, [range, liveFilter, filterHasRecords]);
+
+  const loading = filterHasRecords && !error && (sales === null || tiers === null);
+  const daily = velocity?.points.map((point) => point.revenueCents) ?? [];
+  const running = velocity?.points.map((point) => point.cumulativeRevenueCents) ?? [];
+  const tierDemand = (tiers?.tiers ?? []).filter((tier) => tier.ticketsSold > 0);
+  const noSales = !filterHasRecords || (sales !== null && sales.confirmedBookings === 0);
+  // "–" while loading, so nobody mistakes an unloaded figure for zero sales.
+  const show = (value: number | undefined, format: (n: number) => string) =>
+    value === undefined ? "–" : format(value);
 
   return (
     <div className="space-y-6">
@@ -132,22 +123,32 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={Users} label="Confirmed bookings" value={totals.bookings.toLocaleString()} />
-        <Metric icon={Ticket} label="Tickets sold" value={totals.tickets.toLocaleString()} />
-        <Metric icon={CircleDollarSign} label="Total revenue (SGD)" value={money(totals.revenue)} accent />
+        <Metric icon={Users} label="Confirmed bookings"
+          value={show(sales?.confirmedBookings, (n) => n.toLocaleString())} />
+        <Metric icon={Ticket} label="Tickets sold" value={show(sales?.totalTicketsSold, (n) => n.toLocaleString())} />
+        <Metric icon={CircleDollarSign} label="Total revenue (SGD)" value={show(sales?.totalRevenueCents, money)} accent />
         <Metric
           icon={CalendarDays}
-          label="Average daily revenue"
-          value={money(Math.round(totals.revenue / 90))}
+          label={`Average daily revenue (last ${range} days)`}
+          value={show(velocity?.averageDailyRevenueCents, money)}
         />
       </div>
 
-      {noSales ? (
+      {error ? (
+        <Card className="p-8 text-center" role="alert">
+          <p className="font-semibold text-danger">{error}</p>
+          <p className="mt-1 text-sm text-muted">Refresh the page to try again.</p>
+        </Card>
+      ) : loading ? (
+        <Card className="p-16 text-center text-sm text-muted">Loading sales data…</Card>
+      ) : noSales ? (
         <Card className="p-16 text-center">
           <BarChart3 className="mx-auto h-9 w-9 text-brand-orange" />
           <h3 className="mt-4 font-brand text-2xl font-bold text-brand-deep">No sales yet</h3>
           <p className="mt-2 text-sm text-muted">
-            Revenue and ticket-demand insights will appear after the first confirmed booking.
+            {filterHasRecords
+              ? "Revenue and ticket-demand insights will appear after the first confirmed booking."
+              : "This event has no live sales records. Choose another event or “All my events”."}
           </p>
         </Card>
       ) : (
@@ -173,7 +174,11 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
                 ))}
               </div>
             </div>
-            <RevenueChart daily={daily} running={running} />
+            {velocity ? (
+              <RevenueChart daily={daily} running={running} />
+            ) : (
+              <p className="mt-7 text-sm text-muted">Loading revenue…</p>
+            )}
           </Card>
 
           <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
@@ -182,18 +187,20 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
               <p className="mt-1 text-sm text-muted">Share of tickets sold across every tier.</p>
               <div className="mt-7 space-y-5">
                 {tierDemand.map((tier) => {
-                  const share = totalTierSales ? (tier.sold / totalTierSales) * 100 : 0;
+                  const share = tier.sharePercent;
                   return (
-                    <div key={tier.name}>
+                    <div key={tier.type}>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-brand-deep">{tier.name}</span>
-                        <span className="text-muted">{tier.sold} sold · {share.toFixed(1)}%</span>
+                        <span className="font-medium text-brand-deep">{tierLabel(tier.type)}</span>
+                        <span className="text-muted">
+                          {tier.ticketsSold} sold · {share.toFixed(1)}% · {money(tier.revenueCents)}
+                        </span>
                       </div>
                       <div className="mt-2 h-3 overflow-hidden rounded-full bg-mist">
                         <div
                           className={cx(
                             "h-full rounded-full",
-                            tier.sold ? "bg-gradient-to-r from-brand-purple to-brand-orange" : "bg-line",
+                            tier.ticketsSold ? "bg-gradient-to-r from-brand-purple to-brand-orange" : "bg-line",
                           )}
                           style={{ width: `${share}%` }}
                         />
@@ -220,12 +227,12 @@ export default function EaseAnalytics({ events }: { events: EventItem[] }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {selected.map((sales) => (
-                      <tr key={sales.event.id} className="border-t border-line hover:bg-brand-purple/5 transition-colors">
-                        <td className="p-4 font-medium text-brand-deep">{sales.event.title}</td>
-                        <td className="p-4 text-right">{sales.confirmedBookings}</td>
-                        <td className="p-4 text-right">{sales.ticketsSold}</td>
-                        <td className="p-4 text-right font-bold text-brand-deep">{money(sales.revenueCents)}</td>
+                    {(sales?.events ?? []).map((row) => (
+                      <tr key={row.eventId} className="border-t border-line hover:bg-brand-purple/5 transition-colors">
+                        <td className="p-4 font-medium text-brand-deep">{row.title}</td>
+                        <td className="p-4 text-right">{row.confirmedBookings}</td>
+                        <td className="p-4 text-right">{row.ticketsSold}</td>
+                        <td className="p-4 text-right font-bold text-brand-deep">{money(row.revenueCents)}</td>
                       </tr>
                     ))}
                   </tbody>
