@@ -275,24 +275,33 @@ export default function Home() {
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {/* Card 1: 01 · Connect */}
-              <article className="rounded-3xl border border-brand-purple/15 bg-white shadow-sm overflow-hidden flex flex-col transition hover:shadow-xl hover:border-brand-purple/30 duration-300">
-                <div className="p-6 pb-0 sm:p-7 sm:pb-0">
-                  <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-brand-lilac text-brand-purple">
-                    <Users className="h-3 w-3" />
+              <article className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-[#270d3b] via-[#3a1554] to-[#361726] text-white shadow-xl hover:shadow-2xl hover:border-brand-orange/40 transition-all duration-300 flex flex-col">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-20 -bottom-20 h-56 w-56 rounded-full bg-brand-orange/20 blur-3xl"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-brand-purple/35 blur-3xl"
+                />
+
+                <div className="relative p-6 pb-0 sm:p-7 sm:pb-0">
+                  <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-white/10 text-brand-lilac border border-white/15 backdrop-blur">
+                    <Users className="h-3 w-3 text-brand-orange" />
                     01 · Connect
                   </div>
-                  <h4 className="font-brand text-2xl font-bold tracking-tight text-brand-deep mt-3 leading-snug">
+                  <h4 className="font-brand text-2xl font-bold tracking-tight text-white mt-3 leading-snug">
                     Find your people.<br />
-                    <span className="text-brand-purple">Share the excitement.</span>
+                    <span className="text-brand-orange">Share the excitement.</span>
                   </h4>
                 </div>
 
                 {/* Preview Box 1 */}
                 <div
-                  className="mx-4 my-4 h-44 rounded-2xl relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-br from-brand-lilac/80 via-white to-purple-50/50 border border-brand-purple/15 shadow-inner"
+                  className="relative mx-4 my-4 h-44 rounded-2xl overflow-hidden flex items-center justify-center p-4 bg-black/25 border border-white/15 backdrop-blur-md shadow-inner"
                   aria-label="Illustrative community preview"
                 >
-                  <div className="w-[94%] rounded-xl bg-white p-3.5 shadow-md border border-brand-purple/15 -rotate-2 transform transition-transform hover:rotate-0">
+                  <div className="w-[94%] rounded-xl bg-white/95 p-3.5 shadow-lg border border-white/40 text-brand-deep -rotate-2 transform transition-transform hover:rotate-0">
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-purple text-[9px] font-bold text-white">
                         S
@@ -309,47 +318,47 @@ export default function Home() {
                       <span className="flex items-center gap-1">↳ 6 Replies</span>
                     </div>
                   </div>
-                  <span className="absolute right-3 bottom-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-brand-magenta border border-brand-magenta/25 shadow-md backdrop-blur flex items-center gap-1">
-                    <Repeat className="h-3 w-3 text-brand-magenta" /> Pre-QR ticket swaps
+                  <span className="absolute right-3 bottom-3 rounded-full bg-brand-deep/90 text-white px-2.5 py-1 text-[10px] font-bold border border-brand-orange/40 shadow-lg backdrop-blur flex items-center gap-1.5">
+                    <Repeat className="h-3 w-3 text-brand-orange" /> Pre-QR ticket swaps
                   </span>
                 </div>
 
-                <div className="p-6 pt-2 sm:p-7 sm:pt-2 flex flex-col flex-1">
-                  <p className="text-xs font-bold text-brand-purple mb-1.5 flex items-center gap-1.5">
+                <div className="relative p-6 pt-2 sm:p-7 sm:pt-2 flex flex-col flex-1">
+                  <p className="text-xs font-bold text-brand-orange mb-1.5 flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5" />
-                    <span className="font-feature italic font-black">EaseComms</span> · Your community hub
+                    <span className="font-feature italic font-black text-white">EaseComms</span> · Your community hub
                   </p>
-                  <p className="text-xs text-muted leading-relaxed mb-4 min-h-[36px]">
+                  <p className="text-xs text-white/75 leading-relaxed mb-4 min-h-[36px]">
                     One verified home for fan conversations, shared experiences, and eligible ticket exchanges.
                   </p>
 
                   <div className="space-y-3 mb-6">
                     {/* EaseConnect Highlight */}
-                    <div className="rounded-2xl border border-brand-purple/15 bg-brand-lilac/30 p-3.5 transition-all hover:bg-brand-lilac/50 hover:border-brand-purple/30">
+                    <div className="rounded-2xl border border-white/12 bg-white/10 p-3.5 backdrop-blur-md transition-all hover:bg-white/15 hover:border-brand-orange/40">
                       <div className="flex items-center gap-2">
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-purple text-white shadow-xs">
                           <MessageCircle className="h-3.5 w-3.5" />
                         </div>
-                        <span className="font-feature italic font-black text-xs text-brand-purple bg-brand-purple/10 px-2 py-0.5 rounded-md">
+                        <span className="font-feature italic font-black text-xs text-white bg-brand-purple/70 px-2 py-0.5 rounded-md border border-brand-purple/40">
                           EaseConnect
                         </span>
                       </div>
-                      <p className="mt-2 text-xs text-muted leading-relaxed">
+                      <p className="mt-2 text-xs text-white/80 leading-relaxed">
                         Ask questions, share venue tips, and join event-linked fan discussions.
                       </p>
                     </div>
 
                     {/* EaseXchange Highlight */}
-                    <div className="rounded-2xl border border-brand-magenta/20 bg-brand-magenta/5 p-3.5 transition-all hover:bg-brand-magenta/10 hover:border-brand-magenta/30">
+                    <div className="rounded-2xl border border-white/12 bg-white/10 p-3.5 backdrop-blur-md transition-all hover:bg-white/15 hover:border-brand-orange/40">
                       <div className="flex items-center gap-2">
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-magenta text-white shadow-xs">
                           <Repeat className="h-3.5 w-3.5" />
                         </div>
-                        <span className="font-feature italic font-black text-xs text-brand-magenta bg-brand-magenta/15 px-2 py-0.5 rounded-md">
+                        <span className="font-feature italic font-black text-xs text-white bg-brand-magenta/70 px-2 py-0.5 rounded-md border border-brand-magenta/40">
                           EaseXchange
                         </span>
                       </div>
-                      <p className="mt-2 text-xs text-muted leading-relaxed">
+                      <p className="mt-2 text-xs text-white/80 leading-relaxed">
                         Swap or transfer tickets safely with price caps before QR codes are released, preventing scalping and fake barcodes.
                       </p>
                     </div>
@@ -357,22 +366,31 @@ export default function Home() {
 
                   <Link
                     to="/community"
-                    className="mt-auto pt-4 border-t border-brand-purple/10 flex items-center justify-between text-xs font-bold text-brand-deep group hover:text-brand-purple transition-colors"
+                    className="mt-auto pt-4 border-t border-white/15 flex items-center justify-between text-xs font-bold text-white group hover:text-brand-orange transition-colors"
                   >
                     <span>Explore the community</span>
-                    <ArrowUpRight className="h-4 w-4 text-brand-purple group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    <ArrowUpRight className="h-4 w-4 text-brand-orange group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </Link>
                 </div>
               </article>
 
               {/* Card 2: 02 · Explore */}
-              <article className="rounded-3xl border border-brand-purple/15 bg-white shadow-sm overflow-hidden flex flex-col transition hover:shadow-xl hover:border-brand-purple/30 duration-300">
-                <div className="p-6 pb-0 sm:p-7 sm:pb-0">
-                  <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-brand-orange">
-                    <Rotate3d className="h-3 w-3" />
+              <article className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-[#290d3d] via-[#3d1656] to-[#391924] text-white shadow-xl hover:shadow-2xl hover:border-brand-orange/40 transition-all duration-300 flex flex-col">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-20 -bottom-20 h-56 w-56 rounded-full bg-brand-orange/25 blur-3xl"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-brand-purple/30 blur-3xl"
+                />
+
+                <div className="relative p-6 pb-0 sm:p-7 sm:pb-0">
+                  <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-white/10 text-brand-lilac border border-white/15 backdrop-blur">
+                    <Rotate3d className="h-3 w-3 text-brand-orange" />
                     02 · Explore
                   </div>
-                  <h4 className="font-brand text-2xl font-bold tracking-tight text-brand-deep mt-3 leading-snug">
+                  <h4 className="font-brand text-2xl font-bold tracking-tight text-white mt-3 leading-snug">
                     See your view.<br />
                     <span className="text-brand-orange">Love your seat.</span>
                   </h4>
@@ -380,82 +398,82 @@ export default function Home() {
 
                 {/* Preview Box 2: Arena 360° */}
                 <div
-                  className="mx-4 my-4 h-44 rounded-2xl relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-b from-[#2b1442] via-[#3a1b59] to-[#1c0c2d] border border-brand-orange/20 shadow-inner"
+                  className="relative mx-4 my-4 h-44 rounded-2xl overflow-hidden flex items-center justify-center p-4 bg-gradient-to-b from-[#19062b] via-[#2c0f44] to-[#381428] border border-brand-orange/30 shadow-inner"
                   aria-label="Interactive 360 venue preview"
                 >
                   {/* Arena concentric seat tiers */}
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute -bottom-12 h-44 w-72 rounded-t-full border border-white/10 bg-white/5"
+                    className="pointer-events-none absolute -bottom-12 h-44 w-72 rounded-t-full border border-white/15 bg-white/5"
                   />
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute -bottom-6 h-36 w-56 rounded-t-full border border-dashed border-white/15"
+                    className="pointer-events-none absolute -bottom-6 h-36 w-56 rounded-t-full border border-dashed border-white/20"
                   />
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute -bottom-1 h-28 w-40 rounded-t-full border border-brand-orange/25 bg-brand-orange/5"
+                    className="pointer-events-none absolute -bottom-1 h-28 w-40 rounded-t-full border border-brand-orange/30 bg-brand-orange/10"
                   />
 
                   {/* Stage */}
-                  <span className="absolute top-4 rounded-md bg-white/95 px-5 py-1 text-[9px] font-bold tracking-[0.2em] text-brand-deep shadow-md border border-white/20">
+                  <span className="absolute top-4 rounded-md bg-white/95 px-5 py-1 text-[9px] font-bold tracking-[0.2em] text-brand-deep shadow-md border border-white/30">
                     STAGE
                   </span>
 
                   {/* 360 center reticle watermark */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 text-white/30 text-[10px] font-mono pointer-events-none">
-                    <Rotate3d className="h-6 w-6 text-white/20" />
+                    <Rotate3d className="h-6 w-6 text-white/25" />
                   </div>
 
                   {/* Pulsing seat marker */}
                   <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
                     <div className="h-4 w-4 rounded-full bg-brand-orange border-2 border-white shadow-lg ring-4 ring-brand-orange/40 animate-pulse" />
-                    <span className="rounded bg-brand-deep/80 px-2 py-0.5 text-[9px] font-bold text-white backdrop-blur border border-white/15 shadow-sm">
+                    <span className="rounded bg-brand-deep/90 px-2 py-0.5 text-[9px] font-bold text-white backdrop-blur border border-white/20 shadow-sm">
                       Sec 104 · Row C
                     </span>
                   </div>
 
-                  <span className="absolute right-3 bottom-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-brand-orange border border-brand-orange/25 shadow-md backdrop-blur flex items-center gap-1">
+                  <span className="absolute right-3 bottom-3 rounded-full bg-brand-deep/90 text-white px-2.5 py-1 text-[10px] font-bold border border-brand-orange/40 shadow-lg backdrop-blur flex items-center gap-1.5">
                     <Rotate3d className="h-3 w-3 text-brand-orange" /> Interactive 360° tour
                   </span>
                 </div>
 
-                <div className="p-6 pt-2 sm:p-7 sm:pt-2 flex flex-col flex-1">
+                <div className="relative p-6 pt-2 sm:p-7 sm:pt-2 flex flex-col flex-1">
                   <p className="text-xs font-bold text-brand-orange mb-1.5 flex items-center gap-1.5">
                     <Eye className="h-3.5 w-3.5" />
-                    Inside <span className="font-feature italic font-black">EaseComms</span> · Venue perspectives
+                    Inside <span className="font-feature italic font-black text-white">EaseComms</span> · Venue perspectives
                   </p>
-                  <p className="text-xs text-muted leading-relaxed mb-4 min-h-[36px]">
+                  <p className="text-xs text-white/75 leading-relaxed mb-4 min-h-[36px]">
                     Get a clearer picture of sightlines, stage proximity, and height before choosing where to sit.
                   </p>
 
                   <div className="space-y-3 mb-6">
                     {/* EasePix Highlight */}
-                    <div className="rounded-2xl border border-brand-orange/20 bg-brand-orange/5 p-3.5 transition-all hover:bg-brand-orange/10 hover:border-brand-orange/30">
+                    <div className="rounded-2xl border border-white/12 bg-white/10 p-3.5 backdrop-blur-md transition-all hover:bg-white/15 hover:border-brand-orange/40">
                       <div className="flex items-center gap-2">
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-orange text-white shadow-xs">
                           <Camera className="h-3.5 w-3.5" />
                         </div>
-                        <span className="font-feature italic font-black text-xs text-brand-orange bg-brand-orange/15 px-2 py-0.5 rounded-md">
+                        <span className="font-feature italic font-black text-xs text-white bg-brand-orange/80 px-2 py-0.5 rounded-md border border-brand-orange/50">
                           EasePix
                         </span>
                       </div>
-                      <p className="mt-2 text-xs text-muted leading-relaxed">
+                      <p className="mt-2 text-xs text-white/80 leading-relaxed">
                         Real seat photos, sightline ratings, accessibility notes, and contributor points.
                       </p>
                     </div>
 
                     {/* EaseXplore Highlight */}
-                    <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3.5 transition-all hover:bg-amber-500/10 hover:border-amber-500/30">
+                    <div className="rounded-2xl border border-white/12 bg-white/10 p-3.5 backdrop-blur-md transition-all hover:bg-white/15 hover:border-brand-orange/40">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white shadow-xs">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-amber text-white shadow-xs">
                           <Rotate3d className="h-3.5 w-3.5" />
                         </div>
-                        <span className="font-feature italic font-black text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">
+                        <span className="font-feature italic font-black text-xs text-white bg-amber-500/80 px-2 py-0.5 rounded-md border border-amber-400/50">
                           EaseXplore
                         </span>
                       </div>
-                      <p className="mt-2 text-xs text-muted leading-relaxed">
+                      <p className="mt-2 text-xs text-white/80 leading-relaxed">
                         Interactive 360° virtual tours to explore venue sections before booking.
                       </p>
                     </div>
@@ -463,33 +481,42 @@ export default function Home() {
 
                   <Link
                     to="/community?tab=views"
-                    className="mt-auto pt-4 border-t border-brand-purple/10 flex items-center justify-between text-xs font-bold text-brand-deep group hover:text-brand-purple transition-colors"
+                    className="mt-auto pt-4 border-t border-white/15 flex items-center justify-between text-xs font-bold text-white group hover:text-brand-orange transition-colors"
                   >
                     <span>Explore seat views</span>
-                    <ArrowUpRight className="h-4 w-4 text-brand-purple group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    <ArrowUpRight className="h-4 w-4 text-brand-orange group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </Link>
                 </div>
               </article>
 
               {/* Card 3: 03 · Experience */}
-              <article className="rounded-3xl border border-brand-purple/15 bg-white shadow-sm overflow-hidden flex flex-col transition hover:shadow-xl hover:border-brand-purple/30 duration-300 md:col-span-2 lg:col-span-1">
-                <div className="p-6 pb-0 sm:p-7 sm:pb-0">
-                  <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-brand-lilac text-brand-purple">
-                    <Accessibility className="h-3 w-3" />
+              <article className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-br from-[#260c38] via-[#3a1452] to-[#39182a] text-white shadow-xl hover:shadow-2xl hover:border-brand-orange/40 transition-all duration-300 flex flex-col md:col-span-2 lg:col-span-1">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-20 -bottom-20 h-56 w-56 rounded-full bg-brand-orange/20 blur-3xl"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-brand-purple/35 blur-3xl"
+                />
+
+                <div className="relative p-6 pb-0 sm:p-7 sm:pb-0">
+                  <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-white/10 text-brand-lilac border border-white/15 backdrop-blur">
+                    <Accessibility className="h-3 w-3 text-brand-orange" />
                     03 · Experience
                   </div>
-                  <h4 className="font-brand text-2xl font-bold tracking-tight text-brand-deep mt-3 leading-snug">
+                  <h4 className="font-brand text-2xl font-bold tracking-tight text-white mt-3 leading-snug">
                     Less uncertainty.<br />
-                    <span className="text-brand-purple">More enjoyment.</span>
+                    <span className="text-brand-orange">More enjoyment.</span>
                   </h4>
                 </div>
 
                 {/* Preview Box 3: Journey & Audio */}
                 <div
-                  className="mx-4 my-4 h-44 rounded-2xl relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-br from-amber-50/70 via-brand-warm to-brand-lilac/40 border border-brand-purple/15 shadow-inner"
+                  className="relative mx-4 my-4 h-44 rounded-2xl overflow-hidden flex items-center justify-center p-4 bg-black/25 border border-white/15 backdrop-blur-md shadow-inner"
                   aria-label="Illustrative accessibility preview"
                 >
-                  <div className="w-[94%] rounded-xl bg-white p-3.5 shadow-md border border-brand-purple/15 rotate-1 transform transition-transform hover:rotate-0">
+                  <div className="w-[94%] rounded-xl bg-white/95 p-3.5 shadow-lg border border-white/40 text-brand-deep rotate-1 transform transition-transform hover:rotate-0">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-brand-deep">Your journey, step by step</span>
                       <span className="text-[9px] font-bold text-live bg-live/10 px-2 py-0.5 rounded-full">
@@ -515,47 +542,47 @@ export default function Home() {
                       <span>Seat 12B</span>
                     </div>
                   </div>
-                  <span className="absolute right-3 bottom-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-brand-purple border border-brand-purple/25 shadow-md backdrop-blur flex items-center gap-1">
-                    <Volume2 className="h-3 w-3 text-brand-purple" /> EaseVoice · 1× Audio
+                  <span className="absolute right-3 bottom-3 rounded-full bg-brand-deep/90 text-white px-2.5 py-1 text-[10px] font-bold border border-brand-purple/40 shadow-lg backdrop-blur flex items-center gap-1.5">
+                    <Volume2 className="h-3 w-3 text-brand-orange" /> EaseVoice · 1× Audio
                   </span>
                 </div>
 
-                <div className="p-6 pt-2 sm:p-7 sm:pt-2 flex flex-col flex-1">
-                  <p className="text-xs font-bold text-brand-purple mb-1.5 flex items-center gap-1.5">
+                <div className="relative p-6 pt-2 sm:p-7 sm:pt-2 flex flex-col flex-1">
+                  <p className="text-xs font-bold text-brand-orange mb-1.5 flex items-center gap-1.5">
                     <Accessibility className="h-3.5 w-3.5" />
-                    Accessibility · Support at every step
+                    <span className="font-brand font-bold text-white">Accessibility</span> · Support at every step
                   </p>
-                  <p className="text-xs text-muted leading-relaxed mb-4 min-h-[36px]">
+                  <p className="text-xs text-white/75 leading-relaxed mb-4 min-h-[36px]">
                     Plan an accessible journey and experience event information with adjustable narration.
                   </p>
 
                   <div className="space-y-3 mb-6">
                     {/* EaseGuide Highlight */}
-                    <div className="rounded-2xl border border-brand-purple/15 bg-brand-lilac/30 p-3.5 transition-all hover:bg-brand-lilac/50 hover:border-brand-purple/30">
+                    <div className="rounded-2xl border border-white/12 bg-white/10 p-3.5 backdrop-blur-md transition-all hover:bg-white/15 hover:border-brand-orange/40">
                       <div className="flex items-center gap-2">
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-purple text-white shadow-xs">
                           <Route className="h-3.5 w-3.5" />
                         </div>
-                        <span className="font-feature italic font-black text-xs text-brand-purple bg-brand-purple/10 px-2 py-0.5 rounded-md">
+                        <span className="font-feature italic font-black text-xs text-white bg-brand-purple/70 px-2 py-0.5 rounded-md border border-brand-purple/40">
                           EaseGuide
                         </span>
                       </div>
-                      <p className="mt-2 text-xs text-muted leading-relaxed">
+                      <p className="mt-2 text-xs text-white/80 leading-relaxed">
                         Request companion assistance, follow accessible routes, and track assigned on-site staff.
                       </p>
                     </div>
 
                     {/* EaseVoice Highlight */}
-                    <div className="rounded-2xl border border-brand-deep/15 bg-brand-deep/5 p-3.5 transition-all hover:bg-brand-deep/10 hover:border-brand-deep/30">
+                    <div className="rounded-2xl border border-white/12 bg-white/10 p-3.5 backdrop-blur-md transition-all hover:bg-white/15 hover:border-brand-orange/40">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-deep text-white shadow-xs">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-orange text-white shadow-xs">
                           <Volume2 className="h-3.5 w-3.5" />
                         </div>
-                        <span className="font-feature italic font-black text-xs text-brand-deep bg-brand-deep/15 px-2 py-0.5 rounded-md">
+                        <span className="font-feature italic font-black text-xs text-white bg-brand-orange/80 px-2 py-0.5 rounded-md border border-brand-orange/50">
                           EaseVoice
                         </span>
                       </div>
-                      <p className="mt-2 text-xs text-muted leading-relaxed">
+                      <p className="mt-2 text-xs text-white/80 leading-relaxed">
                         Listen to event details, seat selections, and accessibility notes with speech controls.
                       </p>
                     </div>
@@ -563,10 +590,10 @@ export default function Home() {
 
                   <Link
                     to={user?.role === "customer" ? "/assistance" : "/events"}
-                    className="mt-auto pt-4 border-t border-brand-purple/10 flex items-center justify-between text-xs font-bold text-brand-deep group hover:text-brand-purple transition-colors"
+                    className="mt-auto pt-4 border-t border-white/15 flex items-center justify-between text-xs font-bold text-white group hover:text-brand-orange transition-colors"
                   >
                     <span>Explore event-day support</span>
-                    <ArrowUpRight className="h-4 w-4 text-brand-purple group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    <ArrowUpRight className="h-4 w-4 text-brand-orange group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </Link>
                 </div>
               </article>
