@@ -1,4 +1,5 @@
 import { Link } from "react-router"
+import EventImage from "../../common/EventImage";
 import { Calendar } from "lucide-react"
 import type { EventItem } from "../types"
 
@@ -32,7 +33,7 @@ export function FeedRightRail({ events, onShowToast }: FeedRightRailProps) {
               className="group flex items-center gap-3 rounded-2xl p-2 transition hover:bg-brand-lilac/30"
             >
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-brand-deep shadow-sm">
-                <img
+                <EventImage
                   src={ev.image}
                   alt={ev.title}
                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"

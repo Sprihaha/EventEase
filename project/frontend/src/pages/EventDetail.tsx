@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import EventImage from "../components/common/EventImage";
 import { Link, useParams } from "react-router";
 import { Calendar, MapPin, Ticket, ShieldCheck } from "lucide-react";
 import { useStore, currency, fmtDate } from "../lib/store";
@@ -127,7 +128,7 @@ export default function EventDetail() {
   return <div className="mx-auto max-w-7xl px-5 py-10">
     {seoComponent}
     <div className="relative mb-8 h-64 overflow-hidden rounded-3xl">
-      <img src={event.imageUrl ?? "/event-placeholder.svg"} alt={event.title} className="h-full w-full object-cover" />
+      <EventImage src={event.imageUrl} alt={event.title} className="h-full w-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/70 to-transparent" />
     </div>
     <Badge tone="accent">Ticketing & checkout</Badge>

@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router";
+import EventImage from "../common/EventImage";
 import { Calendar, MapPin } from "lucide-react";
 import type { EventItem } from "../../lib/data";
 import { currency, fmtDate, useStore } from "../../lib/store";
@@ -39,7 +40,7 @@ export function EventCard({
       className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-brand-purple/15 bg-white shadow-[0_10px_35px_-20px_rgba(50,19,79,0.12)] transition-all duration-300 hover:-translate-y-1.5 hover:border-brand-purple/35 hover:shadow-[0_20px_45px_-15px_rgba(50,19,79,0.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30"
     >
       <div className="relative aspect-[16/11] overflow-hidden">
-        <img
+        <EventImage
           src={ev.image}
           alt={ev.title}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
