@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router"
 import { Camera, Sparkles, Search, X } from "lucide-react"
 import { SearchableCombobox } from "../../ui"
+import { isVenueMatch } from "./seatMatching"
 import type { SearchableOption, EventItem, User } from "../types"
 
 interface EasePixSearchBarProps {
@@ -70,7 +71,7 @@ export function EasePixSearchBar({
           </div>
         </div>
         <div className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-2.5 py-1 text-[11px] font-black text-brand-orange">
-          <Sparkles className="h-3 w-3" /> +15 EasePoints
+          <Sparkles className="h-3 w-3" /> +23 EasePoints
         </div>
       </div>
 
@@ -85,7 +86,7 @@ export function EasePixSearchBar({
                 onSeatVenueInputChange(val)
               } else {
                 const ev = events.find(
-                  (e) => e.venue.toLowerCase() === val.toLowerCase(),
+                  (e) => isVenueMatch(e.venue, val),
                 )
                 onSeatEventIdInputChange(ev?.id ?? "")
               }
@@ -115,8 +116,7 @@ export function EasePixSearchBar({
               eventOptions ??
               (seatVenueInput
                 ? events.filter(
-                    (e) =>
-                      e.venue.toLowerCase() === seatVenueInput.toLowerCase(),
+                    (e) => isVenueMatch(e.venue, seatVenueInput),
                   )
                 : events
               ).map((ev) => ({

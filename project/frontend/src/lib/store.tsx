@@ -185,7 +185,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const interval = setInterval(checkExpiry, 5000);
+    const interval = setInterval(checkExpiry, 1000);
     window.addEventListener("focus", checkExpiry);
     document.addEventListener("visibilitychange", checkExpiry);
 
@@ -200,7 +200,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Handle session expired broadcast: clean up local store state
   useEffect(() => {
     return onSessionExpired(() => {
-      // Keep user state intact during the 5s countdown so users who click
+      // Keep user state intact during the 10s countdown so users who click
       // "Keep me logged in" remain on their current view.
     });
   }, []);

@@ -5,14 +5,16 @@ export type SessionExpiredModalProps = {
   isOpen: boolean;
   onConfirm: () => void;
   onKeepLoggedIn?: () => void | Promise<void>;
+  timeoutSeconds?: number;
 };
 
 export default function SessionExpiredModal({
   isOpen,
   onConfirm,
   onKeepLoggedIn,
+  timeoutSeconds = 10,
 }: SessionExpiredModalProps) {
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(timeoutSeconds);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const keepLoggedInBtnRef = useRef<HTMLButtonElement>(null);
   const onConfirmRef = useRef(onConfirm);
@@ -21,7 +23,7 @@ export default function SessionExpiredModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    setCountdown(5);
+    setCountdown(timeoutSeconds);
     setIsRefreshing(false);
 
     // Auto-focus "Keep me logged in" button so keyboard users can immediately stay logged in
@@ -29,7 +31,7 @@ export default function SessionExpiredModal({
       keepLoggedInBtnRef.current?.focus();
     }, 50);
 
-    // 5-second countdown timer. If user makes no choice within 5s, auto logout
+    // 10-second countdown timer. If user makes no choice within 10s, auto logout
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -102,11 +104,11 @@ export default function SessionExpiredModal({
           <span className="font-bold text-brand-orange">{countdown}s</span> unless you choose to stay logged in.
         </p>
 
-        {/* 5-second animated countdown bar */}
+        {/* 10-second animated countdown bar */}
         <div className="mt-3.5 h-1.5 w-full overflow-hidden rounded-full bg-brand-purple/10">
           <div
             className="h-full bg-gradient-to-r from-brand-purple to-brand-orange transition-all duration-1000 ease-linear"
-            style={{ width: `${(countdown / 5) * 100}%` }}
+            style={{ width: `${(countdown / timeoutSeconds) * 100}%` }}
           />
         </div>
 

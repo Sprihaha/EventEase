@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ISSUER: str = "eventease"
     ACCESS_TOKEN_TTL_MINUTES: int = 15
+    ACCESS_TOKEN_TTL_SECONDS: int | None = None
     REFRESH_TOKEN_TTL_DAYS: int = 7
     REFRESH_COOKIE_NAME: str = "eventease_refresh"
     COOKIE_SECURE: bool | None = None

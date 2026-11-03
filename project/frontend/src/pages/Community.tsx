@@ -1,9 +1,14 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { Sparkles, Camera, Rotate3d, Users, Bookmark, Clock } from "lucide-react";
 import { cx } from "../components/ui";
 import { SEO } from "../components/common";
 import { useStore } from "../lib/store";
+import {
+  getUserEasePoints,
+  awardEasePoints,
+  EASEPOINTS_RULES,
+} from "../lib/easePoints";
 import {
   backendListPosts,
   backendListEasePix,
@@ -25,6 +30,7 @@ import {
   CommunityExchangeView,
   ShareSeatViewModal,
   EaseXplore360Modal,
+  EasePointsModal,
   CommunityVoiceWidget,
   useCommunityFeed,
   useEasePix,
@@ -43,8 +49,45 @@ export default function Community() {
 
   const [backendPosts, setBackendPosts] = useState<BackendCommunityPost[]>([]);
   const [backendEasePixList, setBackendEasePixList] = useState<BackendEasePix[]>([]);
+  const [isEasePointsModalOpen, setIsEasePointsModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<number | null>(null);
+
+  // EasePoints calculation & tracking for logged-in users
+  const userUploadedPixCount = useMemo(() => {
+    if (!user) return 0;
+    return backendEasePixList.filter(
+      (pix) =>
+        (pix.userId && pix.userId === user.id) ||
+        (pix.authorName && user.name && pix.authorName.toLowerCase() === user.name.toLowerCase())
+    ).length;
+  }, [backendEasePixList, user]);
+
+  const [userPoints, setUserPoints] = useState<number>(() =>
+    user ? getUserEasePoints(user.id) : 0
+  );
+
+  useEffect(() => {
+    if (!user) {
+      setUserPoints(0);
+      return;
+    }
+    setUserPoints(getUserEasePoints(user.id));
+
+    const handlePointsUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ userId: string; points: number }>;
+      if (customEvent.detail?.userId === user.id) {
+        setUserPoints(customEvent.detail.points);
+      }
+    };
+
+    window.addEventListener("eventease:easepoints-updated", handlePointsUpdate);
+    return () => {
+      window.removeEventListener("eventease:easepoints-updated", handlePointsUpdate);
+    };
+  }, [user]);
+
+  const totalUserPoints = userPoints;
 
   const showToast = useCallback((msg: string) => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -269,7 +312,10 @@ export default function Community() {
           eventId: targetEventId || undefined,
           section: sec,
         });
-        showToast("Seat view uploaded to EasePix successfully! You earned +15 EasePoints ✨");
+        if (user?.id) {
+          awardEasePoints(user.id, EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO, "Approved EasePix photo");
+        }
+        showToast(`Seat view uploaded to EasePix successfully! You earned +${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`);
         scrollToSection("seat-search-results");
       } catch {
         addPost({
@@ -501,6 +547,21 @@ export default function Community() {
                   Share your seat view and browse verified community photos before buying
                 </p>
               </div>
+
+              {/* Your EasePoints Button - only visible to logged-in non-organizer users */}
+              {user && user.role !== "organizer" && (
+                <button
+                  type="button"
+                  onClick={() => setIsEasePointsModalOpen(true)}
+                  className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber px-4.5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>Your EasePoints</span>
+                  <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-black text-white">
+                    {totalUserPoints} pts
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* EasePix & EaseXplore View without sidebar */}
@@ -592,6 +653,23 @@ export default function Community() {
         hasAccessibleSeats={easePix.eventSeats.some((s) => s.isAccessible)}
         onUpdatePreview={easePix.setPreview360Photo}
       />
+
+      {/* Your EasePoints Rewards Pop-up Modal */}
+      {user && user.role !== "organizer" && (
+        <EasePointsModal
+          isOpen={isEasePointsModalOpen}
+          onClose={() => setIsEasePointsModalOpen(false)}
+          userPoints={totalUserPoints}
+          uploadedCount={userUploadedPixCount}
+          onOpenUploadModal={() => {
+            easePix.setShareModalOrigin("easepix");
+            if (!easePix.seatVenueInput && events.length > 0) {
+              easePix.setSeatVenueInput(events[0].venue);
+            }
+            easePix.setIsShareModalOpen(true);
+          }}
+        />
+      )}
 
       {/* Toast Notification */}
       <div

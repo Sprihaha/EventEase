@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Sparkles } from "lucide-react";
 import {
   acceptExchangeMatch,
   cancelExchangeMatch,
@@ -7,6 +8,13 @@ import {
   rejectExchangeMatch,
   settleExchangeMatch,
 } from "../../../lib/exchangeApi";
+import {
+  getUserEasePoints,
+  awardEasePoints,
+  deductEasePoints,
+  calculateExchangeDiscount,
+  EASEPOINTS_RULES,
+} from "../../../lib/easePoints";
 import type {
   ExchangeMatch,
   ExchangeRequest,
@@ -39,6 +47,15 @@ export function ExchangeMatchPanel({
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now);
   const [failPayment, setFailPayment] = useState(false);
+  const [applyPointsDiscount, setApplyPointsDiscount] = useState(false);
+  const [userPoints, setUserPoints] = useState(() => getUserEasePoints(userId));
+
+  useEffect(() => {
+    setUserPoints(getUserEasePoints(userId));
+    const handleUpdate = () => setUserPoints(getUserEasePoints(userId));
+    window.addEventListener("eventease:easepoints-updated", handleUpdate);
+    return () => window.removeEventListener("eventease:easepoints-updated", handleUpdate);
+  }, [userId]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -63,6 +80,11 @@ export function ExchangeMatchPanel({
   const myPrice = match && (ownsA ? match.ticketA.price : match.ticketB.price);
   const theirPrice = match && (ownsA ? match.ticketB.price : match.ticketA.price);
   const difference = myPrice != null && theirPrice != null ? Math.round((theirPrice - myPrice) * 100) : null;
+  const discountCalc = calculateExchangeDiscount(
+    userPoints,
+    difference ?? 0,
+    applyPointsDiscount
+  );
   const canSettle = match?.status === "READY" && knownSide && !expired && !pending && difference !== null && difference >= 0;
 
   const settle = async () => {
@@ -71,7 +93,12 @@ export function ExchangeMatchPanel({
     setPending("settle");
     setError(null);
     try {
+      if (applyPointsDiscount && discountCalc.isEligible && discountCalc.pointsToDeduct > 0) {
+        deductEasePoints(userId, discountCalc.pointsToDeduct);
+      }
       setConfirmed(await settleExchangeMatch(matchId, failPayment));
+      // Completed EaseXchange awards 17 EasePoints per participant
+      awardEasePoints(userId, EASEPOINTS_RULES.POINTS_PER_COMPLETED_EXCHANGE, "Completed EaseXchange");
       resource.refresh();
       onChanged();
     } catch (cause) {
@@ -212,11 +239,74 @@ export function ExchangeMatchPanel({
             <div className="space-y-3 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">
               <p role="status" className="font-semibold">Both users accepted. Awaiting settlement.</p>
               {difference !== null && knownSide && (
-                <p>
-                  {difference < 0
-                    ? `The other participant pays S$${(-difference / 100).toFixed(2)}.`
-                    : `Your simulated payment: S$${(difference / 100).toFixed(2)}.`}
-                </p>
+                <div className="space-y-2">
+                  {difference === 0 ? (
+                    <div className="rounded-xl border border-brand-purple/20 bg-white/80 p-3 text-xs text-brand-deep">
+                      <p className="font-semibold">Same-price exchange (S$0.00 difference)</p>
+                      <p className="text-muted mt-0.5">
+                        No price difference to discount, so no EasePoints will be deducted.
+                      </p>
+                    </div>
+                  ) : difference > 0 ? (
+                    <div className="space-y-2">
+                      <p className="font-semibold">
+                        Price difference payable: S${(difference / 100).toFixed(2)}
+                      </p>
+
+                      {/* EasePoints Discount Box */}
+                      {userPoints >= EASEPOINTS_RULES.REDEMPTION_COST_POINTS ? (
+                        <div className="rounded-xl border border-brand-orange/30 bg-gradient-to-r from-brand-orange/10 via-amber-50 to-brand-orange/10 p-3 text-xs space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="h-4 w-4 text-brand-orange shrink-0" />
+                              <span className="font-bold text-brand-deep">
+                                Redeem 100 EasePoints for 10% discount
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setApplyPointsDiscount(!applyPointsDiscount)}
+                              className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${applyPointsDiscount
+                                  ? "bg-brand-orange text-white shadow-xs"
+                                  : "bg-white border border-brand-orange/40 text-brand-orange hover:bg-brand-orange/10"
+                                }`}
+                            >
+                              {applyPointsDiscount ? "Applied (-10%) ✓" : "Apply 10% Off"}
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-muted">
+                            Cost: 100 EasePoints. Max 10% per exchange (stacking not allowed). Remaining points carry forward.
+                          </p>
+
+                          {applyPointsDiscount && (
+                            <div className="pt-2 border-t border-brand-orange/20 space-y-1 text-xs">
+                              <div className="flex justify-between text-muted">
+                                <span>Original difference:</span>
+                                <span>S${(difference / 100).toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between font-bold text-emerald-700">
+                                <span>10% EasePoints Discount:</span>
+                                <span>-S${(discountCalc.discountCents / 100).toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between font-extrabold text-brand-deep text-sm pt-1 border-t border-brand-orange/20">
+                                <span>Payable Amount on Settlement:</span>
+                                <span>S${(discountCalc.finalDifferenceCents / 100).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-brand-line bg-white/80 p-3 text-xs text-muted">
+                          Earn {100 - userPoints} more EasePoints (current balance: {userPoints} pts) to unlock 10% off your payable price difference.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p>
+                      The other participant pays S${(-difference / 100).toFixed(2)}.
+                    </p>
+                  )}
+                </div>
               )}
               <p>Completing settlement swaps both individual tickets and replaces both QR codes.</p>
               {difference !== null && difference > 0 && (

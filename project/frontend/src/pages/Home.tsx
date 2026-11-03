@@ -345,7 +345,7 @@ export default function Home() {
                       icon: Repeat,
                       gradient: "bg-gradient-to-br from-[#4a0e82] via-[#7c2e3a] to-[#c43c00]",
                       title: "Pre-QR ticket exchange & verified swaps",
-                      description: "Safely exchange eligible seats with verified fans before event day—capped at face value with scam-proof QR regeneration.",
+                      description: "Safely swap eligible seats with verified fans at original face value before ticket sales close—official QR codes are issued only once after sales end.",
                       pills: ["Pre-QR swaps", "Face value only"],
                       link: "/community?tab=exchange#main-tabs-nav",
                     },
@@ -452,7 +452,7 @@ export default function Home() {
                               </div>
 
                               <div className="absolute -bottom-1 -left-1 z-20 rounded-full bg-brand-orange px-2.5 py-0.5 text-[8px] font-bold text-white shadow-xl -rotate-2 border border-white/40">
-                                +20 pts earned ✓
+                                +23 pts earned ✓
                               </div>
                             </div>
                           )}
@@ -529,7 +529,7 @@ export default function Home() {
                                 </div>
 
                                 <div className="flex items-center justify-between text-[7.5px] pt-1 border-t border-brand-purple/10 text-muted">
-                                  <span>QR auto-regenerated</span>
+                                  <span>QR issued after sales close</span>
                                   <span className="font-bold text-brand-orange">100% Scam-Proof ✓</span>
                                 </div>
                               </div>

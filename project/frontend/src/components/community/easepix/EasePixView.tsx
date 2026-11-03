@@ -1,6 +1,7 @@
 import { Rotate3d, Camera } from "lucide-react"
 import { EasePixSearchBar } from "./EasePixSearchBar"
 import { EasePixSectionGrid } from "./EasePixSectionGrid"
+import { isVenueMatch } from "./seatMatching"
 import type { SearchableOption, SectionSegment, EventItem, User } from "../types"
 
 interface EasePixViewProps {
@@ -62,14 +63,15 @@ export function EasePixView({
   onOpenEaseExplore,
   onLikeEasePix,
 }: EasePixViewProps) {
-  const currentEvent = events.find(
-    (e) =>
-      (seatVenueInput && e.venue.toLowerCase() === seatVenueInput.toLowerCase()) ||
-      e.id ===
-      (gallerySearchFilter?.eventId || seatEventIdInput || events[0]?.id),
-  )
-  const eventTitle = currentEvent?.title ?? "Selected Event"
-  const venueTitle = currentEvent?.venue || seatVenueInput || "Event Venue"
+  const currentEvent = seatEventIdInput
+    ? events.find((e) => e.id === seatEventIdInput)
+    : seatVenueInput
+      ? events.find((e) => isVenueMatch(e.venue, seatVenueInput))
+      : gallerySearchFilter?.eventId
+        ? events.find((e) => e.id === gallerySearchFilter.eventId)
+        : undefined
+  const venueTitle = seatVenueInput?.trim() || currentEvent?.venue || "Event Venue"
+  const eventTitle = currentEvent?.title ?? (seatVenueInput ? `${venueTitle} Events` : "Selected Event")
 
   return (
     <div className="space-y-6">
@@ -124,7 +126,7 @@ export function EasePixView({
               </h3>
               <p className="text-xs text-muted">
                 {gallerySearchFilter?.eventId || seatVenueInput
-                  ? `Showing seat views for ${seatEventIdInput ? `${eventTitle} (${venueTitle})` : venueTitle}${
+                  ? `Showing seat views for ${seatEventIdInput && currentEvent ? `${eventTitle} (${venueTitle})` : venueTitle}${
                       selectedGallerySection !== "all"
                         ? ` · ${selectedGallerySection}`
                         : gallerySearchFilter?.section

@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import { cx } from "../../ui"
 import { processAndCompressImage } from "./imageOptimization"
+import { isVenueMatch } from "./seatMatching"
 import type { SearchableOption, EventItem, User } from "../types"
 
 interface ShareSeatViewModalProps {
@@ -73,7 +74,7 @@ export function ShareSeatViewModal({
 
   const eventsForVenue = seatVenueInput
     ? events.filter(
-        (e) => e.venue.toLowerCase() === seatVenueInput.toLowerCase(),
+        (e) => isVenueMatch(e.venue, seatVenueInput),
       )
     : events
 
@@ -122,7 +123,7 @@ export function ShareSeatViewModal({
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-2.5 py-1 text-[11px] font-black text-brand-orange">
-              <Sparkles className="h-3 w-3" /> +15 EasePoints
+              <Sparkles className="h-3 w-3" /> +23 EasePoints
             </span>
             <button
               type="button"
@@ -159,7 +160,7 @@ export function ShareSeatViewModal({
                     onSeatVenueInputChange(newVenue)
                     if (seatEventIdInput) {
                       const curEv = events.find((ev) => ev.id === seatEventIdInput)
-                      if (curEv && curEv.venue.toLowerCase() !== newVenue.toLowerCase()) {
+                      if (curEv && !isVenueMatch(curEv.venue, newVenue)) {
                         onSeatEventIdInputChange("")
                         if (shareModalOrigin === "composer") {
                           onSelectedEventIdChange("")
@@ -212,7 +213,7 @@ export function ShareSeatViewModal({
                     }
                     if (newEventId) {
                       const ev = events.find((item) => item.id === newEventId)
-                      if (ev?.venue && (!seatVenueInput || seatVenueInput.toLowerCase() !== ev.venue.toLowerCase())) {
+                      if (ev?.venue && (!seatVenueInput || !isVenueMatch(seatVenueInput, ev.venue))) {
                         onSeatVenueInputChange(ev.venue)
                       }
                     }
@@ -224,7 +225,7 @@ export function ShareSeatViewModal({
                   <option value="">No specific event (General venue sightline)</option>
                   {eventsForVenue.map((ev) => (
                     <option key={ev.id} value={ev.id}>
-                      {ev.title} {ev.venue && (!seatVenueInput || seatVenueInput.toLowerCase() !== ev.venue.toLowerCase()) ? `(${ev.venue})` : ""}
+                      {ev.title} {ev.venue && (!seatVenueInput || !isVenueMatch(seatVenueInput, ev.venue)) ? `(${ev.venue})` : ""}
                     </option>
                   ))}
                 </select>

@@ -8,6 +8,7 @@ import {
 } from "../../../lib/backendApi"
 import { parseSeatParts } from "../easepix/seatMatching"
 import { formatRelativeWhen } from "../dateUtils"
+import { awardEasePoints, EASEPOINTS_RULES } from "../../../lib/easePoints"
 import type { DisplayPost, FilterType, AttachedEasePix, EventItem, Post, User } from "../types"
 
 interface UseCommunityFeedParams {
@@ -221,14 +222,27 @@ export function useCommunityFeed({
         onPostCreatedWithPhoto(targetEventId, sectionToSubmit)
       }
 
+      const isQuestion = draft.includes("?") || draft.toLowerCase().includes("ask")
+      if (user?.id) {
+        if (photoToSubmit) {
+          awardEasePoints(user.id, EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO, "Approved EasePix photo")
+        } else if (isQuestion) {
+          awardEasePoints(user.id, EASEPOINTS_RULES.POINTS_PER_QUALIFYING_QUESTION, "Qualifying event question")
+        }
+      }
+
       await reloadCommunityData()
       setDraft("")
       setPhotoUrl("")
       setAttachedEasePix(null)
       setShowPhotoInput(false)
-      onShowToast(
-        "Your post and EasePix seat view have been shared to EaseConnect! ✨",
-      )
+      if (photoToSubmit) {
+        onShowToast(`Your EasePix seat view was shared! You earned +${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`)
+      } else if (isQuestion) {
+        onShowToast(`Event question posted! You earned +${EASEPOINTS_RULES.POINTS_PER_QUALIFYING_QUESTION} EasePoints ✨`)
+      } else {
+        onShowToast("Your post has been shared to EaseConnect! ✨")
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to share post"
       onShowToast(msg)

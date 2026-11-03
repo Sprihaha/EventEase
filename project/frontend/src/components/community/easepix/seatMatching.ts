@@ -115,3 +115,20 @@ export function matchesSectionQuery(
 
   return false
 }
+
+export function isVenueMatch(venueA?: string, venueB?: string): boolean {
+  if (!venueA || !venueB) return false
+  const norm = (v: string) =>
+    v
+      .toLowerCase()
+      .trim()
+      .replace(/^the\s+/i, "")
+      .replace(/^singapore\s+/i, "")
+      .replace(/\s*,?\s*singapore$/i, "")
+      .replace(/[^a-z0-9]/g, "")
+
+  const a = norm(venueA)
+  const b = norm(venueB)
+  if (!a || !b) return false
+  return a === b || a.includes(b) || b.includes(a)
+}

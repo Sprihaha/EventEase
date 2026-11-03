@@ -280,7 +280,7 @@ export function CommunitySidebar({
               <button
                 type="button"
                 onClick={() =>
-                  onShowToast("Every verified seat view earns +15 EasePoints!")
+                  onShowToast("Every verified seat view earns +23 EasePoints!")
                 }
                 className="cursor-pointer mt-2 text-[11px] font-extrabold text-brand-purple hover:underline"
               >

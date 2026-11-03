@@ -162,7 +162,7 @@ export function FeedPostCard({
             </button>
 
             <div className="ml-auto inline-flex items-center gap-1 text-[11px] font-extrabold text-brand-orange">
-              <Sparkles className="h-3 w-3" /> +15 EasePoints
+              <Sparkles className="h-3 w-3" /> +23 EasePoints
             </div>
           </div>
 

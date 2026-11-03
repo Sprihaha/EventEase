@@ -50,79 +50,60 @@ export function EasePixSectionGrid({
 
   return (
     <div className="space-y-6">
-      {/* Section Selection Bar */}
-      <div className="rounded-2xl border border-brand-line bg-white p-3.5 sm:p-4 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-brand-line/60">
-          <div>
-            <span className="text-xs font-bold text-brand-deep">
-              Sections for{" "}
-              <span className="text-brand-purple">{eventTitle}</span>
-            </span>
-            <span className="ml-2 text-[11px] text-muted hidden sm:inline">
-              Click a section to filter or view all sections segmented
-            </span>
-          </div>
-          <span className="text-[11px] font-semibold text-muted">
-            {selectedGallerySection === "all"
-              ? "Auto-segmented by section"
-              : `Viewing ${selectedGallerySection} (${sectionsToDisplay[0]?.photos.length ?? 0} views)`}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 pt-3">
-          <button
-            type="button"
-            onClick={() => onSelectGallerySection("all")}
+      {/* Sections Showcase */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onSelectGallerySection("all")}
+          className={cx(
+            "cursor-pointer inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition-all",
+            selectedGallerySection === "all"
+              ? "bg-gradient-to-r from-brand-purple to-brand-magenta text-white shadow-md shadow-brand-purple/20"
+              : "bg-white border border-[#4A2D73]/40 text-brand-deep hover:bg-brand-lilac/30 hover:text-brand-purple shadow-2xs",
+          )}
+        >
+          All Sections
+          <span
             className={cx(
-              "cursor-pointer inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all",
+              "rounded-full px-2 py-0.5 text-[11px] font-semibold",
               selectedGallerySection === "all"
-                ? "bg-gradient-to-r from-brand-purple to-brand-magenta text-white shadow-md shadow-brand-purple/20"
-                : "bg-brand-warm/60 border border-brand-line text-brand-deep hover:bg-brand-lilac/40 hover:text-brand-purple",
+                ? "bg-white/25 text-white"
+                : "bg-brand-warm/60 text-brand-deep/80",
             )}
           >
-            All Sections
-            <span
+            {totalPhotos}
+          </span>
+        </button>
+
+        {orderedSections.map((sec) => {
+          const isSelected =
+            selectedGallerySection.toLowerCase() === sec.name.toLowerCase()
+          return (
+            <button
+              key={sec.id}
+              type="button"
+              onClick={() => onSelectGallerySection(sec.name)}
               className={cx(
-                "rounded-full px-1.5 py-0.2 text-[10px]",
-                selectedGallerySection === "all"
-                  ? "bg-white/25 text-white"
-                  : "bg-white text-muted",
+                "cursor-pointer inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold transition-all",
+                isSelected
+                  ? "bg-gradient-to-r from-brand-purple to-brand-magenta text-white shadow-md shadow-brand-purple/20"
+                  : "bg-white border border-[#4A2D73]/40 text-brand-deep hover:bg-brand-lilac/30 hover:text-brand-purple shadow-2xs",
               )}
             >
-              {totalPhotos}
-            </span>
-          </button>
-
-          {orderedSections.map((sec) => {
-            const isSelected =
-              selectedGallerySection.toLowerCase() === sec.name.toLowerCase()
-            return (
-              <button
-                key={sec.id}
-                type="button"
-                onClick={() => onSelectGallerySection(sec.name)}
+              {sec.name}
+              <span
                 className={cx(
-                  "cursor-pointer inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all",
+                  "rounded-full px-2 py-0.5 text-[11px] font-semibold",
                   isSelected
-                    ? "bg-gradient-to-r from-brand-orange to-brand-amber text-white shadow-md shadow-brand-orange/25"
-                    : "bg-white border border-brand-line text-brand-deep hover:bg-orange-50 hover:text-brand-orange hover:border-brand-orange/30",
+                    ? "bg-white/25 text-white"
+                    : "bg-brand-warm/60 text-brand-deep/80",
                 )}
               >
-                {sec.name}
-                <span
-                  className={cx(
-                    "rounded-full px-1.5 py-0.2 text-[10px]",
-                    isSelected
-                      ? "bg-white/25 text-white"
-                      : "bg-brand-warm text-muted",
-                  )}
-                >
-                  {sec.photos.length}
-                </span>
-              </button>
-            )
-          })}
-        </div>
+                {sec.photos.length}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Segmented Section Cards Grid */}
@@ -130,22 +111,22 @@ export function EasePixSectionGrid({
         {sectionsToDisplay.map((sec) => {
           const isTargetSection = Boolean(
             searchedSectionQuery &&
-              matchesSectionQuery(sec.name, searchedSectionQuery),
+            matchesSectionQuery(sec.name, searchedSectionQuery),
           )
 
           const canMatchSeat = !searchedSectionQuery || isTargetSection
 
           const hasExactSeatMatch = Boolean(
             canMatchSeat &&
-              searchedRow &&
-              sec.photos.some((p) => isSeatMatch(searchedRow, p.seat)),
+            searchedRow &&
+            sec.photos.some((p) => isSeatMatch(searchedRow, p.seat)),
           )
 
           const isSectionWithNoSeatMatch = Boolean(
             isTargetSection &&
-              searchedRow &&
-              sec.photos.length > 0 &&
-              !hasExactSeatMatch,
+            searchedRow &&
+            sec.photos.length > 0 &&
+            !hasExactSeatMatch,
           )
 
           let nextRowBeforePhoto: SectionSeatPhoto | null = null
@@ -303,8 +284,8 @@ export function EasePixSectionGrid({
                     {sec.photos.map((p, pIdx) => {
                       const isExactSeatMatch = Boolean(
                         canMatchSeat &&
-                          searchedRow &&
-                          isSeatMatch(searchedRow, p.seat),
+                        searchedRow &&
+                        isSeatMatch(searchedRow, p.seat),
                       )
                       const isNextBefore = Boolean(
                         isSectionWithNoSeatMatch && nextRowBeforePhoto === p,

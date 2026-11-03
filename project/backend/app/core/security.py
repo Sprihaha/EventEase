@@ -60,7 +60,10 @@ def generate_password(length: int = 20) -> str:
 
 def create_access_token(settings: Settings, user_id: uuid.UUID, role: str, token_version: int) -> tuple[str, int]:
     now = utcnow()
-    ttl = timedelta(minutes=settings.ACCESS_TOKEN_TTL_MINUTES)
+    if settings.ACCESS_TOKEN_TTL_SECONDS is not None:
+        ttl = timedelta(seconds=settings.ACCESS_TOKEN_TTL_SECONDS)
+    else:
+        ttl = timedelta(minutes=settings.ACCESS_TOKEN_TTL_MINUTES)
     payload = {
         "sub": str(user_id),
         "role": role,
