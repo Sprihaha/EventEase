@@ -34,7 +34,8 @@ export default function SEO({
     const resolvedImage = image || defaultImage;
 
     // 1. Update Document Title - always EventEase across all pages
-    document.title = "EventEase";
+    const fullTitle = "EventEase";
+    document.title = fullTitle;
 
     // Helper to update or create meta tags
     const setMeta = (attrName: "name" | "property", attrVal: string, content: string) => {
