@@ -20,6 +20,9 @@ import {
   Volume2,
   BarChart3,
   TrendingUp,
+  CircleDollarSign,
+  Ticket,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { categoryList } from "../lib/data";
@@ -578,46 +581,46 @@ export default function Home() {
                 <div>
                   <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold text-brand-lilac uppercase tracking-wider">
                     <span className="h-1.5 w-1.5 rounded-full bg-brand-orange" />
-                    <span className="font-feature italic font-black">EaseAnalytics</span> · For organizers & admins
+                    <span className="font-feature italic font-black">EaseAnalytics</span> · For organizers &amp; admins
                   </span>
                   <h3 className="mt-4 font-brand text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-tight text-white">
                     Your event.<br />
-                    <span className="text-brand-lilac">The full picture.</span>
+                    <span className="text-brand-lilac">The full sales picture.</span>
                   </h3>
                   <p className="mt-4 text-xs sm:text-sm text-white/75 leading-relaxed max-w-lg">
-                    One reporting suite to understand ticket performance, keep sight of event operations, and share the numbers that matter.
+                    Sales performance and revenue velocity across your EventEase events—read-only, verified, and audit-ready.
                   </p>
                   <div className="mt-6 space-y-4">
                     <div className="flex items-start gap-3">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-brand-lilac text-xs">
-                        ↗
+                        <TrendingUp className="h-3.5 w-3.5 text-brand-orange" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-white">Live sales & inventory</h4>
+                        <h4 className="text-xs font-bold text-white">Confirmed sales &amp; daily revenue</h4>
                         <p className="text-xs text-white/60 leading-relaxed mt-0.5">
-                          Track ticket sales velocity, revenue, and inventory across seating tiers.
+                          Track total tickets sold, confirmed bookings, and average daily revenue velocity over 7, 30, and 90-day windows.
                         </p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-brand-lilac text-xs">
-                        ◎
+                        <Ticket className="h-3.5 w-3.5 text-brand-orange" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-white">Attendance & operational insights</h4>
+                        <h4 className="text-xs font-bold text-white">Seating tier demand breakdown</h4>
                         <p className="text-xs text-white/60 leading-relaxed mt-0.5">
-                          Review attendance metrics, companion assistance requests, and ticket exchange activity.
+                          Monitor demand distribution, ticket counts, and revenue shares across every tier—from VIP to special assistance.
                         </p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-brand-lilac text-xs">
-                        ↓
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-brand-orange" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-white">Reports, ready to share</h4>
+                        <h4 className="text-xs font-bold text-white">Audit-ready exports (PDF &amp; Excel)</h4>
                         <p className="text-xs text-white/60 leading-relaxed mt-0.5">
-                          Export financial and operational audit reports in CSV and PDF formats.
+                          Download presentable executive PDF summaries and full Excel workbooks with native charts in one click.
                         </p>
                       </div>
                     </div>
@@ -641,36 +644,36 @@ export default function Home() {
                 <div className="w-full">
                   <div className="rounded-2xl border border-white/20 bg-white p-5 sm:p-6 text-brand-deep shadow-2xl sm:rotate-1 transform transition-transform hover:rotate-0">
                     <div className="flex items-center justify-between pb-3.5 border-b border-brand-purple/10">
-                      <span className="text-xs font-bold text-brand-deep">Event overview</span>
+                      <span className="text-xs font-bold text-brand-deep">Sales performance</span>
                       <span className="text-[10px] rounded-full border border-brand-purple/20 bg-brand-warm px-2 py-0.5 text-muted">
-                        Sample data
+                        Sample data · 30 days
                       </span>
                     </div>
 
                     <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
                       <div className="rounded-xl border border-brand-purple/10 bg-brand-lilac/30 p-2.5 sm:p-3">
+                        <span className="text-[9px] text-muted block mb-1">Confirmed bookings</span>
+                        <strong className="text-base sm:text-lg font-bold text-brand-deep block leading-none">842</strong>
+                        <small className="text-[8px] text-muted block mt-1">Illustrative total</small>
+                      </div>
+                      <div className="rounded-xl border border-brand-purple/10 bg-brand-lilac/30 p-2.5 sm:p-3">
                         <span className="text-[9px] text-muted block mb-1">Tickets sold</span>
                         <strong className="text-base sm:text-lg font-bold text-brand-deep block leading-none">1,248</strong>
-                        <small className="text-[8px] text-muted block mt-1">Illustrative total</small>
+                        <small className="text-[8px] text-muted block mt-1">Across all tiers</small>
                       </div>
                       <div className="rounded-xl border border-brand-purple/10 bg-brand-lilac/30 p-2.5 sm:p-3">
-                        <span className="text-[9px] text-muted block mb-1">Revenue</span>
+                        <span className="text-[9px] text-muted block mb-1">Total revenue</span>
                         <strong className="text-base sm:text-lg font-bold text-brand-deep block leading-none">S$87.4k</strong>
-                        <small className="text-[8px] text-muted block mt-1">Illustrative total</small>
-                      </div>
-                      <div className="rounded-xl border border-brand-purple/10 bg-brand-lilac/30 p-2.5 sm:p-3">
-                        <span className="text-[9px] text-muted block mb-1">Inventory left</span>
-                        <strong className="text-base sm:text-lg font-bold text-brand-deep block leading-none">352</strong>
-                        <small className="text-[8px] text-muted block mt-1">Illustrative total</small>
+                        <small className="text-[8px] text-muted block mt-1">Singapore dollars</small>
                       </div>
                     </div>
 
                     <div className="mt-4">
                       <div className="flex items-center justify-between text-[10px] mb-2">
-                        <span className="font-bold text-brand-deep">Ticket sales velocity</span>
-                        <span className="text-muted text-[9px]">Example trend</span>
+                        <span className="font-bold text-brand-deep">Revenue velocity</span>
+                        <span className="text-muted text-[9px]">Last 30 days trend</span>
                       </div>
-                      <div className="h-24 flex items-end gap-2 border-b border-brand-purple/10 pb-1 px-1 bg-[repeating-linear-gradient(to_top,transparent_0_20px,#f5f0fb_20px_21px)]">
+                      <div className="h-20 flex items-end gap-2 border-b border-brand-purple/10 pb-1 px-1 bg-[repeating-linear-gradient(to_top,transparent_0_20px,#f5f0fb_20px_21px)]">
                         <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "24%" }} />
                         <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "38%" }} />
                         <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "33%" }} />
@@ -681,41 +684,61 @@ export default function Home() {
                       </div>
                       <div className="flex justify-between text-[8px] text-muted mt-1.5 px-1">
                         <span>Day 1</span>
-                        <span>Day 7</span>
+                        <span>Day 30</span>
                       </div>
                     </div>
 
-                    <div className="mt-3 divide-y divide-brand-purple/10 text-[10px]">
-                      <div className="flex items-center justify-between py-1.5 font-medium">
-                        <span className="text-brand-deep">Attendance metrics</span>
-                        <span className="text-brand-purple font-semibold">Review breakdown →</span>
+                    {/* Ticket tier demand breakdown (matching actual EaseAnalytics) */}
+                    <div className="mt-3.5 space-y-2 text-[10px]">
+                      <div className="flex items-center justify-between font-bold text-brand-deep text-[11px] mb-1">
+                        <span>Ticket tier demand</span>
+                        <span className="text-[9px] font-normal text-muted">Share of tickets</span>
                       </div>
-                      <div className="flex items-center justify-between py-1.5 font-medium">
-                        <span className="text-brand-deep">Companion assistance requests</span>
-                        <span className="text-brand-purple font-semibold">Review breakdown →</span>
+                      <div>
+                        <div className="flex justify-between text-[9px] text-muted mb-0.5">
+                          <span className="font-medium text-brand-deep">Cat 1</span>
+                          <span>540 sold · 43.3%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-mist overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-orange" style={{ width: "43.3%" }} />
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between py-1.5 font-medium">
-                        <span className="text-brand-deep">Ticket exchange activity</span>
-                        <span className="text-brand-purple font-semibold">Review breakdown →</span>
+                      <div>
+                        <div className="flex justify-between text-[9px] text-muted mb-0.5">
+                          <span className="font-medium text-brand-deep">VIP</span>
+                          <span>380 sold · 30.4%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-mist overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-orange" style={{ width: "30.4%" }} />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[9px] text-muted mb-0.5">
+                          <span className="font-medium text-brand-deep">Special assistance</span>
+                          <span>128 sold · 10.3%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-mist overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-orange" style={{ width: "10.3%" }} />
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-brand-purple/10 flex items-center justify-between text-[9px] text-muted">
-                      <span>Financial & operational reports</span>
+                    <div className="mt-3.5 pt-3 border-t border-brand-purple/10 flex items-center justify-between text-[9px] text-muted">
+                      <span>Export audit reports</span>
                       <div className="flex gap-1.5">
-                        <span className="rounded bg-brand-lilac px-1.5 py-0.5 font-bold text-brand-purple">CSV ↓</span>
-                        <span className="rounded bg-brand-lilac px-1.5 py-0.5 font-bold text-brand-purple">PDF ↓</span>
+                        <span className="rounded bg-brand-lilac px-2 py-0.5 font-bold text-brand-purple">PDF ↓</span>
+                        <span className="rounded bg-brand-lilac px-2 py-0.5 font-bold text-brand-purple">Excel (.xlsx) ↓</span>
                       </div>
                     </div>
                   </div>
                   <p className="mt-2 text-[9px] text-white/50 text-right">
-                    Dashboard illustration only. Figures do not represent live platform activity.
+                    Dashboard illustration only. Reflects actual EaseAnalytics reporting capabilities.
                   </p>
                 </div>
               </div>
             </div>
             <p className="mt-4 text-center text-xs text-muted">
-              One core product. Sales intelligence, operational visibility, and reporting—all within <span className="font-feature italic font-black text-brand-deep">EaseAnalytics</span>.
+              One core reporting suite. Sales velocity, seating tier demand, and exportable audit reports—all within <span className="font-feature italic font-black text-brand-deep">EaseAnalytics</span>.
             </p>
           </div>
         )}
