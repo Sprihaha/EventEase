@@ -387,8 +387,8 @@ function EventApprovals() {
   };
   const sorted = [...events].sort((a) => (a.status === "pending" ? -1 : 1));
   const groups = [
-    { title: "EventEase events", list: sorted.filter((e) => e.organisationName) },
-    { title: "Other organisers", list: sorted.filter((e) => !e.organisationName) },
+    { title: "EventEase events", list: sorted.filter((e) => e.organisationName === "EventEase") },
+    { title: "Other organisers", list: sorted.filter((e) => e.organisationName !== "EventEase") },
   ];
   return (
     <div className="space-y-6">

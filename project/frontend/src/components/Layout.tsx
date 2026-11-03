@@ -51,6 +51,11 @@ export default function Layout() {
   const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
   const [expiredReturnTo, setExpiredReturnTo] = useState<string | null>(null);
 
+  // Scroll to top on page navigation
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [location.pathname]);
+
   // If the user refreshed the page while expired, redirect to /login immediately preserving destination
   useEffect(() => {
     if (hasExpiredRedirect()) {
@@ -354,6 +359,7 @@ export default function Layout() {
         </div>
       </header>
 
+      <ScrollRestoration />
       <main className="flex-1">
         <Outlet />
       </main>

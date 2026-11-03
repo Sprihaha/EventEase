@@ -41,7 +41,7 @@ def managed_by(organiser: User) -> ColumnElement[bool]:
     """Events this organiser manages: their own, plus every event of the self-managed organisation
     (EventEase) they chose for this session, including events imported by the system."""
     organisation = getattr(organiser, "selected_organisation", None)
-    if organisation is not None and organisation.self_managed:
+    if organisation is not None:
         return or_(Event.organiser_id == organiser.id, Event.organisation_id == organisation.id)
     return Event.organiser_id == organiser.id
 
@@ -54,7 +54,7 @@ def can_manage(db: Session, user: User, event: Event) -> bool:
         return False
     return db.scalar(select(Organisation.id).join(
         OrganisationMembership, OrganisationMembership.organisation_id == Organisation.id).where(
-        Organisation.id == event.organisation_id, Organisation.manager_id.is_not(None),
+        Organisation.id == event.organisation_id,
         OrganisationMembership.user_id == user.id, OrganisationMembership.status == MembershipStatus.APPROVED,
     ).limit(1)) is not None
 
@@ -93,7 +93,7 @@ def create_event(db: Session, organiser: User, data: EventCreate, ip: str | None
         image_url=data.image_url, capacity=capacity, status=EventStatus.REVIEW_IN_PROGRESS,
     )
     organisation = getattr(organiser, "selected_organisation", None)
-    if organisation is not None and organisation.self_managed:
+    if organisation is not None:
         event.organisation_id = organisation.id  # shared with the organisation's members
     db.add(event)
     db.flush()

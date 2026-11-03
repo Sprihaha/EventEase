@@ -86,7 +86,22 @@ export default function Login() {
     initialSignUpRole ? "signup" : navState?.mode === "forgot" ? "forgot" : "signin",
   );
   // The login tab; the backend only accepts accounts with this role.
-  const [portal, setPortal] = useState<LoginPortal>("CUSTOMER");
+  const queryPortal = useMemo<LoginPortal | undefined>(() => {
+    const p = new URLSearchParams(location.search).get("portal")?.toUpperCase();
+    if (p === "ORGANISER" || p === "ORGANIZER") return "ORGANISER";
+    if (p === "ADMIN") return "ADMIN";
+    if (p === "CUSTOMER") return "CUSTOMER";
+    return undefined;
+  }, [location.search]);
+
+  // The login tab; the backend only accepts accounts with this role.
+  const [portal, setPortal] = useState<LoginPortal>(queryPortal ?? "CUSTOMER");
+
+  useEffect(() => {
+    if (queryPortal) {
+      setPortal(queryPortal);
+    }
+  }, [queryPortal]);
   const [approvalRequired, setApprovalRequired] = useState(false);
   // Organiser sign-up & sign-in: organisations fetched dynamically from Supabase db
   const [organisations, setOrganisations] = useState<Organisation[]>([]);

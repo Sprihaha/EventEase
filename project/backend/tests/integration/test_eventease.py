@@ -15,6 +15,7 @@ from app.db.models import (
     EventCategory,
     EventOrigin,
     EventStatus,
+    MembershipSource,
     MembershipStatus,
     Organisation,
     OrganisationMembership,
@@ -252,6 +253,28 @@ def test_normal_organisers_still_only_see_their_own_events(client, db):
     owner, other = make_user(db, Role.ORGANISER), make_user(db, Role.ORGANISER)
     event = make_event(db, organiser=owner)
     assert client.get(f"/api/v1/organiser/events/{event.id}", headers=auth_header(client, other.username)).status_code == 404
+
+
+def test_organisers_in_same_organisation_can_see_each_others_events(client, db):
+    org = Organisation(name="Shared Org", listed=True)
+    db.add(org)
+    db.flush()
+    user1, user2 = make_user(db, Role.ORGANISER), make_user(db, Role.ORGANISER)
+    db.add(OrganisationMembership(user_id=user1.id, organisation_id=org.id, organisation_email="u1@shared.example", status=MembershipStatus.APPROVED, source=MembershipSource.ADMIN))
+    db.add(OrganisationMembership(user_id=user2.id, organisation_id=org.id, organisation_email="u2@shared.example", status=MembershipStatus.APPROVED, source=MembershipSource.ADMIN))
+    db.commit()
+
+    venue = make_venue(db, user1, ("Hall", "A", 1, 10), name="Shared Venue")
+    start = utcnow() + timedelta(days=60)
+    created = client.post("/api/v1/organiser/events", headers=organisation_headers(client, user1.username, org), json={
+        "title": "Shared Show", "category": "CONCERT", "venueId": str(venue.id), "startAt": start.isoformat(),
+        "endAt": (start + timedelta(hours=2)).isoformat()})
+    assert created.status_code == 201, created.text
+    event_id = created.json()["id"]
+
+    res = client.get(f"/api/v1/organiser/events/{event_id}", headers=organisation_headers(client, user2.username, org))
+    assert res.status_code == 200, res.text
+    assert res.json()["title"] == "Shared Show"
 
 
 # ----------------------------------------------------------------- Eventfinda mapping

@@ -102,7 +102,7 @@ export function CommunityHeaderNav({
 
   return (
     <nav
-      id="main-tabs-nav"
+      id="main-tabs-navbar"
       aria-label="Community Sections"
       className="sticky top-16 z-30 mb-3.5 sm:mb-4 rounded-2xl border border-brand-line bg-white/95 p-1.5 sm:p-2 shadow-sm backdrop-blur-md"
     >

@@ -79,7 +79,7 @@ export default function Community() {
 
   const mainSection = tab === "exchange" ? "exchange" : "comms";
 
-  const scrollToTabsIfAbove = useCallback(() => {
+  const scrollToTabsIfNeeded = useCallback(() => {
     const element = document.getElementById("main-tabs-nav");
     if (!element) return;
     const navBar = document.querySelector("header");
@@ -87,7 +87,9 @@ export default function Community() {
     const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
     const targetY = Math.max(0, Math.round(elementTop - navBarHeight - 12));
 
-    if (Math.round(window.pageYOffset) < targetY - 4) {
+    // Only scroll down if the user is currently ABOVE the tabs section.
+    // If already at or past the tabs, do nothing.
+    if (window.pageYOffset < targetY - 40) {
       window.scrollTo({ top: targetY, behavior: "smooth" });
     }
   }, []);
@@ -117,19 +119,30 @@ export default function Community() {
       next.set("tab", id);
       next.delete("view");
       return next;
-    });
+    }, { replace: true, preventScrollReset: true });
     const found = allTabs.find((t) => t.id === id);
     if (found) {
       showToast(`${found.label} selected`);
     }
-    scrollToTabsIfAbove();
-  }, [setSearchParams, showToast, scrollToTabsIfAbove]);
+    scrollToTabsIfNeeded();
+  }, [setSearchParams, showToast, scrollToTabsIfNeeded]);
 
+  // Run strictly on initial page mount (never during in-page tab switches)
   useEffect(() => {
-    if (requestedTab === "exchange") {
-      scrollToTabsIfAbove();
+    const hasTabTarget = new URLSearchParams(window.location.search).get("tab") || window.location.hash === "#main-tabs-nav";
+    if (hasTabTarget) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById("main-tabs-nav");
+        if (!element) return;
+        const navBar = document.querySelector("header");
+        const navBarHeight = navBar ? navBar.getBoundingClientRect().height : 64;
+        const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
+        const targetY = Math.max(0, Math.round(elementTop - navBarHeight - 12));
+        window.scrollTo({ top: targetY, behavior: "smooth" });
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [requestedTab, scrollToTabsIfAbove]);
+  }, []);
 
   // Reset internal scroll position when switching between main tabs or channels
   useEffect(() => {
@@ -309,13 +322,14 @@ export default function Community() {
       />
 
       {/* 2. Primary 3-tab navigation: EaseConnect vs EasePix & EaseXplore vs EaseXchange */}
-      <CommunityHeaderNav
-        activeTab={tab as "feed" | "views" | "exchange"}
-        onSelectTab={(newTab) => {
-          setTab(newTab);
-          scrollToTabsIfAbove();
-        }}
-      />
+      <div id="main-tabs-nav" className="scroll-mt-20">
+        <CommunityHeaderNav
+          activeTab={tab as "feed" | "views" | "exchange"}
+          onSelectTab={(newTab) => {
+            setTab(newTab);
+          }}
+        />
+      </div>
 
       {/* 3. Main Content: EaseConnect / EasePix & EaseXplore vs EaseXchange */}
       <div

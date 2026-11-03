@@ -17,14 +17,11 @@ export function CommunityExchangeView({ user }: CommunityExchangeViewProps) {
       {/* Section Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-1">
         <div>
-          <h2 className="font-brand text-2xl font-bold tracking-tight text-brand-deep flex items-center gap-2">
-            <span className="font-feature italic font-black text-brand-purple">
-              EaseXchange
-            </span>
-            <span>Platform</span>
+          <h2 className="font-feature italic font-black text-2xl tracking-tight text-brand-purple leading-none">
+            EaseXchange
           </h2>
           <p className="text-xs text-muted mt-1.5">
-            Browse active face-value listings, create exchange requests, and swap tickets securely.
+            Pre-QR ticket exchange &amp; verified swaps at original face value
           </p>
         </div>
       </div>
