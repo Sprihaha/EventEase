@@ -37,6 +37,7 @@ export function useCommunityFeed({
   const [draft, setDraft] = useState("")
   const [selectedEventId, setSelectedEventId] = useState<string>("")
   const [photoUrl, setPhotoUrl] = useState("")
+  const [isQuestion, setIsQuestion] = useState(false)
   const [showPhotoInput, setShowPhotoInput] = useState(false)
   const [filter, setFilter] = useState<FilterType>("all")
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({})
@@ -75,6 +76,7 @@ export function useCommunityFeed({
         section: sec,
         seatLabel: seat,
         photo: p.photoUrl || p.easepix?.photoUrl,
+        isQuestion: p.isQuestion ?? (p.content.includes("?") || p.content.toLowerCase().includes("ask")),
         when: formatRelativeWhen(p.createdAt),
         likes: p.likesCount,
         isBackend: true,
@@ -91,6 +93,7 @@ export function useCommunityFeed({
 
     const sPosts: DisplayPost[] = posts.map((p) => ({
       ...p,
+      isQuestion: p.isQuestion ?? (p.body.includes("?") || p.body.toLowerCase().includes("ask")),
       isBackend: false,
       isVerified: true,
       replies: [],
@@ -104,7 +107,7 @@ export function useCommunityFeed({
     return displayPosts.filter((p) => {
       if (filter === "views") return Boolean(p.photo)
       if (filter === "questions")
-        return p.body.includes("?") || p.body.toLowerCase().includes("ask")
+        return Boolean(p.isQuestion) || p.body.includes("?") || p.body.toLowerCase().includes("ask")
       if (filter === "following")
         return p.author === "Nadia" || p.author === "Jules"
       return true
@@ -202,11 +205,15 @@ export function useCommunityFeed({
         }
       }
 
+      const userMarkedQuestion = user?.role !== "organizer" && isQuestion
+      const isQuestionPost = userMarkedQuestion || draft.includes("?") || draft.toLowerCase().includes("ask")
+
       await backendCreatePost({
         content: draft.trim(),
         eventId: targetEventId,
         authorName: user.name,
         photoUrl: photoToSubmit,
+        isQuestion: isQuestionPost,
         easepix: easepixPayload,
       })
 
@@ -217,18 +224,18 @@ export function useCommunityFeed({
         section: sectionToSubmit,
         seatLabel: rowToSubmit,
         photo: photoToSubmit,
+        isQuestion: isQuestionPost,
       })
 
       if (photoToSubmit && onPostCreatedWithPhoto) {
         onPostCreatedWithPhoto(targetEventId, sectionToSubmit)
       }
 
-      const isQuestion = draft.includes("?") || draft.toLowerCase().includes("ask")
       const isEligibleCustomer = Boolean(user?.id && user?.role !== "organizer")
       if (isEligibleCustomer && user?.id) {
         if (photoToSubmit) {
           awardEasePoints(user.id, EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO, "Approved EasePix photo")
-        } else if (isQuestion) {
+        } else if (isQuestionPost) {
           awardEasePoints(user.id, EASEPOINTS_RULES.POINTS_PER_QUALIFYING_QUESTION, "Qualifying event question")
         }
       }
@@ -236,6 +243,7 @@ export function useCommunityFeed({
       await reloadCommunityData()
       setDraft("")
       setPhotoUrl("")
+      setIsQuestion(false)
       setAttachedEasePix(null)
       setShowPhotoInput(false)
       if (photoToSubmit) {
@@ -244,7 +252,7 @@ export function useCommunityFeed({
             ? `Your EasePix seat view was shared! You earned +${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`
             : "Your post with photo has been shared to EaseConnect! ✨",
         )
-      } else if (isQuestion) {
+      } else if (isQuestionPost) {
         onShowToast(
           isEligibleCustomer
             ? `Event question posted! You earned +${EASEPOINTS_RULES.POINTS_PER_QUALIFYING_QUESTION} EasePoints ✨`
@@ -266,6 +274,8 @@ export function useCommunityFeed({
     setSelectedEventId,
     photoUrl,
     setPhotoUrl,
+    isQuestion,
+    setIsQuestion,
     showPhotoInput,
     setShowPhotoInput,
     filter,

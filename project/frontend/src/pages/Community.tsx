@@ -502,6 +502,8 @@ export default function Community() {
                 onSelectedEventIdChange={feed.setSelectedEventId}
                 photoUrl={feed.photoUrl}
                 onPhotoUrlChange={feed.setPhotoUrl}
+                isQuestion={feed.isQuestion}
+                onIsQuestionChange={feed.setIsQuestion}
                 showPhotoInput={feed.showPhotoInput}
                 onTogglePhotoInput={feed.setShowPhotoInput}
                 attachedEasePix={feed.attachedEasePix}
@@ -540,7 +542,11 @@ export default function Community() {
             </main>
 
             {/* Right Rail: Visible on EaseConnect feed */}
-            <FeedRightRail events={publicEvents?.length ? publicEvents : events} onShowToast={showToast} />
+            <FeedRightRail
+              events={publicEvents?.length ? publicEvents : events}
+              onShowToast={showToast}
+              isOrganizer={isOrganizer}
+            />
           </div>
         )}
 

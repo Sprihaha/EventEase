@@ -7,9 +7,10 @@ import type { EventItem } from "../types"
 interface FeedRightRailProps {
   events: EventItem[]
   onShowToast: (msg: string) => void
+  isOrganizer?: boolean
 }
 
-export function FeedRightRail({ events, onShowToast }: FeedRightRailProps) {
+export function FeedRightRail({ events, onShowToast, isOrganizer = false }: FeedRightRailProps) {
   // Only show events where tickets are actively on sale (published, upcoming, sales open, not sold out)
   const onSaleEvents = useMemo(() => {
     const now = Date.now()
@@ -101,60 +102,62 @@ export function FeedRightRail({ events, onShowToast }: FeedRightRailProps) {
         </div>
       </section>
 
-      {/* Your kind of crowd / Fan meetups */}
-      <section className="rounded-3xl border border-brand-line bg-white p-4.5 shadow-sm">
-        <div className="flex items-center justify-between pb-2">
-          <h3 className="font-brand text-sm font-bold text-brand-deep">
-            Your kind of crowd
-          </h3>
-          <button
-            type="button"
-            onClick={() => onShowToast("Discovering new fan meetups…")}
-            className="cursor-pointer text-xs font-extrabold text-brand-purple hover:underline"
-          >
-            Discover
-          </button>
-        </div>
-
-        <div className="my-2 flex items-center">
-          <div className="flex -space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-brand-purple to-brand-magenta text-[10px] font-bold text-white">
-              A
-            </div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-brand-orange to-brand-amber text-[10px] font-bold text-white">
-              M
-            </div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-brand-deep to-brand-purple text-[10px] font-bold text-white">
-              K
-            </div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-brand-magenta to-brand-orange text-[10px] font-bold text-white">
-              R
-            </div>
+      {/* Your kind of crowd / Fan meetups (hidden for organizers) */}
+      {!isOrganizer && (
+        <section className="rounded-3xl border border-brand-line bg-white p-4.5 shadow-sm">
+          <div className="flex items-center justify-between pb-2">
+            <h3 className="font-brand text-sm font-bold text-brand-deep">
+              Your kind of crowd
+            </h3>
+            <button
+              type="button"
+              onClick={() => onShowToast("Discovering new fan meetups…")}
+              className="cursor-pointer text-xs font-extrabold text-brand-purple hover:underline"
+            >
+              Discover
+            </button>
           </div>
-          <span className="ml-3 text-xs font-bold text-muted">+128 fans</span>
-        </div>
 
-        <div className="mt-3.5 rounded-2xl bg-gradient-to-br from-brand-lilac/70 via-brand-warm to-brand-lilac/40 p-4 border border-brand-purple/15">
-          <small className="text-[10px] font-black uppercase tracking-wider text-brand-purple">
-            ✦ COMMUNITY PICK
-          </small>
-          <h4 className="mt-1 font-brand text-sm font-bold text-brand-deep">
-            Going solo? Go together.
-          </h4>
-          <p className="mt-1 text-[11px] leading-relaxed text-muted">
-            Find fans attending the same event and make a plan before showtime.
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              onShowToast("Fan meetups feature activated for your area!")
-            }
-            className="cursor-pointer mt-3 w-full rounded-xl bg-brand-purple py-2 text-center text-xs font-bold text-white shadow-md shadow-brand-purple/20 transition hover:bg-brand-deep"
-          >
-            Find your people
-          </button>
-        </div>
-      </section>
+          <div className="my-2 flex items-center">
+            <div className="flex -space-x-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-brand-purple to-brand-magenta text-[10px] font-bold text-white">
+                A
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-brand-orange to-brand-amber text-[10px] font-bold text-white">
+                M
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-brand-deep to-brand-purple text-[10px] font-bold text-white">
+                K
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-brand-magenta to-brand-orange text-[10px] font-bold text-white">
+                R
+              </div>
+            </div>
+            <span className="ml-3 text-xs font-bold text-muted">+128 fans</span>
+          </div>
+
+          <div className="mt-3.5 rounded-2xl bg-gradient-to-br from-brand-lilac/70 via-brand-warm to-brand-lilac/40 p-4 border border-brand-purple/15">
+            <small className="text-[10px] font-black uppercase tracking-wider text-brand-purple">
+              ✦ COMMUNITY PICK
+            </small>
+            <h4 className="mt-1 font-brand text-sm font-bold text-brand-deep">
+              Going solo? Go together.
+            </h4>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted">
+              Find fans attending the same event and make a plan before showtime.
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                onShowToast("Fan meetups feature activated for your area!")
+              }
+              className="cursor-pointer mt-3 w-full rounded-xl bg-brand-purple py-2 text-center text-xs font-bold text-white shadow-md shadow-brand-purple/20 transition hover:bg-brand-deep"
+            >
+              Find your people
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Quick reminder card */}
       <section className="rounded-3xl border border-brand-line bg-white p-4.5 shadow-sm">

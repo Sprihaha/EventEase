@@ -45,6 +45,7 @@ class EaseConnectPost(UUIDPk, Timestamps, Base):
 
     content: Mapped[str] = mapped_column(Text, nullable=False)
     photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_question: Mapped[bool] = mapped_column(Boolean, default=False)
     easepix_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("easepix.id", ondelete="SET NULL"), nullable=True)
     parent_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("easeconnect_posts.id", ondelete="CASCADE"), nullable=True)
     likes_count: Mapped[int] = mapped_column(Integer, default=0)

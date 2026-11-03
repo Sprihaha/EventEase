@@ -23,6 +23,8 @@ interface EaseConnectFeedProps {
   onSelectedEventIdChange: (id: string) => void
   photoUrl: string
   onPhotoUrlChange: (url: string) => void
+  isQuestion?: boolean
+  onIsQuestionChange?: (isQ: boolean) => void
   showPhotoInput: boolean
   onTogglePhotoInput: (show: boolean) => void
   attachedEasePix: AttachedEasePix | null
@@ -61,6 +63,8 @@ export function EaseConnectFeed({
   onSelectedEventIdChange,
   photoUrl,
   onPhotoUrlChange,
+  isQuestion,
+  onIsQuestionChange,
   showPhotoInput,
   onTogglePhotoInput,
   attachedEasePix,
@@ -93,6 +97,8 @@ export function EaseConnectFeed({
         onSelectedEventIdChange={onSelectedEventIdChange}
         photoUrl={photoUrl}
         onPhotoUrlChange={onPhotoUrlChange}
+        isQuestion={isQuestion}
+        onIsQuestionChange={onIsQuestionChange}
         showPhotoInput={showPhotoInput}
         onTogglePhotoInput={onTogglePhotoInput}
         attachedEasePix={attachedEasePix}

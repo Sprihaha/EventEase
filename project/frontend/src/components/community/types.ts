@@ -84,6 +84,7 @@ export interface DisplayPost {
   section?: string
   seatLabel?: string
   photo?: string
+  isQuestion?: boolean
   when: string
   likes: number
   isBackend: boolean

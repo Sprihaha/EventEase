@@ -166,6 +166,7 @@ export type BackendCommunityPost = {
   eventId?: string | null;
   content: string;
   photoUrl?: string | null;
+  isQuestion?: boolean;
   easepixId?: string | null;
   easepix?: BackendEasePix | null;
   parentId?: string | null;
@@ -179,6 +180,7 @@ export type BackendCommunityPostCreate = {
   eventId?: string | null;
   authorName?: string | null;
   photoUrl?: string | null;
+  isQuestion?: boolean;
   parentId?: string | null;
   easepixId?: string | null;
   easepix?: BackendEasePixCreate | null;

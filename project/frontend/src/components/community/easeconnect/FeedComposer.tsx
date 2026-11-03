@@ -14,6 +14,8 @@ interface FeedComposerProps {
   onSelectedEventIdChange: (id: string) => void
   photoUrl: string
   onPhotoUrlChange: (url: string) => void
+  isQuestion?: boolean
+  onIsQuestionChange?: (isQ: boolean) => void
   showPhotoInput: boolean
   onTogglePhotoInput: (show: boolean) => void
   attachedEasePix: AttachedEasePix | null
@@ -33,6 +35,8 @@ export function FeedComposer({
   onSelectedEventIdChange,
   photoUrl,
   onPhotoUrlChange,
+  isQuestion = false,
+  onIsQuestionChange,
   showPhotoInput,
   onTogglePhotoInput,
   attachedEasePix,
@@ -200,13 +204,26 @@ export function FeedComposer({
       <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-brand-line/60">
         <div className="flex flex-wrap items-center gap-2">
           {user.role !== "organizer" ? (
-            <button
-              type="button"
-              onClick={onOpenUploadModal}
-              className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-brand-purple/40 bg-white px-3 py-1.5 text-xs font-bold text-brand-purple transition hover:bg-brand-purple hover:text-white"
-            >
-              <Camera className="h-3.5 w-3.5" /> Upload EasePix
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={onOpenUploadModal}
+                className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-brand-purple/40 bg-white px-3 py-1.5 text-xs font-bold text-brand-purple transition hover:bg-brand-purple hover:text-white"
+              >
+                <Camera className="h-3.5 w-3.5" /> Upload EasePix
+              </button>
+              {onIsQuestionChange && (
+                <label className="inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full border border-brand-line bg-brand-warm/50 px-3 py-1.5 text-xs font-semibold text-brand-deep hover:bg-brand-warm transition">
+                  <input
+                    type="checkbox"
+                    checked={isQuestion}
+                    onChange={(e) => onIsQuestionChange(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-brand-purple text-brand-purple focus:ring-brand-purple"
+                  />
+                  <span>Is it a question?</span>
+                </label>
+              )}
+            </>
           ) : (
             <>
               <input

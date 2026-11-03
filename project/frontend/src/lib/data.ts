@@ -88,6 +88,7 @@ export type CommunityPost = {
   section?: string;
   seatLabel?: string;
   photo?: string;
+  isQuestion?: boolean;
   when: string;
   likes: number;
 };
