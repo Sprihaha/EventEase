@@ -53,9 +53,10 @@ export default function Layout() {
   const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
   const [expiredReturnTo, setExpiredReturnTo] = useState<string | null>(null);
 
-  // Scroll to top on page navigation
+  // Scroll to top on page navigation and keep title strictly EventEase
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.title = "EventEase";
   }, [location.pathname]);
 
   // If the user refreshed the page while expired, redirect to /login immediately preserving destination
