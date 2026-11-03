@@ -32,6 +32,7 @@ from app.db.models.enums import (
     UserStatus,
 )
 from app.db.models.event import Event, EventSource, TicketCategory
+from app.db.models.help import HelpPage
 from app.db.models.monitoring import AuditLog, FraudSignal
 from app.db.models.organisation import Organisation, OrganisationMembership
 from app.db.models.organiser import OrganiserApplication
@@ -66,6 +67,7 @@ __all__ = [
     "EventSource",
     "EventStatus",
     "FraudSeverity",
+    "HelpPage",
     "FraudSignal",
     "FraudSignalType",
     "FraudStatus",

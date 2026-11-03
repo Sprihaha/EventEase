@@ -4,6 +4,7 @@ import {
   Ticket,
   Search,
   Users,
+  HelpCircle,
   LayoutDashboard,
   Accessibility,
   Type,
@@ -36,6 +37,7 @@ import { WebSearchableControl } from "./common";
 const navLinks = [
   { to: "/events", label: "Discover", icon: Search },
   { to: "/community", label: "EaseComms", icon: Users },
+  { to: "/help", label: "EaseHelp", icon: HelpCircle },
 ];
 
 export default function Layout() {
@@ -254,6 +256,21 @@ export default function Layout() {
                     >
                       <Users className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                       <span className="font-feature italic font-black">EaseComms</span>
+                    </button>
+                    <button
+                      role="menuitem"
+                      aria-pressed={location.pathname === "/help"}
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        navigate("/help");
+                      }}
+                      className={cx(
+                        "dropdown-menu-item group flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold transition md:hidden focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30",
+                        location.pathname === "/help" && "is-selected",
+                      )}
+                    >
+                      <HelpCircle className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
+                      <span className="font-feature italic font-black">EaseHelp</span>
                     </button>
                     <div
                       aria-pressed={location.pathname === "/settings/accessibility"}
