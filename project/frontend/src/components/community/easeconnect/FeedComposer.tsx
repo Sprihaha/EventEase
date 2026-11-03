@@ -1,6 +1,8 @@
+import { useRef } from "react"
 import { useNavigate } from "react-router"
-import { Flame, ImageIcon, X, Camera, Send } from "lucide-react"
+import { Flame, ImageIcon, X, Camera, Send, ImagePlus } from "lucide-react"
 import { Button, Textarea } from "../../ui"
+import { processAndCompressImage } from "../../../utils/imageOptimization"
 import type { AttachedEasePix, EventItem, User } from "../types"
 
 interface FeedComposerProps {
@@ -41,6 +43,20 @@ export function FeedComposer({
   textareaRef,
 }: FeedComposerProps) {
   const navigate = useNavigate()
+  const imageInputRef = useRef<HTMLInputElement | null>(null)
+
+  const handleOrganizerImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const res = await processAndCompressImage(file, 1600, 0.85)
+      onPhotoUrlChange(res.dataUrl)
+    } catch (err) {
+      console.error("Failed to process image:", err)
+    } finally {
+      if (imageInputRef.current) imageInputRef.current.value = ""
+    }
+  }
 
   if (!user) {
     return (
@@ -116,6 +132,37 @@ export function FeedComposer({
         </div>
       )}
 
+      {/* Attached Photo Preview (EaseConnect Post Image - for Organizers or standard post photos) */}
+      {!attachedEasePix && photoUrl && (
+        <div className="mt-2.5 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/20 bg-brand-warm/50 p-2.5">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-brand-line bg-black/10">
+              <img
+                src={photoUrl}
+                alt="Post attachment"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-brand-deep">
+                <span className="text-brand-purple">🖼️ Post Photo Attached</span>
+              </div>
+              <small className="block truncate text-[11px] text-muted">
+                Attached to your EaseConnect post
+              </small>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onPhotoUrlChange("")}
+            className="cursor-pointer rounded-full p-1.5 text-muted hover:bg-white hover:text-red-500 transition"
+            aria-label="Remove attached photo"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Attached EasePix Preview in Composer */}
       {attachedEasePix && (
         <div className="mt-2.5 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/30 bg-brand-lilac/40 p-2.5">
@@ -152,7 +199,7 @@ export function FeedComposer({
 
       <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-brand-line/60">
         <div className="flex flex-wrap items-center gap-2">
-          {user.role !== "organizer" && (
+          {user.role !== "organizer" ? (
             <button
               type="button"
               onClick={onOpenUploadModal}
@@ -160,6 +207,23 @@ export function FeedComposer({
             >
               <Camera className="h-3.5 w-3.5" /> Upload EasePix
             </button>
+          ) : (
+            <>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleOrganizerImageChange}
+              />
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-brand-purple/40 bg-white px-3 py-1.5 text-xs font-bold text-brand-purple transition hover:bg-brand-purple hover:text-white shadow-2xs"
+              >
+                <ImagePlus className="h-3.5 w-3.5" /> Upload Image
+              </button>
+            </>
           )}
         </div>
 

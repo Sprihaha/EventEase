@@ -241,7 +241,7 @@ export function useCommunityFeed({
         onShowToast(
           isEligibleCustomer
             ? `Your EasePix seat view was shared! You earned +${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`
-            : "Your EasePix seat view was shared successfully! ✨",
+            : "Your post with photo has been shared to EaseConnect! ✨",
         )
       } else if (isQuestion) {
         onShowToast(
