@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, HelpCircle, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Link } from "react-router";
+import { ArrowDown, ArrowUp, ExternalLink, HelpCircle, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { useStore } from "../lib/store";
 import { ApiError } from "../lib/backendApi";
 import { HELP_LIMITS, fetchHelpPage, keyFromName, saveHelpPage, type HelpFeature, type HelpPage } from "../lib/helpPage";
@@ -72,9 +73,15 @@ function messageOf(cause: unknown, fallback: string) {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export default function EaseHelp() {
+/**
+ * The EaseHelp page. Everyone reads it at /help; admins get an Edit page button there.
+ * In the admin dashboard it is shown with `editOnOpen`, so one click opens it ready to edit.
+ */
+export default function EaseHelp({ embedded = false, editOnOpen = false }: { embedded?: boolean; editOnOpen?: boolean }) {
   const { user } = useStore();
   const isAdmin = user?.role === "admin";
+  const alwaysEditing = editOnOpen && isAdmin;
+  const opened = useRef(false);
   const [page, setPage] = useState<HelpPage | null>(null);
   const [loadError, setLoadError] = useState("");
   const [draft, setDraft] = useState<HelpPage | null>(null); // set while an admin is editing
@@ -94,6 +101,13 @@ export default function EaseHelp() {
     document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "start" });
   }, [page]);
 
+  // Admin dashboard: open the editor as soon as the content arrives.
+  useEffect(() => {
+    if (!alwaysEditing || !page || opened.current) return;
+    opened.current = true;
+    setDraft({ features: page.features.map((f) => ({ ...f })), terms: page.terms });
+  }, [alwaysEditing, page]);
+
   const shown = draft ?? page;
   const groups = useMemo(() => {
     const out: { title: string; features: HelpFeature[] }[] = [];
@@ -107,8 +121,10 @@ export default function EaseHelp() {
   }, [page]);
 
   // ---------------------------------------------------------------- admin editing
-  const updateFeature = (index: number, change: Partial<HelpFeature>) =>
+  const updateFeature = (index: number, change: Partial<HelpFeature>) => {
+    setSavedNote(false);
     setDraft((d) => d && { ...d, features: d.features.map((f, i) => (i === index ? { ...f, ...change } : f)) });
+  };
   const moveFeature = (index: number, by: -1 | 1) =>
     setDraft((d) => {
       if (!d) return d;
@@ -146,10 +162,10 @@ export default function EaseHelp() {
   };
 
   const cancelEditing = () => {
-    if (window.confirm("Discard your changes to EaseHelp?")) {
-      setDraft(null);
-      setSaveError("");
-    }
+    if (!window.confirm("Discard your changes to EaseHelp?")) return;
+    setSaveError("");
+    // In the admin dashboard the editor stays open, back on the saved version.
+    setDraft(alwaysEditing && page ? { features: page.features.map((f) => ({ ...f })), terms: page.terms } : null);
   };
 
   const save = async () => {
@@ -170,7 +186,7 @@ export default function EaseHelp() {
       });
       const saved = await saveHelpPage({ features, terms: draft.terms.trim() });
       setPage(saved);
-      setDraft(null);
+      setDraft(alwaysEditing ? { features: saved.features.map((f) => ({ ...f })), terms: saved.terms } : null);
       setSavedNote(true);
     } catch (cause) {
       setSaveError(messageOf(cause, "EaseHelp was not saved. Please try again."));
@@ -182,17 +198,17 @@ export default function EaseHelp() {
   // ---------------------------------------------------------------- render
   if (loadError) {
     return (
-      <div className="mx-auto max-w-4xl px-5 py-14">
+      <div className={embedded ? "" : "mx-auto max-w-4xl px-5 py-14"}>
         <Card className="p-8 text-center" role="alert">
           <p className="font-semibold text-danger">{loadError}</p>
         </Card>
       </div>
     );
   }
-  if (!shown) return <p className="mx-auto max-w-4xl px-5 py-14 text-muted" role="status">Loading EaseHelp…</p>;
+  if (!shown) return <p className={cx("text-muted", !embedded && "mx-auto max-w-4xl px-5 py-14")} role="status">Loading EaseHelp…</p>;
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-14">
+    <div className={embedded ? "" : "mx-auto max-w-5xl px-5 py-14"}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Badge tone="accent"><HelpCircle className="h-3 w-3" /> Help and guides</Badge>
@@ -201,10 +217,19 @@ export default function EaseHelp() {
             What each EventEase feature does and how to use it, plus the terms that apply when you use EventEase.
           </p>
         </div>
-        {isAdmin && !draft && (
+        {isAdmin && !draft && !alwaysEditing && (
           <Button variant="outline" onClick={startEditing}>
             <Pencil className="h-4 w-4" /> Edit page
           </Button>
+        )}
+        {alwaysEditing && (
+          <Link
+            to="/help"
+            target="_blank"
+            className="inline-flex items-center gap-2 rounded-full border border-brand-purple/20 px-4 py-2 text-sm font-semibold text-brand-deep hover:bg-brand-lilac/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30"
+          >
+            <ExternalLink className="h-4 w-4" /> View page
+          </Link>
         )}
       </div>
       {savedNote && <p role="status" className="mt-4 text-sm font-semibold text-live">EaseHelp saved. Everyone sees the new version now.</p>}
@@ -213,7 +238,8 @@ export default function EaseHelp() {
         // ---------------------------------------------------------------- admin editor
         <div className="mt-10 space-y-5">
           <Card className="border-brand-purple/30 bg-brand-lilac/30 p-4 text-sm text-brand-deep">
-            You are editing EaseHelp for everyone. Package groups features under a heading (A–E, or any text).
+            You are editing EaseHelp for everyone. Changes appear on the page as soon as you save.
+            Package groups features under a heading (A–E, or any text).
           </Card>
           {draft.features.map((feature, index) => (
             <Card key={feature.key} className="p-5">
@@ -257,7 +283,10 @@ export default function EaseHelp() {
 
           <Card className="p-5">
             <Field label={`Terms and conditions (${draft.terms.length}/${HELP_LIMITS.terms})`}>
-              <Textarea rows={18} value={draft.terms} maxLength={HELP_LIMITS.terms} onChange={(e) => setDraft({ ...draft, terms: e.target.value })} />
+              <Textarea rows={18} value={draft.terms} maxLength={HELP_LIMITS.terms} onChange={(e) => {
+                setSavedNote(false);
+                setDraft({ ...draft, terms: e.target.value });
+              }} />
             </Field>
             <p className="mt-2 text-xs text-muted">Start a line with “## ” for a heading and “- ” for a bullet point.</p>
           </Card>
@@ -271,7 +300,7 @@ export default function EaseHelp() {
               <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save EaseHelp"}
             </Button>
             <Button variant="ghost" onClick={cancelEditing} disabled={saving}>
-              <X className="h-4 w-4" /> Cancel
+              <X className="h-4 w-4" /> {alwaysEditing ? "Discard changes" : "Cancel"}
             </Button>
           </div>
         </div>
