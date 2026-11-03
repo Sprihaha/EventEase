@@ -41,6 +41,7 @@ class EaseConnectPostCreate(CamelModel):
     content: str
     event_id: uuid.UUID | str | None = None
     author_name: str | None = None
+    photo_url: str | None = None
     parent_id: uuid.UUID | str | None = None
     easepix_id: uuid.UUID | str | None = None
     easepix: EasePixCreate | None = None
@@ -52,6 +53,7 @@ class EaseConnectPostOut(CamelModel):
     author_name: str
     event_id: uuid.UUID | None = None
     content: str
+    photo_url: str | None = None
     easepix_id: uuid.UUID | None = None
     easepix: EasePixOut | None = None
     parent_id: uuid.UUID | None = None

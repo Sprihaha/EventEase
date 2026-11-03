@@ -74,7 +74,7 @@ export function useCommunityFeed({
         body: p.content,
         section: sec,
         seatLabel: seat,
-        photo: p.easepix?.photoUrl,
+        photo: p.photoUrl || p.easepix?.photoUrl,
         when: formatRelativeWhen(p.createdAt),
         likes: p.likesCount,
         isBackend: true,
@@ -206,6 +206,7 @@ export function useCommunityFeed({
         content: draft.trim(),
         eventId: targetEventId,
         authorName: user.name,
+        photoUrl: photoToSubmit,
         easepix: easepixPayload,
       })
 

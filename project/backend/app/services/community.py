@@ -165,6 +165,7 @@ def create_post(db: Session, user: User | None, data: EaseConnectPostCreate) -> 
         author_name=author,
         event_id=target_event_id,
         content=data.content.strip(),
+        photo_url=data.photo_url.strip() if data.photo_url else None,
         easepix_id=target_easepix_id,
         parent_id=target_parent_id,
         likes_count=0,
