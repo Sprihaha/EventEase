@@ -76,3 +76,20 @@ class AccessibilitySettings(Timestamps, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     voice_speed: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     auto_narrate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class EaseVoiceConfig(Timestamps, Base):
+    """Platform-wide EaseVoice behaviour. One row (id 1); only administrators can change it."""
+    __tablename__ = "easevoice_config"
+    __table_args__ = (
+        CheckConstraint("id = 1", name="single_row"),
+        CheckConstraint("idle_seconds >= 30 AND idle_seconds <= 1800", name="idle_seconds_range"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    select_to_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    idle_prompt_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    idle_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=120)
+    idle_prompt_text: Mapped[str] = mapped_column(Text, nullable=False)
+    show_floating_player: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    updated_by_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id", ondelete="SET NULL"))

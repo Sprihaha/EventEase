@@ -2,8 +2,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
-from app.db.models import AccessibilitySettings, NarrationTranscript, User
-from app.schemas.accessibility import AccessibilitySettingsIn
+from app.db.models import AccessibilitySettings, EaseVoiceConfig, NarrationTranscript, User
+from app.schemas.accessibility import AccessibilitySettingsIn, EaseVoiceConfigIn
 from app.services import audit
 
 DEFAULT_VOICE_SPEED = 1.0
@@ -136,3 +136,44 @@ def update_settings(db: Session, user: User, data: AccessibilitySettingsIn) -> d
         row.auto_narrate = data.auto_narrate
     db.commit()
     return get_settings(db, user)
+
+
+# --------------------------------------------------------------------------- EaseVoice behaviour (admin)
+
+DEFAULT_EASEVOICE_CONFIG = {
+    "select_to_read": True,
+    "idle_prompt_enabled": True,
+    "idle_seconds": 120,
+    "idle_prompt_text": "Hi, I am EaseVoice. Do you need any help? Highlight or choose the words "
+                        "you want me to read for you.",
+    "show_floating_player": False,
+}
+CONFIG_FIELDS = list(DEFAULT_EASEVOICE_CONFIG)
+
+
+def _config_out(row: EaseVoiceConfig | None) -> dict:
+    if row is None:  # nothing saved yet: everyone gets the defaults
+        return {**DEFAULT_EASEVOICE_CONFIG, "updated_at": None}
+    return {**{field: getattr(row, field) for field in CONFIG_FIELDS}, "updated_at": row.updated_at}
+
+
+def get_easevoice_config(db: Session) -> dict:
+    return _config_out(db.get(EaseVoiceConfig, 1))
+
+
+def update_easevoice_config(db: Session, admin: User, data: EaseVoiceConfigIn, ip: str | None) -> dict:
+    row = db.get(EaseVoiceConfig, 1, with_for_update=True)
+    before = _config_out(row)
+    if row is None:
+        row = EaseVoiceConfig(id=1, **DEFAULT_EASEVOICE_CONFIG)
+        db.add(row)
+    for field, value in data.model_dump(exclude_unset=True, by_alias=False).items():
+        if value is not None:
+            setattr(row, field, value)
+    row.updated_by_id = admin.id
+    db.flush()
+    after = {field: getattr(row, field) for field in CONFIG_FIELDS}
+    audit.record(db, actor=admin, action="EASEVOICE_CONFIG_UPDATED", entity_type="EaseVoiceConfig", entity_id=1,
+                 before={field: before[field] for field in CONFIG_FIELDS}, after=after, ip=ip)
+    db.commit()
+    return get_easevoice_config(db)

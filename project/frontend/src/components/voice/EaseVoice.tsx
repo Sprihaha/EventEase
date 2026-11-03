@@ -7,6 +7,8 @@ import {
   useAccessibility,
 } from "../../lib/accessibility";
 import { Button, Select, cx } from "../ui";
+import { useEaseVoiceConfig } from "../../lib/easeVoiceConfig";
+import { watchIdle, watchSelection } from "./easeVoiceWatchers";
 
 const focusRing =
   "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30 focus-visible:ring-offset-2";
@@ -14,6 +16,7 @@ const focusRing =
 export function EaseVoice() {
   const { pathname } = useLocation();
   const { settings, narrations, audio, loadNarrations, saveSettings } = useAccessibility();
+  const config = useEaseVoiceConfig();
   const [playback, setPlayback] = useState<"idle" | "playing" | "paused">("idle");
   const [page, setPage] = useState<NarrationPageId>(() => narrationPageForPath(pathname));
   const player = useRef<HTMLAudioElement | null>(null);
@@ -106,6 +109,45 @@ export function EaseVoice() {
     else stop();
     return stop;
   }, [page, settings.autoNarrate, readPage, stop]);
+
+  // Read any text aloud straight away, at the visitor's voice speed. Stops whatever was playing.
+  const voiceSpeed = settings.voiceSpeed;
+  const say = useCallback((text: string) => {
+    if (!("speechSynthesis" in window)) return;
+    if (player.current) {
+      player.current.pause();
+      player.current = null;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = voiceSpeed;
+    utterance.lang = document.documentElement.lang || "en-SG";
+    utterance.onend = () => setPlayback("idle");
+    utterance.onerror = () => setPlayback("idle");
+    window.speechSynthesis.speak(utterance);
+    setPlayback("playing");
+  }, [voiceSpeed]);
+
+  // 1. Highlighting text on any page reads it out (admin setting "Read selected text aloud").
+  useEffect(() => {
+    if (!config.selectToRead) return;
+    return watchSelection(window, document, say);
+  }, [config.selectToRead, say]);
+
+  // 3. After a while with no activity, offer help out loud (admin settings "Idle prompt").
+  useEffect(() => {
+    if (!config.idlePromptEnabled || !config.idlePromptText.trim()) return;
+    return watchIdle(window, document, config.idleSeconds, () => {
+      // Browsers only allow speech after the visitor has interacted with the page at least once.
+      const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+      if (activation && !activation.hasBeenActive) return;
+      if (window.speechSynthesis?.speaking || player.current) return; // never talk over narration
+      say(config.idlePromptText);
+    });
+  }, [config.idlePromptEnabled, config.idlePromptText, config.idleSeconds, say]);
+
+  // 2. The floating player is hidden unless an admin turns it back on.
+  if (!config.showFloatingPlayer) return null;
 
   return (
     <div
