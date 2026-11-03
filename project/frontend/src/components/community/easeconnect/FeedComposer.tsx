@@ -152,13 +152,15 @@ export function FeedComposer({
 
       <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-brand-line/60">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onOpenUploadModal}
-            className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-brand-purple/40 bg-white px-3 py-1.5 text-xs font-bold text-brand-purple transition hover:bg-brand-purple hover:text-white"
-          >
-            <Camera className="h-3.5 w-3.5" /> Upload EasePix
-          </button>
+          {user.role !== "organizer" && (
+            <button
+              type="button"
+              onClick={onOpenUploadModal}
+              className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-brand-purple/40 bg-white px-3 py-1.5 text-xs font-bold text-brand-purple transition hover:bg-brand-purple hover:text-white"
+            >
+              <Camera className="h-3.5 w-3.5" /> Upload EasePix
+            </button>
+          )}
         </div>
 
         <Button

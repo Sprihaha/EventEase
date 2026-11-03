@@ -256,26 +256,28 @@ export function EasePixSectionGrid({
                           </p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!user) {
-                            window.scrollTo({
-                              top: 0,
-                              left: 0,
-                              behavior: "instant",
-                            })
-                            navigate("/login", {
-                              state: { returnTo: "/community?tab=views" },
-                            })
-                          } else {
-                            onOpenUploadModal(sec.name)
-                          }
-                        }}
-                        className="cursor-pointer shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3.5 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100/60 transition shadow-xs"
-                      >
-                        <Camera className="h-3.5 w-3.5" /> Upload EasePix
-                      </button>
+                      {(!user || user.role !== "organizer") && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!user) {
+                              window.scrollTo({
+                                top: 0,
+                                left: 0,
+                                behavior: "instant",
+                              })
+                              navigate("/login", {
+                                state: { returnTo: "/community?tab=views" },
+                              })
+                            } else {
+                              onOpenUploadModal(sec.name)
+                            }
+                          }}
+                          className="cursor-pointer shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3.5 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100/60 transition shadow-xs"
+                        >
+                          <Camera className="h-3.5 w-3.5" /> Upload EasePix
+                        </button>
+                      )}
                     </div>
                   )}
 

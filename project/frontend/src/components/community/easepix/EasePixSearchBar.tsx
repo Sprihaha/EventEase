@@ -184,7 +184,7 @@ export function EasePixSearchBar({
             <Search className="h-4 w-4" /> Find Seat Views
           </button>
 
-          {/* Upload EasePix Button or Sign-in Prompt */}
+          {/* Upload EasePix Button or Sign-in Prompt (hidden for organizers) */}
           {!user ? (
             <button
               type="button"
@@ -199,7 +199,7 @@ export function EasePixSearchBar({
               <Camera className="h-4 w-4" /> Don&apos;t gatekeep the view, show
               us what we&apos;re missing!
             </button>
-          ) : (
+          ) : user.role !== "organizer" ? (
             <button
               type="button"
               onClick={onOpenUploadModal}
@@ -207,7 +207,7 @@ export function EasePixSearchBar({
             >
               <Camera className="h-4 w-4" /> Upload EasePix
             </button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
