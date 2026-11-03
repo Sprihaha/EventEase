@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import accessibility, admin, analytics, assistance, auth, bookings, community, events, organiser, payments, tickets
-from app.api.v1 import exchanges, organisations, sitemap, developer
+from app.api.v1 import exchanges, organisations, sitemap, developer, help
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
@@ -19,4 +19,5 @@ api_router.include_router(exchanges.router)
 api_router.include_router(community.router)
 api_router.include_router(organisations.router)
 api_router.include_router(sitemap.router)
+api_router.include_router(help.router)
 

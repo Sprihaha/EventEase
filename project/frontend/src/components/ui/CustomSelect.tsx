@@ -18,6 +18,15 @@ export interface CustomSelectProps
   children?: ReactNode;
   className?: string;
   placeholder?: string;
+  /** Where the option list opens. Use "above" near the bottom of the screen. */
+  placement?: "below" | "above";
+}
+
+/** Plain text of an <option>'s children: `{speed}x` arrives as ["0.5", "x"], which String() would join with a comma. */
+function textOf(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === "boolean") return "";
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  return String(node);
 }
 
 export function Select({
@@ -28,6 +37,7 @@ export function Select({
   className,
   disabled,
   placeholder = "Select an option...",
+  placement = "below",
   name,
   id,
   ...rest
@@ -70,8 +80,8 @@ export function Select({
         disabled?: boolean;
       };
       options.push({
-        value: String(childProps.value ?? childProps.children ?? ""),
-        label: String(childProps.children ?? childProps.value ?? ""),
+        value: String(childProps.value ?? textOf(childProps.children)),
+        label: textOf(childProps.children) || String(childProps.value ?? ""),
         disabled: childProps.disabled,
       });
     } else if (child.type === "optgroup") {
@@ -86,8 +96,8 @@ export function Select({
           disabled?: boolean;
         };
         options.push({
-          value: String(optProps.value ?? optProps.children ?? ""),
-          label: String(optProps.children ?? optProps.value ?? ""),
+          value: String(optProps.value ?? textOf(optProps.children)),
+          label: textOf(optProps.children) || String(optProps.value ?? ""),
           disabled: optProps.disabled,
         });
       });
@@ -146,7 +156,7 @@ export function Select({
           <ChevronDown
             className={cx(
               "h-4 w-4 transition-transform duration-200",
-              isOpen && "rotate-180",
+              (placement === "above") !== isOpen && "rotate-180",
             )}
           />
         </span>
@@ -157,7 +167,10 @@ export function Select({
         <div
           role="listbox"
           tabIndex={-1}
-          className="absolute left-0 top-full mt-1.5 max-h-60 w-full overflow-y-auto rounded-2xl border border-brand-purple/20 bg-white p-1.5 shadow-xl z-50 transition-all duration-150 animate-in fade-in zoom-in-95"
+          className={cx(
+            "absolute left-0 max-h-60 w-full overflow-y-auto rounded-2xl border border-brand-purple/20 bg-white p-1.5 shadow-xl z-50 transition-all duration-150 animate-in fade-in zoom-in-95",
+            placement === "above" ? "bottom-full mb-1.5" : "top-full mt-1.5",
+          )}
         >
           {options.length === 0 ? (
             <div className="p-3 text-center text-xs text-muted">No options available</div>

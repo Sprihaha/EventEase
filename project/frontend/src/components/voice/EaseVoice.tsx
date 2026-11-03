@@ -22,7 +22,20 @@ export function EaseVoice() {
   const [speaking, setSpeaking] = useState(false);
   const panelId = useId();
   const tabRef = useRef<HTMLButtonElement>(null);
+  const current = useRef<SpeechSynthesisUtterance | null>(null);
+  // The panel clips its content while it slides (that is how the slide works); once fully open
+  // it stops clipping so the voice-speed list can open upwards over the page.
+  const [settled, setSettled] = useState(false);
   const voiceSpeed = settings.voiceSpeed;
+
+  useEffect(() => {
+    if (!open) {
+      setSettled(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSettled(true), 320); // just after the 300 ms slide
+    return () => window.clearTimeout(timer);
+  }, [open]);
 
   // Read any text aloud straight away, at the visitor's voice speed, replacing whatever was playing.
   const say = useCallback((text: string) => {
@@ -31,13 +44,22 @@ export function EaseVoice() {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = voiceSpeed;
     utterance.lang = document.documentElement.lang || "en-SG";
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
+    // Cancelling the previous speech fires its "end" a moment later; only the current one may
+    // switch the reading colour off, or the tab would flicker back while EaseVoice is still talking.
+    const finished = () => {
+      if (current.current !== utterance) return;
+      current.current = null;
+      setSpeaking(false);
+    };
+    utterance.onend = finished;
+    utterance.onerror = finished;
+    current.current = utterance;
     window.speechSynthesis.speak(utterance);
     setSpeaking(true);
   }, [voiceSpeed]);
 
   const stop = useCallback(() => {
+    current.current = null;
     window.speechSynthesis?.cancel();
     setSpeaking(false);
   }, []);
@@ -86,11 +108,15 @@ export function EaseVoice() {
         aria-label={open ? "Hide EaseVoice" : "Show EaseVoice"}
         onClick={() => setOpen((value) => !value)}
         className={cx(
-          "pointer-events-auto flex items-center gap-2 rounded-t-xl border border-b-0 border-brand-purple/20 bg-white/95 px-3.5 py-2 text-sm font-bold text-brand-deep shadow-[0_-8px_24px_-12px_rgba(50,19,79,0.35)] backdrop-blur transition-colors hover:bg-brand-lilac/60",
+          "pointer-events-auto flex items-center gap-2 rounded-t-xl border border-b-0 px-3.5 py-2 text-sm font-bold shadow-[0_-8px_24px_-12px_rgba(50,19,79,0.35)] backdrop-blur transition-colors duration-200",
+          // Orange and white while EaseVoice is reading (selected text or the idle prompt).
+          speaking
+            ? "border-brand-orange bg-brand-orange text-white hover:bg-brand-orange/90"
+            : "border-brand-purple/20 bg-white/95 text-brand-deep hover:bg-brand-lilac/60",
           focusRing,
         )}
       >
-        <Volume2 className={cx("h-4 w-4 text-brand-purple", speaking && "animate-pulse")} />
+        <Volume2 className={cx("h-4 w-4", speaking ? "animate-pulse text-white" : "text-brand-purple")} />
         <span className="font-brand">EaseVoice</span>
         {speaking && <span className="sr-only">is reading</span>}
         {open ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
@@ -108,7 +134,7 @@ export function EaseVoice() {
           role="region"
           aria-label="EaseVoice"
           inert={!open}
-          className={cx("overflow-hidden", open && "pointer-events-auto")}
+          className={cx(open && settled ? "overflow-visible" : "overflow-hidden", open && "pointer-events-auto")}
         >
           <div className="rounded-tl-2xl border border-b-0 border-brand-purple/20 bg-white/95 p-4 shadow-[0_-14px_40px_-16px_rgba(50,19,79,0.35)] backdrop-blur">
             <p className="text-sm text-brand-deep">
@@ -120,6 +146,7 @@ export function EaseVoice() {
               <label className="flex items-center gap-2 text-sm text-muted">
                 Voice speed
                 <Select
+                  placement="above"
                   value={voiceSpeed}
                   onChange={(event) => saveSettings({ ...settings, voiceSpeed: Number(event.target.value) })}
                   aria-label="Voice speed"
@@ -129,7 +156,7 @@ export function EaseVoice() {
                   )}
                 >
                   {SPEEDS.map((speed) => (
-                    <option key={speed} value={speed}>{speed}x</option>
+                    <option key={speed} value={speed}>{`${speed}x`}</option>
                   ))}
                 </Select>
               </label>

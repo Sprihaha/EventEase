@@ -19,6 +19,7 @@ import {
   Clock3,
   ClipboardList,
   Volume2,
+  HelpCircle,
   Code2,
   ShieldCheck,
   ChevronLeft,
@@ -30,6 +31,7 @@ import { Button, Badge, Card, Eyebrow, Select, cx } from "../components/ui";
 import { OperationsSeatMap } from "../components/OperationsSeatMap";
 import AssistanceQueue from "../components/AssistanceQueue";
 import EaseVoiceNarration from "./EaseVoiceNarration";
+import EaseHelp from "./EaseHelp";
 import ResetDemoData from "../components/ResetDemoData";
 import OrganiserRequests from "../components/OrganiserRequests";
 import { countPendingOrganiserRequests } from "../lib/backendApi";
@@ -67,6 +69,7 @@ export default function AdminDashboard() {
     { id: "sales", label: "Sales status", icon: CircleDollarSign },
     { id: "assistance", label: "Assistance queue", icon: ClipboardList, badge: openAssistance },
     { id: "narration", label: "EaseVoice settings", icon: Volume2 },
+    { id: "easehelp", label: "Edit EaseHelp", icon: HelpCircle },
     { id: "seats", label: "Seat maps", icon: Armchair },
     { id: "guide", label: "EaseGuide requests", icon: Route, badge: 3 },
     { id: "analytics", label: "Platform analytics", icon: BarChart3 },
@@ -101,6 +104,7 @@ export default function AdminDashboard() {
           {active === "seats" && <OperationsSeatMap events={events} eyebrow="Platform seat maps" />}
           {active === "assistance" && <AssistanceQueue />}
           {active === "narration" && <EaseVoiceNarration embedded />}
+          {active === "easehelp" && <EaseHelp embedded editOnOpen />}
           {active === "guide" && <EaseGuideRequests />}
           {active === "analytics" && <PlatformAnalytics />}
           {active === "administrators" && <AdminManagement />}
