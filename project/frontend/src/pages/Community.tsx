@@ -38,7 +38,7 @@ import {
 } from "../components/community";
 
 export default function Community() {
-  const { posts, events, user, addPost } = useStore();
+  const { posts, events, publicEvents, user, addPost } = useStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const requestedTab = searchParams.get("tab");
@@ -531,7 +531,7 @@ export default function Community() {
             </main>
 
             {/* Right Rail: Visible on EaseConnect feed */}
-            <FeedRightRail events={events} onShowToast={showToast} />
+            <FeedRightRail events={publicEvents?.length ? publicEvents : events} onShowToast={showToast} />
           </div>
         )}
 

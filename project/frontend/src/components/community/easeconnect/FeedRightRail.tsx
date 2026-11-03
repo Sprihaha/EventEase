@@ -1,6 +1,7 @@
+import { useMemo } from "react"
 import { Link } from "react-router"
-import EventImage from "../../common/EventImage";
-import { Calendar } from "lucide-react"
+import EventImage from "../../common/EventImage"
+import { Calendar, Ticket } from "lucide-react"
 import type { EventItem } from "../types"
 
 interface FeedRightRailProps {
@@ -9,6 +10,32 @@ interface FeedRightRailProps {
 }
 
 export function FeedRightRail({ events, onShowToast }: FeedRightRailProps) {
+  // Only show events where tickets are actively on sale (published, upcoming, sales open, not sold out)
+  const onSaleEvents = useMemo(() => {
+    const now = Date.now()
+    return events
+      .filter((ev) => {
+        // Must be published
+        if (ev.status && ev.status !== "published") return false
+
+        // Must not be in the past
+        const isPast = ev.isPast ?? (Date.parse(ev.endAt ?? ev.date) <= now)
+        if (isPast) return false
+
+        // Ticket sales must not be closed
+        const isSalesClosed = ev.salesClosed ?? (!!ev.salesCloseAt && Date.parse(ev.salesCloseAt) <= now)
+        if (isSalesClosed) return false
+
+        // Must not be completely sold out
+        const total = ev.tiers?.reduce((a, t) => a + (t.total || 0), 0) ?? 0
+        const sold = ev.tiers?.reduce((a, t) => a + (t.sold || 0), 0) ?? 0
+        if (total > 0 && sold >= total) return false
+
+        return true
+      })
+      .sort((a, b) => +new Date(a.date) - +new Date(b.date))
+  }, [events])
+
   return (
     <aside className="space-y-5">
       {/* Events on your radar */}
@@ -18,7 +45,7 @@ export function FeedRightRail({ events, onShowToast }: FeedRightRailProps) {
             Events on your radar
           </h3>
           <Link
-            to="/events"
+            to="/events?status=open"
             className="text-xs font-extrabold text-brand-purple hover:underline"
           >
             See all
@@ -26,37 +53,51 @@ export function FeedRightRail({ events, onShowToast }: FeedRightRailProps) {
         </div>
 
         <div className="space-y-3">
-          {events.slice(0, 3).map((ev) => (
-            <Link
-              key={ev.id}
-              to={`/events/${ev.id}`}
-              className="group flex items-center gap-3 rounded-2xl p-2 transition hover:bg-brand-lilac/30"
-            >
-              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-brand-deep shadow-sm">
-                <EventImage
-                  src={ev.image}
-                  alt={ev.title}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <b className="block text-xs font-bold text-brand-deep truncate group-hover:text-brand-purple">
-                  {ev.title}
-                </b>
-                <div className="mt-1 flex items-center gap-1 text-[10px] text-muted truncate">
-                  <Calendar className="h-3 w-3 shrink-0" />
-                  {new Date(ev.date).toLocaleDateString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </div>
-                <div className="text-[11px] font-black text-brand-orange">
-                  From ${ev.priceFrom ?? 45}
-                </div>
-              </div>
-            </Link>
-          ))}
+          {onSaleEvents.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-brand-purple/20 p-4 text-center text-xs text-muted">
+              No events with tickets on sale right now. Check back soon!
+            </div>
+          ) : (
+            onSaleEvents.slice(0, 3).map((ev) => {
+              const price = ev.priceFrom ?? (ev.tiers?.length ? Math.min(...ev.tiers.map((t) => t.price)) : 45)
+              return (
+                <Link
+                  key={ev.id}
+                  to={`/events/${ev.id}`}
+                  className="group flex items-center gap-3 rounded-2xl p-2 transition hover:bg-brand-lilac/30"
+                >
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-brand-deep shadow-sm">
+                    <EventImage
+                      src={ev.image}
+                      alt={ev.title}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <b className="block text-xs font-bold text-brand-deep truncate group-hover:text-brand-purple">
+                      {ev.title}
+                    </b>
+                    <div className="mt-1 flex items-center gap-1 text-[10px] text-muted truncate">
+                      <Calendar className="h-3 w-3 shrink-0" />
+                      {new Date(ev.date).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                    <div className="mt-0.5 flex items-center justify-between">
+                      <span className="text-[11px] font-black text-brand-orange">
+                        From ${price}
+                      </span>
+                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200/60">
+                        <Ticket className="h-2.5 w-2.5" /> On sale
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })
+          )}
         </div>
       </section>
 
