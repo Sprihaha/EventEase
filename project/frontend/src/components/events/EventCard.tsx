@@ -3,6 +3,7 @@ import EventImage from "../common/EventImage";
 import { Calendar, MapPin } from "lucide-react";
 import type { EventItem } from "../../lib/data";
 import { currency, fmtDate, useStore } from "../../lib/store";
+import { getCurrentOrganisation } from "../../lib/organisation";
 import { Badge, cx } from "../ui";
 
 export function EventCard({
@@ -12,7 +13,7 @@ export function EventCard({
   ev: EventItem;
   presentation?: "default" | "home";
 }) {
-  const { user } = useStore();
+  const { user, events: managedEvents } = useStore();
   const location = useLocation();
   const navigate = useNavigate();
   const now = Date.now();
@@ -26,9 +27,22 @@ export function EventCard({
   const isOrganizer = user?.role === "organizer";
   const isAdmin = user?.role === "admin";
 
+  const currentOrg = getCurrentOrganisation();
+  const isOwner =
+    isOrganizer &&
+    (managedEvents.some((m) => m.id === ev.id) ||
+      ev.organizerId === user?.id ||
+      (currentOrg &&
+        ev.organisationName &&
+        ev.organisationName.toLowerCase() === currentOrg.name.toLowerCase()));
+
   const handleAction = () => {
     if (isOrganizer) {
-      navigate(`/dashboard/organizer?tab=events&eventId=${ev.id}`);
+      if (isOwner) {
+        navigate(`/dashboard/organizer?tab=events&eventId=${ev.id}`);
+      } else {
+        navigate(`/events/${ev.id}`);
+      }
     } else if (isAdmin) {
       navigate(`/dashboard/admin?tab=sales&eventId=${ev.id}`);
     } else {
@@ -110,13 +124,27 @@ export function EventCard({
               View →
             </span>
           ) : isOrganizer ? (
-            isPast || isSalesClosed ? (
-              <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-purple transition-transform group-hover:translate-x-1">
-                View →
+            isOwner ? (
+              isPast || isSalesClosed ? (
+                <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-purple transition-transform group-hover:translate-x-1">
+                  View →
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-purple transition-transform group-hover:translate-x-1">
+                  Edit →
+                </span>
+              )
+            ) : isPast ? (
+              <span className="flex items-center gap-1 font-brand text-sm font-semibold text-muted">
+                Event ended
+              </span>
+            ) : isSalesClosed ? (
+              <span className="flex items-center gap-1 font-brand text-sm font-semibold text-amber-700">
+                Sales closed
               </span>
             ) : (
-              <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-purple transition-transform group-hover:translate-x-1">
-                Edit →
+              <span className="flex items-center gap-1 font-brand text-sm font-bold text-brand-orange transition-transform group-hover:translate-x-1">
+                View seats →
               </span>
             )
           ) : isPast ? (

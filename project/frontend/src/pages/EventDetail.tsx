@@ -6,7 +6,7 @@ import { useStore, currency, fmtDate } from "../lib/store";
 import { fetchTicketingEvent, fetchSeats, holdSeats, holdCategories, payBooking, cancelHeldBooking,
   type BackendBooking, type LiveSeat, type TicketingEvent } from "../lib/ticketingApi";
 import { SeatMap } from "../components/SeatMap";
-import { Badge, Button, Card, QRCode, ticketPayload } from "../components/ui";
+import { Badge, Button, Card, QRCode, ticketPayload, cx } from "../components/ui";
 import { SEO } from "../components/common";
 
 export default function EventDetail() {
@@ -131,13 +131,34 @@ export default function EventDetail() {
       <EventImage src={event.imageUrl} alt={event.title} className="h-full w-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/70 to-transparent" />
     </div>
-    <Badge tone="accent">Ticketing & checkout</Badge>
-    {event.imported && <span className="ml-2"><Badge tone="neutral">Imported by System</Badge></span>}
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge tone="accent">Ticketing & checkout</Badge>
+      {event.imported && <Badge tone="neutral">Imported by System</Badge>}
+      {user.role === "organizer" && (
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100/90 px-3 py-1 text-xs font-bold text-amber-900 shadow-xs">
+          <span>⚠️</span>
+          <span>Organizers are not allowed to purchase a ticket</span>
+        </span>
+      )}
+    </div>
     <h1 className="mt-3 font-brand text-4xl font-bold text-brand-deep">{event.title}</h1>
     {event.organisationName && <p className="mt-1 text-sm font-medium text-muted">Organised by {event.organisationName}</p>}
     <p className="mt-3 flex flex-wrap gap-5 text-sm text-muted"><span className="flex gap-2"><Calendar className="h-4 w-4"/>{fmtDate(event.startAt)}</span><span className="flex gap-2"><MapPin className="h-4 w-4"/>{event.venueName}</span></p>
     <p className="mt-4 max-w-3xl text-muted">{event.description}</p>
     <div className="mt-5 flex flex-wrap gap-3"><Link to={`/community?tab=views&event=${encodeURIComponent(event.id)}`}><Button variant="outline">Event community & venue views</Button></Link></div>
+    {user.role === "organizer" && (
+      <div
+        role="status"
+        className="mt-5 rounded-2xl border border-amber-300 bg-amber-50/95 p-4 text-sm font-semibold text-amber-950 flex items-center gap-3 shadow-xs"
+      >
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-amber-200 text-amber-900 font-bold text-sm">
+          ⚠️
+        </span>
+        <div>
+          <span className="font-bold">Organizers are not allowed to purchase a ticket.</span> Seat selection and checkout controls are restricted.
+        </div>
+      </div>
+    )}
     {error && <div role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-danger">{error}</div>}
     {isPast && !booking && <div role="status" className="mt-5 rounded-xl border border-slate-300 bg-slate-100 p-4 text-sm font-medium text-slate-800">This event took place on {fmtDate(event.startAt)}. It has ended.</div>}
     {!isPast && salesClosed && !booking && <div role="status" className="mt-5 rounded-xl border border-brand-orange/30 bg-brand-orange/10 p-4 text-sm font-medium text-brand-deep">Ticket sales closed on {fmtDate(event.salesCloseAt as string)}.</div>}
@@ -148,7 +169,10 @@ export default function EventDetail() {
       <div className="mt-6 grid gap-5 sm:grid-cols-3">{booking.tickets.map(t => <div key={t.id} className="rounded-xl border p-5 text-center"><h3 className="mb-4 font-bold">Seat {t.seatLabel ?? "General Admission"}</h3>{t.code ? <><div className="mx-auto w-max"><QRCode value={ticketPayload(t.code)}/></div><Link className="mt-3 inline-block text-sm text-brand-purple underline" to={`/verify/${encodeURIComponent(t.code)}`}>Verify ticket</Link></> : <Badge tone="live">Confirmed</Badge>}</div>)}</div>
       <Link to="/dashboard/customer"><Button className="mt-6"><Ticket className="h-4 w-4"/> My tickets</Button></Link>
       {!booking.qrReleased && <Link to="/community?tab=exchange&view=create"><Button className="ml-3 mt-6" variant="outline">Exchange a ticket</Button></Link>}
-    </Card> : <div className="mt-8 grid gap-7 lg:grid-cols-[1fr_360px]">
+    </Card> : <div className={cx(
+      "mt-8 grid gap-7 lg:grid-cols-[1fr_360px] transition-all",
+      user.role === "organizer" && "opacity-50 pointer-events-none select-none grayscale-[0.25]"
+    )}>
       <Card className="p-6"><h2 className="font-brand text-2xl font-bold">Choose your seats</h2><p className="my-4 text-sm text-muted">Availability refreshes every 5 seconds. Your selection is reserved when you continue to checkout.</p>
         {seats.length ? <SeatMap seats={seats} selected={selected} disabled={busy || !!booking || salesClosed || isPast || user.role !== "customer"} onToggle={s => {
           setSelected(current => current.includes(s.id) ? current.filter(i => i !== s.id) : current.length < event.purchaseLimitPerEvent ? [...current,s.id] : current); key.current = null;
@@ -164,7 +188,7 @@ export default function EventDetail() {
           <label className="block text-sm">Simulated payment result<select className="mt-2 w-full rounded-lg border p-2" value={failPayment ? "fail" : "success"} onChange={e => setFailPayment(e.target.value === "fail")}><option value="success">Success — no real charge</option><option value="fail">Declined — test retry</option></select></label>
           <Button className="w-full" disabled={busy || expired} onClick={pay}>{busy ? "Processing…" : "Confirm simulated payment"}</Button>
           <Button className="w-full" variant="outline" disabled={busy} onClick={release}>Release reservation</Button>
-        </> : <><p className="text-xs text-muted">Up to {event.purchaseLimitPerEvent} tickets per customer for this event.</p><Button className="w-full" disabled={busy || !count || count > event.purchaseLimitPerEvent || salesClosed || user.role !== "customer"} onClick={reserve}>{busy ? "Reserving…" : salesClosed ? "Sales closed" : "Reserve & continue"}</Button></>}
+        </> : <><p className="text-xs text-muted">Up to {event.purchaseLimitPerEvent} tickets per customer for this event.</p><Button className="w-full" disabled={busy || !count || count > event.purchaseLimitPerEvent || salesClosed || user.role !== "customer"} onClick={reserve}>{user.role === "organizer" ? "Organizers cannot purchase tickets" : busy ? "Reserving…" : salesClosed ? "Sales closed" : "Reserve & continue"}</Button></>}
       </Card>
     </div>}
   </div>;
