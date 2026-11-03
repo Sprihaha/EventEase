@@ -395,7 +395,10 @@ export default function Community() {
         {tab === "feed" && (
           <div
             id="comms-workspace"
-            className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px]"
+            className={cx(
+              "grid grid-cols-1 gap-6",
+              !isOrganizer && "lg:grid-cols-[minmax(0,1fr)_300px]"
+            )}
           >
             {/* Center Column */}
             <main className="min-w-0 space-y-5">

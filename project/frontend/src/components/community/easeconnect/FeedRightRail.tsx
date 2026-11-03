@@ -11,6 +11,12 @@ interface FeedRightRailProps {
 }
 
 export function FeedRightRail({ events, onShowToast, isOrganizer = false }: FeedRightRailProps) {
+  // If the signed-in user is an organizer, hide the entire right rail
+  // (Events on your radar, Your kind of crowd, and Quick reminder)
+  if (isOrganizer) {
+    return null
+  }
+
   // Only show events where tickets are actively on sale (published, upcoming, sales open, not sold out)
   const onSaleEvents = useMemo(() => {
     const now = Date.now()
