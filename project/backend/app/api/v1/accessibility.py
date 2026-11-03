@@ -11,6 +11,8 @@ from app.db.session import get_db
 from app.schemas.accessibility import (
     AccessibilitySettingsIn,
     AccessibilitySettingsOut,
+    EaseVoiceConfigIn,
+    EaseVoiceConfigOut,
     NarrationIn,
     NarrationOut,
 )
@@ -133,3 +135,16 @@ def get_my_settings(user: User = Depends(get_current_user), db: Session = Depend
 def put_my_settings(body: AccessibilitySettingsIn, user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)):
     return service.update_settings(db, user, body)
+
+
+@router.get("/easevoice/config", response_model=EaseVoiceConfigOut,
+            summary="How EaseVoice behaves on every page: read-on-select, idle prompt, floating player (public)")
+def get_easevoice_config(db: Session = Depends(get_db)):
+    return service.get_easevoice_config(db)
+
+
+@router.put("/admin/easevoice/config", response_model=EaseVoiceConfigOut,
+            summary="Change EaseVoice behaviour for everyone (administrators only; send only what changed)")
+def put_easevoice_config(body: EaseVoiceConfigIn, request: Request, admin: User = Depends(require_admin),
+                         db: Session = Depends(get_db)):
+    return service.update_easevoice_config(db, admin, body, client_ip(request))

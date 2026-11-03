@@ -714,3 +714,47 @@ def test_migration_0005_adds_and_removes_the_audio_columns(alembic_config):
 
     command.upgrade(alembic_config, "head")
     assert audio <= {c["name"] for c in inspect(engine).get_columns("narration_transcripts", schema=schema)}
+
+
+# --------------------------------------------------------------------------- EaseVoice behaviour (admin only)
+
+EASEVOICE_CONFIG = "/api/v1/easevoice/config"
+ADMIN_EASEVOICE_CONFIG = "/api/v1/admin/easevoice/config"
+
+
+def test_easevoice_config_defaults_are_public(client):
+    body = client.get(EASEVOICE_CONFIG).json()  # no login needed: every page reads it
+    assert body["selectToRead"] is True and body["idlePromptEnabled"] is True
+    assert body["idleSeconds"] == 120 and body["showFloatingPlayer"] is False
+    assert body["idlePromptText"].startswith("Hi, I am EaseVoice")
+
+
+def test_only_admins_can_change_easevoice_config(client, db):
+    change = {"idleSeconds": 300}
+    assert client.put(ADMIN_EASEVOICE_CONFIG, json=change).status_code == 401
+    for role in (Role.CUSTOMER, Role.ORGANISER):
+        user = make_user(db, role=role)
+        assert client.put(ADMIN_EASEVOICE_CONFIG, json=change,
+                          headers=auth_header(client, user.username)).status_code == 403
+    assert client.get(EASEVOICE_CONFIG).json()["idleSeconds"] == 120
+
+
+def test_admin_updates_only_the_fields_sent_and_it_is_audited(client, db):
+    headers = admin_headers(client, db)
+    response = client.put(ADMIN_EASEVOICE_CONFIG, headers=headers,
+                          json={"idleSeconds": 300, "idlePromptText": "  Need a hand?  "})
+    assert response.status_code == 200, response.text
+    body = client.get(EASEVOICE_CONFIG).json()
+    assert body["idleSeconds"] == 300 and body["idlePromptText"] == "Need a hand?"
+    assert body["selectToRead"] is True  # untouched fields keep their value
+    client.put(ADMIN_EASEVOICE_CONFIG, headers=headers, json={"selectToRead": False, "showFloatingPlayer": True})
+    body = client.get(EASEVOICE_CONFIG).json()
+    assert body["selectToRead"] is False and body["showFloatingPlayer"] is True and body["idleSeconds"] == 300
+    logs = list(db.scalars(select(AuditLog).where(AuditLog.action == "EASEVOICE_CONFIG_UPDATED")))
+    assert len(logs) == 2 and logs[0].before["idle_seconds"] == 120
+
+
+def test_easevoice_config_validation(client, db):
+    headers = admin_headers(client, db)
+    for bad in ({"idleSeconds": 10}, {"idleSeconds": 4000}, {"idlePromptText": "   "}, {"idlePromptText": "x" * 501}):
+        assert client.put(ADMIN_EASEVOICE_CONFIG, headers=headers, json=bad).status_code == 422, bad
