@@ -70,9 +70,11 @@ export function EasePixSearchBar({
             </p>
           </div>
         </div>
-        <div className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-2.5 py-1 text-[11px] font-black text-brand-orange">
-          <Sparkles className="h-3 w-3" /> +23 EasePoints
-        </div>
+        {user && user.role !== "organizer" && (
+          <div className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-2.5 py-1 text-[11px] font-black text-brand-orange">
+            <Sparkles className="h-3 w-3" /> +23 EasePoints
+          </div>
+        )}
       </div>
 
       <div className="mt-4 space-y-3.5">

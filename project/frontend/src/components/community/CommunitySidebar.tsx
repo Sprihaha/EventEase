@@ -8,8 +8,10 @@ import {
   Clock,
 } from "lucide-react"
 import { cx } from "../ui"
+import type { User } from "./types"
 
 interface CommunitySidebarProps {
+  user?: User | null
   tab: "feed" | "views"
   onSelectTab: (tab: "feed" | "views") => void
   isSidebarCollapsed: boolean
@@ -18,6 +20,7 @@ interface CommunitySidebarProps {
 }
 
 export function CommunitySidebar({
+  user,
   tab,
   onSelectTab,
   isSidebarCollapsed,
@@ -280,7 +283,11 @@ export function CommunitySidebar({
               <button
                 type="button"
                 onClick={() =>
-                  onShowToast("Every verified seat view earns +23 EasePoints!")
+                  onShowToast(
+                    user && user.role !== "organizer"
+                      ? "Every verified seat view earns +23 EasePoints!"
+                      : "Verified seat views help other fans see real sightlines before booking!"
+                  )
                 }
                 className="cursor-pointer mt-2 text-[11px] font-extrabold text-brand-purple hover:underline"
               >

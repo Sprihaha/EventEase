@@ -262,6 +262,25 @@ def test_me_requires_auth_and_returns_own_contact_details(client, db):
     assert me["email"] == user.email and me["phone"] == "+6591234567" and "passwordHash" not in me
 
 
+def test_update_avatar(client, db):
+    user = make_user(db)
+    token = login(client, user.username)["accessToken"]
+    data_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    res = client.put(
+        "/api/v1/auth/avatar",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"avatarUrl": data_url},
+    )
+    assert res.status_code == 200
+    assert res.json()["avatarUrl"] == data_url
+    db.refresh(user)
+    assert user.avatar_url == data_url
+
+    # Verify /me returns it
+    me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
+    assert me["avatarUrl"] == data_url
+
+
 def test_refresh_rotates_and_detects_reuse(client, db):
     user = make_user(db)
     login(client, user.username)

@@ -8,6 +8,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     Uuid,
     event,
     false,
@@ -36,6 +37,7 @@ class User(UUIDPk, Timestamps, Base):
     username: Mapped[str] = mapped_column(String(15), nullable=False)
     email: Mapped[str | None] = mapped_column(String(254))
     phone_e164: Mapped[str | None] = mapped_column(String(16))
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[Role] = mapped_column(str_enum(Role, "role"), nullable=False)
     status: Mapped[UserStatus] = mapped_column(

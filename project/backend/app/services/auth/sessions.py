@@ -48,6 +48,7 @@ class Session_:
                 "id": self.user.id,
                 "username": self.user.username,
                 "role": self.user.role,
+                "avatar_url": self.user.avatar_url,
                 "password_changeable": not is_protected_username(self.user.username),
             },
             "redirect_to": redirect_for(self.user),

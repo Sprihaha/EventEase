@@ -60,6 +60,7 @@ class UserSummary(CamelModel):
     id: uuid.UUID
     username: str
     role: Role
+    avatar_url: str | None = None
     password_changeable: bool = True
 
 
@@ -84,10 +85,15 @@ class MeResponse(CamelModel):
     role: Role
     email: str | None
     phone: str | None
+    avatar_url: str | None = None
     must_change_password: bool
     email_verified: bool
     password_changeable: bool = True
     created_at: datetime
+
+
+class UpdateAvatarRequest(CamelModel):
+    avatar_url: str | None = None
 
 
 class UsernameAvailability(CamelModel):

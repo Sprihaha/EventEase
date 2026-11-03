@@ -34,9 +34,11 @@ import {
   fetchBackendEvents,
   fetchBackendRoleEvents,
   updateTicketTier,
+  backendUpdateAvatar,
   type BackendAuth,
   type LoginPortal,
   type NewEventInput,
+  type UserProfile,
 } from "./backendApi";
 import { isTokenExpired, getTokenExpirationMs, notifySessionExpired, onSessionExpired, clearExpiredRedirect, clearSavedExpiredReturnTo } from "./session";
 import { clearCurrentOrganisation, setCurrentOrganisation } from "./organisation";
@@ -48,6 +50,7 @@ export type User = {
   name: string;
   email: string;
   role: Role;
+  avatarUrl?: string | null;
   // Set when the backend requires a new password before anything else (e.g. after an admin reset).
   mustChangePassword?: boolean;
   // False for the protected shared accounts, whose password can never change.
@@ -60,6 +63,7 @@ type Store = {
   startSession: (auth: BackendAuth) => Promise<User>;
   keepLoggedIn: () => Promise<boolean>;
   logout: () => void;
+  updateUserAvatar: (avatarUrl: string | null) => Promise<UserProfile>;
 
   events: EventItem[];
   publicEvents: EventItem[];
@@ -152,6 +156,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           name: account.username,
           email: account.email ?? "",
           role,
+          avatarUrl: account.avatarUrl ?? null,
           mustChangePassword: account.mustChangePassword,
           canChangePassword: account.passwordChangeable,
         });
@@ -219,6 +224,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         name: auth.user.username,
         email: "",
         role,
+        avatarUrl: auth.user.avatarUrl ?? null,
         mustChangePassword: auth.mustChangePassword,
         canChangePassword: auth.user.passwordChangeable,
       };
@@ -268,6 +274,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setBookings([]);
         setBookingsError(null);
         void fetchBackendEvents().then(result => { setPublicEvents(result); setEvents(result); setEventsSource("backend"); }).catch(() => { setPublicEvents([]); setEvents([]); setEventsSource("error"); });
+      },
+      updateUserAvatar: async (avatarUrl: string | null) => {
+        const updated = await backendUpdateAvatar(avatarUrl);
+        setUser(prev => prev ? { ...prev, avatarUrl: updated.avatarUrl ?? null } : null);
+        return updated;
       },
       events,
       publicEvents,

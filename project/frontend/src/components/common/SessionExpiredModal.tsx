@@ -16,6 +16,7 @@ export default function SessionExpiredModal({
 }: SessionExpiredModalProps) {
   const [countdown, setCountdown] = useState(timeoutSeconds);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const isPausedRef = useRef(false);
   const keepLoggedInBtnRef = useRef<HTMLButtonElement>(null);
   const onConfirmRef = useRef(onConfirm);
   onConfirmRef.current = onConfirm;
@@ -25,6 +26,7 @@ export default function SessionExpiredModal({
 
     setCountdown(timeoutSeconds);
     setIsRefreshing(false);
+    isPausedRef.current = false;
 
     // Auto-focus "Keep me logged in" button so keyboard users can immediately stay logged in
     const focusTimer = setTimeout(() => {
@@ -33,6 +35,7 @@ export default function SessionExpiredModal({
 
     // 10-second countdown timer. If user makes no choice within 10s, auto logout
     const timer = setInterval(() => {
+      if (isPausedRef.current) return;
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
@@ -57,17 +60,20 @@ export default function SessionExpiredModal({
       clearInterval(timer);
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [isOpen]);
+  }, [isOpen, timeoutSeconds]);
 
   if (!isOpen) return null;
 
   const handleKeepLoggedIn = async () => {
     if (isRefreshing) return;
+    isPausedRef.current = true;
     setIsRefreshing(true);
     try {
       if (onKeepLoggedIn) {
         await onKeepLoggedIn();
       }
+    } catch {
+      isPausedRef.current = false;
     } finally {
       setIsRefreshing(false);
     }

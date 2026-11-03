@@ -6,6 +6,7 @@ export type CommunityTab = "feed" | "views" | "exchange"
 export interface CommunityHeaderNavProps {
   activeTab?: CommunityTab
   onSelectTab?: (tab: CommunityTab) => void
+  isOrganizer?: boolean
   // Legacy compatibility props:
   mainSection?: "comms" | "exchange"
   onSelectComms?: () => void
@@ -15,6 +16,7 @@ export interface CommunityHeaderNavProps {
 export function CommunityHeaderNav({
   activeTab,
   onSelectTab,
+  isOrganizer = false,
   mainSection,
   onSelectComms,
   onSelectExchange,
@@ -100,14 +102,16 @@ export function CommunityHeaderNav({
     },
   ]
 
+  const visibleItems = items.filter((item) => !isOrganizer || item.id !== "exchange")
+
   return (
     <nav
       id="main-tabs-navbar"
       aria-label="Community Sections"
       className="sticky top-16 z-30 mb-3.5 sm:mb-4 rounded-2xl border border-brand-line bg-white/95 p-1.5 sm:p-2 shadow-sm backdrop-blur-md"
     >
-      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-        {items.map((item) => {
+      <div className={cx("grid gap-1.5 sm:gap-2", visibleItems.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
+        {visibleItems.map((item) => {
           const isActive = currentTab === item.id
           return (
             <button

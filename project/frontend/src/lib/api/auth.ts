@@ -7,7 +7,7 @@ export type BackendRole = "CUSTOMER" | "ORGANISER" | "ADMIN";
 
 export type BackendAuth = {
   accessToken: string;
-  user: { id: string; username: string; role: BackendRole; passwordChangeable: boolean };
+  user: { id: string; username: string; role: BackendRole; passwordChangeable: boolean; avatarUrl?: string | null };
   redirectTo: string;
   mustChangePassword: boolean;
   organisation?: { id: string; name: string } | null;
@@ -103,6 +103,7 @@ export type UserProfile = {
   role: BackendRole;
   email: string | null;
   phone: string | null;
+  avatarUrl?: string | null;
   mustChangePassword: boolean;
   emailVerified: boolean;
   passwordChangeable: boolean;
@@ -111,6 +112,14 @@ export type UserProfile = {
 
 export function backendMe() {
   return request<UserProfile>("/auth/me", {}, true);
+}
+
+export function backendUpdateAvatar(avatarUrl: string | null) {
+  return request<UserProfile>(
+    "/auth/avatar",
+    { method: "PUT", body: JSON.stringify({ avatarUrl }) },
+    true,
+  );
 }
 
 export async function backendChangePassword(currentPassword: string, newPassword: string) {

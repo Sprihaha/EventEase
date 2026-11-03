@@ -40,6 +40,7 @@ interface ShareSeatViewModalProps {
 export function ShareSeatViewModal({
   isOpen,
   onClose,
+  user,
   events,
   seatVenueInput,
   onSeatVenueInputChange,
@@ -122,9 +123,11 @@ export function ShareSeatViewModal({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-2.5 py-1 text-[11px] font-black text-brand-orange">
-              <Sparkles className="h-3 w-3" /> +23 EasePoints
-            </span>
+            {user && user.role !== "organizer" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-2.5 py-1 text-[11px] font-black text-brand-orange">
+                <Sparkles className="h-3 w-3" /> +23 EasePoints
+              </span>
+            )}
             <button
               type="button"
               onClick={() => {

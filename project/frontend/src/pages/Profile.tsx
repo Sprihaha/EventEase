@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router";
 import {
   User,
@@ -21,22 +21,27 @@ import {
   ShieldAlert,
   CalendarCheck,
   Code2,
+  Camera,
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { backendMe, type UserProfile } from "../lib/backendApi";
 import { getCurrentOrganisation, fetchMyOrganisations, type Membership } from "../lib/organisation";
 import { useAccessibility } from "../lib/accessibility";
+import { processAndCompressImage } from "../utils/imageOptimization";
 import { Badge, Button, Card } from "../components/ui";
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { user, sessionLoading, bookings, logout } = useStore();
+  const { user, sessionLoading, bookings, logout, updateUserAvatar } = useStore();
   const { settings } = useAccessibility();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [copiedId, setCopiedId] = useState(false);
   const [organisations, setOrganisations] = useState<Membership[]>([]);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentOrg = getCurrentOrganisation();
 
@@ -61,6 +66,7 @@ export default function Profile() {
             role: user.role === "organizer" ? "ORGANISER" : (user.role.toUpperCase() as "CUSTOMER" | "ADMIN"),
             email: user.email || null,
             phone: null,
+            avatarUrl: user.avatarUrl || null,
             mustChangePassword: !!user.mustChangePassword,
             emailVerified: true,
             passwordChangeable: user.canChangePassword !== false,
@@ -108,6 +114,24 @@ export default function Profile() {
     setTimeout(() => setCopiedId(false), 2000);
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarError(null);
+    setUploadingAvatar(true);
+
+    try {
+      const { dataUrl } = await processAndCompressImage(file, 400, 0.85);
+      const updated = await updateUserAvatar(dataUrl);
+      setProfile((prev) => (prev ? { ...prev, avatarUrl: updated.avatarUrl ?? dataUrl } : null));
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : "Failed to upload image");
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const formattedDate = profile?.createdAt
     ? new Date(profile.createdAt).toLocaleDateString("en-US", {
         year: "numeric",
@@ -125,7 +149,7 @@ export default function Profile() {
       ? "Platform Administrator"
       : user.role === "organizer"
       ? "Event Organiser"
-      : "Community Customer";
+      : "Customer";
 
   const roleBadgeTone =
     user.role === "admin"
@@ -154,61 +178,94 @@ export default function Profile() {
         </span>
       </div>
 
-      {/* Hero Header Card */}
-      <div className="relative overflow-hidden rounded-3xl border border-brand-purple/15 bg-white shadow-xl shadow-brand-purple/5">
-        <div className="h-32 sm:h-36 bg-gradient-to-r from-brand-deep via-brand-purple to-brand-orange" />
-
-        <div className="relative px-6 pb-6 pt-0 sm:px-8 sm:pb-8">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 -mt-14 sm:-mt-16">
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-              <div className="relative flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-3xl bg-white shadow-xl border-4 border-white text-2xl sm:text-3xl font-extrabold text-brand-purple">
-                <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-br from-brand-lilac/80 to-brand-lilac/30 text-brand-purple font-brand">
-                  {initials}
-                </div>
+      {/* Hero Header Card - Full Colored Gradient Banner */}
+      <div className="relative overflow-hidden rounded-3xl border border-brand-purple/20 bg-gradient-to-r from-brand-deep via-brand-purple to-brand-orange p-6 sm:p-8 shadow-xl shadow-brand-purple/15 text-white">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-5 text-center sm:text-left">
+            {/* Avatar with Edit Upload Icon */}
+            <div className="relative group shrink-0">
+              <div className="relative flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-3xl bg-white shadow-2xl border-4 border-white/90 overflow-hidden">
+                {profile?.avatarUrl ? (
+                  <img
+                    src={profile.avatarUrl}
+                    alt={profile.username || user.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-br from-brand-lilac/90 to-brand-lilac/40 text-brand-purple font-brand text-2xl sm:text-3xl font-extrabold">
+                    {initials}
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="font-brand text-2xl sm:text-3xl font-bold text-brand-deep">
-                    {profile?.username || user.name}
-                  </h1>
-                  <Badge tone={roleBadgeTone} className="font-bold">
-                    {roleLabel}
-                  </Badge>
-                  {profile?.emailVerified && (
-                    <Badge tone="live" className="font-bold inline-flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" />
-                      <span>Verified</span>
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-sm text-muted">
-                  @{profile?.username || user.name} · Member since {formattedDate}
+              {/* Edit Icon Overlay Button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                aria-label="Upload profile picture"
+                title="Change profile picture"
+                className="cursor-pointer absolute -bottom-1 -right-1 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-brand-orange text-white shadow-lg border-2 border-white transition-all duration-150 hover:bg-brand-amber hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                {uploadingAvatar ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                <h1 className="font-brand text-2xl sm:text-3xl font-bold text-white drop-shadow-xs">
+                  {profile?.username || user.name}
+                </h1>
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-white/20 text-white border border-white/30 backdrop-blur-md shadow-xs">
+                  {roleLabel}
+                </span>
+                {profile?.emailVerified && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/25 text-emerald-100 border border-emerald-300/40 backdrop-blur-md">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+                    <span>Verified</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-white/80 font-medium">
+                @{profile?.username || user.name} · Member since {formattedDate}
+              </p>
+              {avatarError && (
+                <p className="text-xs font-bold text-amber-200 bg-black/40 px-2.5 py-1 rounded-lg inline-block">
+                  {avatarError}
                 </p>
-              </div>
+              )}
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 pt-2 sm:pt-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/change-password")}
-                disabled={user.canChangePassword === false}
-                className="rounded-xl border-brand-purple/20 font-bold hover:border-brand-purple/40"
-              >
-                <KeyRound className="h-4 w-4 text-brand-purple" />
-                <span>Password</span>
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => navigate(dashboardPath)}
-                className="rounded-xl shadow-md font-bold"
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                <span>View Dashboard</span>
-              </Button>
-            </div>
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/change-password")}
+              disabled={user.canChangePassword === false}
+              className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 px-4 py-2.5 text-sm font-bold text-white border border-white/25 backdrop-blur-md shadow-sm transition-all duration-150 disabled:opacity-50"
+            >
+              <KeyRound className="h-4 w-4 text-white" />
+              <span>Password</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(dashboardPath)}
+              className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-white hover:bg-white/95 active:scale-95 px-4.5 py-2.5 text-sm font-bold text-brand-purple shadow-lg transition-all duration-150"
+            >
+              <LayoutDashboard className="h-4 w-4 text-brand-purple" />
+              <span>View Dashboard</span>
+            </button>
           </div>
         </div>
       </div>

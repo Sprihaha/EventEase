@@ -41,8 +41,10 @@ export default function Community() {
   const { posts, events, publicEvents, user, addPost } = useStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const isOrganizer = user?.role === "organizer";
   const requestedTab = searchParams.get("tab");
-  const tab = requestedTab === "access" ? "views" : (allTabs.find((item) => item.id === requestedTab)?.id ?? "feed");
+  const rawTab = requestedTab === "access" ? "views" : (allTabs.find((item) => item.id === requestedTab)?.id ?? "feed");
+  const tab = (isOrganizer && rawTab === "exchange") ? "feed" : rawTab;
   const [lastCommsTab, setLastCommsTab] = useState<CommsChannelId>(
     tab === "exchange" ? "feed" : (tab as CommsChannelId)
   );
@@ -157,18 +159,19 @@ export default function Community() {
   }, []);
 
   const setTab = useCallback((id: (typeof allTabs)[number]["id"]) => {
+    const targetId = (user?.role === "organizer" && id === "exchange") ? "feed" : id;
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      next.set("tab", id);
+      next.set("tab", targetId);
       next.delete("view");
       return next;
     }, { replace: true, preventScrollReset: true });
-    const found = allTabs.find((t) => t.id === id);
+    const found = allTabs.find((t) => t.id === targetId);
     if (found) {
       showToast(`${found.label} selected`);
     }
     scrollToTabsIfNeeded();
-  }, [setSearchParams, showToast, scrollToTabsIfNeeded]);
+  }, [user?.role, setSearchParams, showToast, scrollToTabsIfNeeded]);
 
   // Run strictly on initial page mount (never during in-page tab switches)
   useEffect(() => {
@@ -312,10 +315,15 @@ export default function Community() {
           eventId: targetEventId || undefined,
           section: sec,
         });
-        if (user?.id) {
+        const isEligibleCustomer = Boolean(user?.id && user?.role !== "organizer");
+        if (isEligibleCustomer && user?.id) {
           awardEasePoints(user.id, EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO, "Approved EasePix photo");
         }
-        showToast(`Seat view uploaded to EasePix successfully! You earned +${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`);
+        showToast(
+          isEligibleCustomer
+            ? `Seat view uploaded to EasePix successfully! You earned +${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`
+            : "Seat view uploaded to EasePix successfully! ✨"
+        );
         scrollToSection("seat-search-results");
       } catch {
         addPost({
@@ -371,6 +379,7 @@ export default function Community() {
       <div id="main-tabs-nav" className="scroll-mt-20">
         <CommunityHeaderNav
           activeTab={tab as "feed" | "views" | "exchange"}
+          isOrganizer={isOrganizer}
           onSelectTab={(newTab) => {
             setTab(newTab);
           }}
@@ -607,7 +616,7 @@ export default function Community() {
           </div>
         )}
 
-        {tab === "exchange" && (
+        {tab === "exchange" && !isOrganizer && (
           /* Dedicated EaseExchange View */
           <CommunityExchangeView user={user} />
         )}

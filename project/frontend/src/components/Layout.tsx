@@ -183,8 +183,12 @@ export default function Layout() {
                   aria-label="Open user menu"
                   className="gap-2 border-brand-purple/20 bg-white text-brand-deep hover:border-brand-purple hover:bg-brand-lilac/40 focus-visible:ring-4 focus-visible:ring-brand-orange/30"
                 >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-orange text-[10px] font-bold text-white">
-                    {user.name[0]}
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-orange text-[10px] font-bold text-white overflow-hidden">
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                    ) : (
+                      user.name[0]
+                    )}
                   </span>
                   <span className="hidden font-medium sm:inline">{user.name}</span>
                   <Badge tone="accent" className="hidden px-2 py-0.5 text-[10px] font-bold capitalize sm:inline-flex">

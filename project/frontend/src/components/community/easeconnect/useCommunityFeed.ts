@@ -223,7 +223,8 @@ export function useCommunityFeed({
       }
 
       const isQuestion = draft.includes("?") || draft.toLowerCase().includes("ask")
-      if (user?.id) {
+      const isEligibleCustomer = Boolean(user?.id && user?.role !== "organizer")
+      if (isEligibleCustomer && user?.id) {
         if (photoToSubmit) {
           awardEasePoints(user.id, EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO, "Approved EasePix photo")
         } else if (isQuestion) {
@@ -237,9 +238,17 @@ export function useCommunityFeed({
       setAttachedEasePix(null)
       setShowPhotoInput(false)
       if (photoToSubmit) {
-        onShowToast(`Your EasePix seat view was shared! You earned +${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`)
+        onShowToast(
+          isEligibleCustomer
+            ? `Your EasePix seat view was shared! You earned +${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`
+            : "Your EasePix seat view was shared successfully! ✨",
+        )
       } else if (isQuestion) {
-        onShowToast(`Event question posted! You earned +${EASEPOINTS_RULES.POINTS_PER_QUALIFYING_QUESTION} EasePoints ✨`)
+        onShowToast(
+          isEligibleCustomer
+            ? `Event question posted! You earned +${EASEPOINTS_RULES.POINTS_PER_QUALIFYING_QUESTION} EasePoints ✨`
+            : "Event question posted to EaseConnect! ✨",
+        )
       } else {
         onShowToast("Your post has been shared to EaseConnect! ✨")
       }

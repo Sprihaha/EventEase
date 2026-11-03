@@ -16,6 +16,7 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     SignupRequest,
     SignupResponse,
+    UpdateAvatarRequest,
     UsernameAvailability,
     VerifyEmailRequest,
 )
@@ -154,10 +155,42 @@ def logout(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=MeResponse)
 def me(user: User = Depends(get_current_user)):
-    return MeResponse(id=user.id, username=user.username, role=user.role, email=user.email, phone=user.phone_e164,
-                      must_change_password=user.must_change_password,
-                      email_verified=user.email_verified_at is not None,
-                      password_changeable=not is_protected_username(user.username), created_at=user.created_at)
+    return MeResponse(
+        id=user.id,
+        username=user.username,
+        role=user.role,
+        email=user.email,
+        phone=user.phone_e164,
+        avatar_url=user.avatar_url,
+        must_change_password=user.must_change_password,
+        email_verified=user.email_verified_at is not None,
+        password_changeable=not is_protected_username(user.username),
+        created_at=user.created_at,
+    )
+
+
+@router.put("/avatar", response_model=MeResponse, dependencies=[Depends(check_origin)])
+@router.patch("/avatar", response_model=MeResponse, dependencies=[Depends(check_origin)])
+def update_avatar(
+    body: UpdateAvatarRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user.avatar_url = body.avatar_url
+    db.commit()
+    db.refresh(user)
+    return MeResponse(
+        id=user.id,
+        username=user.username,
+        role=user.role,
+        email=user.email,
+        phone=user.phone_e164,
+        avatar_url=user.avatar_url,
+        must_change_password=user.must_change_password,
+        email_verified=user.email_verified_at is not None,
+        password_changeable=not is_protected_username(user.username),
+        created_at=user.created_at,
+    )
 
 
 @router.post("/change-password", response_model=AuthResponse)

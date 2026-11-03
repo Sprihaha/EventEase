@@ -161,9 +161,11 @@ export function FeedPostCard({
               <Share2 className="h-4 w-4" /> Share
             </button>
 
-            <div className="ml-auto inline-flex items-center gap-1 text-[11px] font-extrabold text-brand-orange">
-              <Sparkles className="h-3 w-3" /> +23 EasePoints
-            </div>
+            {user && user.role !== "organizer" && (
+              <div className="ml-auto inline-flex items-center gap-1 text-[11px] font-extrabold text-brand-orange">
+                <Sparkles className="h-3 w-3" /> +23 EasePoints
+              </div>
+            )}
           </div>
 
           {/* Expandable Comments / Replies Section for this post */}
