@@ -1,3 +1,5 @@
+import { useEffect, useState, useMemo } from "react"
+import { useNavigate } from "react-router"
 import {
   Rotate3d,
   X,
@@ -6,11 +8,14 @@ import {
   ExternalLink,
   Video,
   ShieldCheck,
+  Settings,
 } from "lucide-react"
 import { cx } from "../../ui"
-import { formatMediaEmbedUrl } from "../../../lib/backendApi"
+import { formatMediaEmbedUrl, backendListVenues, type Venue } from "../../../lib/backendApi"
 import { vantagePoints } from "../constants"
-import type { Preview360Photo, SearchableOption } from "../types"
+import { isVenueMatch } from "./seatMatching"
+import { useStore } from "../../../lib/store"
+import type { Preview360Photo, SearchableOption, User } from "../types"
 
 interface EaseXplore360ModalProps {
   preview360Photo: Preview360Photo | null
@@ -20,6 +25,7 @@ interface EaseXplore360ModalProps {
   onUpdatePreview: (
     updater: (prev: Preview360Photo | null) => Preview360Photo | null,
   ) => void
+  user?: User | null
 }
 
 export function EaseXplore360Modal({
@@ -28,7 +34,48 @@ export function EaseXplore360Modal({
   sectionOptions,
   hasAccessibleSeats,
   onUpdatePreview,
+  user,
 }: EaseXplore360ModalProps) {
+  const navigate = useNavigate()
+  const { user: storeUser } = useStore()
+  const currentUser = user ?? storeUser
+
+  const [ownedVenues, setOwnedVenues] = useState<Venue[]>([])
+
+  useEffect(() => {
+    if (currentUser?.role === "organizer") {
+      backendListVenues()
+        .then(setOwnedVenues)
+        .catch(() => setOwnedVenues([]))
+    } else {
+      setOwnedVenues([])
+    }
+  }, [currentUser?.role])
+
+  const matchedOwnedVenue = useMemo(() => {
+    if (!currentUser || currentUser.role !== "organizer" || !preview360Photo) return null
+    const targetVenueName = (preview360Photo.venueName || preview360Photo.title || "").trim()
+    return (
+      ownedVenues.find(
+        (v) =>
+          (preview360Photo.venueId && v.id === preview360Photo.venueId) ||
+          isVenueMatch(v.name, targetVenueName),
+      ) ?? null
+    )
+  }, [currentUser, ownedVenues, preview360Photo])
+
+  const isOwner = Boolean(matchedOwnedVenue)
+
+  const handleConfigureEaseXplore = () => {
+    if (!matchedOwnedVenue) return
+    onClose()
+    navigate(
+      `/dashboard/organizer?tab=venue-setup&venueId=${encodeURIComponent(
+        matchedOwnedVenue.id,
+      )}&venue=${encodeURIComponent(matchedOwnedVenue.name)}`,
+    )
+  }
+
   if (!preview360Photo) return null
 
   return (
@@ -183,26 +230,39 @@ export function EaseXplore360Modal({
                         EaseXplore · Official Venue View
                       </span>
                       <h4 className="font-brand text-xl font-bold text-white tracking-tight">
-                        No views provided by organizer
+                        {isOwner
+                          ? "No views provided yet"
+                          : "No views provided by organizer"}
                       </h4>
                       <p className="mt-2 text-xs text-white/80 leading-relaxed font-medium">
-                        Search for the venue&apos;s website instead to view
-                        official seating guides, layouts, and facility
-                        information.
+                        {isOwner
+                          ? `As the organiser of ${venueName}, you can configure an interactive 360° virtual tour or video walkthrough in Venue Setup.`
+                          : "Search for the venue's website instead to view official seating guides, layouts, and facility information."}
                       </p>
                     </div>
 
                     <div className="pt-2">
-                      <a
-                        href={googleSearchUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-3 text-xs font-bold text-white shadow-lg shadow-brand-orange/30 transition-all hover:opacity-95 hover:shadow-xl hover:scale-105 active:scale-95"
-                      >
-                        <Search className="h-4 w-4" />
-                        <span>Search {venueName} website on Google</span>
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
+                      {isOwner ? (
+                        <button
+                          type="button"
+                          onClick={handleConfigureEaseXplore}
+                          className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-6 py-3.5 text-xs font-bold text-white shadow-lg shadow-brand-orange/30 transition-all hover:opacity-95 hover:shadow-xl hover:scale-105 active:scale-95"
+                        >
+                          <Rotate3d className="h-4 w-4" />
+                          <span>Configure EaseXplore</span>
+                        </button>
+                      ) : (
+                        <a
+                          href={googleSearchUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-3 text-xs font-bold text-white shadow-lg shadow-brand-orange/30 transition-all hover:opacity-95 hover:shadow-xl hover:scale-105 active:scale-95"
+                        >
+                          <Search className="h-4 w-4" />
+                          <span>Search {venueName} website on Google</span>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -265,7 +325,7 @@ export function EaseXplore360Modal({
           })()}
         </div>
 
-        {/* Rights Reserved Notice & External Website Button */}
+        {/* Rights Reserved Notice & External Website / Configure Button */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/10 bg-black/50 px-5 py-3.5 text-xs text-white">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-brand-orange shrink-0" />
@@ -274,7 +334,9 @@ export function EaseXplore360Modal({
                 ? preview360Photo.venueName
                   ? `View 360° view · All rights reserved by ${preview360Photo.venueName}`
                   : "View 360° view · All rights reserved by venue"
-                : `No views provided by organizer · Search ${preview360Photo.venueName || "venue"} website`}
+                : isOwner
+                  ? `No EaseXplore view configured yet · Manage in Venue Setup`
+                  : `No views provided by organizer · Search ${preview360Photo.venueName || "venue"} website`}
             </span>
           </div>
 
@@ -284,32 +346,53 @@ export function EaseXplore360Modal({
                   preview360Photo.externalTourUrl,
                 )
                 return (
-                  <a
-                    href={preview360Photo.externalTourUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="cursor-pointer shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-4.5 py-2 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
-                  >
-                    {media.isYoutube || media.isVimeo || media.isDirectVideo ? (
-                      <Video className="h-4 w-4" />
-                    ) : (
-                      <Rotate3d className="h-4 w-4" />
+                  <div className="flex items-center gap-2">
+                    {isOwner && (
+                      <button
+                        type="button"
+                        onClick={handleConfigureEaseXplore}
+                        className="cursor-pointer shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-white/15 hover:bg-white/25 px-3 py-2 text-xs font-bold text-white transition-all active:scale-95 border border-white/20"
+                      >
+                        <Rotate3d className="h-3.5 w-3.5 text-brand-orange" />
+                        <span>Configure EaseXplore</span>
+                      </button>
                     )}
-                    <span>
-                      {media.isYoutube
-                        ? "Watch on YouTube"
-                        : media.isVimeo
-                          ? "Watch on Vimeo"
-                          : "View 360° Tour on Website"}
-                    </span>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
+                    <a
+                      href={preview360Photo.externalTourUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="cursor-pointer shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-4.5 py-2 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+                    >
+                      {media.isYoutube || media.isVimeo || media.isDirectVideo ? (
+                        <Video className="h-4 w-4" />
+                      ) : (
+                        <Rotate3d className="h-4 w-4" />
+                      )}
+                      <span>
+                        {media.isYoutube
+                          ? "Watch on YouTube"
+                          : media.isVimeo
+                            ? "Watch on Vimeo"
+                            : "View 360° Tour on Website"}
+                      </span>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
                 )
               })()
             : (() => {
                 const venueName = preview360Photo.venueName || "Venue"
                 const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(`${venueName} website`)}`
-                return (
+                return isOwner ? (
+                  <button
+                    type="button"
+                    onClick={handleConfigureEaseXplore}
+                    className="cursor-pointer shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-4.5 py-2 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+                  >
+                    <Rotate3d className="h-4 w-4" />
+                    <span>Configure EaseXplore</span>
+                  </button>
+                ) : (
                   <a
                     href={googleSearchUrl}
                     target="_blank"

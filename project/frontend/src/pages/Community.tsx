@@ -661,6 +661,7 @@ export default function Community() {
         sectionOptions={easePix.sectionOptions}
         hasAccessibleSeats={easePix.eventSeats.some((s) => s.isAccessible)}
         onUpdatePreview={easePix.setPreview360Photo}
+        user={user}
       />
 
       {/* Your EasePoints Rewards Pop-up Modal */}

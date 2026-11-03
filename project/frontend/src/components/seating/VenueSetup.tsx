@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "react-router";
 import { Building2, Download, Upload, Armchair, Rotate3d, ExternalLink, Edit2, Check, Video, Film, Trash2, UploadCloud } from "lucide-react";
 import {
   ApiError,
@@ -9,7 +10,8 @@ import {
   formatMediaEmbedUrl,
   type Venue,
 } from "../../lib/backendApi";
-import { Badge, Button, Card, Eyebrow, Field, InfoTooltip, Input } from "../ui";
+import { Badge, Button, Card, Eyebrow, Field, InfoTooltip, Input, cx } from "../ui";
+import { isVenueMatch } from "../community/easepix/seatMatching";
 import VenueSeatMap from "./VenueSeatMap";
 
 const emptyForm = { name: "", area: "", address: "", easeexplore360Url: "" };
@@ -36,11 +38,46 @@ export function VenueSetup() {
   const [venue360Input, setVenue360Input] = useState<string>("");
   const [saving360, setSaving360] = useState(false);
 
+  // Target venue selection & scroll from EaseXplore Configure
+  const [searchParams] = useSearchParams();
+  const targetVenueParam = searchParams.get("venueId") || searchParams.get("venue");
+  const [highlightedVenueId, setHighlightedVenueId] = useState<string | null>(null);
+  const scrolledRef = useRef<string | null>(null);
+
   useEffect(() => {
     backendListVenues()
       .then(setVenues)
       .catch((cause) => setLoadError(messageOf(cause)));
   }, []);
+
+  useEffect(() => {
+    if (!venues || !targetVenueParam || scrolledRef.current === targetVenueParam) return;
+    const matched = venues.find(
+      (v) => v.id === targetVenueParam || isVenueMatch(v.name, targetVenueParam),
+    );
+    if (matched) {
+      scrolledRef.current = targetVenueParam;
+      setEditingVenue360Id(matched.id);
+      setVenue360Input(matched.easeexplore360Url ?? "");
+      setHighlightedVenueId(matched.id);
+
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`venue-card-${matched.id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 300);
+
+      const fadeTimer = setTimeout(() => {
+        setHighlightedVenueId(null);
+      }, 4000);
+
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(fadeTimer);
+      };
+    }
+  }, [venues, targetVenueParam]);
 
   const set = (key: keyof typeof emptyForm, value: string) => setForm((f) => ({ ...f, [key]: value }));
   const canUpload = Boolean(file && form.name.trim() && form.area.trim()) && !saving;
@@ -254,8 +291,18 @@ export function VenueSetup() {
           </Card>
         )}
         <div className="grid gap-5 lg:grid-cols-2">
-          {venues?.map((venue) => (
-            <Card key={venue.id} className="p-5 flex flex-col justify-between">
+          {venues?.map((venue) => {
+            const isHighlighted = highlightedVenueId === venue.id;
+            return (
+              <Card
+                key={venue.id}
+                id={`venue-card-${venue.id}`}
+                className={cx(
+                  "p-5 flex flex-col justify-between transition-all duration-300 scroll-mt-24",
+                  isHighlighted &&
+                    "ring-3 ring-brand-orange ring-offset-2 shadow-2xl border-brand-orange/60 scale-[1.01]",
+                )}
+              >
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -488,7 +535,8 @@ export function VenueSetup() {
                 </Button>
               </div>
             </Card>
-          ))}
+          );
+        })}
         </div>
 
         {previewVenueId && (

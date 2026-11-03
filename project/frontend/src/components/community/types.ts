@@ -57,6 +57,7 @@ export interface Preview360Photo {
   fov?: string
   externalTourUrl?: string | null
   venueName?: string
+  venueId?: string
 }
 
 export interface AttachedEasePix {
