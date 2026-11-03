@@ -6,6 +6,7 @@ from app.db.models.venue import Venue, VenueSeat, VenueSection
 from app.db.models.assistance import (
     ACTIVE_ASSISTANCE_STATUSES,
     AccessibilitySettings,
+    EaseVoiceConfig,
     AssistanceLevel,
     AssistanceRequest,
     AssistanceStatus,
@@ -88,6 +89,7 @@ __all__ = [
     "UserStatus",
     "ACTIVE_ASSISTANCE_STATUSES",
     "AccessibilitySettings",
+    "EaseVoiceConfig",
     "AssistanceLevel",
     "AssistanceRequest",
     "AssistanceStatus",

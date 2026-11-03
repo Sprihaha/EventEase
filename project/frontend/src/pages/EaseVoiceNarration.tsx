@@ -9,6 +9,7 @@ import {
   useAccessibility,
 } from "../lib/accessibility";
 import { Badge, Button, Card, Select, Textarea, cx } from "../components/ui";
+import EaseVoiceBehaviourSettings from "../components/voice/EaseVoiceBehaviourSettings";
 
 const maxLength = 5000;
 
@@ -237,6 +238,8 @@ export default function EaseVoiceNarration({ embedded = false }: { embedded?: bo
       <p className="mt-2 max-w-2xl text-muted">
         Edit the spoken introduction for one EventEase page at a time.
       </p>
+
+      <EaseVoiceBehaviourSettings />
 
       <Card className="mt-8 p-6 sm:p-8">
         <div className="grid gap-5 md:grid-cols-[13rem_1fr]">
