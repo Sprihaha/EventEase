@@ -28,13 +28,21 @@ export function EventCard({
   const isAdmin = user?.role === "admin";
 
   const currentOrg = getCurrentOrganisation();
+  const orgNameMatches = Boolean(
+    currentOrg?.name &&
+      ev.organisationName &&
+      ev.organisationName.trim().toLowerCase() === currentOrg.name.trim().toLowerCase()
+  );
+  const inOrgManagedList = managedEvents.some((m) => m.id === ev.id);
+
+  // Ownership belongs strictly to the organisation:
+  // If the event is associated with an organisation, it must match the current session's organisation.
+  // If the event has no organisation specified, it falls back to the organisation's managed events or creator.
   const isOwner =
     isOrganizer &&
-    (managedEvents.some((m) => m.id === ev.id) ||
-      ev.organizerId === user?.id ||
-      (currentOrg &&
-        ev.organisationName &&
-        ev.organisationName.toLowerCase() === currentOrg.name.toLowerCase()));
+    (ev.organisationName
+      ? orgNameMatches || inOrgManagedList
+      : inOrgManagedList || (ev.organizerId ? ev.organizerId === user?.id : false));
 
   const handleAction = () => {
     if (isOrganizer) {
