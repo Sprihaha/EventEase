@@ -91,26 +91,12 @@ export function FeedPostCard({
               <div className="absolute inset-0 bg-gradient-to-t from-brand-deep/90 via-transparent to-transparent pointer-events-none" />
               <div className="absolute left-3.5 bottom-3.5 flex items-center gap-2 text-xs font-extrabold text-white">
                 <span className="rounded bg-brand-orange px-2 py-0.5 text-[10px] uppercase font-black tracking-wider">
-                  SEAT VIEW
+                  {post.section ? "SEAT VIEW" : "POST PHOTO"}
                 </span>
                 <span>
-                  {evName} · Section {post.section ?? "C"}
+                  {post.section ? `${evName} · Section ${post.section}` : evName}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  onPreview360({
-                    url: post.photo!,
-                    title: evName,
-                    section: post.section,
-                  })
-                }
-                className="cursor-pointer absolute right-3.5 bottom-3.5 inline-flex items-center gap-1.5 rounded-full bg-brand-deep/85 px-3 py-1 text-xs font-bold text-white backdrop-blur-md transition hover:bg-brand-purple"
-              >
-                <Rotate3d className="h-3.5 w-3.5 text-brand-orange" /> Preview
-                360°
-              </button>
             </div>
           )}
 
@@ -161,9 +147,9 @@ export function FeedPostCard({
               <Share2 className="h-4 w-4" /> Share
             </button>
 
-            {user && user.role !== "organizer" && (
+            {user && user.role !== "organizer" && post.isQuestion && (
               <div className="ml-auto inline-flex items-center gap-1 text-[11px] font-extrabold text-brand-orange">
-                <Sparkles className="h-3 w-3" /> +23 EasePoints
+                <Sparkles className="h-3 w-3" /> +3 EasePoints
               </div>
             )}
           </div>
