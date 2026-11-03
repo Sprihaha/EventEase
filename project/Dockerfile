@@ -64,7 +64,7 @@ COPY monolith/supervisord.conf /etc/supervisor/supervisord.conf
 # (Render's free plan expects port 10000 by default when using Docker).
 EXPOSE 10000
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:10000/health')"
 
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
