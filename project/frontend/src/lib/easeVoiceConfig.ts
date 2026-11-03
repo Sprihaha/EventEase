@@ -7,7 +7,6 @@ export type EaseVoiceConfig = {
   idlePromptEnabled: boolean;
   idleSeconds: number;
   idlePromptText: string;
-  showFloatingPlayer: boolean;
   updatedAt?: string | null;
 };
 
@@ -16,8 +15,8 @@ export const DEFAULT_EASEVOICE_CONFIG: EaseVoiceConfig = {
   selectToRead: true,
   idlePromptEnabled: true,
   idleSeconds: 120,
-  idlePromptText: "Hi, I am EaseVoice. Do you need any help? Highlight or choose the words you want me to read for you.",
-  showFloatingPlayer: false,
+  idlePromptText:
+    "Hello, this is EaseVoice. Would you like me to read something for you? Just highlight any words on the screen and I'll read them aloud.",
 };
 
 export const IDLE_SECONDS_MIN = 30;

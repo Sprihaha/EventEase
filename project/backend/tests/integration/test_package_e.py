@@ -725,8 +725,8 @@ ADMIN_EASEVOICE_CONFIG = "/api/v1/admin/easevoice/config"
 def test_easevoice_config_defaults_are_public(client):
     body = client.get(EASEVOICE_CONFIG).json()  # no login needed: every page reads it
     assert body["selectToRead"] is True and body["idlePromptEnabled"] is True
-    assert body["idleSeconds"] == 120 and body["showFloatingPlayer"] is False
-    assert body["idlePromptText"].startswith("Hi, I am EaseVoice")
+    assert body["idleSeconds"] == 120 and "showFloatingPlayer" not in body
+    assert body["idlePromptText"].startswith("Hello, this is EaseVoice")
 
 
 def test_only_admins_can_change_easevoice_config(client, db):
@@ -747,9 +747,9 @@ def test_admin_updates_only_the_fields_sent_and_it_is_audited(client, db):
     body = client.get(EASEVOICE_CONFIG).json()
     assert body["idleSeconds"] == 300 and body["idlePromptText"] == "Need a hand?"
     assert body["selectToRead"] is True  # untouched fields keep their value
-    client.put(ADMIN_EASEVOICE_CONFIG, headers=headers, json={"selectToRead": False, "showFloatingPlayer": True})
+    client.put(ADMIN_EASEVOICE_CONFIG, headers=headers, json={"selectToRead": False})
     body = client.get(EASEVOICE_CONFIG).json()
-    assert body["selectToRead"] is False and body["showFloatingPlayer"] is True and body["idleSeconds"] == 300
+    assert body["selectToRead"] is False and body["idleSeconds"] == 300
     logs = list(db.scalars(select(AuditLog).where(AuditLog.action == "EASEVOICE_CONFIG_UPDATED")))
     assert len(logs) == 2 and logs[0].before["idle_seconds"] == 120
 

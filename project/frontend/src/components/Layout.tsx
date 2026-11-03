@@ -277,7 +277,7 @@ export default function Layout() {
                       <InfoTooltip
                         side="left"
                         title="What is EaseVoice?"
-                        content="Customizable voice narration and speech controls that read event and ticket details aloud."
+                        content="Highlight any text on a page and EaseVoice reads it aloud. Open it from the tab at the bottom-right."
                         ariaLabel="Learn about EaseVoice"
                         size="sm"
                       />

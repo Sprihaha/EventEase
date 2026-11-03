@@ -34,7 +34,7 @@ export default function AccessibilitySettings() {
         Accessibility settings
       </h1>
       <p className="mt-3 max-w-xl text-sm sm:text-base leading-relaxed text-muted">
-        Choose how quickly <span className="font-feature italic font-black text-brand-purple">EaseVoice</span> reads and whether narration starts automatically.
+        Choose how quickly <span className="font-feature italic font-black text-brand-purple">EaseVoice</span> reads the text you highlight.
       </p>
 
       <Card className="mt-8 border border-brand-purple/15 bg-white p-6 shadow-sm sm:p-8 rounded-3xl">
@@ -45,7 +45,7 @@ export default function AccessibilitySettings() {
               {draft.voiceSpeed.toFixed(2).replace(/0$/, "")}x
             </span>
           </span>
-          <p className="mt-1 text-sm text-muted">Adjust narration from 0.5x to 2.0x.</p>
+          <p className="mt-1 text-sm text-muted">Adjust the reading speed from 0.5x to 2.0x.</p>
           <input
             type="range"
             min="0.5"
@@ -63,37 +63,6 @@ export default function AccessibilitySettings() {
             <span>0.5x</span><span>1.0x</span><span>1.5x</span><span>2.0x</span>
           </div>
         </label>
-
-        <div className="mt-8 flex items-center justify-between gap-5 border-t border-brand-purple/10 pt-6">
-          <div>
-            <div className="font-bold text-brand-deep">Auto-narrate on page load</div>
-            <p className="mt-1 text-sm text-muted">
-              Automatically read the narration whenever you open a page.
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={draft.autoNarrate}
-            aria-label="Auto-narrate on page load"
-            onClick={() => {
-              setSaved(false);
-              setDraft({ ...draft, autoNarrate: !draft.autoNarrate });
-            }}
-            className={cx(
-              "cursor-pointer relative h-8 w-14 shrink-0 rounded-full transition",
-              draft.autoNarrate ? "bg-brand-purple" : "bg-line",
-              focusRing,
-            )}
-          >
-            <span
-              className={cx(
-                "absolute top-1 h-6 w-6 rounded-full bg-white shadow-sm transition",
-                draft.autoNarrate ? "left-7" : "left-1",
-              )}
-            />
-          </button>
-        </div>
 
         <div className="mt-8 flex flex-wrap items-center gap-4">
           <Button type="button" onClick={save} className={focusRing}>Save settings</Button>

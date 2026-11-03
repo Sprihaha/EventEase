@@ -82,7 +82,6 @@ export default function EaseVoiceBehaviourSettings() {
         idlePromptEnabled: draft.idlePromptEnabled,
         idleSeconds: seconds,
         idlePromptText: draft.idlePromptText.trim() || config.idlePromptText,
-        showFloatingPlayer: draft.showFloatingPlayer,
       });
       setTouched(false);
       setNote({ ok: true, text: "Saved. Every visitor gets these settings on their next page load." });
@@ -100,7 +99,7 @@ export default function EaseVoiceBehaviourSettings() {
 
   return (
     <Card className="mt-8 p-6 sm:p-8">
-      <h2 className="font-brand text-xl font-bold text-brand-deep">EaseVoice behaviour</h2>
+      <h2 className="font-brand text-xl font-bold text-brand-deep">Behaviour</h2>
       <p className="mt-1 text-sm text-muted">Applies to every visitor on every page. Only administrators can change it.</p>
 
       <div className="mt-6">
@@ -112,7 +111,7 @@ export default function EaseVoiceBehaviourSettings() {
         />
         <Toggle
           label="Offer help when someone is idle"
-          help="After a period with no mouse, keyboard, touch or scrolling, EaseVoice says the prompt below once."
+          help="After a period with no mouse, keyboard, touch or scrolling, EaseVoice says the prompt below, and repeats it each period until the visitor is active again."
           checked={draft.idlePromptEnabled}
           onChange={(value) => change({ idlePromptEnabled: value })}
         />
@@ -143,12 +142,6 @@ export default function EaseVoiceBehaviourSettings() {
             </div>
           </div>
         )}
-        <Toggle
-          label="Show the floating EaseVoice player"
-          help="The Play / speed bar at the bottom-right of every page. Visitors can still change their voice speed under Accessibility settings."
-          checked={draft.showFloatingPlayer}
-          onChange={(value) => change({ showFloatingPlayer: value })}
-        />
       </div>
 
       {problems.length > 0 && (

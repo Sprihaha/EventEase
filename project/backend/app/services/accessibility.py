@@ -144,9 +144,8 @@ DEFAULT_EASEVOICE_CONFIG = {
     "select_to_read": True,
     "idle_prompt_enabled": True,
     "idle_seconds": 120,
-    "idle_prompt_text": "Hi, I am EaseVoice. Do you need any help? Highlight or choose the words "
-                        "you want me to read for you.",
-    "show_floating_player": False,
+    "idle_prompt_text": "Hello, this is EaseVoice. Would you like me to read something for you? "
+                        "Just highlight any words on the screen and I'll read them aloud.",
 }
 CONFIG_FIELDS = list(DEFAULT_EASEVOICE_CONFIG)
 

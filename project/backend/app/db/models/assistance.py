@@ -91,5 +91,4 @@ class EaseVoiceConfig(Timestamps, Base):
     idle_prompt_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     idle_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=120)
     idle_prompt_text: Mapped[str] = mapped_column(Text, nullable=False)
-    show_floating_player: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     updated_by_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id", ondelete="SET NULL"))

@@ -138,7 +138,7 @@ def put_my_settings(body: AccessibilitySettingsIn, user: User = Depends(get_curr
 
 
 @router.get("/easevoice/config", response_model=EaseVoiceConfigOut,
-            summary="How EaseVoice behaves on every page: read-on-select, idle prompt, floating player (public)")
+            summary="How EaseVoice behaves on every page: read-on-select and the idle prompt (public)")
 def get_easevoice_config(db: Session = Depends(get_db)):
     return service.get_easevoice_config(db)
 

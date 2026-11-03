@@ -44,7 +44,6 @@ class EaseVoiceConfigOut(CamelModel):
     idle_prompt_enabled: bool
     idle_seconds: int
     idle_prompt_text: str
-    show_floating_player: bool
     updated_at: datetime | None = None
 
 
@@ -54,7 +53,6 @@ class EaseVoiceConfigIn(CamelModel):
     idle_prompt_enabled: bool | None = None
     idle_seconds: int | None = Field(None, ge=30, le=1800, description="Seconds without activity before the prompt")
     idle_prompt_text: str | None = Field(None, max_length=500)
-    show_floating_player: bool | None = None
 
     @field_validator("idle_prompt_text")
     @classmethod

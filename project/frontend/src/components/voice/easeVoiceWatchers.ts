@@ -71,36 +71,31 @@ export function watchSelection(win: Win, doc: Doc, onText: (text: string) => voi
 const ACTIVITY_EVENTS = ["pointerdown", "pointermove", "keydown", "wheel", "scroll", "touchstart"] as const;
 
 /**
- * Call onIdle once after `seconds` with no mouse, keyboard, touch or scrolling.
- * It does not repeat until the person is active again and then idle again, and it waits
- * while the browser tab is hidden so a background tab never starts talking.
+ * Call onIdle after `seconds` with no mouse, keyboard, touch or scrolling, and again every
+ * `seconds` for as long as the person stays inactive. Any activity restarts the count.
+ * It waits while the browser tab is hidden, so a background tab never starts talking.
  */
 export function watchIdle(win: Win, doc: Doc, seconds: number, onIdle: () => void): () => void {
   let timer: ReturnType<Window["setTimeout"]> | undefined;
-  let prompted = false;
 
   const arm = () => {
     win.clearTimeout(timer);
     timer = win.setTimeout(() => {
-      if (doc.hidden) return; // re-armed by the next activity or when the tab is shown again
-      prompted = true;
+      if (doc.hidden) return; // re-armed when the tab is shown again or by the next activity
       onIdle();
+      arm(); // still idle: offer help again after another period
     }, seconds * 1000);
   };
-  const onActivity = () => {
-    prompted = false;
-    arm();
-  };
   const onVisibility = () => {
-    if (!doc.hidden && !prompted) arm();
+    if (!doc.hidden) arm();
   };
 
-  ACTIVITY_EVENTS.forEach((name) => win.addEventListener(name, onActivity, { capture: true, passive: true }));
+  ACTIVITY_EVENTS.forEach((name) => win.addEventListener(name, arm, { capture: true, passive: true }));
   doc.addEventListener("visibilitychange", onVisibility);
   arm();
   return () => {
     win.clearTimeout(timer);
-    ACTIVITY_EVENTS.forEach((name) => win.removeEventListener(name, onActivity, { capture: true }));
+    ACTIVITY_EVENTS.forEach((name) => win.removeEventListener(name, arm, { capture: true }));
     doc.removeEventListener("visibilitychange", onVisibility);
   };
 }

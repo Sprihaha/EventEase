@@ -66,7 +66,7 @@ export default function AdminDashboard() {
     { id: "fraud", label: "Fraud monitor", icon: ShieldAlert, badge: openFraud },
     { id: "sales", label: "Sales status", icon: CircleDollarSign },
     { id: "assistance", label: "Assistance queue", icon: ClipboardList, badge: openAssistance },
-    { id: "narration", label: "EaseVoice narration", icon: Volume2 },
+    { id: "narration", label: "EaseVoice settings", icon: Volume2 },
     { id: "seats", label: "Seat maps", icon: Armchair },
     { id: "guide", label: "EaseGuide requests", icon: Route, badge: 3 },
     { id: "analytics", label: "Platform analytics", icon: BarChart3 },
