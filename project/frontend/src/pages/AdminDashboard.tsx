@@ -69,7 +69,7 @@ export default function AdminDashboard() {
     { id: "sales", label: "Sales status", icon: CircleDollarSign },
     { id: "assistance", label: "Assistance queue", icon: ClipboardList, badge: openAssistance },
     { id: "narration", label: "EaseVoice settings", icon: Volume2 },
-    { id: "easehelp", label: "EaseHelp", icon: HelpCircle },
+    { id: "easehelp", label: "Edit EaseHelp", icon: HelpCircle },
     { id: "seats", label: "Seat maps", icon: Armchair },
     { id: "guide", label: "EaseGuide requests", icon: Route, badge: 3 },
     { id: "analytics", label: "Platform analytics", icon: BarChart3 },

@@ -9,6 +9,17 @@ import { PanelLeftClose, PanelLeftOpen, ChevronRight, type LucideIcon } from "lu
 // `to` turns the item into a link to another page instead of a tab inside the dashboard.
 export type NavItem = { id: string; label: string; icon: LucideIcon; badge?: number; to?: string };
 
+/** Feature names inside a label ("Edit EaseHelp") use the same italic font as EaseComms. */
+function EaseWords({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\bEase[A-Za-z]+)/).map((part, i) =>
+        part.startsWith("Ease") ? <span key={i} className="font-feature italic font-black tracking-tight">{part}</span> : part,
+      )}
+    </>
+  );
+}
+
 export function DashboardShell({
   role,
   title,
@@ -151,7 +162,7 @@ export function DashboardShell({
                           isSelected ? "" : "group-hover:font-semibold group-hover:text-brand-deep",
                         )}
                       >
-                        {n.label}
+                        {n.label.startsWith("Ease") ? n.label : <EaseWords text={n.label} />}
                       </span>
                     )}
                     {!collapsed && !isSelected && !n.badge && (
