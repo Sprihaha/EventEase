@@ -15,6 +15,7 @@ from app.db.models import (
     BookingStatus,
     Event,
     EventSeat,
+    PromoCode,
     Ticket,
     TicketCategory,
     User,
@@ -73,6 +74,8 @@ def booking_view(db: Session, booking: Booking, settings: Settings | None = None
                      "ticket_category_id": item_category[t.booking_item_id]} for t in booking.tickets
                     if t.owner_user_id is None or t.owner_user_id == booking.user_id],
         "total_cents": booking.total_cents,
+        "discount_cents": booking.discount_cents or 0,
+        "promo_code": db.get(PromoCode, booking.promo_code_id).code if booking.promo_code_id else None,
         "currency": booking.currency,
         "hold_expires_at": booking.hold_expires_at,
         "created_at": booking.created_at,

@@ -15,6 +15,8 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Pencil,
+  CalendarX,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { type EventItem } from "../lib/data";
@@ -25,7 +27,9 @@ import VenueSetup from "../components/VenueSetup";
 import CreateEventForm from "../components/CreateEventForm";
 import VenueSeatMap from "../components/VenueSeatMap";
 import OrganisationTeam from "../components/OrganisationTeam";
-import TicketTierEditor from "../components/TicketTierEditor";
+import EditEventPanel from "../components/events/EditEventPanel";
+import CancelEventPanel from "../components/events/CancelEventPanel";
+import PromoCodes from "../components/PromoCodes";
 import { fetchMyOrganisations, getCurrentOrganisation } from "../lib/organisation";
 
 const nav: NavItem[] = [
@@ -74,7 +78,7 @@ export default function OrganizerDashboard() {
           {active === "seats" && <VenueSeatMap />}
           {active === "events" && <EventsTable mine={mine} />}
           {active === "create" && <CreateEventForm onCreate={createEvent} />}
-          {active === "promos" && <Promotions />}
+          {active === "promos" && <PromoCodes events={mine} />}
           {active === "team" && isManager && <OrganisationTeam />}
         </>
       )}
@@ -187,6 +191,8 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [page, setPage] = useState(1);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  // One event card at a time can have its Edit or Cancel panel open.
+  const [panel, setPanel] = useState<{ id: string; kind: "edit" | "cancel" } | null>(null);
 
   useEffect(() => {
     if (!targetEventId) return;
@@ -260,6 +266,10 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
         const sold = e.tiers.reduce((a, t) => a + t.sold, 0);
         const cap = e.tiers.reduce((a, t) => a + t.total, 0);
         const pct = Math.round((sold / Math.max(cap, 1)) * 100);
+        const pendingCancel = e.cancellation?.status === "PENDING";
+        // Imported events are kept in sync with their source, so they are not edited or cancelled here.
+        const changeable = !e.imported && !e.isPast && e.status !== "cancelled" && !pendingCancel;
+        const open = panel?.id === e.id ? panel.kind : null;
         return (
           <Card
             key={e.id}
@@ -273,10 +283,11 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="font-brand text-lg font-bold text-brand-deep">{e.title}</h3>
-                  <Badge tone={e.status === "published" ? "live" : e.status === "pending" ? "warn" : "neutral"}>
+                  <Badge tone={e.status === "published" ? "live" : e.status === "pending" ? "warn" : e.status === "cancelled" ? "danger" : "neutral"}>
                     {e.status}
                   </Badge>
                   {e.imported && <Badge tone="accent">Imported by System</Badge>}
+                  {pendingCancel && <Badge tone="warn">Cancellation pending</Badge>}
                 </div>
                 <div className="text-sm text-muted">{e.venue} · {e.category}</div>
               </div>
@@ -288,6 +299,19 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
               </div>
             </div>
             {e.rejectionReason && <p role="status" className="mt-3 text-sm text-danger">Rejection reason: {e.rejectionReason}</p>}
+            {pendingCancel && (
+              <p role="status" className="mt-3 text-sm text-brand-deep">
+                Waiting for an administrator to approve the cancellation. Ticket sales are paused until then.
+              </p>
+            )}
+            {e.status === "cancelled" && (
+              <p role="status" className="mt-3 text-sm text-danger">This event was cancelled. Ticket holders were refunded and emailed.</p>
+            )}
+            {e.cancellation?.status === "REJECTED" && e.status !== "cancelled" && (
+              <p role="status" className="mt-3 text-sm text-muted">
+                Your cancellation request was not approved{e.cancellation.decisionNote ? `: “${e.cancellation.decisionNote}”` : "."}
+              </p>
+            )}
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
               {e.tiers.map((t) => (
                 <div key={t.id} className="rounded-xl bg-mist/60 p-3">
@@ -305,7 +329,18 @@ function EventsTable({ mine }: { mine: EventItem[] }) {
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line">
               <div className="h-full rounded-full bg-brand-orange" style={{ width: `${pct}%` }} />
             </div>
-            {e.status === "published" && e.tiers.length > 0 && <TicketTierEditor event={e} />}
+            {changeable && !open && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => setPanel({ id: e.id, kind: "edit" })}>
+                  <Pencil className="h-4 w-4" /> Edit
+                </Button>
+                <Button size="sm" variant="ghost" className="text-danger" onClick={() => setPanel({ id: e.id, kind: "cancel" })}>
+                  <CalendarX className="h-4 w-4" /> Cancel event
+                </Button>
+              </div>
+            )}
+            {changeable && open === "edit" && <EditEventPanel event={e} onClose={() => setPanel(null)} />}
+            {changeable && open === "cancel" && <CancelEventPanel event={e} onClose={() => setPanel(null)} />}
           </Card>
         );
       })}
@@ -389,41 +424,3 @@ function Analytics({ mine }: { mine: EventItem[] }) {
   );
 }
 
-function Promotions() {
-  const promos = [
-    { code: "EARLYBIRD", type: "Early-bird pricing", off: "15% off", used: 213, active: true },
-    { code: "BUNDLE4", type: "Bundle offer (buy 4)", off: "20% off", used: 88, active: true },
-    { code: "WELCOME10", type: "Referral code", off: "10% off", used: 402, active: true },
-    { code: "LOYALGOLD", type: "Loyalty reward", off: "Free booking fee", used: 156, active: false },
-  ];
-  return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between border-b border-line p-5">
-        <h3 className="font-brand text-xl font-bold text-brand-deep">Active promotions</h3>
-        <Button size="sm"><Tag className="h-4 w-4" /> New promo</Button>
-      </div>
-      <table className="w-full text-sm">
-        <thead className="bg-brand-purple/5 border-b border-brand-purple/10 text-left text-xs uppercase tracking-wide text-muted">
-          <tr>
-            <th className="p-4">Code</th>
-            <th className="p-4">Type</th>
-            <th className="p-4">Discount</th>
-            <th className="p-4">Redemptions</th>
-            <th className="p-4">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {promos.map((p) => (
-            <tr key={p.code} className="border-b border-line last:border-0 hover:bg-brand-purple/5 transition-colors">
-              <td className="p-4"><code className="rounded bg-brand-purple/10 px-2 py-1 font-mono text-xs font-semibold text-brand-purple">{p.code}</code></td>
-              <td className="p-4 text-muted">{p.type}</td>
-              <td className="p-4 font-semibold text-brand-deep">{p.off}</td>
-              <td className="p-4 text-muted">{p.used}</td>
-              <td className="p-4"><Badge tone={p.active ? "live" : "neutral"}>{p.active ? "Active" : "Ended"}</Badge></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
-  );
-}

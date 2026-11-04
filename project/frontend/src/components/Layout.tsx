@@ -8,11 +8,9 @@ import {
   LayoutDashboard,
   Accessibility,
   Type,
-  Contrast,
   LogOut,
   ChevronRight,
   ChevronDown,
-  Volume2,
   KeyRound,
   Route,
   User,
@@ -277,36 +275,6 @@ export default function Layout() {
                       <HelpCircle className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                       <span className="font-feature italic font-black">EaseHelp</span>
                     </button>
-                    {/* EaseVoice settings in the menu are for admins; everyone else uses the EaseVoice tab. */}
-                    {user.role === "admin" && (
-                    <div
-                      aria-pressed={location.pathname === "/settings/accessibility"}
-                      className={cx(
-                        "dropdown-menu-item group flex w-full cursor-pointer items-center justify-between rounded-xl border border-transparent px-3 py-2 text-sm font-semibold transition",
-                        location.pathname === "/settings/accessibility" && "is-selected",
-                      )}
-                    >
-                      <button
-                        role="menuitem"
-                        type="button"
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          navigate("/settings/accessibility");
-                        }}
-                        className="flex flex-1 items-center gap-3 text-left focus-visible:outline-none cursor-pointer"
-                      >
-                        <Volume2 className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
-                        <span>EaseVoice</span>
-                      </button>
-                      <InfoTooltip
-                        side="left"
-                        title="What is EaseVoice?"
-                        content="Highlight any text on a page and EaseVoice reads it aloud. Open it from the tab at the bottom-right."
-                        ariaLabel="Learn about EaseVoice"
-                        size="sm"
-                      />
-                    </div>
-                    )}
                     {user.canChangePassword !== false && (
                       <button
                         role="menuitem"

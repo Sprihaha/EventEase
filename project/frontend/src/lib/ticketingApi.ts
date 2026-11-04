@@ -17,6 +17,7 @@ export interface TicketingEvent {
   venueName: string; imageUrl: string | null; purchasable: boolean; externalUrl: string | null;
   purchaseLimitPerEvent: number; ticketCategories: TicketCategory[];
   imported?: boolean; organisationName?: string | null; salesCloseAt?: string | null;
+  salesPaused?: boolean; // the organiser asked to cancel; waiting for an administrator
 }
 export interface IssuedTicket {
   // The code (what the QR encodes) is null until QR codes are released, when ticket sales close.
@@ -28,6 +29,7 @@ export interface BackendBooking {
   event: { id: string; title: string; startAt: string; endAt: string; venueName: string; imageUrl: string | null };
   items: { ticketCategoryId: string; name: string; quantity: number; unitPriceCents: number }[];
   tickets: IssuedTicket[]; totalCents: number; currency: string; holdExpiresAt: string | null;
+  discountCents?: number; promoCode?: string | null;
   createdAt: string; cancellable: boolean; qrReleased?: boolean; qrAvailableFrom?: string | null;
 }
 export interface OwnedTicket {
@@ -45,12 +47,13 @@ export const fetchTicketingEvent = (id: string, signal?: AbortSignal) =>
   request<TicketingEvent>(`/events/${encodeURIComponent(id)}`, { signal }, true);
 export const fetchSeats = (id: string, signal?: AbortSignal) =>
   request<LiveSeat[]>(`/events/${encodeURIComponent(id)}/seats`, { signal });
-export async function holdSeats(eventId: string, seats: LiveSeat[], key: string) {
+export async function holdSeats(eventId: string, seats: LiveSeat[], key: string, promoCode?: string | null) {
   const counts = new Map<string, number>();
   for (const seat of seats) counts.set(seat.ticketCategoryId, (counts.get(seat.ticketCategoryId) ?? 0) + 1);
   return request<BackendBooking>("/bookings", { method: "POST", headers: { "Idempotency-Key": key },
     body: JSON.stringify({ eventId, seatIds: seats.map(s => s.id),
-      items: [...counts].map(([ticketCategoryId, quantity]) => ({ ticketCategoryId, quantity })) }) }, true);
+      items: [...counts].map(([ticketCategoryId, quantity]) => ({ ticketCategoryId, quantity })),
+      ...(promoCode ? { promoCode } : {}) }) }, true);
 }
 export const payBooking = (id: string, fail = false) => request<BackendBooking>(`/bookings/${encodeURIComponent(id)}/pay`,
   { method: "POST", body: JSON.stringify({ paymentMethod: fail ? "mock_fail" : "mock_success" }) }, true);
@@ -77,5 +80,7 @@ export function bookingForStore(b: BackendBooking, userId: string): Booking {
     tickets: b.tickets, event: { title: b.event.title, date: b.event.startAt, venue: b.event.venueName, image: b.event.imageUrl ?? "/event-placeholder.svg" } };
 }
 
-export const holdCategories = (eventId: string, items: { ticketCategoryId: string; quantity: number }[], key: string) =>
-  request<BackendBooking>("/bookings", { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ eventId, items }) }, true);
+export const holdCategories = (eventId: string, items: { ticketCategoryId: string; quantity: number }[], key: string,
+  promoCode?: string | null) =>
+  request<BackendBooking>("/bookings", { method: "POST", headers: { "Idempotency-Key": key },
+    body: JSON.stringify({ eventId, items, ...(promoCode ? { promoCode } : {}) }) }, true);

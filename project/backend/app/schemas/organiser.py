@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from pydantic import Field, field_validator
 
-from app.db.models import EventCategory, EventStatus, TicketCategoryType
+from app.db.models import CancellationRequestStatus, EventCategory, EventStatus, TicketCategoryType
 from app.schemas.common import CamelModel
 
 
@@ -13,6 +13,23 @@ def _http_url(value: str | None) -> str | None:
     if value and _is_local_address(value):
         raise ValueError("must be a public web address; localhost and private network addresses only work on one computer")
     return value
+
+
+# Posters uploaded through EventEase are served from this path on the same site.
+UPLOADED_IMAGE_PREFIX = "/api/v1/media/event-images/"
+
+
+def _image_url(value: str | None) -> str | None:
+    """An uploaded poster (our own media path) or a public http(s) address."""
+    if value:
+        value = value.strip()
+    if value and value.startswith(UPLOADED_IMAGE_PREFIX):
+        try:
+            uuid.UUID(value[len(UPLOADED_IMAGE_PREFIX):])
+        except ValueError as error:
+            raise ValueError("is not a valid uploaded image address") from error
+        return value
+    return _http_url(value or None)
 
 
 def _is_local_address(url: str) -> bool:
@@ -50,7 +67,7 @@ class EventCreate(CamelModel):
     capacity: int | None = Field(None, ge=1, le=200_000, description="Defaults to the venue's seat count")
     initial_categories: list[InitialTicketCategory] = Field(default_factory=list, max_length=10)
 
-    _url = field_validator("image_url")(_http_url)
+    _url = field_validator("image_url")(_image_url)
 
 
 class EventUpdate(CamelModel):
@@ -65,7 +82,7 @@ class EventUpdate(CamelModel):
     image_url: str | None = Field(None, max_length=2000)
     capacity: int | None = Field(None, ge=1, le=200_000)
 
-    _url = field_validator("image_url")(_http_url)
+    _url = field_validator("image_url")(_image_url)
 
 
 class TicketCategoryOut(CamelModel):
@@ -103,6 +120,7 @@ class OrganiserEventOut(CamelModel):
     created_at: datetime
     updated_at: datetime
     ticket_categories: list[TicketCategoryOut] = []
+    cancellation_request: "CancellationRequestBrief | None" = None
 
 
 class TicketCategoryCreate(CamelModel):
@@ -215,3 +233,27 @@ class VenueLayoutOut(CamelModel):
     seat_count: int
     sections: list[LayoutSectionOut]
     easeexplore_360_url: str | None = None
+
+
+class CancellationRequestBrief(CamelModel):
+    """The organiser's latest request to cancel this event, as shown on My events."""
+    id: uuid.UUID
+    status: CancellationRequestStatus
+    reason: str
+    decision_note: str | None = None
+    created_at: datetime
+    decided_at: datetime | None = None
+
+
+class CancellationRequestCreate(CamelModel):
+    reason: str = Field(..., min_length=5, max_length=1000, description="Shown to the administrator and to ticket holders")
+
+
+class EventImageOut(CamelModel):
+    id: uuid.UUID
+    url: str
+    content_type: str
+    size_bytes: int
+
+
+OrganiserEventOut.model_rebuild()

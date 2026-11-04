@@ -31,6 +31,10 @@ class Booking(UUIDPk, Timestamps, Base):
     cancel_reason: Mapped[str | None] = mapped_column(String(64))
     idempotency_key: Mapped[str | None] = mapped_column(String(100))
     created_ip: Mapped[str | None] = mapped_column(String(64))
+    # Organiser promo code used at checkout, and how much it took off the full price.
+    promo_code_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("promo_codes.id", ondelete="SET NULL"), index=True)
+    discount_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
     items: Mapped[list["BookingItem"]] = relationship(back_populates="booking", order_by="BookingItem.id")
     tickets: Mapped[list["Ticket"]] = relationship(back_populates="booking", order_by="Ticket.id")

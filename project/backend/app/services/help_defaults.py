@@ -33,7 +33,8 @@ def default_features() -> list[dict]:
             "description": (
                 f"Choose seats on the live seat map. Selected seats are held for you for "
                 f"{s.BOOKING_HOLD_MINUTES} minutes while you check out, and you can buy up to "
-                f"{s.PURCHASE_LIMIT_PER_EVENT} tickets per event. Your tickets, with their QR codes, are "
+                f"{s.PURCHASE_LIMIT_PER_EVENT} tickets per event. Have a promo code from the organiser? Enter it at "
+                f"checkout and press Apply before you reserve. Your tickets, with their QR codes, are "
                 f"under My tickets. QR codes are released {s.SALES_CLOSE_DAYS_BEFORE_EVENT} days before the event."
             ),
         },
@@ -121,9 +122,9 @@ def default_features() -> list[dict]:
             "package": "E",
             "tagline": "Have any text read aloud.",
             "description": (
-                "Highlight words anywhere on EventEase and EaseVoice reads them out. Open the EaseVoice tab at "
-                "the bottom-right of the page to change the reading speed or stop it. Your speed is also under "
-                "Accessibility settings, with larger text and high contrast in the top bar."
+                "Switch EaseVoice on from its tab at the bottom-right of the page, then highlight words anywhere "
+                "on EventEase and it reads them out. Open the tab to change the reading speed or stop it. "
+                "For larger text, use the text-size button in the top bar."
             ),
         },
         {

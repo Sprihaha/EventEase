@@ -9,6 +9,7 @@ import {
 } from "../../lib/backendApi";
 import { Badge, Button, Card, Eyebrow, Field, Input, Select, Textarea } from "../ui";
 import { useStore } from "../../lib/store";
+import PosterField from "./PosterField";
 import { currentOrganisationId } from "../../lib/currentOrganisation";
 import { clearDraft, draftKey, emptyDetails, hasContent, readDraft, writeDraft, type TierDraft } from "./createEventDraft";
 
@@ -247,9 +248,7 @@ export default function CreateEventForm({ onCreate }: { onCreate: (input: NewEve
           <Input type="datetime-local" value={details.endAt} onChange={(e) => setDetail("endAt", e.target.value)} />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Image URL (optional)">
-            <Input type="url" value={details.imageUrl} onChange={(e) => setDetail("imageUrl", e.target.value)} />
-          </Field>
+          <PosterField value={details.imageUrl} onChange={(url) => setDetail("imageUrl", url)} />
         </div>
         <div className="sm:col-span-2">
           <Field label="Description">

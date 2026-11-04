@@ -14,6 +14,7 @@ from app.db.models.assistance import (
 )
 from app.db.models.enums import (
     BookingStatus,
+    CancellationRequestStatus,
     EventCategory,
     EventOrigin,
     EventStatus,
@@ -32,10 +33,12 @@ from app.db.models.enums import (
     UserStatus,
 )
 from app.db.models.event import Event, EventSource, TicketCategory
+from app.db.models.event_extras import EventCancellationRequest, EventImage
 from app.db.models.help import HelpPage
 from app.db.models.monitoring import AuditLog, FraudSignal
 from app.db.models.organisation import Organisation, OrganisationMembership
 from app.db.models.organiser import OrganiserApplication
+from app.db.models.promo import PromoCode
 from app.db.models.scheduler import SchedulerJob, SchedulerJobLog, SystemConfiguration
 from app.db.models.user import (
     EmailVerificationToken,
@@ -47,6 +50,8 @@ from app.db.models.user import (
 )
 
 __all__ = [
+    "EventImage", "EventCancellationRequest", "CancellationRequestStatus",
+    "PromoCode",
     "EasePix", "EaseConnectPost",
     "EventSeat", "SeatClaim", "ExchangeSettlement",
     "Venue", "VenueSeat", "VenueSection",

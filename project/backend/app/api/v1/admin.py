@@ -37,6 +37,9 @@ from app.schemas.events import ImportResult
 from app.schemas.demo_reset import DemoResetRequest, DemoResetResult, DemoResetTarget
 from app.services.demo_reset import reset_demo_data, reset_target
 from app.services import admin as admin_service
+from app.services import cancellations as cancellation_service
+from app.schemas.cancellations import CancellationDecision, CancellationRejection, CancellationRequestOut
+from app.db.models import CancellationRequestStatus
 from app.services import audit
 from app.services.admin_accounts import create_admin
 from sqlalchemy import select
@@ -273,3 +276,26 @@ def dismiss_signal(signal_id: str, request: Request, body: ReviewRequest | None 
                    admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     return admin_service.review_fraud_signal(db, admin, signal_id, FraudStatus.DISMISSED, body.note if body else None,
                                              client_ip(request))
+
+
+# --------------------------------------------------------------------------- event cancellations
+
+@router.get("/event-cancellations", response_model=list[CancellationRequestOut],
+            summary="Organiser requests to cancel events, newest first")
+def list_event_cancellations(status: CancellationRequestStatus | None = Query(None),
+                             admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return cancellation_service.list_requests(db, status)
+
+
+@router.post("/event-cancellations/{request_id}/approve", response_model=CancellationRequestOut,
+             summary="Cancel the event, refund every paid booking and email ticket holders (repeat to retry failed refunds)")
+def approve_event_cancellation(request_id: str, request: Request, body: CancellationDecision | None = None,
+                               admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return cancellation_service.approve(db, admin, request_id, body.note if body else None, client_ip(request))
+
+
+@router.post("/event-cancellations/{request_id}/reject", response_model=CancellationRequestOut,
+             summary="Keep the event and tell the organiser why")
+def reject_event_cancellation(request_id: str, body: CancellationRejection, request: Request,
+                              admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return cancellation_service.reject(db, admin, request_id, body.note, client_ip(request))

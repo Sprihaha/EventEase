@@ -117,6 +117,7 @@ def list_item(event: Event, pmin: int | None, pmax: int | None) -> dict:
         "imported": event.origin == EventOrigin.ORGANISER and event.source_name is not None,
         "sales_close_at": close_at,
         "sales_closed": sales_closed,
+        "sales_paused": cancellation_pending(event),
         "is_past": is_past,
     }
 
@@ -128,9 +129,16 @@ def parse_event_id(raw: str) -> uuid.UUID:
         raise AppError(404, "EVENT_NOT_FOUND", "event not found") from error
 
 
+def cancellation_pending(event: Event) -> bool:
+    """The organiser has asked to cancel this event and an administrator has not decided yet."""
+    latest = event.cancellation_request
+    return latest is not None and latest.status.value == "PENDING"
+
+
 def category_on_sale(category: TicketCategory, event: Event, now: datetime) -> bool:
     return (
         event.status == EventStatus.APPROVED
+        and not cancellation_pending(event)
         and event.origin == EventOrigin.ORGANISER
         and event.start_at > now
         and now < sales_close_at(event)

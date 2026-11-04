@@ -43,6 +43,14 @@ class EventStatus(StrEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     SUSPENDED = "SUSPENDED"
+    # Called off by the organiser with an administrator's approval; every paid booking is refunded.
+    CANCELLED = "CANCELLED"
+
+
+class CancellationRequestStatus(StrEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class EventOrigin(StrEnum):

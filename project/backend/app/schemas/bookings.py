@@ -16,6 +16,7 @@ class BookingCreate(CamelModel):
     event_id: uuid.UUID
     items: list[BookingItemIn] = Field(..., min_length=1, max_length=10)
     seat_ids: list[uuid.UUID] = Field(default_factory=list, max_length=100)
+    promo_code: str | None = Field(None, max_length=32, description="Organiser promo code for this event")
 
 
 class PayRequest(CamelModel):
@@ -63,6 +64,8 @@ class BookingOut(CamelModel):
     items: list[BookingItemOut]
     tickets: list[TicketOut]
     total_cents: int
+    discount_cents: int = Field(0, description="Taken off the full price by the promo code")
+    promo_code: str | None = None
     currency: str
     hold_expires_at: datetime | None
     created_at: datetime

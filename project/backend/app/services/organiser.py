@@ -25,6 +25,9 @@ from app.services.events import parse_event_id
 from app.services.timeparse import to_utc
 
 EDITABLE = {EventStatus.REVIEW_IN_PROGRESS, EventStatus.REJECTED}
+# Live events can be edited too, except for what ticket holders chose them by: name and venue.
+LIVE_EDITABLE = EDITABLE | {EventStatus.APPROVED}
+FIXED_ONCE_LIVE = {"title", "venue_name", "area", "capacity"}
 EVENT_AUDIT_FIELDS = ["status", "title", "start_at", "end_at", "capacity", "rejection_reason"]
 # A category's section summary must fit its database column; longer lists fall back to the category name.
 SEAT_SECTION_MAX = TicketCategory.__table__.c.seat_section.type.length
@@ -135,21 +138,38 @@ def get_own_event(db: Session, organiser: User, raw_id: str) -> Event:
     return _own_event(db, organiser, raw_id)
 
 
+def ensure_changeable(event: Event) -> None:
+    """Organisers cannot change an event that has ended, is cancelled, or is waiting for a
+    cancellation decision."""
+    if event.status not in LIVE_EDITABLE:
+        raise AppError(409, "EVENT_NOT_EDITABLE", "this event can no longer be edited", {"status": event.status.value})
+    if event.end_at <= utcnow():
+        raise AppError(409, "EVENT_ENDED", "this event has already ended")
+    pending = event.cancellation_request
+    if pending is not None and pending.status.value == "PENDING":
+        raise AppError(409, "CANCELLATION_PENDING", "this event is waiting for an administrator to decide on its cancellation")
+
+
 def update_event(db: Session, organiser: User, raw_id: str, data: EventUpdate, ip: str | None) -> Event:
     event = _own_event(db, organiser, raw_id, lock=True)
-    if event.status not in EDITABLE:
-        raise AppError(409, "EVENT_NOT_EDITABLE", "events can only be edited while in review or after rejection",
-                       {"status": event.status.value})
+    ensure_changeable(event)
     before = audit.snapshot(event, EVENT_AUDIT_FIELDS)
+    old_start, old_end = event.start_at, event.end_at
     changes = data.model_dump(exclude_unset=True, by_alias=False)
     for key in ("start_at", "end_at"):
         if changes.get(key) is not None:
             changes[key] = to_utc(changes[key])
+    if event.status == EventStatus.APPROVED:
+        fixed = sorted(key for key in FIXED_ONCE_LIVE & changes.keys() if changes[key] != getattr(event, key))
+        if fixed:
+            raise AppError(409, "FIELD_FIXED_ONCE_LIVE", "the name and venue cannot be changed once an event is live",
+                           {"fields": fixed})
     for key, value in changes.items():
         if value is None and key in {"title", "category", "venue_name", "area", "start_at", "end_at", "capacity"}:
             raise AppError(400, "FIELD_REQUIRED", f"{key} cannot be cleared", {"field": key})
         setattr(event, key, value)
-    _validate_dates(event.start_at, event.end_at)
+    if (event.start_at, event.end_at) != (old_start, old_end):
+        _validate_dates(event.start_at, event.end_at)
     action = "EVENT_UPDATED"
     if event.status == EventStatus.REJECTED:
         event.status = EventStatus.REVIEW_IN_PROGRESS
@@ -158,7 +178,27 @@ def update_event(db: Session, organiser: User, raw_id: str, data: EventUpdate, i
     audit.record(db, actor=organiser, action=action, entity_type="Event", entity_id=event.id, before=before,
                  after=audit.snapshot(event, EVENT_AUDIT_FIELDS), ip=ip)
     db.commit()
+    if event.status == EventStatus.APPROVED and (event.start_at, event.end_at) != (old_start, old_end):
+        _email_new_dates(db, event)
     return get_own_event(db, organiser, raw_id)
+
+
+def _email_new_dates(db: Session, event: Event) -> None:
+    """Tell everyone holding a ticket that the date or time has changed."""
+    from app.db.models import Booking, BookingStatus
+    from app.services.mail.base import send_safely
+    from app.core.config import get_settings
+
+    tz = get_settings().tz
+    when = event.start_at.astimezone(tz).strftime("%A %d %B %Y, %I:%M %p")
+    holders = db.scalars(select(User).join(Booking, Booking.user_id == User.id).where(
+        Booking.event_id == event.id, Booking.status == BookingStatus.CONFIRMED).distinct()).all()
+    for holder in holders:
+        send_safely(holder.email, f"New date for {event.title}",
+                    f"Hi {holder.username},\n\nThe organiser has changed the date or time of '{event.title}'.\n"
+                    f"It now starts on {when} (Singapore time) at {event.venue_name}.\n\n"
+                    "Your tickets stay valid for the new time. If you can no longer go, you can cancel your booking "
+                    "from My tickets, subject to the cancellation policy.")
 
 
 # --------------------------------------------------------------------------- ticket categories
@@ -230,7 +270,9 @@ def create_category(db: Session, organiser: User, raw_id: str, data: TicketCateg
 
 
 def update_category(db: Session, organiser: User, raw_id: str, category_id: str, data: TicketCategoryUpdate) -> TicketCategory:
-    event = _approved_event(db, organiser, raw_id)
+    # Price and seats can be changed while the event is in review too, not only once it is live.
+    event = _own_event(db, organiser, raw_id, lock=True)
+    ensure_changeable(event)
     category = _own_category(db, event, category_id)
     changes = data.model_dump(exclude_unset=True, by_alias=False)
     committed = category.quantity_sold + category.quantity_held
@@ -253,7 +295,8 @@ def update_category(db: Session, organiser: User, raw_id: str, category_id: str,
             setattr(category, key, to_utc(changes[key]) if changes[key] else None)
     _check_sales_window(category, event)
     db.commit()
-    events.publish(db, "event.pricing_updated", event=event, organiser=organiser)
+    if event.status == EventStatus.APPROVED:
+        events.publish(db, "event.pricing_updated", event=event, organiser=organiser)
     return category
 
 

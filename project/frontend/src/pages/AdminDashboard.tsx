@@ -7,12 +7,10 @@ import {
   Building2,
   Briefcase,
   ShieldAlert,
-  BarChart3,
   Check,
   X,
   AlertTriangle,
   CircleDollarSign,
-  Armchair,
   Route,
   MapPin,
   Accessibility,
@@ -24,11 +22,11 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
+  CalendarX,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
 import { Button, Badge, Card, Eyebrow, Select, cx } from "../components/ui";
-import { OperationsSeatMap } from "../components/OperationsSeatMap";
 import AssistanceQueue from "../components/AssistanceQueue";
 import EaseVoiceNarration from "./EaseVoiceNarration";
 import EaseHelp from "./EaseHelp";
@@ -39,6 +37,8 @@ import OrganisationRequestsAdmin from "../components/OrganisationRequestsAdmin";
 import { countPendingOrganisationRequests } from "../lib/organisation";
 import DeveloperSettings from "../components/DeveloperSettings";
 import AdminManagement from "../components/AdminManagement";
+import EventCancellations from "../components/EventCancellations";
+import { countPendingCancellations } from "../lib/cancellationApi";
 
 export default function AdminDashboard() {
   const { events, fraud, assistanceRequests } = useStore();
@@ -55,6 +55,12 @@ export default function AdminDashboard() {
     countPendingOrganisationRequests().then(setPendingOrganisations).catch(() => setPendingOrganisations(0));
   }, []);
   useEffect(refreshPendingOrganisations, [refreshPendingOrganisations]);
+  // Organisers asking to call off an event; the admin approves (refunds everyone) or rejects.
+  const [pendingCancellations, setPendingCancellations] = useState(0);
+  const refreshPendingCancellations = useCallback(() => {
+    countPendingCancellations().then(setPendingCancellations).catch(() => setPendingCancellations(0));
+  }, []);
+  useEffect(refreshPendingCancellations, [refreshPendingCancellations]);
   const openFraud = fraud.filter((f) => !f.resolved).length;
   const openAssistance = assistanceRequests.filter((request) =>
     ["Submitted", "Assigned", "In progress"].includes(request.status),
@@ -65,31 +71,28 @@ export default function AdminDashboard() {
     { id: "events", label: "Event approvals", icon: CalendarCheck, badge: pendingEvents },
     { id: "organizers", label: "Organiser requests", icon: Building2, badge: pendingOrgs },
     { id: "organisations", label: "Organisation requests", icon: Briefcase, badge: pendingOrganisations },
+    { id: "cancellations", label: "Event cancellations", icon: CalendarX, badge: pendingCancellations },
     { id: "fraud", label: "Fraud monitor", icon: ShieldAlert, badge: openFraud },
     { id: "sales", label: "Sales status", icon: CircleDollarSign },
     { id: "assistance", label: "Assistance queue", icon: ClipboardList, badge: openAssistance },
     { id: "narration", label: "EaseVoice settings", icon: Volume2 },
     { id: "easehelp", label: "Edit EaseHelp", icon: HelpCircle },
-    { id: "seats", label: "Seat maps", icon: Armchair },
     { id: "guide", label: "EaseGuide requests", icon: Route, badge: 3 },
-    { id: "analytics", label: "Platform analytics", icon: BarChart3 },
     { id: "administrators", label: "Administrators", icon: ShieldCheck },
     { id: "developer", label: "Developer settings", icon: Code2 },
   ];
 
   return (
-    <DashboardShell role="admin" title="Admin control" nav={nav}>
+    <DashboardShell role="admin" title={(active) => (active === "overview" ? "Admin control" : "")} nav={nav}>
       {(active) => (
         <>
-          <div className="mb-8 grid gap-4 sm:grid-cols-4">
-            <StatCard label="Live events" value={String(events.filter((e) => e.status === "published").length)} />
-            <StatCard label="Pending approvals" value={String(pendingEvents + pendingOrgs)} tone="accent" />
-            <StatCard label="Open fraud alerts" value={String(openFraud)} tone={openFraud ? "danger" : "live"} />
-            <StatCard label="Organiser requests" value={String(pendingOrgs)} tone={pendingOrgs ? "accent" : undefined} />
-          </div>
-
           {active === "overview" && (
             <>
+              <div className="mb-8 grid gap-4 sm:grid-cols-3">
+                <StatCard label="Live events" value={String(events.filter((e) => e.status === "published").length)} />
+                <StatCard label="Pending approvals" value={String(pendingEvents + pendingOrgs)} tone="accent" />
+                <StatCard label="Open fraud alerts" value={String(openFraud)} tone={openFraud ? "danger" : "live"} />
+              </div>
               <Overview />
               <div className="mt-8 space-y-6">
                 <ResetDemoData />
@@ -99,14 +102,13 @@ export default function AdminDashboard() {
           {active === "events" && <EventApprovals />}
           {active === "organizers" && <OrganiserRequests onChanged={refreshPendingOrgs} />}
           {active === "organisations" && <OrganisationRequestsAdmin onChanged={refreshPendingOrganisations} />}
+          {active === "cancellations" && <EventCancellations onChanged={refreshPendingCancellations} />}
           {active === "fraud" && <FraudMonitor />}
           {active === "sales" && <SalesStatus />}
-          {active === "seats" && <OperationsSeatMap events={events} eyebrow="Platform seat maps" />}
           {active === "assistance" && <AssistanceQueue />}
           {active === "narration" && <EaseVoiceNarration embedded />}
           {active === "easehelp" && <EaseHelp embedded editOnOpen />}
           {active === "guide" && <EaseGuideRequests />}
-          {active === "analytics" && <PlatformAnalytics />}
           {active === "administrators" && <AdminManagement />}
           {active === "developer" && <DeveloperSettings embedded />}
         </>
@@ -505,28 +507,3 @@ function FraudMonitor() {
   );
 }
 
-function PlatformAnalytics() {
-  const { events } = useStore();
-  const gmv = events.reduce((a, e) => a + e.tiers.reduce((x, t) => x + t.sold * t.price, 0), 0);
-  const revenue = [
-    { label: "May", value: 42000 },
-    { label: "Jun", value: 51000 },
-    { label: "Jul", value: 68000 },
-    { label: "Aug", value: 74000 },
-    { label: "Sep", value: 91000 },
-  ];
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Gross merchandise value" value={currency(gmv)} tone="accent" />
-        <StatCard label="Platform fee revenue (5%)" value={currency(Math.round(gmv * 0.05))} tone="live" />
-        <StatCard label="Fraud prevented" value="S$28,400" sub="Blocked this quarter" />
-      </div>
-      <Card className="p-6">
-        <Eyebrow>Growth</Eyebrow>
-        <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">Monthly GMV</h3>
-        <div className="mt-6"><BarChart data={revenue} /></div>
-      </Card>
-    </div>
-  );
-}

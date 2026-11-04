@@ -4,12 +4,13 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
-from app.core.deps import _authenticate, bearer_scheme
+from app.core.deps import _authenticate, bearer_scheme, get_current_user
 from app.core.errors import AppError
-from app.db.models import EventCategory
+from app.db.models import EventCategory, User
 from app.db.session import get_db
 from app.schemas.common import Page
 from app.schemas.events import EventDetail, EventListItem
+from app.schemas.promos import PromoCheckOut
 from app.schemas.organiser import EventLayoutOut
 from app.services import events as event_service
 from app.services.timeparse import parse_bound
@@ -33,6 +34,17 @@ def layout(event_id: str, db: Session = Depends(get_db)):
 def seats(event_id: str, db: Session = Depends(get_db)):
     from app.services.seating import list_seats
     return list_seats(db, event_service.parse_event_id(event_id))
+
+
+@router.get("/{event_id}/promo-codes/{code}", response_model=PromoCheckOut,
+            summary="Check a promo code at checkout (signed-in customers)")
+def check_promo_code(event_id: str, code: str, user: User = Depends(get_current_user),
+                     db: Session = Depends(get_db)):
+    from app.core.rate_limit import enforce
+    from app.services.promos import usable_promo
+    enforce("promo-check", str(user.id), "20/60")  # stops codes being guessed one after another
+    promo = usable_promo(db, event_service.parse_event_id(event_id), code)
+    return {"code": promo.code, "percent_off": promo.percent_off}
 
 
 def _cents(value: Decimal | None) -> int | None:
