@@ -22,6 +22,7 @@ import {
   CalendarCheck,
   Code2,
   Camera,
+  CalendarX,
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { backendMe, type UserProfile } from "../lib/backendApi";
@@ -530,13 +531,13 @@ export default function Profile() {
                 </Link>
 
                 <Link
-                  to="/dashboard/admin?tab=organizers"
+                  to="/dashboard/admin?tab=cancellations"
                   className="flex items-center gap-3 rounded-2xl border border-brand-purple/15 bg-white p-4 transition-all duration-150 hover:bg-brand-lilac/30 hover:border-brand-purple/40 hover:shadow-xs group"
                 >
-                  <Building2 className="h-5 w-5 text-brand-orange transition-transform group-hover:scale-110" />
+                  <CalendarX className="h-5 w-5 text-brand-orange transition-transform group-hover:scale-110" />
                   <div>
-                    <span className="font-bold text-sm text-brand-deep block">Organiser Requests</span>
-                    <span className="text-xs text-muted">Approve seller credentials</span>
+                    <span className="font-bold text-sm text-brand-deep block">Event Cancellations</span>
+                    <span className="text-xs text-muted">Approve organiser cancellation requests</span>
                   </div>
                 </Link>
 

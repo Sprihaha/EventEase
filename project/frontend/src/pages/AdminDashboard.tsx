@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router";
 import {
   LayoutDashboard,
   CalendarCheck,
-  Building2,
   Briefcase,
   ShieldAlert,
   Check,
@@ -33,8 +32,6 @@ import EaseHelp from "./EaseHelp";
 import ResetDemoData from "../components/ResetDemoData";
 import OrganiserRequests from "../components/OrganiserRequests";
 import { countPendingOrganiserRequests } from "../lib/backendApi";
-import OrganisationRequestsAdmin from "../components/OrganisationRequestsAdmin";
-import { countPendingOrganisationRequests } from "../lib/organisation";
 import DeveloperSettings from "../components/DeveloperSettings";
 import AdminManagement from "../components/AdminManagement";
 import EventCancellations from "../components/EventCancellations";
@@ -43,18 +40,12 @@ import { countPendingCancellations } from "../lib/cancellationApi";
 export default function AdminDashboard() {
   const { events, fraud, assistanceRequests } = useStore();
   const pendingEvents = events.filter((e) => e.status === "pending").length;
-  // Real organiser sign-up requests waiting for review, from the backend.
+  // New organisers who signed up and are waiting for approval (shown in the Organisation sign-ups tab).
   const [pendingOrgs, setPendingOrgs] = useState(0);
   const refreshPendingOrgs = useCallback(() => {
     countPendingOrganiserRequests().then(setPendingOrgs).catch(() => setPendingOrgs(0));
   }, []);
   useEffect(refreshPendingOrgs, [refreshPendingOrgs]);
-  // Organisers asking to add an organisation to their account.
-  const [pendingOrganisations, setPendingOrganisations] = useState(0);
-  const refreshPendingOrganisations = useCallback(() => {
-    countPendingOrganisationRequests().then(setPendingOrganisations).catch(() => setPendingOrganisations(0));
-  }, []);
-  useEffect(refreshPendingOrganisations, [refreshPendingOrganisations]);
   // Organisers asking to call off an event; the admin approves (refunds everyone) or rejects.
   const [pendingCancellations, setPendingCancellations] = useState(0);
   const refreshPendingCancellations = useCallback(() => {
@@ -69,8 +60,7 @@ export default function AdminDashboard() {
   const nav: NavItem[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "events", label: "Event approvals", icon: CalendarCheck, badge: pendingEvents },
-    { id: "organizers", label: "Organiser requests", icon: Building2, badge: pendingOrgs },
-    { id: "organisations", label: "Organisation requests", icon: Briefcase, badge: pendingOrganisations },
+    { id: "organisations", label: "Organisation sign-ups", icon: Briefcase, badge: pendingOrgs },
     { id: "cancellations", label: "Event cancellations", icon: CalendarX, badge: pendingCancellations },
     { id: "fraud", label: "Fraud monitor", icon: ShieldAlert, badge: openFraud },
     { id: "sales", label: "Sales status", icon: CircleDollarSign },
@@ -88,10 +78,12 @@ export default function AdminDashboard() {
         <>
           {active === "overview" && (
             <>
-              <div className="mb-8 grid gap-4 sm:grid-cols-3">
+              <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard label="Live events" value={String(events.filter((e) => e.status === "published").length)} />
-                <StatCard label="Pending approvals" value={String(pendingEvents + pendingOrgs)} tone="accent" />
+                <StatCard label="Pending approvals" value={String(pendingEvents)} tone="accent" />
                 <StatCard label="Open fraud alerts" value={String(openFraud)} tone={openFraud ? "danger" : "live"} />
+                {/* New organiser sign-ups waiting for approval, as in the Organisation sign-ups tab. */}
+                <StatCard label="Organisation sign-ups" value={String(pendingOrgs)} tone={pendingOrgs ? "accent" : undefined} />
               </div>
               <Overview />
               <div className="mt-8 space-y-6">
@@ -100,8 +92,8 @@ export default function AdminDashboard() {
             </>
           )}
           {active === "events" && <EventApprovals />}
-          {active === "organizers" && <OrganiserRequests onChanged={refreshPendingOrgs} />}
-          {active === "organisations" && <OrganisationRequestsAdmin onChanged={refreshPendingOrganisations} />}
+          {/* New organiser sign-ups, approved here before they can sign in. */}
+          {active === "organisations" && <OrganiserRequests onChanged={refreshPendingOrgs} />}
           {active === "cancellations" && <EventCancellations onChanged={refreshPendingCancellations} />}
           {active === "fraud" && <FraudMonitor />}
           {active === "sales" && <SalesStatus />}
