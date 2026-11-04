@@ -69,8 +69,8 @@ export default function OrganiserRequests({ onChanged }: { onChanged?: () => voi
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-brand text-2xl font-bold text-brand-deep">New organiser sign-ups</h2>
-          <p className="text-sm text-muted">People who signed up as organisers. They can sign in only after you approve them.</p>
+          <h2 className="font-brand text-2xl font-bold text-brand-deep">New organisation sign-ups</h2>
+          <p className="text-sm text-muted">Organisations that signed up to sell tickets. They can sign in only after you approve them.</p>
         </div>
         <div className="flex gap-1 rounded-xl border border-brand-purple/15 bg-white p-1" role="tablist">
           {FILTERS.map((f) => (
@@ -101,7 +101,7 @@ export default function OrganiserRequests({ onChanged }: { onChanged?: () => voi
         <Card className="p-8 text-center text-sm text-muted">Loading organiser requests…</Card>
       ) : requests.length === 0 ? (
         <Card className="p-8 text-center text-sm text-muted">
-          {filter === "PENDING" ? "No new organiser sign-ups are waiting for review." : "No organiser sign-ups here yet."}
+          {filter === "PENDING" ? "No new organisation sign-ups are waiting for review." : "No organisation sign-ups here yet."}
         </Card>
       ) : (
         requests.map((r) => (
