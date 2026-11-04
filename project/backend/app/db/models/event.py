@@ -81,6 +81,15 @@ class Event(UUIDPk, Timestamps, Base):
     ticket_categories: Mapped[list["TicketCategory"]] = relationship(
         back_populates="event", order_by="TicketCategory.price_cents"
     )
+    # Newest last. Loaded with the event so dashboards can show "cancellation pending".
+    cancellation_requests: Mapped[list["EventCancellationRequest"]] = relationship(
+        order_by="EventCancellationRequest.created_at", viewonly=True, lazy="selectin"
+    )
+
+    @property
+    def cancellation_request(self):
+        """The latest cancellation request, if the organiser ever asked to cancel this event."""
+        return self.cancellation_requests[-1] if self.cancellation_requests else None
 
 
 class TicketCategory(UUIDPk, Timestamps, Base):

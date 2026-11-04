@@ -77,6 +77,7 @@ export function DashboardShell({
   // Organisers work under a chosen organisation (picked after signing in).
   if (user.role === "organizer" && !getCurrentOrganisation()) return <Navigate to="/select-organisation" replace />;
   if (user.role !== role) return <Navigate to={`/dashboard/${user.role}`} replace />;
+  const heading = typeof title === "function" ? title(active) : title;
 
   return (
     <div
@@ -194,15 +195,18 @@ export function DashboardShell({
 
       {/* Content */}
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="font-brand text-4xl font-bold tracking-tight text-brand-deep">
-            {typeof title === "function" ? title(active) : title}
-          </h1>
-          {headerAction && (
-            <div>{typeof headerAction === "function" ? headerAction(active) : headerAction}</div>
-          )}
-        </div>
-        <div className="mt-6">{children(active)}</div>
+        {/* A tab can leave the title empty; then no header row is shown at all. */}
+        {(heading || headerAction) && (
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            {heading && (
+              <h1 className="font-brand text-4xl font-bold tracking-tight text-brand-deep">{heading}</h1>
+            )}
+            {headerAction && (
+              <div>{typeof headerAction === "function" ? headerAction(active) : headerAction}</div>
+            )}
+          </div>
+        )}
+        <div className={heading || headerAction ? "mt-6" : undefined}>{children(active)}</div>
       </div>
     </div>
   );

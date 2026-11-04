@@ -10,7 +10,7 @@ export type TicketTier = {
   sold: number;
 };
 
-export type EventStatus = "published" | "pending" | "rejected" | "draft";
+export type EventStatus = "published" | "pending" | "rejected" | "draft" | "cancelled";
 
 export type EventItem = {
   id: string;
@@ -39,6 +39,8 @@ export type EventItem = {
   salesClosed?: boolean;
   isPast?: boolean;
   endAt?: string | null;
+  // The organiser's latest request to cancel this event (organiser view only).
+  cancellation?: { status: "PENDING" | "APPROVED" | "REJECTED"; reason: string; decisionNote: string | null } | null;
 };
 
 export type SeatBooking = { seat: string; tier: string };

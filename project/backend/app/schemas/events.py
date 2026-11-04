@@ -30,6 +30,8 @@ class EventListItem(CamelModel):
     imported: bool = False
     sales_close_at: datetime | None = None
     sales_closed: bool = False
+    # The organiser asked to cancel the event; no new bookings until an administrator decides.
+    sales_paused: bool = False
     is_past: bool = False
 
 

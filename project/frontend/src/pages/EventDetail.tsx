@@ -55,7 +55,8 @@ export default function EventDetail() {
   }, [booking?.status]);
   const chosen = seats.filter(s => selected.includes(s.id));
   const isPast = (!!event?.endAt && Date.parse(event.endAt) <= now) || (!!event?.startAt && Date.parse(event.startAt) <= now && !event?.endAt);
-  const salesClosed = isPast || (!!event?.salesCloseAt && Date.parse(event.salesCloseAt) <= now);
+  const salesPaused = !!event?.salesPaused;
+  const salesClosed = isPast || salesPaused || (!!event?.salesCloseAt && Date.parse(event.salesCloseAt) <= now);
   const categoryItems = (event?.ticketCategories ?? []).filter(c => (quantities[c.id] ?? 0) > 0).map(c => ({ ticketCategoryId: c.id, quantity: quantities[c.id] }));
   const count = seats.length ? chosen.length : categoryItems.reduce((sum, item) => sum + item.quantity, 0);
   const estimated = seats.length ? chosen.reduce((total, s) => total + s.priceCents, 0) / 100 : (event?.ticketCategories ?? []).reduce((sum, c) => sum + c.priceCents * (quantities[c.id] ?? 0), 0) / 100;
@@ -183,7 +184,8 @@ export default function EventDetail() {
     )}
     {error && <div role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-danger">{error}</div>}
     {isPast && !booking && <div role="status" className="mt-5 rounded-xl border border-slate-300 bg-slate-100 p-4 text-sm font-medium text-slate-800">This event took place on {fmtDate(event.startAt)}. It has ended.</div>}
-    {!isPast && salesClosed && !booking && <div role="status" className="mt-5 rounded-xl border border-brand-orange/30 bg-brand-orange/10 p-4 text-sm font-medium text-brand-deep">Ticket sales closed on {fmtDate(event.salesCloseAt as string)}.</div>}
+    {!isPast && salesPaused && !booking && <div role="status" className="mt-5 rounded-xl border border-brand-orange/30 bg-brand-orange/10 p-4 text-sm font-medium text-brand-deep">Ticket sales for this event are paused for now. Please check back later.</div>}
+    {!isPast && !salesPaused && salesClosed && !booking && <div role="status" className="mt-5 rounded-xl border border-brand-orange/30 bg-brand-orange/10 p-4 text-sm font-medium text-brand-deep">Ticket sales closed on {fmtDate(event.salesCloseAt as string)}.</div>}
     {booking?.status === "CONFIRMED" ? <Card className="mt-8 p-7">
       <ShieldCheck className="h-8 w-8 text-emerald-600"/><h2 className="mt-3 font-brand text-2xl font-bold">Booking confirmed</h2>
       <p className="mt-2 text-sm">Reference: {booking.id} · Paid {currency(booking.totalCents/100)}{!!booking.discountCents && ` · Saved ${currency(booking.discountCents/100)} with ${booking.promoCode}`}</p>
@@ -229,7 +231,7 @@ export default function EventDetail() {
           <label className="block text-sm">Simulated payment result<select className="mt-2 w-full rounded-lg border p-2" value={failPayment ? "fail" : "success"} onChange={e => setFailPayment(e.target.value === "fail")}><option value="success">Success — no real charge</option><option value="fail">Declined — test retry</option></select></label>
           <Button className="w-full" disabled={busy || expired} onClick={pay}>{busy ? "Processing…" : "Confirm simulated payment"}</Button>
           <Button className="w-full" variant="outline" disabled={busy} onClick={release}>Release reservation</Button>
-        </> : <><p className="text-xs text-muted">Up to {event.purchaseLimitPerEvent} tickets per customer for this event.</p><Button className="w-full" disabled={busy || !count || count > event.purchaseLimitPerEvent || salesClosed || user.role !== "customer"} onClick={reserve}>{user.role === "organizer" ? "Organizers cannot purchase tickets" : busy ? "Reserving…" : salesClosed ? "Sales closed" : "Reserve & continue"}</Button></>}
+        </> : <><p className="text-xs text-muted">Up to {event.purchaseLimitPerEvent} tickets per customer for this event.</p><Button className="w-full" disabled={busy || !count || count > event.purchaseLimitPerEvent || salesClosed || user.role !== "customer"} onClick={reserve}>{user.role === "organizer" ? "Organizers cannot purchase tickets" : busy ? "Reserving…" : salesPaused ? "Sales paused" : salesClosed ? "Sales closed" : "Reserve & continue"}</Button></>}
       </Card>
     </div>}
   </div>;

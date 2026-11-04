@@ -9,6 +9,11 @@ const _rawApiUrl = ((import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_A
 const API_ORIGIN = _rawApiUrl || "";   // empty string → same-origin (relative)
 const API_ROOT   = API_ORIGIN ? `${API_ORIGIN}/api/v1` : "/api/v1";
 
+/** Files the backend serves itself (e.g. uploaded event posters, saved as "/api/v1/media/…"). */
+export function apiAssetUrl(path: string): string {
+  return path.startsWith("/api/") && API_ORIGIN ? `${API_ORIGIN}${path}` : path;
+}
+
 if (
   (import.meta.env.VITE_LOCAL_SANDBOX === "true" || import.meta.env.VITE_LOCAL_ONLY === "true") &&
   API_ORIGIN &&
@@ -87,6 +92,8 @@ type BackendManagedEvent = {
   capacity?: number | null;
   rejectionReason?: string | null;
   ticketCategories?: BackendTicketCategory[];
+  endAt?: string | null;
+  cancellationRequest?: EventItem["cancellation"];
 };
 
 type Page<T> = { items: T[]; total: number; totalPages: number };
@@ -181,6 +188,7 @@ function managedStatus(status: string): EventStatus {
   if (status === "APPROVED") return "published";
   if (status === "REJECTED") return "rejected";
   if (status === "REVIEW_IN_PROGRESS") return "pending";
+  if (status === "CANCELLED") return "cancelled";
   return "draft";
 }
 
@@ -213,6 +221,9 @@ function mapManagedEvent(event: BackendManagedEvent, index: number, ownerId = ""
     rejectionReason: event.rejectionReason,
     imported: event.imported || !!event.sourceName,
     organisationName: event.organisationName,
+    endAt: event.endAt,
+    isPast: !!event.endAt && Date.parse(event.endAt) <= Date.now(),
+    cancellation: event.cancellationRequest ?? null,
     featured: index < 6,
     rows: 0,
     cols: 0,
@@ -1029,3 +1040,18 @@ export async function createAdministrator(data: {
     true,
   );
 }
+// ----- organiser: edit an event's details after creating it
+export type OrganiserEventDetails = {
+  id: string; title: string; category: string; status: string; venueName: string;
+  shortDescription: string | null; description: string | null;
+  startAt: string; endAt: string; imageUrl: string | null;
+};
+export type OrganiserEventChanges = Partial<{
+  category: string; shortDescription: string | null; description: string | null;
+  startAt: string; endAt: string; imageUrl: string | null;
+}>;
+export const fetchOrganiserEvent = (id: string) =>
+  request<OrganiserEventDetails>(`/organiser/events/${encodeURIComponent(id)}`, {}, true);
+export const updateOrganiserEvent = (id: string, changes: OrganiserEventChanges) =>
+  request<OrganiserEventDetails>(`/organiser/events/${encodeURIComponent(id)}`,
+    { method: "PATCH", body: JSON.stringify(changes) }, true);

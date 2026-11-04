@@ -17,6 +17,7 @@ export interface TicketingEvent {
   venueName: string; imageUrl: string | null; purchasable: boolean; externalUrl: string | null;
   purchaseLimitPerEvent: number; ticketCategories: TicketCategory[];
   imported?: boolean; organisationName?: string | null; salesCloseAt?: string | null;
+  salesPaused?: boolean; // the organiser asked to cancel; waiting for an administrator
 }
 export interface IssuedTicket {
   // The code (what the QR encodes) is null until QR codes are released, when ticket sales close.

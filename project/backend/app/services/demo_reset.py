@@ -23,7 +23,7 @@ RESET_TABLES = (
     "exchange_settlements", "exchange_matches", "exchange_requests",
     "seat_claims", "assistance_requests", "tickets", "payments",
     "booking_items", "bookings", "promo_codes", "event_seats", "ticket_categories",
-    "fraud_signals", "audit_logs", "events", "event_sources",
+    "fraud_signals", "audit_logs", "event_cancellation_requests", "events", "event_sources",
 )
 
 

@@ -9,6 +9,8 @@ from app.db.models import EventStatus, TicketCategoryType, User
 from app.db.session import get_db
 from app.schemas.common import Page
 from app.schemas.organiser import (
+    CancellationRequestCreate,
+    EventImageOut,
     EventCreate,
     EventUpdate,
     OrganiserEventOut,
@@ -21,6 +23,8 @@ from app.schemas.organiser import (
     VenueEaseExploreUpdate,
 )
 from app.services import organiser as service
+from app.services import cancellations as cancellation_service
+from app.services import event_images
 from app.services import promos as promo_service
 from app.schemas.promos import PromoCodeCreate, PromoCodeOut, PromoCodeUpdate
 from app.services import venues as venue_service
@@ -154,3 +158,21 @@ def create_promo_code(body: PromoCodeCreate, user: User = Depends(require_organi
 def update_promo_code(promo_id: uuid.UUID, body: PromoCodeUpdate, user: User = Depends(require_organiser),
                       db: Session = Depends(get_db)):
     return promo_service.update(db, user, promo_id, body)
+
+
+@router.post("/event-images", response_model=EventImageOut, status_code=status.HTTP_201_CREATED,
+             summary="Upload an event poster (PNG or JPG, up to 5 MB); use the returned url as imageUrl")
+async def upload_event_image(file: UploadFile = File(..., description="PNG or JPG"),
+                             user: User = Depends(require_organiser), db: Session = Depends(get_db)):
+    data = await file.read(event_images.MAX_IMAGE_BYTES + 1)
+    image = event_images.save_image(db, user, data)
+    return {"id": image.id, "url": event_images.image_url(image.id), "content_type": image.content_type,
+            "size_bytes": image.size_bytes}
+
+
+@router.post("/events/{event_id}/cancellation-request", response_model=OrganiserEventOut,
+             status_code=status.HTTP_201_CREATED,
+             summary="Ask an administrator to cancel this event (paid bookings are refunded if approved)")
+def request_cancellation(event_id: str, body: CancellationRequestCreate, request: Request,
+                         user: User = Depends(require_organiser), db: Session = Depends(get_db)):
+    return cancellation_service.request_cancellation(db, user, event_id, body.reason, client_ip(request))

@@ -1,4 +1,5 @@
 import { useState, type ImgHTMLAttributes } from "react";
+import { apiAssetUrl } from "../../lib/backendApi";
 
 export const EVENT_IMAGE_FALLBACK = "/event-placeholder.svg";
 
@@ -10,6 +11,8 @@ const LOCAL_HOSTS = /^(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\])$/i;
  */
 export function eventImageSrc(src: string | null | undefined): string {
   if (!src) return EVENT_IMAGE_FALLBACK;
+  // Posters uploaded to EventEase are served by the backend, which may be on another address in development.
+  src = apiAssetUrl(src);
   try {
     const url = new URL(src, window.location.origin);
     if (LOCAL_HOSTS.test(url.hostname) && !LOCAL_HOSTS.test(window.location.hostname)) return EVENT_IMAGE_FALLBACK;

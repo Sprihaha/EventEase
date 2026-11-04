@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
+  CalendarX,
 } from "lucide-react";
 import { useStore, currency } from "../lib/store";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
@@ -36,6 +37,8 @@ import OrganisationRequestsAdmin from "../components/OrganisationRequestsAdmin";
 import { countPendingOrganisationRequests } from "../lib/organisation";
 import DeveloperSettings from "../components/DeveloperSettings";
 import AdminManagement from "../components/AdminManagement";
+import EventCancellations from "../components/EventCancellations";
+import { countPendingCancellations } from "../lib/cancellationApi";
 
 export default function AdminDashboard() {
   const { events, fraud, assistanceRequests } = useStore();
@@ -52,6 +55,12 @@ export default function AdminDashboard() {
     countPendingOrganisationRequests().then(setPendingOrganisations).catch(() => setPendingOrganisations(0));
   }, []);
   useEffect(refreshPendingOrganisations, [refreshPendingOrganisations]);
+  // Organisers asking to call off an event; the admin approves (refunds everyone) or rejects.
+  const [pendingCancellations, setPendingCancellations] = useState(0);
+  const refreshPendingCancellations = useCallback(() => {
+    countPendingCancellations().then(setPendingCancellations).catch(() => setPendingCancellations(0));
+  }, []);
+  useEffect(refreshPendingCancellations, [refreshPendingCancellations]);
   const openFraud = fraud.filter((f) => !f.resolved).length;
   const openAssistance = assistanceRequests.filter((request) =>
     ["Submitted", "Assigned", "In progress"].includes(request.status),
@@ -62,6 +71,7 @@ export default function AdminDashboard() {
     { id: "events", label: "Event approvals", icon: CalendarCheck, badge: pendingEvents },
     { id: "organizers", label: "Organiser requests", icon: Building2, badge: pendingOrgs },
     { id: "organisations", label: "Organisation requests", icon: Briefcase, badge: pendingOrganisations },
+    { id: "cancellations", label: "Event cancellations", icon: CalendarX, badge: pendingCancellations },
     { id: "fraud", label: "Fraud monitor", icon: ShieldAlert, badge: openFraud },
     { id: "sales", label: "Sales status", icon: CircleDollarSign },
     { id: "assistance", label: "Assistance queue", icon: ClipboardList, badge: openAssistance },
@@ -73,16 +83,15 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <DashboardShell role="admin" title="Admin control" nav={nav}>
+    <DashboardShell role="admin" title={(active) => (active === "overview" ? "Admin control" : "")} nav={nav}>
       {(active) => (
         <>
           {active === "overview" && (
             <>
-              <div className="mb-8 grid gap-4 sm:grid-cols-4">
+              <div className="mb-8 grid gap-4 sm:grid-cols-3">
                 <StatCard label="Live events" value={String(events.filter((e) => e.status === "published").length)} />
                 <StatCard label="Pending approvals" value={String(pendingEvents + pendingOrgs)} tone="accent" />
                 <StatCard label="Open fraud alerts" value={String(openFraud)} tone={openFraud ? "danger" : "live"} />
-                <StatCard label="Organiser requests" value={String(pendingOrgs)} tone={pendingOrgs ? "accent" : undefined} />
               </div>
               <Overview />
               <div className="mt-8 space-y-6">
@@ -93,6 +102,7 @@ export default function AdminDashboard() {
           {active === "events" && <EventApprovals />}
           {active === "organizers" && <OrganiserRequests onChanged={refreshPendingOrgs} />}
           {active === "organisations" && <OrganisationRequestsAdmin onChanged={refreshPendingOrganisations} />}
+          {active === "cancellations" && <EventCancellations onChanged={refreshPendingCancellations} />}
           {active === "fraud" && <FraudMonitor />}
           {active === "sales" && <SalesStatus />}
           {active === "assistance" && <AssistanceQueue />}

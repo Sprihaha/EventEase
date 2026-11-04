@@ -73,6 +73,8 @@ type Store = {
   bookingsError: string | null;
   refreshBookings: () => Promise<void>;
   updateTier: (eventId: string, tierId: string, changes: { priceCents: number; quantity: number }) => Promise<void>;
+  /** Organisers: reload My events after editing an event or asking to cancel it. */
+  refreshManagedEvents: () => Promise<void>;
   bookings: Booking[];
   posts: CommunityPost[];
   fraud: FraudAlert[];
@@ -305,6 +307,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateTier: async (eventId, tierId, changes) => {
         await updateTicketTier(eventId, tierId, changes);
         if (user) setEvents(await fetchBackendRoleEvents("ORGANISER", user.id));
+      },
+      refreshManagedEvents: async () => {
+        if (user?.role === "organizer") setEvents(await fetchBackendRoleEvents("ORGANISER", user.id));
       },
       setEventStatus: async (id, status) => {
         await backendSetEventStatus(id, status);
