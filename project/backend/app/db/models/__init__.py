@@ -36,6 +36,7 @@ from app.db.models.help import HelpPage
 from app.db.models.monitoring import AuditLog, FraudSignal
 from app.db.models.organisation import Organisation, OrganisationMembership
 from app.db.models.organiser import OrganiserApplication
+from app.db.models.promo import PromoCode
 from app.db.models.scheduler import SchedulerJob, SchedulerJobLog, SystemConfiguration
 from app.db.models.user import (
     EmailVerificationToken,
@@ -47,6 +48,7 @@ from app.db.models.user import (
 )
 
 __all__ = [
+    "PromoCode",
     "EasePix", "EaseConnectPost",
     "EventSeat", "SeatClaim", "ExchangeSettlement",
     "Venue", "VenueSeat", "VenueSection",

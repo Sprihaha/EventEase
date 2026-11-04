@@ -29,7 +29,7 @@ from app.db.models import (
     User,
 )
 from app.schemas.bookings import BookingCreate
-from app.services import inventory, seating
+from app.services import inventory, promos, seating
 from app.services.bookings.audit_trail import audit_booking_status
 from app.services.bookings.notifications import send_booking_cancellation, send_booking_confirmation
 from app.services.bookings.policy import (
@@ -114,6 +114,14 @@ def create_booking(
 
     seats = seating.validate_selection(db, event.id, data.items, data.seat_ids)
 
+    # A promo code takes a percentage off every ticket. The row stays locked until commit so two
+    # checkouts cannot both take the last use of a limited code.
+    promo = None
+    if data.promo_code and data.promo_code.strip():
+        promo = promos.usable_promo(db, event.id, data.promo_code, now, lock=True)
+    unit_price = {cid: promos.discounted_unit_price(c.price_cents, promo.percent_off) if promo else c.price_cents
+                  for cid, c in categories.items()}
+
     for item in sorted(data.items, key=lambda i: str(i.ticket_category_id)):  # fixed order avoids deadlocks
         if not inventory.try_hold(db, item.ticket_category_id, item.quantity):
             db.rollback()
@@ -122,10 +130,12 @@ def create_booking(
             raise AppError(409, "SOLD_OUT", "not enough tickets left in this category",
                            {"ticketCategoryId": str(item.ticket_category_id), "available": max(0, remaining or 0)})
 
-    total = sum(categories[i.ticket_category_id].price_cents * i.quantity for i in data.items)
+    full_price = sum(categories[i.ticket_category_id].price_cents * i.quantity for i in data.items)
+    total = sum(unit_price[i.ticket_category_id] * i.quantity for i in data.items)
     booking = Booking(user_id=user.id, event_id=event.id, status=BookingStatus.PENDING_PAYMENT, total_cents=total,
                       currency=settings.CURRENCY, hold_expires_at=now + timedelta(minutes=settings.BOOKING_HOLD_MINUTES),
-                      idempotency_key=idempotency_key, created_ip=ip)
+                      idempotency_key=idempotency_key, created_ip=ip,
+                      promo_code_id=promo.id if promo else None, discount_cents=full_price - total)
     db.add(booking)
     db.flush()
     for seat in seats:
@@ -139,7 +149,7 @@ def create_booking(
         raise
     for item in data.items:
         db.add(BookingItem(booking_id=booking.id, ticket_category_id=item.ticket_category_id, quantity=item.quantity,
-                           unit_price_cents=categories[item.ticket_category_id].price_cents))
+                           unit_price_cents=unit_price[item.ticket_category_id]))
     audit_booking_status(db, booking, None, user, ip)
     db.flush()
 

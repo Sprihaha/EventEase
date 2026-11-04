@@ -26,6 +26,7 @@ import CreateEventForm from "../components/CreateEventForm";
 import VenueSeatMap from "../components/VenueSeatMap";
 import OrganisationTeam from "../components/OrganisationTeam";
 import TicketTierEditor from "../components/TicketTierEditor";
+import PromoCodes from "../components/PromoCodes";
 import { fetchMyOrganisations, getCurrentOrganisation } from "../lib/organisation";
 
 const nav: NavItem[] = [
@@ -74,7 +75,7 @@ export default function OrganizerDashboard() {
           {active === "seats" && <VenueSeatMap />}
           {active === "events" && <EventsTable mine={mine} />}
           {active === "create" && <CreateEventForm onCreate={createEvent} />}
-          {active === "promos" && <Promotions />}
+          {active === "promos" && <PromoCodes events={mine} />}
           {active === "team" && isManager && <OrganisationTeam />}
         </>
       )}
@@ -389,41 +390,3 @@ function Analytics({ mine }: { mine: EventItem[] }) {
   );
 }
 
-function Promotions() {
-  const promos = [
-    { code: "EARLYBIRD", type: "Early-bird pricing", off: "15% off", used: 213, active: true },
-    { code: "BUNDLE4", type: "Bundle offer (buy 4)", off: "20% off", used: 88, active: true },
-    { code: "WELCOME10", type: "Referral code", off: "10% off", used: 402, active: true },
-    { code: "LOYALGOLD", type: "Loyalty reward", off: "Free booking fee", used: 156, active: false },
-  ];
-  return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between border-b border-line p-5">
-        <h3 className="font-brand text-xl font-bold text-brand-deep">Active promotions</h3>
-        <Button size="sm"><Tag className="h-4 w-4" /> New promo</Button>
-      </div>
-      <table className="w-full text-sm">
-        <thead className="bg-brand-purple/5 border-b border-brand-purple/10 text-left text-xs uppercase tracking-wide text-muted">
-          <tr>
-            <th className="p-4">Code</th>
-            <th className="p-4">Type</th>
-            <th className="p-4">Discount</th>
-            <th className="p-4">Redemptions</th>
-            <th className="p-4">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {promos.map((p) => (
-            <tr key={p.code} className="border-b border-line last:border-0 hover:bg-brand-purple/5 transition-colors">
-              <td className="p-4"><code className="rounded bg-brand-purple/10 px-2 py-1 font-mono text-xs font-semibold text-brand-purple">{p.code}</code></td>
-              <td className="p-4 text-muted">{p.type}</td>
-              <td className="p-4 font-semibold text-brand-deep">{p.off}</td>
-              <td className="p-4 text-muted">{p.used}</td>
-              <td className="p-4"><Badge tone={p.active ? "live" : "neutral"}>{p.active ? "Active" : "Ended"}</Badge></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
-  );
-}

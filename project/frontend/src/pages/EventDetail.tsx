@@ -5,6 +5,7 @@ import { Calendar, MapPin, Ticket, ShieldCheck } from "lucide-react";
 import { useStore, currency, fmtDate } from "../lib/store";
 import { fetchTicketingEvent, fetchSeats, holdSeats, holdCategories, payBooking, cancelHeldBooking,
   type BackendBooking, type LiveSeat, type TicketingEvent } from "../lib/ticketingApi";
+import { checkPromoCode, discountedCents } from "../lib/promoApi";
 import { SeatMap } from "../components/SeatMap";
 import { Badge, Button, Card, QRCode, ticketPayload, cx } from "../components/ui";
 import { SEO } from "../components/common";
@@ -22,6 +23,11 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true);
   const [failPayment, setFailPayment] = useState(false);
   const [now, setNow] = useState(Date.now);
+  // Organiser promo code: checked when the customer presses Apply, then sent with the reservation.
+  const [promoInput, setPromoInput] = useState("");
+  const [promo, setPromo] = useState<{ code: string; percentOff: number } | null>(null);
+  const [promoError, setPromoError] = useState("");
+  const [checkingPromo, setCheckingPromo] = useState(false);
   const submitting = useRef(false);
   const key = useRef<string | null>(null);
   const identity = useRef(`${id}:${user?.id}`);
@@ -32,6 +38,7 @@ export default function EventDetail() {
   }, [id]);
   useEffect(() => {
     setEvent(null); setBooking(null); setSelected([]); setQuantities({}); setError(""); key.current = null;
+    setPromo(null); setPromoInput(""); setPromoError("");
     if (!user) { setLoading(false); return; }
     const controller = new AbortController();
     setLoading(true);
@@ -52,6 +59,20 @@ export default function EventDetail() {
   const categoryItems = (event?.ticketCategories ?? []).filter(c => (quantities[c.id] ?? 0) > 0).map(c => ({ ticketCategoryId: c.id, quantity: quantities[c.id] }));
   const count = seats.length ? chosen.length : categoryItems.reduce((sum, item) => sum + item.quantity, 0);
   const estimated = seats.length ? chosen.reduce((total, s) => total + s.priceCents, 0) / 100 : (event?.ticketCategories ?? []).reduce((sum, c) => sum + c.priceCents * (quantities[c.id] ?? 0), 0) / 100;
+  // Same per-ticket rounding as the server, so the estimate matches what is charged.
+  const savingCents = !promo ? 0 : seats.length
+    ? chosen.reduce((sum, s) => sum + s.priceCents - discountedCents(s.priceCents, promo.percentOff), 0)
+    : (event?.ticketCategories ?? []).reduce((sum, c) => sum + (c.priceCents - discountedCents(c.priceCents, promo.percentOff)) * (quantities[c.id] ?? 0), 0);
+  const applyPromo = async () => {
+    const code = promoInput.trim();
+    if (!code) return;
+    setCheckingPromo(true); setPromoError("");
+    try { setPromo(await checkPromoCode(id, code)); key.current = null; }
+    catch (cause) { setPromo(null); const message = cause instanceof Error ? cause.message : "This promo code could not be checked.";
+      setPromoError(message.charAt(0).toUpperCase() + message.slice(1)); }
+    finally { setCheckingPromo(false); }
+  };
+  const removePromo = () => { setPromo(null); setPromoInput(""); setPromoError(""); key.current = null; };
   const expired = !!booking?.holdExpiresAt && Date.parse(booking.holdExpiresAt) <= now;
   const run = async (operation: () => Promise<void>) => {
     if (submitting.current) return;
@@ -63,7 +84,7 @@ export default function EventDetail() {
   };
   const reserve = () => run(async () => {
     key.current ??= crypto.randomUUID();
-    const result = seats.length ? await holdSeats(id, chosen, key.current) : await holdCategories(id, categoryItems, key.current);
+    const result = seats.length ? await holdSeats(id, chosen, key.current, promo?.code) : await holdCategories(id, categoryItems, key.current, promo?.code);
     setBooking(result); await refreshBookings(); await loadSeats();
   });
   const pay = () => run(async () => {
@@ -74,6 +95,7 @@ export default function EventDetail() {
   const release = () => run(async () => {
     if (!booking) return;
     await cancelHeldBooking(booking.id); setBooking(null); setSelected([]); setQuantities({}); key.current = null;
+    setPromo(null); setPromoInput("");
     await refreshBookings(); await loadSeats();
   });
 
@@ -164,7 +186,7 @@ export default function EventDetail() {
     {!isPast && salesClosed && !booking && <div role="status" className="mt-5 rounded-xl border border-brand-orange/30 bg-brand-orange/10 p-4 text-sm font-medium text-brand-deep">Ticket sales closed on {fmtDate(event.salesCloseAt as string)}.</div>}
     {booking?.status === "CONFIRMED" ? <Card className="mt-8 p-7">
       <ShieldCheck className="h-8 w-8 text-emerald-600"/><h2 className="mt-3 font-brand text-2xl font-bold">Booking confirmed</h2>
-      <p className="mt-2 text-sm">Reference: {booking.id} · Paid {currency(booking.totalCents/100)}</p>
+      <p className="mt-2 text-sm">Reference: {booking.id} · Paid {currency(booking.totalCents/100)}{!!booking.discountCents && ` · Saved ${currency(booking.discountCents/100)} with ${booking.promoCode}`}</p>
       {!booking.qrReleased && <p role="status" className="mt-2 text-sm text-muted">Your QR tickets will be emailed to you{booking.qrAvailableFrom ? ` on ${fmtDate(booking.qrAvailableFrom)}` : ""}, when ticket sales close. Until then you can swap tickets on EaseXchange.</p>}
       <div className="mt-6 grid gap-5 sm:grid-cols-3">{booking.tickets.map(t => <div key={t.id} className="rounded-xl border p-5 text-center"><h3 className="mb-4 font-bold">Seat {t.seatLabel ?? "General Admission"}</h3>{t.code ? <><div className="mx-auto w-max"><QRCode value={ticketPayload(t.code)}/></div><Link className="mt-3 inline-block text-sm text-brand-purple underline" to={`/verify/${encodeURIComponent(t.code)}`}>Verify ticket</Link></> : <Badge tone="live">Confirmed</Badge>}</div>)}</div>
       <Link to="/dashboard/customer"><Button className="mt-6"><Ticket className="h-4 w-4"/> My tickets</Button></Link>
@@ -181,7 +203,26 @@ export default function EventDetail() {
       <Card className="h-max space-y-4 p-6"><h2 className="font-brand text-2xl font-bold">{booking ? "Checkout" : "Your selection"}</h2>
         <ul className="space-y-2 text-sm">{chosen.map(s => <li key={s.id}>{s.label} · {s.categoryName} · {currency(s.priceCents/100)}</li>)}</ul>
         {!seats.length && <ul className="text-sm">{categoryItems.map(item => <li key={item.ticketCategoryId}>{event.ticketCategories.find(c => c.id === item.ticketCategoryId)?.name} × {item.quantity}</li>)}</ul>}
-        <p className="flex justify-between font-bold"><span>{booking ? "Total" : "Estimated total"}</span><span>{currency(booking ? booking.totalCents/100 : estimated)}</span></p>
+        {!booking && !salesClosed && user.role === "customer" && <div className="border-t border-line pt-4">
+          {promo ? <p className="flex items-center justify-between gap-3 text-sm" role="status">
+            <span><span className="font-mono font-semibold text-brand-purple">{promo.code}</span> applied · {promo.percentOff}% off each ticket</span>
+            <button type="button" className="text-xs font-semibold text-brand-purple underline" onClick={removePromo}>Remove</button>
+          </p> : <>
+            <label htmlFor="promo-code" className="block text-sm font-semibold text-brand-deep">Promo code</label>
+            <div className="mt-1.5 flex gap-2">
+              <input id="promo-code" className="h-10 min-w-0 flex-1 rounded-lg border border-brand-purple/20 px-3 text-sm uppercase outline-none focus:border-brand-purple focus:ring-4 focus:ring-brand-purple/15"
+                value={promoInput} maxLength={32} autoComplete="off" placeholder="Enter code"
+                aria-invalid={!!promoError} aria-describedby={promoError ? "promo-error" : undefined}
+                onChange={e => { setPromoInput(e.target.value); setPromoError(""); }}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void applyPromo(); } }} />
+              <Button type="button" size="sm" variant="outline" disabled={!promoInput.trim() || checkingPromo || busy} onClick={applyPromo}>{checkingPromo ? "Checking…" : "Apply"}</Button>
+            </div>
+            {promoError && <p id="promo-error" role="alert" className="mt-1.5 text-xs font-semibold text-danger">{promoError}</p>}
+          </>}
+        </div>}
+        {booking ? !!booking.discountCents && <p className="flex justify-between text-sm text-emerald-700"><span>Promo {booking.promoCode}</span><span>−{currency(booking.discountCents/100)}</span></p>
+          : savingCents > 0 && <p className="flex justify-between text-sm text-emerald-700"><span>Promo {promo?.code}</span><span>−{currency(savingCents/100)}</span></p>}
+        <p className="flex justify-between font-bold"><span>{booking ? "Total" : "Estimated total"}</span><span>{currency(booking ? booking.totalCents/100 : estimated - savingCents/100)}</span></p>
         <p className="text-xs text-muted">Prices include all configured charges.</p>
         {booking ? <>
           <p className="text-sm" role="status">{expired ? "Your hold expired. Release it and select seats again." : `Reserved for ${Math.max(0, Math.ceil((Date.parse(booking.holdExpiresAt ?? "") - now)/1000))} seconds.`}</p>

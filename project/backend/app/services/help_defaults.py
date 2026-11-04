@@ -33,7 +33,8 @@ def default_features() -> list[dict]:
             "description": (
                 f"Choose seats on the live seat map. Selected seats are held for you for "
                 f"{s.BOOKING_HOLD_MINUTES} minutes while you check out, and you can buy up to "
-                f"{s.PURCHASE_LIMIT_PER_EVENT} tickets per event. Your tickets, with their QR codes, are "
+                f"{s.PURCHASE_LIMIT_PER_EVENT} tickets per event. Have a promo code from the organiser? Enter it at "
+                f"checkout and press Apply before you reserve. Your tickets, with their QR codes, are "
                 f"under My tickets. QR codes are released {s.SALES_CLOSE_DAYS_BEFORE_EVENT} days before the event."
             ),
         },

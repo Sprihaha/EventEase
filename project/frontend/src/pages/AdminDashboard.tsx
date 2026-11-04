@@ -7,12 +7,10 @@ import {
   Building2,
   Briefcase,
   ShieldAlert,
-  BarChart3,
   Check,
   X,
   AlertTriangle,
   CircleDollarSign,
-  Armchair,
   Route,
   MapPin,
   Accessibility,
@@ -28,7 +26,6 @@ import {
 import { useStore, currency } from "../lib/store";
 import { DashboardShell, StatCard, BarChart, type NavItem } from "../components/DashboardShell";
 import { Button, Badge, Card, Eyebrow, Select, cx } from "../components/ui";
-import { OperationsSeatMap } from "../components/OperationsSeatMap";
 import AssistanceQueue from "../components/AssistanceQueue";
 import EaseVoiceNarration from "./EaseVoiceNarration";
 import EaseHelp from "./EaseHelp";
@@ -70,9 +67,7 @@ export default function AdminDashboard() {
     { id: "assistance", label: "Assistance queue", icon: ClipboardList, badge: openAssistance },
     { id: "narration", label: "EaseVoice settings", icon: Volume2 },
     { id: "easehelp", label: "Edit EaseHelp", icon: HelpCircle },
-    { id: "seats", label: "Seat maps", icon: Armchair },
     { id: "guide", label: "EaseGuide requests", icon: Route, badge: 3 },
-    { id: "analytics", label: "Platform analytics", icon: BarChart3 },
     { id: "administrators", label: "Administrators", icon: ShieldCheck },
     { id: "developer", label: "Developer settings", icon: Code2 },
   ];
@@ -81,15 +76,14 @@ export default function AdminDashboard() {
     <DashboardShell role="admin" title="Admin control" nav={nav}>
       {(active) => (
         <>
-          <div className="mb-8 grid gap-4 sm:grid-cols-4">
-            <StatCard label="Live events" value={String(events.filter((e) => e.status === "published").length)} />
-            <StatCard label="Pending approvals" value={String(pendingEvents + pendingOrgs)} tone="accent" />
-            <StatCard label="Open fraud alerts" value={String(openFraud)} tone={openFraud ? "danger" : "live"} />
-            <StatCard label="Organiser requests" value={String(pendingOrgs)} tone={pendingOrgs ? "accent" : undefined} />
-          </div>
-
           {active === "overview" && (
             <>
+              <div className="mb-8 grid gap-4 sm:grid-cols-4">
+                <StatCard label="Live events" value={String(events.filter((e) => e.status === "published").length)} />
+                <StatCard label="Pending approvals" value={String(pendingEvents + pendingOrgs)} tone="accent" />
+                <StatCard label="Open fraud alerts" value={String(openFraud)} tone={openFraud ? "danger" : "live"} />
+                <StatCard label="Organiser requests" value={String(pendingOrgs)} tone={pendingOrgs ? "accent" : undefined} />
+              </div>
               <Overview />
               <div className="mt-8 space-y-6">
                 <ResetDemoData />
@@ -101,12 +95,10 @@ export default function AdminDashboard() {
           {active === "organisations" && <OrganisationRequestsAdmin onChanged={refreshPendingOrganisations} />}
           {active === "fraud" && <FraudMonitor />}
           {active === "sales" && <SalesStatus />}
-          {active === "seats" && <OperationsSeatMap events={events} eyebrow="Platform seat maps" />}
           {active === "assistance" && <AssistanceQueue />}
           {active === "narration" && <EaseVoiceNarration embedded />}
           {active === "easehelp" && <EaseHelp embedded editOnOpen />}
           {active === "guide" && <EaseGuideRequests />}
-          {active === "analytics" && <PlatformAnalytics />}
           {active === "administrators" && <AdminManagement />}
           {active === "developer" && <DeveloperSettings embedded />}
         </>
@@ -505,28 +497,3 @@ function FraudMonitor() {
   );
 }
 
-function PlatformAnalytics() {
-  const { events } = useStore();
-  const gmv = events.reduce((a, e) => a + e.tiers.reduce((x, t) => x + t.sold * t.price, 0), 0);
-  const revenue = [
-    { label: "May", value: 42000 },
-    { label: "Jun", value: 51000 },
-    { label: "Jul", value: 68000 },
-    { label: "Aug", value: 74000 },
-    { label: "Sep", value: 91000 },
-  ];
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Gross merchandise value" value={currency(gmv)} tone="accent" />
-        <StatCard label="Platform fee revenue (5%)" value={currency(Math.round(gmv * 0.05))} tone="live" />
-        <StatCard label="Fraud prevented" value="S$28,400" sub="Blocked this quarter" />
-      </div>
-      <Card className="p-6">
-        <Eyebrow>Growth</Eyebrow>
-        <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">Monthly GMV</h3>
-        <div className="mt-6"><BarChart data={revenue} /></div>
-      </Card>
-    </div>
-  );
-}

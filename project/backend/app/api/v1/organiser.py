@@ -21,6 +21,8 @@ from app.schemas.organiser import (
     VenueEaseExploreUpdate,
 )
 from app.services import organiser as service
+from app.services import promos as promo_service
+from app.schemas.promos import PromoCodeCreate, PromoCodeOut, PromoCodeUpdate
 from app.services import venues as venue_service
 from app.services.venue_layout import COLUMNS, SUPPORTED_EXTENSIONS, template_workbook
 from app.services.sales import sales_report
@@ -135,3 +137,20 @@ def update_venue_easeexplore(venue_id: uuid.UUID, body: VenueEaseExploreUpdate,
 def get_venue_layout(venue_id: uuid.UUID, user: User = Depends(require_organiser), db: Session = Depends(get_db)):
     return venue_service.get_venue_layout(db, user, venue_id)
 
+
+
+@router.get("/promo-codes", response_model=list[PromoCodeOut], summary="Promo codes for the events you manage")
+def list_promo_codes(user: User = Depends(require_organiser), db: Session = Depends(get_db)):
+    return promo_service.list_for_organiser(db, user)
+
+
+@router.post("/promo-codes", response_model=PromoCodeOut, status_code=status.HTTP_201_CREATED,
+             summary="Create a percentage-off promo code for one of your events")
+def create_promo_code(body: PromoCodeCreate, user: User = Depends(require_organiser), db: Session = Depends(get_db)):
+    return promo_service.create(db, user, body)
+
+
+@router.patch("/promo-codes/{promo_id}", response_model=PromoCodeOut, summary="Switch a promo code on or off")
+def update_promo_code(promo_id: uuid.UUID, body: PromoCodeUpdate, user: User = Depends(require_organiser),
+                      db: Session = Depends(get_db)):
+    return promo_service.update(db, user, promo_id, body)
