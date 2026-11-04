@@ -37,6 +37,10 @@ def find_by_name(db: Session, name: str) -> Organisation | None:
     return db.scalar(select(Organisation).where(func.lower(Organisation.name) == name.strip().lower()))
 
 
+def find_by_uen(db: Session, uen: str) -> Organisation | None:
+    return db.scalar(select(Organisation).where(func.upper(Organisation.uen) == uen.strip().upper()))
+
+
 def listed(db: Session) -> list[Organisation]:
     return list(db.scalars(select(Organisation).where(Organisation.listed.is_(True)).order_by(Organisation.name)))
 
@@ -61,6 +65,7 @@ def _mine_row(membership: OrganisationMembership, organisation: Organisation | N
     return {
         "id": membership.id, "organisation_id": membership.organisation_id,
         "organisation_name": _name(membership, organisation), "organisation_email": membership.organisation_email,
+        "uen": organisation.uen if organisation else membership.requested_uen,
         "status": membership.status, "source": membership.source, "submitted_at": membership.created_at,
         "reviewed_at": membership.reviewed_at, "review_note": membership.review_note,
         "is_manager": organisation is not None and organisation.manager_id == membership.user_id,
@@ -92,7 +97,8 @@ def _check_not_already_open(db: Session, user: User, organisation: Organisation 
         raise AppError(409, "ORGANISATION_REQUEST_PENDING", "a request for this organisation is already waiting for approval")
 
 
-def _new_membership(db: Session, user: User, name: str, email: str, source: MembershipSource) -> OrganisationMembership:
+def _new_membership(db: Session, user: User, name: str, email: str, source: MembershipSource,
+                    uen: str | None = None) -> OrganisationMembership:
     organisation = find_by_name(db, name)
     if organisation is not None and organisation.self_managed:
         raise AppError(409, "ORGANISATION_INVITE_ONLY",
@@ -100,20 +106,21 @@ def _new_membership(db: Session, user: User, name: str, email: str, source: Memb
     _check_not_already_open(db, user, organisation, name)
     membership = OrganisationMembership(
         user_id=user.id, organisation_id=organisation.id if organisation else None,
-        requested_name=None if organisation else name, organisation_email=email, source=source,
+        requested_name=None if organisation else name, requested_uen=uen, organisation_email=email, source=source,
     )
     db.add(membership)
     db.flush()
     return membership
 
 
-def add_signup_membership(db: Session, user: User, name: str, email: str) -> OrganisationMembership:
+def add_signup_membership(db: Session, user: User, name: str, email: str,
+                          uen: str | None = None) -> OrganisationMembership:
     """The organisation chosen at sign-up; the caller commits."""
-    return _new_membership(db, user, name, email, MembershipSource.SIGNUP)
+    return _new_membership(db, user, name, email, MembershipSource.SIGNUP, uen=uen)
 
 
 def request_membership(db: Session, user: User, *, name: str | None, email: str | None, ip: str | None) -> dict:
-    name, email = check_organisation(name, email)
+    name, email, _ = check_organisation(name, email)
     membership = _new_membership(db, user, name, email, MembershipSource.REQUEST)
     audit.record(db, actor=user, action="ORGANISATION_REQUESTED", entity_type="OrganisationMembership",
                  entity_id=membership.id, after={"organisation": name, "organisationEmail": email}, ip=ip)
@@ -130,12 +137,22 @@ def _apply_decision(db: Session, membership: OrganisationMembership, admin: User
     organisation = db.get(Organisation, membership.organisation_id) if membership.organisation_id else None
     if approve:
         if organisation is None:
-            # An "Others" request: create the organisation (or reuse one approved meanwhile) and list it.
+            # An "Others" or sign-up request: create the organisation (or reuse one approved meanwhile) and list it.
             organisation = find_by_name(db, membership.requested_name or "")
             if organisation is None:
-                organisation = Organisation(name=membership.requested_name, listed=True)
+                organisation = Organisation(
+                    name=membership.requested_name,
+                    uen=membership.requested_uen,
+                    manager_id=membership.user_id,
+                    listed=True,
+                )
                 db.add(organisation)
                 db.flush()
+            else:
+                if organisation.manager_id is None:
+                    organisation.manager_id = membership.user_id
+                if not organisation.uen and membership.requested_uen:
+                    organisation.uen = membership.requested_uen
             membership.organisation_id = organisation.id
         already = db.scalar(select(OrganisationMembership.id).where(
             OrganisationMembership.user_id == membership.user_id,
@@ -169,6 +186,7 @@ def _admin_row(membership: OrganisationMembership, user: User, organisation: Org
     return {
         "id": membership.id, "user_id": user.id, "username": user.username,
         "email_masked": mask_email(user.email), "organisation_name": _name(membership, organisation),
+        "uen": organisation.uen if organisation else membership.requested_uen,
         "new_organisation": membership.organisation_id is None,
         "organisation_email": membership.organisation_email, "status": membership.status,
         "submitted_at": membership.created_at, "reviewed_at": membership.reviewed_at,

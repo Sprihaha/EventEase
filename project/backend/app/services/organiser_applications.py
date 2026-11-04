@@ -22,6 +22,7 @@ def _row(application: OrganiserApplication, user: User, reviewer: str | None, sa
         "email_masked": mask_email(user.email), "email_verified": user.email_verified_at is not None,
         "phone_masked": mask_phone(user.phone_e164),
         "organisation_name": application.organisation_name, "organisation_email": application.organisation_email,
+        "uen": application.uen,
         "same_organisation_requests": same_organisation,
         "status": application.status, "submitted_at": application.created_at,
         "reviewed_at": application.reviewed_at, "reviewed_by": reviewer, "review_note": application.review_note,

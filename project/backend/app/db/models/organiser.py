@@ -26,6 +26,7 @@ class OrganiserApplication(UUIDPk, Timestamps, Base):
     # Several organisers may apply under the same organisation; each is reviewed separately.
     organisation_name: Mapped[str] = mapped_column(String(200), nullable=False)
     organisation_email: Mapped[str] = mapped_column(String(254), nullable=False)
+    uen: Mapped[str | None] = mapped_column(String(50))
     status: Mapped[OrganiserApplicationStatus] = mapped_column(
         str_enum(OrganiserApplicationStatus, "organiser_application_status"), nullable=False,
         default=OrganiserApplicationStatus.PENDING,

@@ -268,6 +268,7 @@ export async function backendSignup(account: {
   role: "CUSTOMER" | "ORGANISER";
   organisationName?: string;
   organisationEmail?: string;
+  organisationUen?: string;
 }) {
   // Creates an unverified account; the backend emails a link to /verify-email/:token.
   // Organisers also wait for an administrator to approve their request.
@@ -464,6 +465,7 @@ export type OrganiserRequest = {
   phoneMasked: string | null;
   organisationName: string;
   organisationEmail: string;
+  uen?: string | null;
   sameOrganisationRequests: number;
   status: OrganiserRequestStatus;
   submittedAt: string;

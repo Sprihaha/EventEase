@@ -8,8 +8,8 @@ from app.schemas.common import CamelModel
 
 
 class LoginRequest(CamelModel):
-    identifier: str = Field(..., min_length=1, max_length=254, description="Username or email address")
-    password: str = Field(..., min_length=1, max_length=1024)
+    identifier: str = Field(..., max_length=254, description="Username or email address")
+    password: str = Field(..., max_length=1024)
     portal: Role | None = Field(None, description="Login tab chosen (CUSTOMER, ORGANISER or ADMIN); the account "
                                                   "must have this role. Omit to accept any role.")
     organisation: str | None = Field(None, max_length=200, description="Company / Organisation name for organiser login")
@@ -24,6 +24,7 @@ class SignupRequest(CamelModel):
     role: str = Field(..., max_length=32, description="CUSTOMER or ORGANISER")
     organisation_name: str | None = Field(None, max_length=1000, description="Required for ORGANISER")
     organisation_email: str | None = Field(None, max_length=320, description="Required for ORGANISER")
+    organisation_uen: str | None = Field(None, max_length=50, description="Required for ORGANISER")
 
 
 class SignupResponse(CamelModel):
@@ -43,16 +44,16 @@ class ResendVerificationRequest(CamelModel):
 
 class ForgotPasswordRequest(CamelModel):
     username: str = Field(..., min_length=1, max_length=254)
-    email: str = Field(..., min_length=1, max_length=320, description="Must be the account's verified email")
+    email: str = Field(..., max_length=320)
 
 
 class ResetPasswordRequest(CamelModel):
     token: str = Field(..., min_length=10, max_length=200)
-    new_password: str = Field(..., max_length=1024)
+    password: str = Field(..., max_length=1024)
 
 
 class ChangePasswordRequest(CamelModel):
-    current_password: str = Field(..., min_length=1, max_length=1024)
+    current_password: str = Field(..., max_length=1024)
     new_password: str = Field(..., max_length=1024)
 
 
@@ -60,13 +61,14 @@ class UserSummary(CamelModel):
     id: uuid.UUID
     username: str
     role: Role
+    must_change_password: bool = False
     avatar_url: str | None = None
-    password_changeable: bool = True
 
 
 class OrganisationSummary(CamelModel):
     id: str | None = None
     name: str
+    uen: str | None = None
 
 
 class AuthResponse(CamelModel):

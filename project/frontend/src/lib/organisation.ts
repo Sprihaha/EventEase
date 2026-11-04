@@ -5,7 +5,7 @@ import { CURRENT_ORGANISATION_KEY as CURRENT_KEY } from "./currentOrganisation";
 // in the header and can be switched. A self-managed organisation (EventEase) shares its events
 // with its members; its manager creates the member accounts.
 
-export type Organisation = { id: string; name: string };
+export type Organisation = { id: string; name: string; uen?: string | null };
 
 export type MembershipStatus = "PENDING" | "APPROVED" | "REJECTED";
 

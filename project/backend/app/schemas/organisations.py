@@ -10,6 +10,7 @@ from app.schemas.common import CamelModel
 class OrganisationOut(CamelModel):
     id: uuid.UUID
     name: str
+    uen: str | None = None
 
 
 class MembershipOut(CamelModel):

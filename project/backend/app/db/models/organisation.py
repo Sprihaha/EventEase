@@ -15,9 +15,13 @@ from app.db.models.enums import MembershipSource, MembershipStatus
 
 class Organisation(UUIDPk, Timestamps, Base):
     __tablename__ = "organisations"
-    __table_args__ = (Index("uq_organisations_name_lower", func.lower(text("name")), unique=True),)
+    __table_args__ = (
+        Index("uq_organisations_name_lower", func.lower(text("name")), unique=True),
+        Index("uq_organisations_uen_upper", func.upper(text("uen")), unique=True, postgresql_where=text("uen IS NOT NULL")),
+    )
 
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    uen: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # Listed organisations appear in the sign-up and "add organisation" dropdowns.
     listed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # The member who creates this organisation's accounts. Set only for self-managed organisations
@@ -45,6 +49,7 @@ class OrganisationMembership(UUIDPk, Timestamps, Base):
         Uuid, ForeignKey("organisations.id", ondelete="RESTRICT"), index=True
     )
     requested_name: Mapped[str | None] = mapped_column(String(200))
+    requested_uen: Mapped[str | None] = mapped_column(String(50))
     organisation_email: Mapped[str] = mapped_column(String(254), nullable=False)
     status: Mapped[MembershipStatus] = mapped_column(
         str_enum(MembershipStatus, "membership_status"), nullable=False, default=MembershipStatus.PENDING

@@ -32,9 +32,10 @@ type SignUp = {
   email: string;
   phone: string;
   billingAddress: string;
-  // Organisers only; both are required.
+  // Organisers only; all are required.
   organisationName: string;
   organisationEmail: string;
+  organisationUen: string;
 };
 
 const emptySignUp: SignUp = {
@@ -45,6 +46,7 @@ const emptySignUp: SignUp = {
   billingAddress: "",
   organisationName: "",
   organisationEmail: "",
+  organisationUen: "",
 };
 
 const PORTALS: { id: LoginPortal; label: string; icon: typeof Ticket }[] = [
@@ -338,13 +340,19 @@ export default function Login() {
 
   const handleSignUp = async (event: FormEvent) => {
     event.preventDefault();
-    if (signUpRole === "ORGANISER" && !signUp.organisationName.trim()) {
-      setSignUpError("Please enter your company / organisation name.");
-      return;
-    }
-    if (signUpRole === "ORGANISER" && !signUp.organisationEmail.trim()) {
-      setSignUpError("Please enter your company / organisation email.");
-      return;
+    if (signUpRole === "ORGANISER") {
+      if (!signUp.organisationName.trim()) {
+        setSignUpError("Please enter your company / organisation name.");
+        return;
+      }
+      if (!signUp.organisationUen.trim()) {
+        setSignUpError("Please enter your company Unique Entity Number (UEN).");
+        return;
+      }
+      if (!signUp.organisationEmail.trim()) {
+        setSignUpError("Please enter your company / organisation email.");
+        return;
+      }
     }
     setSigningUp(true);
     setSignUpError("");
@@ -356,7 +364,11 @@ export default function Login() {
         phone: signUp.phone,
         role: signUpRole ?? "CUSTOMER",
         ...(signUpRole === "ORGANISER"
-          ? { organisationName: signUp.organisationName, organisationEmail: signUp.organisationEmail }
+          ? {
+              organisationName: signUp.organisationName.trim(),
+              organisationEmail: signUp.organisationEmail.trim(),
+              organisationUen: signUp.organisationUen.trim().toUpperCase(),
+            }
           : {}),
       });
       setApprovalRequired(signUpRole === "ORGANISER");
@@ -364,6 +376,10 @@ export default function Login() {
       setResendState("idle");
       setMode("sent");
     } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === "ORGANISATION_ALREADY_REGISTERED") {
+        setSignUpError("Organisation is already registered, ask your organisation admin to add your account");
+        return;
+      }
       setSignUpError(err instanceof Error ? err.message : "Sign-up failed. Please try again.");
     } finally {
       setSigningUp(false);
@@ -601,48 +617,33 @@ export default function Login() {
                       <Input
                         placeholder="e.g. Acme Live, LiveNation, or your company name"
                         value={signUp.organisationName}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          update("organisationName", val);
-                          const match = organisations.find((o) => o.name.toLowerCase() === val.toLowerCase());
-                          setOrganisationChoice(match ? match.id : OTHERS);
-                        }}
+                        onChange={(e) => update("organisationName", e.target.value)}
                         minLength={2}
                         maxLength={200}
                         required
                       />
                     </Field>
-                    {organisations.length > 0 && (
-                      <div className="-mt-1 mb-1">
-                        <label className="text-xs text-muted block mb-1">
-                          Or choose from existing registered organisations:
-                        </label>
-                        <Select
-                          value={organisationChoice}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            setOrganisationChoice(value);
-                            if (value && value !== OTHERS) {
-                              const match = organisations.find((o) => o.id === value);
-                              if (match) update("organisationName", match.name);
-                            }
-                          }}
-                        >
-                          <option value="">-- Select registered organisation (optional) --</option>
-                          {organisations.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                          <option value={OTHERS}>Other / New Company</option>
-                        </Select>
-                      </div>
-                    )}
-                    <Field label="Company / Organisation email">
+                    <Field label="Company Unique Entity Number (UEN)">
                       <Input
-                        type="email"
-                        placeholder="e.g. contact@yourcompany.com"
-                        value={signUp.organisationEmail}
-                        onChange={(e) => update("organisationEmail", e.target.value)}
+                        placeholder="e.g. 201812345A"
+                        value={signUp.organisationUen}
+                        onChange={(e) => update("organisationUen", e.target.value.toUpperCase())}
+                        minLength={4}
+                        maxLength={50}
                         required
                       />
                     </Field>
+                    <div className="sm:col-span-2">
+                      <Field label="Company / Organisation email">
+                        <Input
+                          type="email"
+                          placeholder="e.g. contact@yourcompany.com"
+                          value={signUp.organisationEmail}
+                          onChange={(e) => update("organisationEmail", e.target.value)}
+                          required
+                        />
+                      </Field>
+                    </div>
                   </>
                 )}
                 <div className="sm:col-span-2">

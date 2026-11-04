@@ -120,6 +120,11 @@ export default function OrganiserRequests({ onChanged }: { onChanged?: () => voi
                 </p>
                 <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-deep">
                   <Building2 className="h-4 w-4 text-brand-purple" /> {r.organisationName}
+                  {r.uen && (
+                    <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-brand-purple/10 text-brand-deep">
+                      UEN: {r.uen}
+                    </span>
+                  )}
                   <span className="font-normal text-muted">· {r.organisationEmail}</span>
                 </p>
                 {r.sameOrganisationRequests > 0 && (

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.core.security import hash_password, utcnow
-from app.db.models import OrganiserApplication, Role, User
+from app.db.models import OrganiserApplication, OrganiserApplicationStatus, Role, User, Organisation
 from app.rules.contact import EMAIL_TAKEN, normalise_email, normalise_sg_phone
 from app.rules.errors import RuleError
 from app.rules.organisation import check_organisation
@@ -23,10 +23,10 @@ SIGNUP_ROLES = {Role.CUSTOMER.value, Role.ORGANISER.value}
 
 def signup(db: Session, settings: Settings, *, username: str, password: str, email: str, phone: str,
            role: str, ip: str | None, organisation_name: str | None = None,
-           organisation_email: str | None = None) -> User:
+           organisation_email: str | None = None, organisation_uen: str | None = None) -> User:
     """Create an unverified account and email its verification link. No session until verified.
 
-    Organisers must give an organisation name and email; their request waits for admin approval.
+    Organisers must give an organisation name, email, and UEN; their request waits for admin approval.
     """
     if role.upper() == Role.ADMIN.value:
         raise AppError(403, "ROLE_NOT_ALLOWED", "administrator accounts cannot be created through sign-up")
@@ -39,7 +39,32 @@ def signup(db: Session, settings: Settings, *, username: str, password: str, ema
     if db.scalar(select(func.count()).select_from(User).where(func.lower(User.email) == normalised_email.lower())):
         raise RuleError(*EMAIL_TAKEN, status_code=409)
     phone_e164 = normalise_sg_phone(phone)
-    organisation = check_organisation(organisation_name, organisation_email) if role == Role.ORGANISER.value else None
+    organisation = check_organisation(organisation_name, organisation_email, organisation_uen) if role == Role.ORGANISER.value else None
+
+    if organisation is not None:
+        org_name, _org_email, org_uen = organisation
+        # Check if UEN or organisation name is already registered
+        duplicate_org = None
+        if org_uen:
+            duplicate_org = db.scalar(select(Organisation.id).where(func.upper(Organisation.uen) == org_uen.upper()))
+            if not duplicate_org:
+                duplicate_org = db.scalar(
+                    select(OrganiserApplication.id).where(
+                        func.upper(OrganiserApplication.uen) == org_uen.upper(),
+                        OrganiserApplication.status.in_([OrganiserApplicationStatus.PENDING, OrganiserApplicationStatus.APPROVED])
+                    )
+                )
+        if not duplicate_org and org_name:
+            duplicate_org = db.scalar(select(Organisation.id).where(func.lower(Organisation.name) == org_name.lower()))
+            if not duplicate_org:
+                duplicate_org = db.scalar(
+                    select(OrganiserApplication.id).where(
+                        func.lower(OrganiserApplication.organisation_name) == org_name.lower(),
+                        OrganiserApplication.status.in_([OrganiserApplicationStatus.PENDING, OrganiserApplicationStatus.APPROVED])
+                    )
+                )
+        if duplicate_org is not None:
+            raise AppError(409, "ORGANISATION_ALREADY_REGISTERED", "Organisation is already registered, ask your organisation admin to add your account")
 
     user = User(username=username, email=normalised_email, phone_e164=phone_e164,
                 password_hash=hash_password(password), role=Role(role), signup_ip=ip,
@@ -58,10 +83,9 @@ def signup(db: Session, settings: Settings, *, username: str, password: str, ema
         raise
     if organisation is not None:
         db.add(OrganiserApplication(user_id=user.id, organisation_name=organisation[0],
-                                    organisation_email=organisation[1]))
+                                    organisation_email=organisation[1], uen=organisation[2]))
         # The chosen organisation is approved or rejected together with the account request.
-        organisations.add_signup_membership(db, user, organisation[0], organisation[1])
+        organisations.add_signup_membership(db, user, organisation[0], organisation[1], organisation[2])
     send_signup_verification(db, settings, user, awaiting_approval=organisation is not None)
     events.publish(db, "auth.signup", user=user, ip=ip)
     return user
-
