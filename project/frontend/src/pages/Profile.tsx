@@ -146,9 +146,9 @@ export default function Profile() {
 
   const roleLabel =
     user.role === "admin"
-      ? "Platform Administrator"
+      ? "Administrator"
       : user.role === "organizer"
-      ? "Event Organiser"
+      ? "Organizer"
       : "Customer";
 
   const roleBadgeTone =
