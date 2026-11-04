@@ -44,6 +44,14 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentOrg = getCurrentOrganisation();
+  const activeOrgUen =
+    currentOrg?.uen ||
+    organisations.find(
+      (o) =>
+        (currentOrg?.id && o.organisationId === currentOrg.id) ||
+        (currentOrg?.name && o.organisationName.toLowerCase() === currentOrg.name.toLowerCase()),
+    )?.uen ||
+    organisations[0]?.uen;
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -236,6 +244,13 @@ export default function Profile() {
                     <span>Verified</span>
                   </span>
                 )}
+                {user.role === "organizer" && (currentOrg?.name || organisations[0]?.organisationName) && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/20 text-white border border-white/30 backdrop-blur-md shadow-xs">
+                    <Building2 className="h-3.5 w-3.5 text-brand-orange" />
+                    <span>{currentOrg?.name || organisations[0]?.organisationName}</span>
+                    {activeOrgUen && <span className="font-mono text-white/90">({activeOrgUen})</span>}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-white/80 font-medium">
                 @{profile?.username || user.name} · Member since {formattedDate}
@@ -418,14 +433,21 @@ export default function Profile() {
 
               {/* Active Organisation Highlight */}
               <div className="mt-5 rounded-2xl border border-brand-orange/20 bg-brand-orange/5 p-4 sm:p-5">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-brand-orange">
                       Active Organisation
                     </span>
-                    <h3 className="mt-1 font-brand text-xl font-bold text-brand-deep">
-                      {currentOrg?.name || "No organisation selected"}
-                    </h3>
+                    <div className="mt-1 flex flex-wrap items-center gap-2.5">
+                      <h3 className="font-brand text-xl font-bold text-brand-deep">
+                        {currentOrg?.name || organisations[0]?.organisationName || "No organisation selected"}
+                      </h3>
+                      {activeOrgUen && (
+                        <span className="inline-flex items-center font-mono text-xs font-bold px-2.5 py-0.5 rounded-md bg-brand-orange/15 text-brand-deep border border-brand-orange/30">
+                          UEN: {activeOrgUen}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <Badge tone="warn" className="font-bold">
                     Primary
@@ -449,13 +471,18 @@ export default function Profile() {
                     {organisations.map((org) => (
                       <div
                         key={org.id}
-                        className="flex items-center justify-between rounded-xl border border-brand-purple/10 bg-white p-3 text-sm"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-purple/10 bg-white p-3 text-sm"
                       >
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex flex-wrap items-center gap-2.5">
                           <Building2 className="h-4 w-4 text-brand-purple" />
                           <span className="font-semibold text-brand-deep">
                             {org.organisationName}
                           </span>
+                          {org.uen && (
+                            <span className="inline-flex items-center font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-brand-purple/10 text-brand-deep border border-brand-purple/20">
+                              UEN: {org.uen}
+                            </span>
+                          )}
                         </div>
                         <Badge
                           tone={org.status === "APPROVED" ? "live" : "neutral"}

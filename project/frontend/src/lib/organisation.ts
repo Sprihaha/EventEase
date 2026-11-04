@@ -14,6 +14,7 @@ export type Membership = {
   organisationId: string | null;
   organisationName: string;
   organisationEmail: string;
+  uen?: string | null;
   status: MembershipStatus;
   source: "SIGNUP" | "REQUEST" | "ADMIN";
   submittedAt: string;

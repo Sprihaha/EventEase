@@ -18,6 +18,7 @@ class MembershipOut(CamelModel):
     organisation_id: uuid.UUID | None = Field(None, description="Empty until a new organisation is approved")
     organisation_name: str
     organisation_email: str
+    uen: str | None = None
     status: MembershipStatus
     source: MembershipSource
     submitted_at: datetime

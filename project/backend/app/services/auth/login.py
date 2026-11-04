@@ -158,6 +158,7 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
         selected_org = {
             "id": str(match["organisation_id"]) if match["organisation_id"] else str(match["id"]),
             "name": match["organisation_name"],
+            "uen": match.get("uen"),
         }
 
     user.failed_login_count = 0
