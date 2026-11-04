@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router";
 import {
   LayoutDashboard,
   CalendarCheck,
-  Building2,
   Briefcase,
   ShieldAlert,
   Check,
@@ -31,8 +30,6 @@ import AssistanceQueue from "../components/AssistanceQueue";
 import EaseVoiceNarration from "./EaseVoiceNarration";
 import EaseHelp from "./EaseHelp";
 import ResetDemoData from "../components/ResetDemoData";
-import OrganiserRequests from "../components/OrganiserRequests";
-import { countPendingOrganiserRequests } from "../lib/backendApi";
 import OrganisationRequestsAdmin from "../components/OrganisationRequestsAdmin";
 import { countPendingOrganisationRequests } from "../lib/organisation";
 import DeveloperSettings from "../components/DeveloperSettings";
@@ -43,12 +40,6 @@ import { countPendingCancellations } from "../lib/cancellationApi";
 export default function AdminDashboard() {
   const { events, fraud, assistanceRequests } = useStore();
   const pendingEvents = events.filter((e) => e.status === "pending").length;
-  // Real organiser sign-up requests waiting for review, from the backend.
-  const [pendingOrgs, setPendingOrgs] = useState(0);
-  const refreshPendingOrgs = useCallback(() => {
-    countPendingOrganiserRequests().then(setPendingOrgs).catch(() => setPendingOrgs(0));
-  }, []);
-  useEffect(refreshPendingOrgs, [refreshPendingOrgs]);
   // Organisers asking to add an organisation to their account.
   const [pendingOrganisations, setPendingOrganisations] = useState(0);
   const refreshPendingOrganisations = useCallback(() => {
@@ -69,7 +60,6 @@ export default function AdminDashboard() {
   const nav: NavItem[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "events", label: "Event approvals", icon: CalendarCheck, badge: pendingEvents },
-    { id: "organizers", label: "Organiser requests", icon: Building2, badge: pendingOrgs },
     { id: "organisations", label: "Organisation requests", icon: Briefcase, badge: pendingOrganisations },
     { id: "cancellations", label: "Event cancellations", icon: CalendarX, badge: pendingCancellations },
     { id: "fraud", label: "Fraud monitor", icon: ShieldAlert, badge: openFraud },
@@ -90,7 +80,7 @@ export default function AdminDashboard() {
             <>
               <div className="mb-8 grid gap-4 sm:grid-cols-3">
                 <StatCard label="Live events" value={String(events.filter((e) => e.status === "published").length)} />
-                <StatCard label="Pending approvals" value={String(pendingEvents + pendingOrgs)} tone="accent" />
+                <StatCard label="Pending approvals" value={String(pendingEvents)} tone="accent" />
                 <StatCard label="Open fraud alerts" value={String(openFraud)} tone={openFraud ? "danger" : "live"} />
               </div>
               <Overview />
@@ -100,7 +90,6 @@ export default function AdminDashboard() {
             </>
           )}
           {active === "events" && <EventApprovals />}
-          {active === "organizers" && <OrganiserRequests onChanged={refreshPendingOrgs} />}
           {active === "organisations" && <OrganisationRequestsAdmin onChanged={refreshPendingOrganisations} />}
           {active === "cancellations" && <EventCancellations onChanged={refreshPendingCancellations} />}
           {active === "fraud" && <FraudMonitor />}
