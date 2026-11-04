@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     DEMO_RESET_ENABLED: bool = False
     ALLOW_PRODUCTION_DEMO_RESET: bool = False
 
+    # Data.gov.sg API
+    DATA_GOV_SG_API_KEY: str | None = None
+
     # Events / ingestion
     INGEST_AUTO_APPROVE: bool = True
     # Eventfinda Singapore API (HTTP Basic auth). Imported events go to the EventEase organisation.

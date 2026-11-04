@@ -14,10 +14,18 @@ from app.schemas.organisations import (
     MembershipOut,
     MembershipRequest,
     OrganisationOut,
+    UenLookupOut,
 )
 from app.services import organisations as service
 
 router = APIRouter(tags=["Organisations"])
+
+
+@router.get("/organisations/lookup-uen", response_model=UenLookupOut,
+            summary="Look up a company UEN against existing organisations and Data.gov.sg ACRA registry")
+def lookup_uen(uen: str = Query(..., min_length=4, max_length=50), db: Session = Depends(get_db)):
+    settings = get_settings()
+    return service.lookup_uen(db, settings, uen)
 
 
 @router.get("/organisations", response_model=list[OrganisationOut],

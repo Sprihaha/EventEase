@@ -41,6 +41,74 @@ def find_by_uen(db: Session, uen: str) -> Organisation | None:
     return db.scalar(select(Organisation).where(func.upper(Organisation.uen) == uen.strip().upper()))
 
 
+def lookup_uen(db: Session, settings: Settings, uen: str) -> dict:
+    import json
+    import urllib.request
+    from app.db.models import OrganiserApplication, OrganiserApplicationStatus
+
+    cleaned = uen.strip().upper()
+    # 1. Check local database for existing registered organisation
+    existing_org = find_by_uen(db, cleaned)
+    if existing_org:
+        return {
+            "uen": cleaned,
+            "already_registered": True,
+            "organisation_name": existing_org.name,
+            "message": f"Organisation is already registered as {existing_org.name}, ask your organisation admin to add your account",
+            "found": True,
+            "entity_name": existing_org.name,
+        }
+
+    # 2. Check pending / approved applications
+    pending_app = db.scalar(
+        select(OrganiserApplication).where(
+            func.upper(OrganiserApplication.uen) == cleaned,
+            OrganiserApplication.status.in_([OrganiserApplicationStatus.PENDING, OrganiserApplicationStatus.APPROVED])
+        )
+    )
+    if pending_app:
+        return {
+            "uen": cleaned,
+            "already_registered": True,
+            "organisation_name": pending_app.organisation_name,
+            "message": f"Organisation is already registered as {pending_app.organisation_name}, ask your organisation admin to add your account",
+            "found": True,
+            "entity_name": pending_app.organisation_name,
+        }
+
+    # 3. Query Data.gov.sg ACRA dataset
+    entity_name = None
+    try:
+        url = f"https://data.gov.sg/api/action/datastore_search?resource_id=d_3f960c10fed6145404ca7b821f263b87&q={cleaned}"
+        headers = {"User-Agent": "EventEase/1.0"}
+        if settings.DATA_GOV_SG_API_KEY:
+            headers["x-api-key"] = settings.DATA_GOV_SG_API_KEY
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=5) as res:
+            if res.status == 200:
+                payload = json.loads(res.read().decode("utf-8"))
+                records = payload.get("result", {}).get("records", [])
+                for record in records:
+                    if record.get("uen", "").strip().upper() == cleaned:
+                        entity_name = record.get("entity_name")
+                        break
+                if not entity_name and records:
+                    first = records[0]
+                    if first.get("uen", "").strip().upper() == cleaned:
+                        entity_name = first.get("entity_name")
+    except Exception:
+        pass
+
+    return {
+        "uen": cleaned,
+        "already_registered": False,
+        "organisation_name": None,
+        "message": None,
+        "found": entity_name is not None,
+        "entity_name": entity_name,
+    }
+
+
 def listed(db: Session) -> list[Organisation]:
     return list(db.scalars(select(Organisation).where(Organisation.listed.is_(True)).order_by(Organisation.name)))
 

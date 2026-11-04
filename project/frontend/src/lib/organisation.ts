@@ -60,6 +60,18 @@ export const OTHERS = "__others__";
 
 export const fetchOrganisations = () => request<Organisation[]>("/organisations");
 
+export type UenLookupResult = {
+  uen: string;
+  alreadyRegistered: boolean;
+  organisationName?: string | null;
+  message?: string | null;
+  found: boolean;
+  entityName?: string | null;
+};
+
+export const lookupUen = (uen: string) =>
+  request<UenLookupResult>(`/organisations/lookup-uen?uen=${encodeURIComponent(uen.trim())}`);
+
 // The organiser sign-in dropdown also lists organisations hidden from sign-up (EventEase).
 export const fetchSignInOrganisations = () => request<Organisation[]>("/organisations?purpose=signin");
 

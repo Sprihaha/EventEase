@@ -59,6 +59,8 @@ services:
         sync: false
 
       # ── External APIs & Event Rules ──────────────────────────────────
+      - key: DATA_GOV_SG_API_KEY
+        sync: false
       - key: EVENTFINDA_USERNAME
         sync: false
       - key: EVENTFINDA_PASSWORD

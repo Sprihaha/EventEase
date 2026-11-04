@@ -68,3 +68,12 @@ class MembersOut(CamelModel):
     organisation_id: uuid.UUID
     organisation_name: str
     items: list[MemberOut]
+
+
+class UenLookupOut(CamelModel):
+    uen: str
+    already_registered: bool
+    organisation_name: str | None = None
+    message: str | None = None
+    found: bool = False
+    entity_name: str | None = None

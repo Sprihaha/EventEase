@@ -24,7 +24,7 @@ import {
 import type { SignUpPrefill, SignUpRole } from "./SignUpChoice";
 import { getSavedExpiredReturnTo, clearSavedExpiredReturnTo, resolveReturnUrl } from "../lib/session";
 import { Badge, Button, Card, Field, Input, Select } from "../components/ui";
-import { OTHERS, fetchOrganisations, fetchSignInOrganisations, getCurrentOrganisation, type Organisation } from "../lib/organisation";
+import { OTHERS, fetchOrganisations, fetchSignInOrganisations, getCurrentOrganisation, lookupUen, type Organisation } from "../lib/organisation";
 
 type SignUp = {
   userId: string;
@@ -338,15 +338,79 @@ export default function Login() {
     }
   };
 
+  const [uenLookupLoading, setUenLookupLoading] = useState(false);
+  const [uenRegisteredError, setUenRegisteredError] = useState<string | null>(null);
+  const [isOrgNameGreyedOut, setIsOrgNameGreyedOut] = useState(false);
+  const [acraSuggested, setAcraSuggested] = useState(false);
+
+  useEffect(() => {
+    if (signUpRole !== "ORGANISER" || mode !== "signup") return;
+    const cleanUen = signUp.organisationUen.trim().toUpperCase();
+    if (cleanUen.length < 8) {
+      setUenRegisteredError(null);
+      setIsOrgNameGreyedOut(false);
+      setAcraSuggested(false);
+      return;
+    }
+
+    let active = true;
+    const timer = setTimeout(() => {
+      setUenLookupLoading(true);
+      lookupUen(cleanUen)
+        .then((res) => {
+          if (!active) return;
+          if (res.alreadyRegistered) {
+            setUenRegisteredError(
+              res.message ||
+                `Organisation is already registered as ${res.organisationName}, ask your organisation admin to add your account`
+            );
+            setIsOrgNameGreyedOut(true);
+            setSignUp((cur) => ({ ...cur, organisationName: "" }));
+            setAcraSuggested(false);
+          } else if (res.found && res.entityName) {
+            setUenRegisteredError(null);
+            setIsOrgNameGreyedOut(false);
+            setSignUp((cur) => ({ ...cur, organisationName: res.entityName || cur.organisationName }));
+            setAcraSuggested(true);
+          } else {
+            setUenRegisteredError(null);
+            setIsOrgNameGreyedOut(false);
+            setAcraSuggested(false);
+          }
+        })
+        .catch(() => {
+          if (!active) return;
+          setUenRegisteredError(null);
+          setIsOrgNameGreyedOut(false);
+          setAcraSuggested(false);
+        })
+        .finally(() => {
+          if (active) setUenLookupLoading(false);
+        });
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [signUpRole, mode, signUp.organisationUen]);
+
   const handleSignUp = async (event: FormEvent) => {
     event.preventDefault();
     if (signUpRole === "ORGANISER") {
-      if (!signUp.organisationName.trim()) {
-        setSignUpError("Please enter your company / organisation name.");
+      if (isOrgNameGreyedOut || uenRegisteredError) {
+        setSignUpError(
+          uenRegisteredError ||
+            "Organisation is already registered, ask your organisation admin to add your account"
+        );
         return;
       }
       if (!signUp.organisationUen.trim()) {
         setSignUpError("Please enter your company Unique Entity Number (UEN).");
+        return;
+      }
+      if (!signUp.organisationName.trim()) {
+        setSignUpError("Please enter your company / organisation name.");
         return;
       }
       if (!signUp.organisationEmail.trim()) {
@@ -613,25 +677,57 @@ export default function Login() {
                 </div>
                 {signUpRole === "ORGANISER" && (
                   <>
+                    <Field label="Company Unique Entity Number (UEN)">
+                      <div className="relative">
+                        <Input
+                          placeholder="e.g. 201812345A"
+                          value={signUp.organisationUen}
+                          onChange={(e) => update("organisationUen", e.target.value.toUpperCase())}
+                          minLength={4}
+                          maxLength={50}
+                          required
+                        />
+                        {uenLookupLoading && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-orange border-t-transparent" />
+                          </div>
+                        )}
+                      </div>
+                      {uenRegisteredError && (
+                        <p className="mt-1.5 text-xs font-semibold text-danger">
+                          {uenRegisteredError}
+                        </p>
+                      )}
+                      {acraSuggested && !uenRegisteredError && (
+                        <p className="mt-1.5 text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Auto-filled from ACRA registry
+                        </p>
+                      )}
+                    </Field>
                     <Field label="Company / Organisation name">
                       <Input
-                        placeholder="e.g. Acme Live, LiveNation, or your company name"
+                        placeholder={
+                          isOrgNameGreyedOut
+                            ? "Organisation already registered"
+                            : "e.g. Acme Live, or your company name"
+                        }
                         value={signUp.organisationName}
                         onChange={(e) => update("organisationName", e.target.value)}
                         minLength={2}
                         maxLength={200}
-                        required
+                        disabled={isOrgNameGreyedOut}
+                        className={
+                          isOrgNameGreyedOut
+                            ? "opacity-50 cursor-not-allowed bg-slate-100 text-slate-500 border-slate-300"
+                            : ""
+                        }
+                        required={!isOrgNameGreyedOut}
                       />
-                    </Field>
-                    <Field label="Company Unique Entity Number (UEN)">
-                      <Input
-                        placeholder="e.g. 201812345A"
-                        value={signUp.organisationUen}
-                        onChange={(e) => update("organisationUen", e.target.value.toUpperCase())}
-                        minLength={4}
-                        maxLength={50}
-                        required
-                      />
+                      {isOrgNameGreyedOut && (
+                        <p className="mt-1 text-xs text-muted">
+                          Company name cannot be edited because this organisation is already registered.
+                        </p>
+                      )}
                     </Field>
                     <div className="sm:col-span-2">
                       <Field label="Company / Organisation email">
