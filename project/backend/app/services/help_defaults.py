@@ -121,9 +121,9 @@ def default_features() -> list[dict]:
             "package": "E",
             "tagline": "Have any text read aloud.",
             "description": (
-                "Highlight words anywhere on EventEase and EaseVoice reads them out. Open the EaseVoice tab at "
-                "the bottom-right of the page to change the reading speed or stop it. Your speed is also under "
-                "Accessibility settings, with larger text and high contrast in the top bar."
+                "Switch EaseVoice on from its tab at the bottom-right of the page, then highlight words anywhere "
+                "on EventEase and it reads them out. Open the tab to change the reading speed or stop it. "
+                "For larger text, use the text-size button in the top bar."
             ),
         },
         {
