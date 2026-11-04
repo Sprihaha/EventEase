@@ -80,7 +80,8 @@ def signup(body: SignupRequest, request: Request, db: Session = Depends(get_db))
     enforce("signup-ip", ip, settings.RATE_SIGNUP_IP)
     user = auth_service.signup(db, settings, username=body.username, password=body.password, email=body.email,
                                phone=body.phone, role=body.role, ip=ip, organisation_name=body.organisation_name,
-                               organisation_email=body.organisation_email, organisation_uen=body.organisation_uen)
+                               organisation_email=body.organisation_email, organisation_uen=body.organisation_uen,
+                               personal_company_email=body.personal_company_email)
     if user.role == Role.ORGANISER:
         return {"message": "Your request has been submitted. Verify your email; an administrator will then review "
                            "your organiser request.",

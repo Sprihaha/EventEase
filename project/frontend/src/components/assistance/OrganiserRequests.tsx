@@ -125,7 +125,10 @@ export default function OrganiserRequests({ onChanged }: { onChanged?: () => voi
                       UEN: {r.uen}
                     </span>
                   )}
-                  <span className="font-normal text-muted">· {r.organisationEmail}</span>
+                  <span className="font-normal text-muted">· Org: {r.organisationEmail}</span>
+                  {r.personalCompanyEmail && (
+                    <span className="font-normal text-muted">· Personal: {r.personalCompanyEmail}</span>
+                  )}
                 </p>
                 {r.sameOrganisationRequests > 0 && (
                   <p className="text-xs text-muted">

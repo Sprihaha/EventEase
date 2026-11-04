@@ -51,6 +51,7 @@ class OrganisationMembership(UUIDPk, Timestamps, Base):
     requested_name: Mapped[str | None] = mapped_column(String(200))
     requested_uen: Mapped[str | None] = mapped_column(String(50))
     organisation_email: Mapped[str] = mapped_column(String(254), nullable=False)
+    personal_company_email: Mapped[str | None] = mapped_column(String(254), nullable=True)
     status: Mapped[MembershipStatus] = mapped_column(
         str_enum(MembershipStatus, "membership_status"), nullable=False, default=MembershipStatus.PENDING
     )

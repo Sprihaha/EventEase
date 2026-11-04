@@ -49,7 +49,7 @@ def organiser_block(db: Session, user: User) -> AppError | None:
     if application is None or application.status == OrganiserApplicationStatus.APPROVED:
         return None
     if application.status == OrganiserApplicationStatus.PENDING:
-        return AppError(403, "ORGANISER_PENDING", "your organiser request is waiting for admin approval")
+        return AppError(403, "ORGANISER_PENDING", "Account is pending approval, please try again later")
     return AppError(403, "ORGANISER_REJECTED", "your organiser request was not approved",
                     {"reason": application.review_note})
 
@@ -115,19 +115,19 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
         db.commit()
         raise AppError(403, "ACCOUNT_SUSPENDED", "this account is suspended")
 
-    if user.needs_email_verification:
-        user.failed_login_count = 0
-        _record_attempt(db, identifier, user, ip, False, "EMAIL_UNVERIFIED")
-        db.commit()
-        raise AppError(403, "EMAIL_NOT_VERIFIED", "please verify your email before signing in",
-                       {"email": mask_email(user.email)})
-
     blocked = organiser_block(db, user)
     if blocked is not None:
         user.failed_login_count = 0
         _record_attempt(db, identifier, user, ip, False, blocked.code)
         db.commit()
         raise blocked
+
+    if user.needs_email_verification:
+        user.failed_login_count = 0
+        _record_attempt(db, identifier, user, ip, False, "EMAIL_UNVERIFIED")
+        db.commit()
+        raise AppError(403, "EMAIL_NOT_VERIFIED", "please verify your email before signing in",
+                       {"email": mask_email(user.email)})
 
     selected_org = None
     if portal == Role.ORGANISER and organisation and organisation.strip():
@@ -147,7 +147,7 @@ def login(db: Session, settings: Settings, identifier: str, password: str, ip: s
             _record_attempt(db, identifier, user, ip, False, "ORGANISATION_PENDING")
             db.commit()
             raise AppError(403, "ORGANISATION_PENDING",
-                           f"Your membership for '{match['organisation_name']}' is still waiting for admin approval.")
+                           "Account is pending approval, please try again later")
         if match["status"] == MembershipStatus.REJECTED:
             user.failed_login_count = 0
             _record_attempt(db, identifier, user, ip, False, "ORGANISATION_REJECTED")

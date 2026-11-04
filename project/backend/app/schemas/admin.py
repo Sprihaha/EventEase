@@ -70,6 +70,7 @@ class OrganiserRequestOut(CamelModel):
     phone_masked: str | None
     organisation_name: str
     organisation_email: str
+    personal_company_email: str | None = None
     uen: str | None = None
     same_organisation_requests: int = Field(..., description="Other requests under the same organisation name")
     status: OrganiserApplicationStatus

@@ -166,7 +166,7 @@ def _check_not_already_open(db: Session, user: User, organisation: Organisation 
 
 
 def _new_membership(db: Session, user: User, name: str, email: str, source: MembershipSource,
-                    uen: str | None = None) -> OrganisationMembership:
+                    uen: str | None = None, personal_company_email: str | None = None) -> OrganisationMembership:
     organisation = find_by_name(db, name)
     if organisation is not None and organisation.self_managed:
         raise AppError(409, "ORGANISATION_INVITE_ONLY",
@@ -174,7 +174,8 @@ def _new_membership(db: Session, user: User, name: str, email: str, source: Memb
     _check_not_already_open(db, user, organisation, name)
     membership = OrganisationMembership(
         user_id=user.id, organisation_id=organisation.id if organisation else None,
-        requested_name=None if organisation else name, requested_uen=uen, organisation_email=email, source=source,
+        requested_name=None if organisation else name, requested_uen=uen, organisation_email=email,
+        personal_company_email=personal_company_email, source=source,
     )
     db.add(membership)
     db.flush()
@@ -182,9 +183,9 @@ def _new_membership(db: Session, user: User, name: str, email: str, source: Memb
 
 
 def add_signup_membership(db: Session, user: User, name: str, email: str,
-                          uen: str | None = None) -> OrganisationMembership:
+                          uen: str | None = None, personal_company_email: str | None = None) -> OrganisationMembership:
     """The organisation chosen at sign-up; the caller commits."""
-    return _new_membership(db, user, name, email, MembershipSource.SIGNUP, uen=uen)
+    return _new_membership(db, user, name, email, MembershipSource.SIGNUP, uen=uen, personal_company_email=personal_company_email)
 
 
 def request_membership(db: Session, user: User, *, name: str | None, email: str | None, ip: str | None) -> dict:

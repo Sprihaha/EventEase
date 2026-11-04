@@ -22,6 +22,7 @@ def _row(application: OrganiserApplication, user: User, reviewer: str | None, sa
         "email_masked": mask_email(user.email), "email_verified": user.email_verified_at is not None,
         "phone_masked": mask_phone(user.phone_e164),
         "organisation_name": application.organisation_name, "organisation_email": application.organisation_email,
+        "personal_company_email": application.personal_company_email,
         "uen": application.uen,
         "same_organisation_requests": same_organisation,
         "status": application.status, "submitted_at": application.created_at,
@@ -91,4 +92,13 @@ def _email_decision(settings: Settings, user: User, application: OrganiserApplic
         reason = f"\n\nReason from the administrator: {application.review_note}" if application.review_note else ""
         body = (f"Hi {user.username},\n\nYour organiser request for {application.organisation_name} was not "
                 f"approved.{reason}\n\nIf you think this is a mistake, please contact the EventEase team.")
-    send_safely(user.email, subject, body + "\n\nThe EventEase team")
+    # Send email to both the company email and personal company email
+    recipients = set()
+    if application.organisation_email:
+        recipients.add(application.organisation_email.strip())
+    if application.personal_company_email:
+        recipients.add(application.personal_company_email.strip())
+    if user.email:
+        recipients.add(user.email.strip())
+    for recipient in recipients:
+        send_safely(recipient, subject, body + "\n\nThe EventEase team")

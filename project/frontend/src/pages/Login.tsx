@@ -35,6 +35,7 @@ type SignUp = {
   // Organisers only; all are required.
   organisationName: string;
   organisationEmail: string;
+  personalCompanyEmail: string;
   organisationUen: string;
 };
 
@@ -46,6 +47,7 @@ const emptySignUp: SignUp = {
   billingAddress: "",
   organisationName: "",
   organisationEmail: "",
+  personalCompanyEmail: "",
   organisationUen: "",
 };
 
@@ -56,7 +58,7 @@ const PORTALS: { id: LoginPortal; label: string; icon: typeof Ticket }[] = [
 ];
 
 const ORGANISER_PENDING_MESSAGE =
-  "Your organiser request is still waiting for admin approval. We'll email you once it's decided.";
+  "Account is pending approval, please try again later";
 
 // Messages for the forgot-password errors returned by the backend.
 const FORGOT_ERRORS: Record<string, string> = {
@@ -274,7 +276,7 @@ export default function Login() {
         return;
       }
       if (err instanceof ApiError && err.code === "ORGANISATION_PENDING") {
-        setError(err.message || ORGANISER_PENDING_MESSAGE);
+        setError(ORGANISER_PENDING_MESSAGE);
         return;
       }
       if (err instanceof ApiError && err.code === "ORGANISATION_REJECTED") {
@@ -417,6 +419,10 @@ export default function Login() {
         setSignUpError("Please enter your company / organisation email.");
         return;
       }
+      if (!signUp.personalCompanyEmail.trim()) {
+        setSignUpError("Please enter your personal company email.");
+        return;
+      }
     }
     setSigningUp(true);
     setSignUpError("");
@@ -431,6 +437,7 @@ export default function Login() {
           ? {
               organisationName: signUp.organisationName.trim(),
               organisationEmail: signUp.organisationEmail.trim(),
+              personalCompanyEmail: signUp.personalCompanyEmail.trim(),
               organisationUen: signUp.organisationUen.trim().toUpperCase(),
             }
           : {}),
@@ -452,6 +459,24 @@ export default function Login() {
 
   const update = (key: keyof SignUp, value: string) =>
     setSignUp((current) => ({ ...current, [key]: value }));
+
+  const isFormValid = useMemo(() => {
+    if (!signUp.userId.trim() || signUp.userId.trim().length < 3) return false;
+    if (!signUp.phone.trim()) return false;
+    if (!signUp.email.trim() || !signUp.email.includes("@")) return false;
+    if (!signUp.password || signUp.password.length < 8) return false;
+    if (!signUp.billingAddress.trim()) return false;
+
+    if (signUpRole === "ORGANISER") {
+      if (!signUp.organisationUen.trim() || signUp.organisationUen.trim().length < 4) return false;
+      if (uenLookupLoading || isOrgNameGreyedOut || uenRegisteredError) return false;
+      if (!signUp.organisationName.trim() || signUp.organisationName.trim().length < 2) return false;
+      if (!signUp.organisationEmail.trim() || !signUp.organisationEmail.includes("@")) return false;
+      if (!signUp.personalCompanyEmail.trim() || !signUp.personalCompanyEmail.includes("@")) return false;
+    }
+
+    return true;
+  }, [signUp, signUpRole, uenLookupLoading, isOrgNameGreyedOut, uenRegisteredError]);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-brand-warm px-5 py-12">
@@ -729,17 +754,24 @@ export default function Login() {
                         </p>
                       )}
                     </Field>
-                    <div className="sm:col-span-2">
-                      <Field label="Company / Organisation email">
-                        <Input
-                          type="email"
-                          placeholder="e.g. contact@yourcompany.com"
-                          value={signUp.organisationEmail}
-                          onChange={(e) => update("organisationEmail", e.target.value)}
-                          required
-                        />
-                      </Field>
-                    </div>
+                    <Field label="Company / Organisation email">
+                      <Input
+                        type="email"
+                        placeholder="e.g. contact@yourcompany.com"
+                        value={signUp.organisationEmail}
+                        onChange={(e) => update("organisationEmail", e.target.value)}
+                        required
+                      />
+                    </Field>
+                    <Field label="Personal company email">
+                      <Input
+                        type="email"
+                        placeholder="e.g. your.name@yourcompany.com"
+                        value={signUp.personalCompanyEmail}
+                        onChange={(e) => update("personalCompanyEmail", e.target.value)}
+                        required
+                      />
+                    </Field>
                   </>
                 )}
                 <div className="sm:col-span-2">
@@ -752,7 +784,12 @@ export default function Login() {
                     {signUpError}
                   </div>
                 )}
-                <Button className="mt-2 w-full sm:col-span-2" size="lg" type="submit" disabled={signingUp}>
+                <Button
+                  className="mt-2 w-full sm:col-span-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+                  size="lg"
+                  type="submit"
+                  disabled={!isFormValid || signingUp}
+                >
                   {signingUp
                     ? "Creating your account…"
                     : signUpRole === "ORGANISER"

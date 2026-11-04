@@ -24,6 +24,7 @@ class SignupRequest(CamelModel):
     role: str = Field(..., max_length=32, description="CUSTOMER or ORGANISER")
     organisation_name: str | None = Field(None, max_length=1000, description="Required for ORGANISER")
     organisation_email: str | None = Field(None, max_length=320, description="Required for ORGANISER")
+    personal_company_email: str | None = Field(None, max_length=320, description="Required for ORGANISER")
     organisation_uen: str | None = Field(None, max_length=50, description="Required for ORGANISER")
 
 
