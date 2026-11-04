@@ -393,70 +393,36 @@ export default function Layout() {
       />
 
       <footer className="mt-20 border-t border-white/10 bg-brand-deep text-white">
-        <div className="mx-auto max-w-7xl px-5 py-16">
-          <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
-            <div className="space-y-6">
-              <div>
-                <Link to={logoTo} className="inline-block">
-                  <img
-                    src="/EventEase_logo.png"
-                    alt="EventEase"
-                    className="h-10 w-auto object-contain"
-                  />
-                </Link>
-                <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/65">
-                  A next-generation, hassle-free ticketing platform. Transparent pricing, verified
-                  tickets, and a community that has your back.
-                </p>
-              </div>
+        <div className="mx-auto max-w-7xl space-y-6 px-5 py-14">
+          <div>
+            <Link to={logoTo} className="inline-block">
+              <img src="/EventEase_logo.png" alt="EventEase" className="h-10 w-auto object-contain" />
+            </Link>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/65">
+              A next-generation, hassle-free ticketing platform. Transparent pricing, verified
+              tickets, and a community that has your back.
+            </p>
+          </div>
 
-              <div className="group relative max-w-xs overflow-hidden rounded-2xl border border-white/15 bg-white/[0.06] p-3.5 backdrop-blur-md transition-all duration-300 hover:border-brand-orange/40 hover:bg-white/[0.1] hover:shadow-[0_8px_25px_-8px_rgba(255,101,0,0.25)]">
-                <div className="flex items-center gap-3.5">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-sm transition-transform duration-300 group-hover:scale-105">
-                    <img
-                      src="/gendol_company_logo.jpg"
-                      alt="GenDoL"
-                      className="h-full w-full object-contain"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-brand-orange">
-                      A Product of
-                    </div>
-                    <div className="font-brand text-sm font-bold text-white">
-                      GenDoL
-                    </div>
-                    <div className="text-xs text-white/60">
-                      Generations of Doing, Limberly
-                    </div>
-                  </div>
-                </div>
+          <div className="group relative max-w-xs overflow-hidden rounded-2xl border border-white/15 bg-white/[0.06] p-3.5 backdrop-blur-md transition-all duration-300 hover:border-brand-orange/40 hover:bg-white/[0.1] hover:shadow-[0_8px_25px_-8px_rgba(255,101,0,0.25)]">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-sm transition-transform duration-300 group-hover:scale-105">
+                <img src="/gendol_company_logo.jpg" alt="GenDoL" className="h-full w-full object-contain" />
+              </div>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-brand-orange">A Product of</div>
+                <div className="font-brand text-sm font-bold text-white">GenDoL</div>
+                <div className="text-xs text-white/60">Generations of Doing, Limberly</div>
               </div>
             </div>
-            {[
-              { h: "Discover", items: ["Concerts", "Theatre", "Sports", "Cultural"] },
-              { h: "Platform", items: ["EaseComms", "Secure Exchange", "Accessibility", "Fraud Shield"] },
-              { h: "For Organizers", items: ["Create events", "Analytics", "Pricing tools", "Apply to sell"] },
-            ].map((col) => (
-              <div key={col.h}>
-                <div className="font-brand text-sm font-bold tracking-wide text-white">{col.h}</div>
-                <ul className="mt-4 space-y-2.5 text-sm text-white/65">
-                  {col.items.map((it) => (
-                    <li
-                      key={it}
-                      className="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-brand-orange"
-                    >
-                      <span className={it.startsWith("Ease") ? "font-feature italic font-black tracking-tight" : ""}>{it}</span> <ChevronRight className="h-3 w-3 opacity-60" />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
           </div>
-          <div className="mt-14 flex flex-col justify-between gap-3 border-t border-white/10 pt-6 text-sm text-white/50 sm:flex-row sm:items-center">
-            <span>© 2026 EventEase by GenDoL. All rights reserved.</span>
-            <span>Transparent fees · No hidden charges · PDPA compliant</span>
-          </div>
+
+          <Link
+            to="/help#terms"
+            className="inline-flex items-center gap-1.5 text-sm text-white/70 underline-offset-4 transition-colors hover:text-brand-orange hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
+          >
+            Terms and conditions <ChevronRight className="h-3 w-3 opacity-60" />
+          </Link>
         </div>
       </footer>
     </div>

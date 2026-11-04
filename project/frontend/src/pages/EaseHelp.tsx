@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link } from "react-router";
-import { ArrowDown, ArrowUp, ExternalLink, HelpCircle, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { Link, useLocation } from "react-router";
+import { ArrowDown, ArrowUp, ExternalLink, HelpCircle, Plus, Save, Trash2, X } from "lucide-react";
 import { useStore } from "../lib/store";
 import { ApiError } from "../lib/backendApi";
 import { HELP_LIMITS, fetchHelpPage, keyFromName, saveHelpPage, type HelpFeature, type HelpPage } from "../lib/helpPage";
@@ -74,8 +74,8 @@ function messageOf(cause: unknown, fallback: string) {
 }
 
 /**
- * The EaseHelp page. Everyone reads it at /help; admins get an Edit page button there.
- * In the admin dashboard it is shown with `editOnOpen`, so one click opens it ready to edit.
+ * The EaseHelp page. Everyone reads it at /help. Admins edit it from the admin dashboard
+ * (Edit EaseHelp), where it is shown with `editOnOpen` so one click opens it ready to edit.
  */
 export default function EaseHelp({ embedded = false, editOnOpen = false }: { embedded?: boolean; editOnOpen?: boolean }) {
   const { user } = useStore();
@@ -95,11 +95,13 @@ export default function EaseHelp({ embedded = false, editOnOpen = false }: { emb
       .catch((cause) => setLoadError(messageOf(cause, "EaseHelp could not be loaded. Please refresh the page.")));
   }, []);
 
-  // Jump to a feature when the address has #easepix, once the content has loaded.
+  // Jump to a section when the address has #terms or #easepix: on arrival, and when a link
+  // to another section is followed while already on this page.
+  const { hash } = useLocation();
   useEffect(() => {
-    if (!page || !window.location.hash) return;
-    document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "start" });
-  }, [page]);
+    if (!page || !hash || draft) return;
+    document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView({ block: "start" });
+  }, [page, hash, draft]);
 
   // Admin dashboard: open the editor as soon as the content arrives.
   useEffect(() => {
@@ -153,13 +155,6 @@ export default function EaseHelp({ embedded = false, editOnOpen = false }: { emb
     });
     if (!draft.terms.trim()) problems.push("The terms and conditions cannot be empty.");
   }
-
-  const startEditing = () => {
-    if (!page) return;
-    setDraft({ features: page.features.map((f) => ({ ...f })), terms: page.terms });
-    setSaveError("");
-    setSavedNote(false);
-  };
 
   const cancelEditing = () => {
     if (!window.confirm("Discard your changes to EaseHelp?")) return;
@@ -217,11 +212,6 @@ export default function EaseHelp({ embedded = false, editOnOpen = false }: { emb
             What each EventEase feature does and how to use it, plus the terms that apply when you use EventEase.
           </p>
         </div>
-        {isAdmin && !draft && !alwaysEditing && (
-          <Button variant="outline" onClick={startEditing}>
-            <Pencil className="h-4 w-4" /> Edit page
-          </Button>
-        )}
         {alwaysEditing && (
           <Link
             to="/help"

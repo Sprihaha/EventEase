@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   ArrowLeft,
   ArrowRight,
@@ -598,6 +598,16 @@ export default function Login() {
                     </div>
                   )}
                 </Field>
+                <p className="-mt-1 text-xs text-muted">
+                  By signing in, you agree to the{" "}
+                  <Link
+                    to="/help#terms"
+                    className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/40"
+                  >
+                    Terms and conditions
+                  </Link>
+                  .
+                </p>
                 {error && (
                   <div role="alert" className="rounded-xl border border-rose-200 bg-danger/10 p-3.5 text-sm font-medium text-danger">
                     {error}
