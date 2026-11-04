@@ -203,7 +203,7 @@ export function FeedComposer({
 
       <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-brand-line/60">
         <div className="flex flex-wrap items-center gap-2">
-          {user.role !== "organizer" ? (
+          {user.role === "customer" ? (
             <>
               <button
                 type="button"
@@ -224,7 +224,7 @@ export function FeedComposer({
                 </label>
               )}
             </>
-          ) : (
+          ) : user.role === "organizer" ? (
             <>
               <input
                 ref={imageInputRef}
@@ -241,6 +241,18 @@ export function FeedComposer({
                 <ImagePlus className="h-3.5 w-3.5" /> Upload Image
               </button>
             </>
+          ) : (
+            onIsQuestionChange && (
+              <label className="inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full border border-brand-line bg-brand-warm/50 px-3 py-1.5 text-xs font-semibold text-brand-deep hover:bg-brand-warm transition">
+                <input
+                  type="checkbox"
+                  checked={isQuestion}
+                  onChange={(e) => onIsQuestionChange(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-brand-purple text-brand-purple focus:ring-brand-purple"
+                />
+                <span>Is it a question?</span>
+              </label>
+            )
           )}
         </div>
 

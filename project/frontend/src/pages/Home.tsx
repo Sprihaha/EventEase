@@ -299,7 +299,7 @@ export default function Home() {
                   </Link>
                 </div>
 
-                <div className="grid gap-6 sm:grid-cols-2">
+                <div className={cx("grid gap-6", user?.role === "admin" ? "max-w-xl mx-auto" : "sm:grid-cols-2")}>
                   {[
                     {
                       name: "EaseConnect",
@@ -349,7 +349,14 @@ export default function Home() {
                       pills: ["Pre-QR swaps", "Face value only"],
                       link: "/community?tab=exchange#main-tabs-nav",
                     },
-                  ].map((feat) => (
+                  ]
+                    .filter((feat) => {
+                      if (user?.role === "admin") {
+                        return feat.name !== "EasePix" && feat.name !== "EaseXplore" && feat.name !== "EaseXchange";
+                      }
+                      return true;
+                    })
+                    .map((feat) => (
                     <Link
                       key={feat.name}
                       to={feat.link}

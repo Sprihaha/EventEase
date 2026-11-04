@@ -78,47 +78,49 @@ export function CommunityHeroBanner({
         </div>
 
         {/* Community Spotlight Feature Card */}
-        <div className="relative z-10 mt-8 w-full max-w-[285px] sm:self-end lg:absolute lg:right-8 lg:bottom-8 lg:mt-0">
-          <div
-            onClick={onExploreViews}
-            className="cursor-pointer rounded-2xl border border-white/30 bg-white/10 p-5 text-white shadow-2xl backdrop-blur-xl transform -rotate-2 sm:-rotate-3 transition-all hover:rotate-0 hover:scale-[1.02] duration-300 group"
-            title="Click to explore EasePix seat views"
-          >
-            <div className="flex items-center justify-between text-[9px] font-extrabold tracking-wider text-[#FFC7A6]">
-              <span className="flex items-center gap-1">
-                ✦ COMMUNITY SPOTLIGHT
-              </span>
-              <span className="opacity-80">01 / 01</span>
-            </div>
-
-            <h2 className="mt-3.5 font-brand text-2xl font-extrabold leading-tight text-white tracking-tight group-hover:text-brand-orange transition-colors">
-              Better views.
-              <br />
-              Shared by real fans.
-            </h2>
-
-            <p className="mt-2 text-xs leading-relaxed text-[#EADDF4]/90">
-              Get a feel for your section before the lights go down.
-            </p>
-
-            <div className="mt-4 flex items-center pt-1.5">
-              <div className="flex -space-x-1.5 items-center">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-purple text-[10px] font-extrabold text-white ring-2 ring-purple-950/60 shadow-sm">
-                  N
+        {user?.role !== "admin" && (
+          <div className="relative z-10 mt-8 w-full max-w-[285px] sm:self-end lg:absolute lg:right-8 lg:bottom-8 lg:mt-0">
+            <div
+              onClick={onExploreViews}
+              className="cursor-pointer rounded-2xl border border-white/30 bg-white/10 p-5 text-white shadow-2xl backdrop-blur-xl transform -rotate-2 sm:-rotate-3 transition-all hover:rotate-0 hover:scale-[1.02] duration-300 group"
+              title="Click to explore EasePix seat views"
+            >
+              <div className="flex items-center justify-between text-[9px] font-extrabold tracking-wider text-[#FFC7A6]">
+                <span className="flex items-center gap-1">
+                  ✦ COMMUNITY SPOTLIGHT
                 </span>
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-[10px] font-extrabold text-white ring-2 ring-purple-950/60 shadow-sm">
-                  A
-                </span>
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-magenta text-[10px] font-extrabold text-white ring-2 ring-purple-950/60 shadow-sm">
-                  M
-                </span>
+                <span className="opacity-80">01 / 01</span>
               </div>
-              <small className="ml-2.5 text-[10px] text-[#F3E7FA]/80 font-medium leading-tight">
-                A different perspective, together.
-              </small>
+
+              <h2 className="mt-3.5 font-brand text-2xl font-extrabold leading-tight text-white tracking-tight group-hover:text-brand-orange transition-colors">
+                Better views.
+                <br />
+                Shared by real fans.
+              </h2>
+
+              <p className="mt-2 text-xs leading-relaxed text-[#EADDF4]/90">
+                Get a feel for your section before the lights go down.
+              </p>
+
+              <div className="mt-4 flex items-center pt-1.5">
+                <div className="flex -space-x-1.5 items-center">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-purple text-[10px] font-extrabold text-white ring-2 ring-purple-950/60 shadow-sm">
+                    N
+                  </span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-[10px] font-extrabold text-white ring-2 ring-purple-950/60 shadow-sm">
+                    A
+                  </span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-magenta text-[10px] font-extrabold text-white ring-2 ring-purple-950/60 shadow-sm">
+                    M
+                  </span>
+                </div>
+                <small className="ml-2.5 text-[10px] text-[#F3E7FA]/80 font-medium leading-tight">
+                  A different perspective, together.
+                </small>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   )

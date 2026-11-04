@@ -90,22 +90,24 @@ export function CommunitySidebar({
             </button>
 
             {/* Channel 2: EasePix & EaseXplore */}
-            <button
-              type="button"
-              onClick={() => onSelectTab("views")}
-              title="EasePix & EaseXplore: Seat sharing & 360° views"
-              className={cx(
-                "cursor-pointer flex h-10 w-10 items-center justify-center rounded-xl transition-all shadow-xs",
-                tab === "views"
-                  ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
-                  : "bg-brand-lilac/50 text-brand-deep hover:bg-brand-purple hover:text-white",
-              )}
-            >
-              <div className="flex items-center -space-x-1">
-                <Camera className="h-3.5 w-3.5 shrink-0" />
-                <Rotate3d className="h-3.5 w-3.5 shrink-0" />
-              </div>
-            </button>
+            {user?.role !== "admin" && (
+              <button
+                type="button"
+                onClick={() => onSelectTab("views")}
+                title="EasePix & EaseXplore: Seat sharing & 360° views"
+                className={cx(
+                  "cursor-pointer flex h-10 w-10 items-center justify-center rounded-xl transition-all shadow-xs",
+                  tab === "views"
+                    ? "bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                    : "bg-brand-lilac/50 text-brand-deep hover:bg-brand-purple hover:text-white",
+                )}
+              >
+                <div className="flex items-center -space-x-1">
+                  <Camera className="h-3.5 w-3.5 shrink-0" />
+                  <Rotate3d className="h-3.5 w-3.5 shrink-0" />
+                </div>
+              </button>
+            )}
 
             <div className="my-2 h-px w-8 bg-brand-line" />
 
@@ -187,54 +189,56 @@ export function CommunitySidebar({
               </button>
 
               {/* Channel 2: EasePix & EaseXplore */}
-              <button
-                type="button"
-                onClick={() => onSelectTab("views")}
-                className={cx(
-                  "cursor-pointer flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all border",
-                  tab === "views"
-                    ? "border-brand-purple/30 bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
-                    : "border-transparent bg-transparent hover:bg-brand-lilac/40 text-brand-deep",
-                )}
-              >
-                <div className="flex items-center -space-x-1.5 shrink-0">
-                  <div
-                    title="EasePix: Seat View Photos"
-                    className={cx(
-                      "flex h-8 w-8 items-center justify-center rounded-xl border-2 transition-colors shadow-xs",
-                      tab === "views"
-                        ? "border-transparent bg-white/20 text-white"
-                        : "border-white bg-brand-lilac text-brand-purple",
-                    )}
-                  >
-                    <Camera className="h-4 w-4" />
+              {user?.role !== "admin" && (
+                <button
+                  type="button"
+                  onClick={() => onSelectTab("views")}
+                  className={cx(
+                    "cursor-pointer flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all border",
+                    tab === "views"
+                      ? "border-brand-purple/30 bg-gradient-to-r from-brand-purple via-brand-magenta to-brand-orange text-white shadow-md shadow-brand-purple/25 ring-2 ring-brand-purple/20"
+                      : "border-transparent bg-transparent hover:bg-brand-lilac/40 text-brand-deep",
+                  )}
+                >
+                  <div className="flex items-center -space-x-1.5 shrink-0">
+                    <div
+                      title="EasePix: Seat View Photos"
+                      className={cx(
+                        "flex h-8 w-8 items-center justify-center rounded-xl border-2 transition-colors shadow-xs",
+                        tab === "views"
+                          ? "border-transparent bg-white/20 text-white"
+                          : "border-white bg-brand-lilac text-brand-purple",
+                      )}
+                    >
+                      <Camera className="h-4 w-4" />
+                    </div>
+                    <div
+                      title="EaseXplore: 360° Views"
+                      className={cx(
+                        "flex h-8 w-8 items-center justify-center rounded-xl border-2 transition-colors shadow-xs",
+                        tab === "views"
+                          ? "border-transparent bg-white/20 text-white"
+                          : "border-white bg-orange-100 text-brand-orange",
+                      )}
+                    >
+                      <Rotate3d className="h-4 w-4" />
+                    </div>
                   </div>
-                  <div
-                    title="EaseXplore: 360° Views"
-                    className={cx(
-                      "flex h-8 w-8 items-center justify-center rounded-xl border-2 transition-colors shadow-xs",
-                      tab === "views"
-                        ? "border-transparent bg-white/20 text-white"
-                        : "border-white bg-orange-100 text-brand-orange",
-                    )}
-                  >
-                    <Rotate3d className="h-4 w-4" />
+                  <div className="min-w-0 flex-1">
+                    <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
+                      EasePix & EaseXplore
+                    </b>
+                    <small
+                      className={cx(
+                        "block text-[10px] truncate",
+                        tab === "views" ? "text-white/80" : "text-muted",
+                      )}
+                    >
+                      Seat sharing & 360° views
+                    </small>
                   </div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <b className="font-feature text-sm font-black italic tracking-tight leading-tight block">
-                    EasePix & EaseXplore
-                  </b>
-                  <small
-                    className={cx(
-                      "block text-[10px] truncate",
-                      tab === "views" ? "text-white/80" : "text-muted",
-                    )}
-                  >
-                    Seat sharing & 360° views
-                  </small>
-                </div>
-              </button>
+                </button>
+              )}
             </div>
 
             <div className="my-3.5 h-px bg-brand-line" />

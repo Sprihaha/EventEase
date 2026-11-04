@@ -40,11 +40,12 @@ export default function Community() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const isOrganizer = user?.role === "organizer";
+  const isAdmin = user?.role === "admin";
   const requestedTab = searchParams.get("tab");
   const rawTab = requestedTab === "access" ? "views" : (allTabs.find((item) => item.id === requestedTab)?.id ?? "feed");
-  const tab = (isOrganizer && rawTab === "exchange") ? "feed" : rawTab;
+  const tab = isAdmin ? "feed" : (isOrganizer && rawTab === "exchange") ? "feed" : rawTab;
   const [lastCommsTab, setLastCommsTab] = useState<CommsChannelId>(
-    tab === "exchange" ? "feed" : (tab as CommsChannelId)
+    (tab === "exchange" || tab === "views") && isAdmin ? "feed" : tab === "exchange" ? "feed" : (tab as CommsChannelId)
   );
 
   const [backendPosts, setBackendPosts] = useState<BackendCommunityPost[]>([]);
@@ -157,7 +158,12 @@ export default function Community() {
   }, []);
 
   const setTab = useCallback((id: (typeof allTabs)[number]["id"]) => {
-    const targetId = (user?.role === "organizer" && id === "exchange") ? "feed" : id;
+    let targetId = id;
+    if (user?.role === "admin" && (id === "views" || id === "exchange")) {
+      targetId = "feed";
+    } else if (user?.role === "organizer" && id === "exchange") {
+      targetId = "feed";
+    }
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       next.set("tab", targetId);
@@ -375,6 +381,7 @@ export default function Community() {
         <CommunityHeaderNav
           activeTab={tab as "feed" | "views" | "exchange"}
           isOrganizer={isOrganizer}
+          isAdmin={isAdmin}
           onSelectTab={(newTab) => {
             setTab(newTab);
           }}
@@ -548,7 +555,7 @@ export default function Community() {
           </div>
         )}
 
-        {tab === "views" && (
+        {tab === "views" && !isAdmin && (
           <div className="space-y-5 min-h-[580px] pb-10">
             {/* Section Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-1">
@@ -620,7 +627,7 @@ export default function Community() {
           </div>
         )}
 
-        {tab === "exchange" && !isOrganizer && (
+        {tab === "exchange" && !isOrganizer && !isAdmin && (
           /* Dedicated EaseExchange View */
           <CommunityExchangeView user={user} />
         )}
@@ -663,7 +670,7 @@ export default function Community() {
       />
 
       {/* Your EasePoints Rewards Pop-up Modal */}
-      {user && user.role !== "organizer" && (
+      {user && user.role === "customer" && (
         <EasePointsModal
           isOpen={isEasePointsModalOpen}
           onClose={() => setIsEasePointsModalOpen(false)}
