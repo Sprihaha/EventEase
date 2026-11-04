@@ -47,8 +47,8 @@ export default function AssistanceRequests() {
           <Badge tone="neutral" className="border-0 bg-brand-orange text-white font-bold shadow-sm">
             <Accessibility className="h-3 w-3" /> EaseGuide
           </Badge>
-          <h1 className="mt-4 font-brand text-4xl sm:text-5xl font-bold tracking-tight text-brand-deep">
-            My assistance requests
+          <h1 className="mt-4 font-feature text-4xl sm:text-5xl font-black italic tracking-tight text-brand-deep">
+            EaseGuide
           </h1>
           <p className="mt-3 max-w-xl text-sm sm:text-base leading-relaxed text-muted">
             Track venue support for your upcoming EventEase bookings.

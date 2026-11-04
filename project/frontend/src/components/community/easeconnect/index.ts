@@ -4,5 +4,4 @@ export { FeedFilterBar } from "./FeedFilterBar";
 export { FeedPostCard } from "./FeedPostCard";
 export { FeedRightRail } from "./FeedRightRail";
 export { useCommunityFeed } from "./useCommunityFeed";
-export { useFeedVoiceNarrator } from "./useFeedVoiceNarrator";
 

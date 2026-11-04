@@ -31,10 +31,8 @@ import {
   ShareSeatViewModal,
   EaseXplore360Modal,
   EasePointsModal,
-  CommunityVoiceWidget,
   useCommunityFeed,
   useEasePix,
-  useFeedVoiceNarrator,
 } from "../components/community";
 
 export default function Community() {
@@ -232,9 +230,6 @@ export default function Community() {
     scrollToSection,
   });
   easePixRef.current = easePix;
-
-  // Hook 3: Feed Voice Narrator
-  const voice = useFeedVoiceNarrator(feed.displayPosts, eventName, showToast);
 
   // Submit seat photo modal upload
   const handleModalUploadSubmit = async () => {
@@ -655,12 +650,6 @@ export default function Community() {
         onSelectedEventIdChange={feed.setSelectedEventId}
         onSubmitUpload={handleModalUploadSubmit}
         onShowToast={showToast}
-      />
-
-      {/* Floating EaseVoice Widget */}
-      <CommunityVoiceWidget
-        isPlaying={voice.isPlaying}
-        onToggle={voice.toggleVoice}
       />
 
       {/* 360° Photo Preview Modal */}

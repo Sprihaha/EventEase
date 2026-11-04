@@ -393,36 +393,42 @@ export default function Layout() {
       />
 
       <footer className="mt-20 border-t border-white/10 bg-brand-deep text-white">
-        <div className="mx-auto max-w-7xl space-y-6 px-5 py-14">
-          <div>
-            <Link to={logoTo} className="inline-block">
-              <img src="/EventEase_logo.png" alt="EventEase" className="h-10 w-auto object-contain" />
-            </Link>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/65">
-              A next-generation, hassle-free ticketing platform. Transparent pricing, verified
-              tickets, and a community that has your back.
-            </p>
-          </div>
+        <div className="mx-auto max-w-7xl px-5 py-12">
+          <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-sm">
+              <Link to={logoTo} className="inline-block">
+                <img src="/EventEase_logo.png" alt="EventEase" className="h-10 w-auto object-contain" />
+              </Link>
+              <p className="mt-4 text-sm leading-relaxed text-white/65">
+                A next-generation, hassle-free ticketing platform. Transparent pricing, verified
+                tickets, and a community that has your back.
+              </p>
+            </div>
 
-          <div className="group relative max-w-xs overflow-hidden rounded-2xl border border-white/15 bg-white/[0.06] p-3.5 backdrop-blur-md transition-all duration-300 hover:border-brand-orange/40 hover:bg-white/[0.1] hover:shadow-[0_8px_25px_-8px_rgba(255,101,0,0.25)]">
-            <div className="flex items-center gap-3.5">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-sm transition-transform duration-300 group-hover:scale-105">
-                <img src="/gendol_company_logo.jpg" alt="GenDoL" className="h-full w-full object-contain" />
-              </div>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-brand-orange">A Product of</div>
-                <div className="font-brand text-sm font-bold text-white">GenDoL</div>
-                <div className="text-xs text-white/60">Generations of Doing, Limberly</div>
+            <div className="group relative w-full max-w-xs overflow-hidden rounded-2xl border border-white/15 bg-white/[0.06] p-3.5 backdrop-blur-md transition-all duration-300 hover:border-brand-orange/40 hover:bg-white/[0.1] hover:shadow-[0_8px_25px_-8px_rgba(255,101,0,0.25)]">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-sm transition-transform duration-300 group-hover:scale-105">
+                  <img src="/gendol_company_logo.jpg" alt="GenDoL" className="h-full w-full object-contain" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-brand-orange">A Product of</div>
+                  <div className="font-brand text-sm font-bold text-white">GenDoL</div>
+                  <div className="text-xs text-white/60">Generations of Doing, Limberly</div>
+                </div>
               </div>
             </div>
+
+            <Link
+              to="/help#terms"
+              className="inline-flex items-center gap-1.5 self-start text-sm text-white/70 underline-offset-4 transition-colors hover:text-brand-orange hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 md:self-center"
+            >
+              Terms and conditions <ChevronRight className="h-3 w-3 opacity-60" />
+            </Link>
           </div>
 
-          <Link
-            to="/help#terms"
-            className="inline-flex items-center gap-1.5 text-sm text-white/70 underline-offset-4 transition-colors hover:text-brand-orange hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
-          >
-            Terms and conditions <ChevronRight className="h-3 w-3 opacity-60" />
-          </Link>
+          <div className="mt-10 border-t border-white/10 pt-6 text-sm text-white/50">
+            © 2026 EventEase by GenDoL. All rights reserved.
+          </div>
         </div>
       </footer>
     </div>

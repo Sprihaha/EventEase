@@ -11,7 +11,6 @@ export * from "./easexchange";
 export { CommunityHeaderNav } from "./CommunityHeaderNav";
 export { CommunityHeroBanner } from "./CommunityHeroBanner";
 export { CommunitySidebar } from "./CommunitySidebar";
-export { CommunityVoiceWidget } from "./CommunityVoiceWidget";
 export { formatRelativeWhen } from "./dateUtils";
 export * from "./constants";
 export * from "./types";
