@@ -277,6 +277,8 @@ export default function Layout() {
                       <HelpCircle className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                       <span className="font-feature italic font-black">EaseHelp</span>
                     </button>
+                    {/* EaseVoice settings in the menu are for admins; everyone else uses the EaseVoice tab. */}
+                    {user.role === "admin" && (
                     <div
                       aria-pressed={location.pathname === "/settings/accessibility"}
                       className={cx(
@@ -304,6 +306,7 @@ export default function Layout() {
                         size="sm"
                       />
                     </div>
+                    )}
                     {user.canChangePassword !== false && (
                       <button
                         role="menuitem"

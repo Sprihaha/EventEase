@@ -756,5 +756,5 @@ def test_admin_updates_only_the_fields_sent_and_it_is_audited(client, db):
 
 def test_easevoice_config_validation(client, db):
     headers = admin_headers(client, db)
-    for bad in ({"idleSeconds": 10}, {"idleSeconds": 4000}, {"idlePromptText": "   "}, {"idlePromptText": "x" * 501}):
+    for bad in ({"idleSeconds": 10}, {"idleSeconds": 30}, {"idleSeconds": 4000}, {"idlePromptText": "   "}, {"idlePromptText": "x" * 501}):
         assert client.put(ADMIN_EASEVOICE_CONFIG, headers=headers, json=bad).status_code == 422, bad

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Square, Volume2 } from "lucide-react";
 import { useAccessibility } from "../../lib/accessibility";
 import { useEaseVoiceConfig } from "../../lib/easeVoiceConfig";
-import { Button, Select, cx } from "../ui";
+import { Button, InfoTooltip, Select, cx } from "../ui";
 import { watchIdle, watchSelection } from "./easeVoiceWatchers";
 
 const focusRing =
@@ -10,15 +10,34 @@ const focusRing =
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
+// Each visitor switches EaseVoice on for themselves; it starts off. Remembered in this browser only.
+const ON_KEY = "eventease:easevoice-on";
+function readOn(): boolean {
+  try {
+    return window.localStorage.getItem(ON_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+function writeOn(on: boolean) {
+  try {
+    window.localStorage.setItem(ON_KEY, String(on));
+  } catch {
+    // storage blocked: the switch still works for this visit
+  }
+}
+
 /**
- * EaseVoice dock: a small tab at the bottom-right of every page. Pressing it slides the panel up;
- * pressing it again slides it down. Reading selected text and the idle prompt work whether or not
- * the panel is open. What EaseVoice does is set by an administrator (Admin → EaseVoice settings).
+ * EaseVoice dock: a small tab at the bottom-right of every page. Pressing its name slides the panel
+ * up; pressing again slides it down. The switch on the tab turns EaseVoice on or off for this visitor
+ * (off by default). While on, highlighted text is read aloud and the idle prompt plays, as far as the
+ * administrator allows (Admin → EaseVoice settings).
  */
 export function EaseVoice() {
   const { settings, saveSettings } = useAccessibility();
   const config = useEaseVoiceConfig();
   const [open, setOpen] = useState(false);
+  const [on, setOn] = useState(readOn);
   const [speaking, setSpeaking] = useState(false);
   const panelId = useId();
   const tabRef = useRef<HTMLButtonElement>(null);
@@ -66,15 +85,24 @@ export function EaseVoice() {
 
   useEffect(() => stop, [stop]); // stop talking if EaseVoice is removed from the page
 
+  const toggleOn = () => {
+    const next = !on;
+    setOn(next);
+    writeOn(next);
+    // Spoken confirmation, so someone who cannot see the screen knows the switch worked.
+    if (next) say("EaseVoice is on. Highlight any words and I'll read them aloud.");
+    else stop();
+  };
+
   // Highlighting text on any page reads it out (admin setting "Read selected text aloud").
   useEffect(() => {
-    if (!config.selectToRead) return;
+    if (!on || !config.selectToRead) return;
     return watchSelection(window, document, say);
-  }, [config.selectToRead, say]);
+  }, [on, config.selectToRead, say]);
 
   // While a visitor stays inactive, offer help out loud every idle period (admin setting).
   useEffect(() => {
-    if (!config.idlePromptEnabled || !config.idlePromptText.trim()) return;
+    if (!on || !config.idlePromptEnabled || !config.idlePromptText.trim()) return;
     return watchIdle(window, document, config.idleSeconds, () => {
       // Browsers only allow speech after the visitor has interacted with the page at least once.
       const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
@@ -82,7 +110,7 @@ export function EaseVoice() {
       if (window.speechSynthesis?.speaking) return; // never talk over something being read
       say(config.idlePromptText);
     });
-  }, [config.idlePromptEnabled, config.idlePromptText, config.idleSeconds, say]);
+  }, [on, config.idlePromptEnabled, config.idlePromptText, config.idleSeconds, say]);
 
   // Escape slides the panel down and returns focus to the tab.
   useEffect(() => {
@@ -99,28 +127,64 @@ export function EaseVoice() {
   return (
     // Pinned to the bottom edge: when the panel below the tab grows, the tab rises with it.
     <div className="pointer-events-none fixed bottom-0 right-4 z-50 flex w-[min(20rem,calc(100vw-2rem))] flex-col items-end sm:right-6">
-      {/* The tab: always visible and small. Pressing it slides the panel up; pressing again slides it down. */}
-      <button
-        ref={tabRef}
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        aria-label={open ? "Hide EaseVoice" : "Show EaseVoice"}
-        onClick={() => setOpen((value) => !value)}
+      {/* The tab: always visible. The name opens and closes the panel; the switch turns EaseVoice on or off. */}
+      <div
         className={cx(
-          "pointer-events-auto flex items-center gap-2 rounded-t-xl border border-b-0 px-3.5 py-2 text-sm font-bold shadow-[0_-8px_24px_-12px_rgba(50,19,79,0.35)] backdrop-blur transition-colors duration-200",
+          "pointer-events-auto flex items-center gap-1.5 rounded-t-xl border border-b-0 py-1.5 pl-1.5 pr-2.5 text-sm shadow-[0_-8px_24px_-12px_rgba(50,19,79,0.35)] backdrop-blur transition-colors duration-200",
           // Orange and white while EaseVoice is reading (selected text or the idle prompt).
-          speaking
-            ? "border-brand-orange bg-brand-orange text-white hover:bg-brand-orange/90"
-            : "border-brand-purple/20 bg-white/95 text-brand-deep hover:bg-brand-lilac/60",
-          focusRing,
+          speaking ? "border-brand-orange bg-brand-orange text-white" : "border-brand-purple/20 bg-white/95 text-brand-deep",
         )}
       >
-        <Volume2 className={cx("h-4 w-4", speaking ? "animate-pulse text-white" : "text-brand-purple")} />
-        <span className="font-brand">EaseVoice</span>
-        {speaking && <span className="sr-only">is reading</span>}
-        {open ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-      </button>
+        <button
+          ref={tabRef}
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-label={open ? "Hide EaseVoice panel" : "Show EaseVoice panel"}
+          onClick={() => setOpen((value) => !value)}
+          className={cx(
+            "flex items-center gap-2 rounded-lg px-2 py-1 transition-colors",
+            speaking ? "hover:bg-white/15" : "hover:bg-brand-lilac/60",
+            focusRing,
+          )}
+        >
+          <Volume2 className={cx("h-4 w-4", speaking ? "animate-pulse text-white" : "text-brand-purple")} />
+          <span className="font-feature font-black italic tracking-tight">EaseVoice</span>
+          {speaking && <span className="sr-only">is reading</span>}
+          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+        </button>
+        <InfoTooltip
+          side="top"
+          align="end"
+          size="sm"
+          title="What is EaseVoice?"
+          content="Switch EaseVoice on, then highlight any text on a page and it is read aloud. Open the panel to change the reading speed."
+          ariaLabel="Learn about EaseVoice"
+        />
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label="EaseVoice"
+          onClick={toggleOn}
+          className={cx("ml-1 flex items-center gap-1.5 rounded-full text-xs font-bold", focusRing)}
+        >
+          <span
+            className={cx(
+              "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+              on ? (speaking ? "bg-white/40" : "bg-brand-purple") : speaking ? "bg-white/25" : "bg-line",
+            )}
+          >
+            <span
+              className={cx(
+                "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all motion-reduce:transition-none",
+                on ? "left-[1.125rem]" : "left-0.5",
+              )}
+            />
+          </span>
+          <span aria-hidden="true" className="w-6 text-left">{on ? "On" : "Off"}</span>
+        </button>
+      </div>
 
       {/* Height animates from 0 to its content (grid rows 0fr → 1fr); reduced-motion users get no animation. */}
       <div
@@ -138,9 +202,11 @@ export function EaseVoice() {
         >
           <div className="rounded-tl-2xl border border-b-0 border-brand-purple/20 bg-white/95 p-4 shadow-[0_-14px_40px_-16px_rgba(50,19,79,0.35)] backdrop-blur">
             <p className="text-sm text-brand-deep">
-              {config.selectToRead
-                ? "Highlight any words on the page and I'll read them aloud."
-                : "Reading highlighted text is switched off by the administrator."}
+              {!on
+                ? "EaseVoice is off. Use the switch above to turn it on."
+                : config.selectToRead
+                  ? "Highlight any words on the page and I'll read them aloud."
+                  : "Reading highlighted text is switched off by the administrator."}
             </p>
             <div className="mt-4 flex items-center justify-between gap-3">
               <label className="flex items-center gap-2 text-sm text-muted">

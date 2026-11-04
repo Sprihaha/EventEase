@@ -51,7 +51,7 @@ class EaseVoiceConfigIn(CamelModel):
     """Admin only. Send only the fields you want to change."""
     select_to_read: bool | None = None
     idle_prompt_enabled: bool | None = None
-    idle_seconds: int | None = Field(None, ge=30, le=1800, description="Seconds without activity before the prompt")
+    idle_seconds: int | None = Field(None, ge=60, le=1800, description="Seconds without activity before the prompt (1 to 30 minutes)")
     idle_prompt_text: str | None = Field(None, max_length=500)
 
     @field_validator("idle_prompt_text")

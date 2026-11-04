@@ -3,17 +3,21 @@ import { Save, Volume2 } from "lucide-react";
 import { ApiError } from "../../lib/backendApi";
 import {
   IDLE_PROMPT_MAX_LENGTH,
-  IDLE_SECONDS_MAX,
-  IDLE_SECONDS_MIN,
+  IDLE_MINUTES_MAX,
+  IDLE_MINUTES_MIN,
   saveEaseVoiceConfig,
   useEaseVoiceConfig,
   type EaseVoiceConfig,
 } from "../../lib/easeVoiceConfig";
 import { Button, Card, Field, Input, Textarea, cx } from "../ui";
 
-type Draft = Omit<EaseVoiceConfig, "updatedAt" | "idleSeconds"> & { idleSeconds: string };
+type Draft = Omit<EaseVoiceConfig, "updatedAt" | "idleSeconds"> & { idleMinutes: string };
 
-const toDraft = (config: EaseVoiceConfig): Draft => ({ ...config, idleSeconds: String(config.idleSeconds) });
+// Older saves may hold a value under a minute; show it rounded up to whole minutes.
+const toDraft = ({ idleSeconds, ...config }: EaseVoiceConfig): Draft => ({
+  ...config,
+  idleMinutes: String(Math.max(IDLE_MINUTES_MIN, Math.ceil(idleSeconds / 60))),
+});
 
 function Toggle({ label, help, checked, onChange }: {
   label: string; help: string; checked: boolean; onChange: (value: boolean) => void;
@@ -60,10 +64,10 @@ export default function EaseVoiceBehaviourSettings() {
     setDraft((d) => ({ ...d, ...update }));
   };
 
-  const seconds = Number(draft.idleSeconds);
+  const minutes = Number(draft.idleMinutes);
   const problems: string[] = [];
-  if (!Number.isInteger(seconds) || seconds < IDLE_SECONDS_MIN || seconds > IDLE_SECONDS_MAX)
-    problems.push(`Idle time must be a whole number from ${IDLE_SECONDS_MIN} to ${IDLE_SECONDS_MAX} seconds.`);
+  if (draft.idleMinutes.trim() === "" || !Number.isInteger(minutes) || minutes < IDLE_MINUTES_MIN || minutes > IDLE_MINUTES_MAX)
+    problems.push(`Idle time must be a whole number of minutes, from ${IDLE_MINUTES_MIN} to ${IDLE_MINUTES_MAX}.`);
   if (draft.idlePromptEnabled && !draft.idlePromptText.trim()) problems.push("Write the idle prompt, or turn it off.");
 
   const preview = () => {
@@ -80,7 +84,7 @@ export default function EaseVoiceBehaviourSettings() {
       await saveEaseVoiceConfig({
         selectToRead: draft.selectToRead,
         idlePromptEnabled: draft.idlePromptEnabled,
-        idleSeconds: seconds,
+        idleSeconds: minutes * 60,
         idlePromptText: draft.idlePromptText.trim() || config.idlePromptText,
       });
       setTouched(false);
@@ -95,7 +99,6 @@ export default function EaseVoiceBehaviourSettings() {
     }
   };
 
-  const minutes = Number.isFinite(seconds) && seconds >= 60 ? ` (${+(seconds / 60).toFixed(1)} min)` : "";
 
   return (
     <Card className="mt-8 p-6 sm:p-8">
@@ -117,14 +120,14 @@ export default function EaseVoiceBehaviourSettings() {
         />
         {draft.idlePromptEnabled && (
           <div className="grid gap-4 pb-5 sm:grid-cols-[12rem_1fr]">
-            <Field label={`Idle time in seconds${minutes}`}>
+            <Field label="Idle time (minutes)">
               <Input
                 type="number"
-                min={String(IDLE_SECONDS_MIN)}
-                max={String(IDLE_SECONDS_MAX)}
+                min={String(IDLE_MINUTES_MIN)}
+                max={String(IDLE_MINUTES_MAX)}
                 step="1"
-                value={draft.idleSeconds}
-                onChange={(e) => change({ idleSeconds: e.target.value })}
+                value={draft.idleMinutes}
+                onChange={(e) => change({ idleMinutes: e.target.value })}
               />
             </Field>
             <Field label={`Prompt (${draft.idlePromptText.length}/${IDLE_PROMPT_MAX_LENGTH})`}>

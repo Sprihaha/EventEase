@@ -19,8 +19,9 @@ export const DEFAULT_EASEVOICE_CONFIG: EaseVoiceConfig = {
     "Hello, this is EaseVoice. Would you like me to read something for you? Just highlight any words on the screen and I'll read them aloud.",
 };
 
-export const IDLE_SECONDS_MIN = 30;
-export const IDLE_SECONDS_MAX = 1800;
+// The server stores seconds; admins set whole minutes.
+export const IDLE_MINUTES_MIN = 1;
+export const IDLE_MINUTES_MAX = 30;
 export const IDLE_PROMPT_MAX_LENGTH = 500;
 
 let current: EaseVoiceConfig = DEFAULT_EASEVOICE_CONFIG;
