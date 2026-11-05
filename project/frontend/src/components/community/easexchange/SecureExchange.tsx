@@ -8,7 +8,6 @@ import {
   expressInterest,
   expressTicketInterest,
   getListingEligibleTickets,
-  getCompatibleMatches,
   getExchangeListings,
   getExchangeInvitations,
   getMyExchanges,
@@ -17,7 +16,10 @@ import {
   exchangeRequestStatuses,
   type ExchangeListing,
   type ExchangeRequest,
+  type ExchangeRequestStatus,
 } from "../../../lib/exchangeTypes"
+import { exchangeStatusLabels, matchDisplayStatus, requestNumbers } from "../../../lib/exchangePresentation"
+import ExchangeStatusBadge from "./ExchangeStatusBadge"
 import { useStore } from "../../../lib/store"
 import useExchangeResource from "../../../lib/useExchangeResource"
 import { EXCHANGE_ACTIVITY_CHANGED } from "../../../lib/exchangeNotifications"
@@ -38,9 +40,6 @@ type DialogState = { type: "create" } | {
   listing: ExchangeListing
   sourceId?: string
   useTicket: boolean
-} | {
-  type: "suggestions"
-  request: ExchangeRequest
 } | {
   type: "match"
   matchId: string
@@ -140,12 +139,18 @@ export default function SecureExchange() {
       return next
     })
   }
-  const [filter, setFilter] = useState("ALL")
+  const statusParam = params.get("status")
+  const filter = exchangeRequestStatuses.includes(statusParam as ExchangeRequestStatus)
+    ? statusParam as ExchangeRequestStatus : "ALL"
   const [listingsPage, setListingsPage] = useState(1)
   const [invitationsPage, setInvitationsPage] = useState(1)
   const [myRequestsPage, setMyRequestsPage] = useState(1)
-  const [myMatchesPage, setMyMatchesPage] = useState(1)
   const [notice, setNotice] = useState<string | null>(null)
+  useEffect(() => {
+    if (!notice) return
+    const timer = window.setTimeout(() => setNotice(null), 5000)
+    return () => window.clearTimeout(timer)
+  }, [notice])
   const [actionError, setActionError] = useState<string | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const submitting = useRef(false)
@@ -158,9 +163,11 @@ export default function SecureExchange() {
     mine.data?.requests.filter(
       (request) => request.requesterUserId === user?.id,
     ) ?? []
+  const numbers = requestNumbers(ownRequests)
   const filteredRequests = ownRequests.filter(
     (request) => filter === "ALL" || request.status === filter,
   )
+  const requestPage = Math.min(myRequestsPage, Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE)))
   const openRequests = ownRequests.filter(
     (request) =>
       request.status === "OPEN" && Date.parse(request.expiresAt) > now,
@@ -191,7 +198,9 @@ export default function SecureExchange() {
     try {
       const result = await cancelExchangeRequest(request.id)
       setNotice(
-        `Request update confirmed. Status: ${result.status}.`,
+        result.status === "CANCELLED"
+          ? `Request ${numbers.get(request.id)} cancelled`
+          : `Request ${numbers.get(request.id)} updated. Status: ${exchangeStatusLabels[result.status]}.`,
       )
     } catch (error) {
       setActionError(
@@ -380,36 +389,50 @@ export default function SecureExchange() {
           />
           {mine.data && (
             <>
-              <Field label="Request status">
+              <Field label="Exchange status">
                 <Select
                   value={filter}
                   onChange={(event) => {
-                    setFilter(event.target.value)
+                    const status = event.target.value
+                    setParams(current => {
+                      const next = new URLSearchParams(current)
+                      if (status === "ALL") next.delete("status")
+                      else next.set("status", status)
+                      return next
+                    })
                     setMyRequestsPage(1)
                   }}
                 >
                   <option value="ALL">All statuses</option>
                   {exchangeRequestStatuses.map((status) => (
                     <option key={status} value={status}>
-                      {status}
+                      {exchangeStatusLabels[status]}
                     </option>
                   ))}
                 </Select>
               </Field>
               <div className="space-y-4">
                 {filteredRequests
-                  .slice((myRequestsPage - 1) * PAGE_SIZE, myRequestsPage * PAGE_SIZE)
+                  .slice((requestPage - 1) * PAGE_SIZE, requestPage * PAGE_SIZE)
                   .map((request) => (
                     <Card key={request.id} className="p-5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          tone={
-                            request.status === "OPEN" ? "accent" : "neutral"
-                          }
-                        >
-                          {request.status}
-                        </Badge>
-                        <Badge>{request.requestType}</Badge>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-brand-deep">Request {numbers.get(request.id)}</span>
+                          <ExchangeStatusBadge status={request.status} />
+                          <Badge>{request.requestType}</Badge>
+                        </div>
+                        {request.status === "OPEN" && (
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            className="shrink-0"
+                            disabled={!!pendingId || Date.parse(request.expiresAt) <= now}
+                            onClick={() => void cancelRequest(request)}
+                          >
+                            {pendingId === request.id ? "Cancelling…" : "Cancel request"}
+                          </Button>
+                        )}
                       </div>
                       <h3 className="mt-3 font-brand text-xl font-bold text-brand-deep">
                         {request.eventName}
@@ -419,10 +442,16 @@ export default function SecureExchange() {
                         {request.offeredSeatSection}
                       </p>
                       <Preferences request={request} />
-                      <p className="mt-2 text-xs text-muted">
-                        Created {formatDate(request.createdAt)} · Expires{" "}
-                        {formatDate(request.expiresAt)}
-                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                        <span className="inline-flex flex-wrap items-center gap-x-1 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">
+                          <span>Created</span>
+                          <time dateTime={request.createdAt}>{formatDate(request.createdAt)}</time>
+                        </span>
+                        <span className="inline-flex flex-wrap items-center gap-x-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                          <span>Expires</span>
+                          <time dateTime={request.expiresAt}>{formatDate(request.expiresAt)}</time>
+                        </span>
+                      </div>
                       {request.status === "EXPIRED" && (
                         <p className="mt-2 text-sm text-muted">
                           This request has expired.
@@ -436,51 +465,16 @@ export default function SecureExchange() {
                           </p>
                         )}
                       <div className="mt-4 flex flex-wrap gap-3">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={
-                            request.status !== "OPEN" ||
-                            Date.parse(request.expiresAt) <= now ||
-                            !!pendingId
-                          }
-                          onClick={() =>
-                            setDialog({ type: "suggestions", request })
-                          }
-                        >
-                          Suggested matches
-                        </Button>
-                        {request.status === "OPEN" && (
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            disabled={
-                              !!pendingId ||
-                              Date.parse(request.expiresAt) <= now
-                            }
-                            onClick={() => void cancelRequest(request)}
-                          >
-                            {pendingId === request.id
-                              ? "Cancelling…"
-                              : "Cancel request"}
-                          </Button>
-                        )}
                         {mine.data?.matches
-                          .filter(
-                            (match) =>
-                              match.requestAId === request.id ||
-                              match.requestBId === request.id,
-                          )
-                          .map((match) => (
+                          .filter(match => match.requestAId === request.id || match.requestBId === request.id)
+                          .map(match => (
                             <Button
                               key={match.id}
                               size="sm"
                               variant="outline"
-                              onClick={() =>
-                                setDialog({ type: "match", matchId: match.id })
-                              }
+                              onClick={() => setDialog({ type: "match", matchId: match.id })}
                             >
-                              View {match.status} match
+                              View {exchangeStatusLabels[matchDisplayStatus(match.status)]} match
                             </Button>
                           ))}
                       </div>
@@ -488,65 +482,13 @@ export default function SecureExchange() {
                   ))}
               </div>
               <Pagination
-                currentPage={myRequestsPage}
+                currentPage={requestPage}
                 totalItems={filteredRequests.length}
                 onPageChange={setMyRequestsPage}
               />
-              {ownRequests.length > 0 &&
-                !ownRequests.some(
-                  (request) => filter === "ALL" || request.status === filter,
-                ) && (
-                  <p role="status" className="text-sm text-muted">
-                    No requests with this status.
-                  </p>
-                )}
-              <h3 className="font-brand text-xl font-bold text-brand-deep">
-                My matches
-              </h3>
-              {!mine.data.matches.length && (
-                <p role="status" className="text-sm text-muted">
-                  No exchange matches available.
-                </p>
+              {ownRequests.length > 0 && filteredRequests.length === 0 && (
+                <p role="status" className="text-sm text-muted">No requests with this status.</p>
               )}
-              <div className="grid gap-4 sm:grid-cols-2">
-                {(mine.data.matches ?? [])
-                  .slice((myMatchesPage - 1) * PAGE_SIZE, myMatchesPage * PAGE_SIZE)
-                  .map((match) => (
-                  <Card key={match.id} className="space-y-3 p-5">
-                    <Badge tone={match.status === "READY" ? "live" : "neutral"}>
-                      {match.status}
-                    </Badge>
-                    <p className="font-semibold text-brand-deep">
-                      {match.ticketA.eventName}
-                    </p>
-                    <HistoryTicket label="Offered" ticket={ownRequests.some(r => r.id === match.requestAId) ? match.ticketA : match.ticketB} />
-                    <HistoryTicket label="Received / counterpart" ticket={ownRequests.some(r => r.id === match.requestAId) ? match.ticketB : match.ticketA} />
-                    {match.ticketA.price != null && match.ticketB.price != null && <p className="text-sm">Price difference: S${Math.abs(match.ticketA.price - match.ticketB.price).toFixed(2)}</p>}
-                    {match.status === "READY" && (
-                      <p className="text-sm text-brand-deep">
-                        Both users accepted. Awaiting settlement.
-                      </p>
-                    )}
-                    <p className="text-xs text-muted">
-                      {match.status === "COMPLETED" && match.updatedAt ? `Completed ${formatDate(match.updatedAt)}` : `Expires ${formatDate(match.expiresAt)}`}
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setDialog({ type: "match", matchId: match.id })
-                      }
-                    >
-                      View match
-                    </Button>
-                  </Card>
-                ))}
-              </div>
-              <Pagination
-                currentPage={myMatchesPage}
-                totalItems={mine.data.matches.length}
-                onPageChange={setMyMatchesPage}
-              />
             </>
           )}
         </>
@@ -567,16 +509,11 @@ export default function SecureExchange() {
             onCancel={closeDialog} onPendingChange={setCreating}
             onCreated={request => {
               setDialog(null)
-              setNotice(`Request ${request.id} confirmed. Status: ${request.status}.`)
+              const history = [...ownRequests.filter(item => item.id !== request.id), request]
+              setNotice(`Request ${requestNumbers(history).get(request.id)} created`)
               refresh()
               setView("mine")
             }} /> : <div><p>Sign in to use EaseXchange</p><SignInLink>Sign in</SignInLink></div>)}
-          {dialog.type === "suggestions" && (
-            <SuggestedMatches
-              request={dialog.request}
-              onInterest={openInterest}
-            />
-          )}
           {dialog.type === "interest" && dialog.useTicket && user && (
             <TicketInterestPanel
               key={`${user.id}:${dialog.listing.requestId}`}
@@ -593,6 +530,7 @@ export default function SecureExchange() {
               key={`${dialog.listing.requestId}:${dialog.sourceId ?? ""}`}
               listing={dialog.listing}
               requests={openRequests}
+              numbers={numbers}
               sourceId={dialog.sourceId}
               loading={mine.status === "loading"}
               error={mine.error}
@@ -715,53 +653,6 @@ function ListingCard({
     </Card>
   )
 }
-function SuggestedMatches({
-  request,
-  onInterest,
-}: {
-  request: ExchangeRequest
-  onInterest: (listing: ExchangeListing, sourceId: string) => void
-}) {
-  const load = useCallback(
-    (signal: AbortSignal) => getCompatibleMatches(request.id, signal),
-    [request.id],
-  )
-  const suggestions = useExchangeResource(request.id, load)
-  return (
-    <div className="space-y-4">
-      <h3 className="font-brand text-2xl font-bold text-brand-deep">
-        Suggested matches
-      </h3>
-      <p className="text-sm text-muted">
-        {request.eventName} · Compatibility is determined by the exchange
-        service.
-      </p>
-      <LoadState
-        status={suggestions.status}
-        error={suggestions.error}
-        empty={suggestions.data?.length === 0}
-        emptyText="No compatible matches available for this request."
-        onRetry={suggestions.reload}
-      />
-      <div className="space-y-4">
-        {suggestions.data?.map((listing) => (
-          <ListingCard key={listing.requestId} listing={listing}>
-            <Button
-              size="sm"
-              disabled={
-                Date.parse(listing.expiresAt) <= Date.now() ||
-                Date.parse(request.expiresAt) <= Date.now()
-              }
-              onClick={() => onInterest(listing, request.id)}
-            >
-              Express interest
-            </Button>
-          </ListingCard>
-        ))}
-      </div>
-    </div>
-  )
-}
 export function TicketInterestPanel({ listing, onCreated, onChanged }: {
   listing: ExchangeListing
   onCreated: (matchId: string) => void
@@ -831,6 +722,7 @@ export function TicketInterestPanel({ listing, onCreated, onChanged }: {
 function InterestPanel({
   listing,
   requests,
+  numbers,
   sourceId,
   loading,
   error,
@@ -840,6 +732,7 @@ function InterestPanel({
 }: {
   listing: ExchangeListing
   requests: ExchangeRequest[]
+  numbers: Map<string, number>
   sourceId?: string
   loading: boolean
   error: string | null
@@ -906,7 +799,7 @@ function InterestPanel({
             <option value="">Select your request</option>
             {available.map((request) => (
               <option key={request.id} value={request.id}>
-                {request.eventName} · {request.offeredCategoryType} · Section{" "}
+                Request {numbers.get(request.id)} · {request.eventName} · {request.offeredCategoryType} · Section{" "}
                 {request.offeredSeatSection}
               </option>
             ))}
@@ -990,8 +883,4 @@ function SignInLink({ children }: { children: ReactNode }) {
 }
 function formatDate(value: string) {
   return new Date(value).toLocaleString("en-SG")
-}
-
-function HistoryTicket({ label, ticket }: { label: string; ticket: import("../../../lib/exchangeTypes").ExchangeTicket }) {
-  return <p className="text-sm text-muted"><span className="font-semibold">{label}:</span> {ticket.categoryType} · Section {ticket.seatSection} · Seat {ticket.seatLabel ?? "Unassigned"}{ticket.price != null && ` · S$${ticket.price.toFixed(2)}`}</p>
 }

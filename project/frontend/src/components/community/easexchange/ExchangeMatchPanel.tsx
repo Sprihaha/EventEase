@@ -21,7 +21,9 @@ import type {
   ExchangeTicket,
 } from "../../../lib/exchangeTypes";
 import useExchangeResource from "../../../lib/useExchangeResource";
-import { Badge, Button, Card } from "../../ui";
+import { matchDisplayStatus, requestNumbers } from "../../../lib/exchangePresentation";
+import ExchangeStatusBadge from "./ExchangeStatusBadge";
+import { Button, Card } from "../../ui";
 
 export type ExchangeMatchPanelProps = {
   matchId: string;
@@ -64,6 +66,10 @@ export function ExchangeMatchPanel({
 
   useEffect(() => setConfirmed(null), [resource.data]);
   const match = confirmed ?? resource.data;
+  const numbers = requestNumbers(myRequests);
+  const ownRequest = match && myRequests.find(request =>
+    request.requesterUserId === userId &&
+    (request.id === match.requestAId || request.id === match.requestBId));
   const ownIds = new Set(
     myRequests
       .filter((request) => request.requesterUserId === userId)
@@ -153,7 +159,7 @@ export function ExchangeMatchPanel({
   return (
     <div className="space-y-5" aria-busy={!!pending}>
       <h3 className="font-brand text-2xl font-bold text-brand-deep">
-        Match detail
+        {ownRequest ? `Request ${numbers.get(ownRequest.id)} · Match detail` : "Match detail"}
       </h3>
       {resource.status === "loading" && !confirmed && (
         <p role="status" className="text-sm text-muted">
@@ -167,17 +173,7 @@ export function ExchangeMatchPanel({
       )}
       {match && (
         <>
-          <Badge
-            tone={
-              match.status === "READY"
-                ? "live"
-                : match.status === "PENDING"
-                  ? "accent"
-                  : "neutral"
-            }
-          >
-            {match.status}
-          </Badge>
+          <ExchangeStatusBadge status={matchDisplayStatus(match.status)} />
           {!knownSide && (
             <p role="status" className="text-sm text-muted">
               Your participant details are unavailable. Refresh My Exchanges to
