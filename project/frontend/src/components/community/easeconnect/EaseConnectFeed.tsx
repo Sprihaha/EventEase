@@ -46,6 +46,10 @@ interface EaseConnectFeedProps {
   submittingReply: Record<string, boolean>
   onPreview360: (photo: Preview360Photo) => void
   onShowToast: (msg: string) => void
+  onModeratePost?: (
+    postId: string,
+    data: { isFlagged?: boolean; isRemoved?: boolean; flagReason?: string | null },
+  ) => void
   composerRef?: React.RefObject<HTMLDivElement | null>
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>
 }
@@ -82,6 +86,7 @@ export function EaseConnectFeed({
   submittingReply,
   onPreview360,
   onShowToast,
+  onModeratePost,
   composerRef,
   textareaRef,
 }: EaseConnectFeedProps) {
@@ -150,6 +155,7 @@ export function EaseConnectFeed({
             user={user}
             onPreview360={onPreview360}
             onShowToast={onShowToast}
+            onModeratePost={onModeratePost}
           />
         ))}
       </div>

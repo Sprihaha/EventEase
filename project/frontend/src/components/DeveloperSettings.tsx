@@ -118,7 +118,7 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
     setClockLoading(true);
     setClockNotice(null);
     try {
-      const targetDate = selectedDate || clockState?.effective_date || clockState?.system_date;
+      const targetDate = selectedDate || clockState?.effective_date || clockState?.system_date || null;
       const updated = await setBusinessDate(targetDate, nextOn);
       setClockState(updated);
       if (updated.simulated_date) {

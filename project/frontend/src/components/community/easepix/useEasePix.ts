@@ -643,6 +643,8 @@ export function useEasePix({
           isVerified: pix.isVerified,
           pixId: pix.id,
           likesCount: pix.likesCount,
+          status: pix.status,
+          rejectionReason: pix.rejectionReason,
         }))
 
       const matchedUserPosts: SectionSeatPhoto[] = userEventPhotos

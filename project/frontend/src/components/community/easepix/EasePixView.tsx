@@ -32,6 +32,10 @@ interface EasePixViewProps {
   onOpenUploadModal: (sectionName?: string) => void
   onOpenEaseExplore: (sectionName?: string) => void
   onLikeEasePix: (pixId: string) => void
+  onModerateEasePix?: (
+    easepixId: string,
+    data: { status: string; rejectionReason?: string | null },
+  ) => void
 }
 
 export function EasePixView({
@@ -62,6 +66,7 @@ export function EasePixView({
   onOpenUploadModal,
   onOpenEaseExplore,
   onLikeEasePix,
+  onModerateEasePix,
 }: EasePixViewProps) {
   const currentEvent = seatEventIdInput
     ? events.find((e) => e.id === seatEventIdInput)
@@ -208,6 +213,7 @@ export function EasePixView({
               onLikeEasePix={onLikeEasePix}
               onOpenUploadModal={onOpenUploadModal}
               onOpenEaseExplore={onOpenEaseExplore}
+              onModerateEasePix={onModerateEasePix}
             />
           )}
         </div>

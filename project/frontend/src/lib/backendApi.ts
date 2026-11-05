@@ -877,6 +877,7 @@ export type BackendEasePix = {
   isVerified: boolean;
   status?: string;
   rejectionReason?: string | null;
+  pointsAwarded?: boolean;
   likesCount: number;
   createdAt: string;
 };
@@ -925,10 +926,11 @@ export type BackendCommunityPostCreate = {
   easepix?: BackendEasePixCreate | null;
 };
 
-export async function backendListPosts(params?: { eventId?: string; limit?: number }): Promise<BackendCommunityPost[]> {
+export async function backendListPosts(params?: { eventId?: string; limit?: number; includeRemoved?: boolean }): Promise<BackendCommunityPost[]> {
   const q = new URLSearchParams();
   if (params?.eventId) q.set("event_id", params.eventId);
   if (params?.limit) q.set("limit", String(params.limit));
+  if (params?.includeRemoved) q.set("include_removed", "true");
   const query = q.toString() ? `?${q.toString()}` : "";
   return request<BackendCommunityPost[]>(`/community/posts${query}`);
 }
@@ -946,12 +948,23 @@ export async function backendLikePost(postId: string): Promise<BackendCommunityP
   });
 }
 
+export async function backendModeratePost(
+  postId: string,
+  data: { isFlagged?: boolean; isRemoved?: boolean; flagReason?: string | null },
+): Promise<BackendCommunityPost> {
+  return request<BackendCommunityPost>(`/community/posts/${postId}/moderate`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  }, true);
+}
+
 export async function backendListEasePix(params?: {
   eventId?: string;
   venueId?: string;
   venueName?: string;
   section?: string;
   rowLabel?: string;
+  status?: string;
   limit?: number;
 }): Promise<BackendEasePix[]> {
   const q = new URLSearchParams();
@@ -960,6 +973,7 @@ export async function backendListEasePix(params?: {
   if (params?.venueName) q.set("venue_name", params.venueName);
   if (params?.section) q.set("section", params.section);
   if (params?.rowLabel) q.set("row_label", params.rowLabel);
+  if (params?.status) q.set("status", params.status);
   if (params?.limit) q.set("limit", String(params.limit));
   const query = q.toString() ? `?${q.toString()}` : "";
   return request<BackendEasePix[]>(`/community/easepix${query}`);
@@ -976,6 +990,16 @@ export async function backendLikeEasePix(easepixId: string): Promise<BackendEase
   return request<BackendEasePix>(`/community/easepix/${easepixId}/like`, {
     method: "POST",
   });
+}
+
+export async function backendModerateEasePix(
+  easepixId: string,
+  data: { status: string; rejectionReason?: string | null },
+): Promise<BackendEasePix> {
+  return request<BackendEasePix>(`/community/easepix/${easepixId}/moderate`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  }, true);
 }
 
 // ── Developer Settings & Quartz Scheduler ───────────────────────────────────

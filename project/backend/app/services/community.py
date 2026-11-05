@@ -77,6 +77,7 @@ def create_easepix(db: Session, user: User | None, data: EasePixCreate) -> EaseP
         is_verified=verified,
         status="PENDING",
         rejection_reason=None,
+        points_awarded=False,
         likes_count=0,
     )
     db.add(pix)
@@ -92,13 +93,17 @@ def list_easepix(
     venue_name: str | None = None,
     section: str | None = None,
     row_label: str | None = None,
+    status: str | None = None,
+    is_admin: bool = False,
     limit: int = 100,
 ) -> list[EasePix]:
-    stmt = (
-        select(EasePix)
-        .where(or_(EasePix.status == "APPROVED", EasePix.status.is_(None)))
-        .order_by(EasePix.created_at.desc())
-    )
+    stmt = select(EasePix).order_by(EasePix.created_at.desc())
+    if is_admin:
+        if status and status.strip().upper() != "ALL":
+            stmt = stmt.where(EasePix.status == status.strip().upper())
+    else:
+        stmt = stmt.where(or_(EasePix.status == "APPROVED", EasePix.status.is_(None)))
+
     if event_id:
         stmt = stmt.where(EasePix.event_id == event_id)
     if venue_id:
@@ -119,6 +124,27 @@ def like_easepix(db: Session, easepix_id: uuid.UUID) -> EasePix:
     if not pix:
         raise AppError(404, "EASEPIX_NOT_FOUND", "EasePix photo not found")
     pix.likes_count += 1
+    db.commit()
+    db.refresh(pix)
+    return pix
+
+
+def moderate_easepix(
+    db: Session,
+    easepix_id: uuid.UUID,
+    status: str,
+    rejection_reason: str | None = None,
+) -> EasePix:
+    pix = db.get(EasePix, easepix_id)
+    if not pix:
+        raise AppError(404, "EASEPIX_NOT_FOUND", "EasePix photo not found")
+    clean_status = status.strip().upper()
+    if clean_status not in ("APPROVED", "REJECTED", "PENDING"):
+        raise AppError(400, "INVALID_STATUS", "Status must be APPROVED, REJECTED, or PENDING")
+    pix.status = clean_status
+    pix.rejection_reason = rejection_reason.strip() if (rejection_reason and clean_status == "REJECTED") else None
+    if clean_status == "APPROVED" and not pix.points_awarded:
+        pix.points_awarded = True
     db.commit()
     db.refresh(pix)
     return pix
@@ -189,20 +215,24 @@ def create_post(db: Session, user: User | None, data: EaseConnectPostCreate) -> 
     ) or post
 
 
-def list_posts(db: Session, event_id: uuid.UUID | None = None, limit: int = 50) -> list[EaseConnectPost]:
+def list_posts(
+    db: Session,
+    event_id: uuid.UUID | None = None,
+    include_removed: bool = False,
+    limit: int = 50,
+) -> list[EaseConnectPost]:
     stmt = (
         select(EaseConnectPost)
         .options(
             selectinload(EaseConnectPost.easepix),
             selectinload(EaseConnectPost.replies).selectinload(EaseConnectPost.easepix),
         )
-        .where(
-            EaseConnectPost.parent_id.is_(None),
-            or_(EaseConnectPost.is_removed.is_(False), EaseConnectPost.is_removed.is_(None)),
-        )
+        .where(EaseConnectPost.parent_id.is_(None))
         .order_by(EaseConnectPost.created_at.desc())
         .limit(limit)
     )
+    if not include_removed:
+        stmt = stmt.where(or_(EaseConnectPost.is_removed.is_(False), EaseConnectPost.is_removed.is_(None)))
     if event_id:
         stmt = stmt.where(EaseConnectPost.event_id == event_id)
     return list(db.scalars(stmt))
@@ -216,3 +246,30 @@ def like_post(db: Session, post_id: uuid.UUID) -> EaseConnectPost:
     db.commit()
     db.refresh(post)
     return post
+
+
+def moderate_post(
+    db: Session,
+    post_id: uuid.UUID,
+    is_flagged: bool | None = None,
+    is_removed: bool | None = None,
+    flag_reason: str | None = None,
+) -> EaseConnectPost:
+    post = db.get(EaseConnectPost, post_id)
+    if not post:
+        raise AppError(404, "POST_NOT_FOUND", "Post not found")
+    if is_flagged is not None:
+        post.is_flagged = is_flagged
+    if is_removed is not None:
+        post.is_removed = is_removed
+    if flag_reason is not None:
+        post.flag_reason = flag_reason.strip() if flag_reason else None
+    elif is_flagged is False and is_removed is False:
+        post.flag_reason = None
+    db.commit()
+    db.refresh(post)
+    return db.scalar(
+        select(EaseConnectPost)
+        .options(selectinload(EaseConnectPost.easepix), selectinload(EaseConnectPost.replies))
+        .where(EaseConnectPost.id == post.id)
+    ) or post

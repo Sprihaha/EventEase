@@ -7,12 +7,16 @@ import { useStore } from "../lib/store";
 import {
   getUserEasePoints,
   awardEasePoints,
+  awardApprovedEasePixPointsOnce,
+  markPixAsAwarded,
   EASEPOINTS_RULES,
 } from "../lib/easePoints";
 import {
   backendListPosts,
   backendListEasePix,
   backendCreateEasePix,
+  backendModeratePost,
+  backendModerateEasePix,
   type BackendCommunityPost,
   type BackendEasePix,
 } from "../lib/backendApi";
@@ -98,18 +102,107 @@ export default function Community() {
     }, 2800);
   }, []);
 
+  // Award EasePoints only once an uploaded EasePix is officially approved (never at upload time)
+  useEffect(() => {
+    if (!user || user.role === "organizer" || user.role === "admin") return;
+    if (!backendEasePixList.length) return;
+
+    const storageKey = `eventease_awarded_pix_${user.id}`;
+    const isFirstRun = localStorage.getItem(storageKey) === null;
+
+    if (isFirstRun) {
+      backendEasePixList.forEach((pix) => {
+        const isOwner =
+          (pix.userId && pix.userId === user.id) ||
+          (pix.authorName && user.name && pix.authorName.toLowerCase() === user.name.toLowerCase());
+        if (isOwner && (pix.status === "APPROVED" || pix.pointsAwarded)) {
+          markPixAsAwarded(user.id, pix.id);
+        }
+      });
+      return;
+    }
+
+    let newlyAwardedCount = 0;
+    backendEasePixList.forEach((pix) => {
+      const isOwner =
+        (pix.userId && pix.userId === user.id) ||
+        (pix.authorName && user.name && pix.authorName.toLowerCase() === user.name.toLowerCase());
+      if (isOwner && (pix.status === "APPROVED" || pix.pointsAwarded)) {
+        const awarded = awardApprovedEasePixPointsOnce(user.id, pix.id);
+        if (awarded) {
+          newlyAwardedCount++;
+        }
+      }
+    });
+
+    if (newlyAwardedCount > 0) {
+      showToast(
+        `EasePix approved! You earned +${newlyAwardedCount * EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`
+      );
+    }
+  }, [backendEasePixList, user, showToast]);
+
   const reloadCommunityData = useCallback(async () => {
     try {
+      const isUserAdmin = user?.role === "admin";
       const [fetchedPosts, fetchedPix] = await Promise.all([
-        backendListPosts().catch(() => []),
-        backendListEasePix().catch(() => []),
+        backendListPosts({ includeRemoved: isUserAdmin }).catch(() => []),
+        backendListEasePix(isUserAdmin ? { status: "ALL" } : undefined).catch(() => []),
       ]);
       setBackendPosts(fetchedPosts);
       setBackendEasePixList(fetchedPix);
     } catch {
       // ignore
     }
-  }, []);
+  }, [user?.role]);
+
+  const handleModeratePost = useCallback(
+    async (
+      postId: string,
+      data: { isFlagged?: boolean; isRemoved?: boolean; flagReason?: string | null }
+    ) => {
+      try {
+        await backendModeratePost(postId, data);
+        await reloadCommunityData();
+        if (data.isRemoved) {
+          showToast("Post removed by Admin");
+        } else if (data.isRemoved === false && data.isFlagged === false) {
+          showToast("Post restored and flag cleared");
+        } else if (data.isFlagged) {
+          showToast("Post flagged for community review");
+        } else if (data.isFlagged === false) {
+          showToast("Post flag cleared");
+        }
+      } catch (e: any) {
+        showToast(e?.message || "Failed to moderate post");
+      }
+    },
+    [reloadCommunityData, showToast]
+  );
+
+  const handleModerateEasePix = useCallback(
+    async (
+      easepixId: string,
+      data: { status: string; rejectionReason?: string | null }
+    ) => {
+      try {
+        await backendModerateEasePix(easepixId, data);
+        const targetPix = backendEasePixList.find((p) => p.id === easepixId);
+        if (data.status === "APPROVED" && targetPix?.userId) {
+          awardApprovedEasePixPointsOnce(targetPix.userId, easepixId);
+        }
+        await reloadCommunityData();
+        if (data.status === "APPROVED") {
+          showToast("EasePix approved! (+23 EasePoints awarded to author) ✨");
+        } else if (data.status === "REJECTED") {
+          showToast("EasePix rejected");
+        }
+      } catch (e: any) {
+        showToast(e?.message || "Failed to moderate EasePix");
+      }
+    },
+    [backendEasePixList, reloadCommunityData, showToast]
+  );
 
   useEffect(() => {
     reloadCommunityData();
@@ -315,12 +408,9 @@ export default function Community() {
           section: sec,
         });
         const isEligibleCustomer = Boolean(user?.id && user?.role !== "organizer");
-        if (isEligibleCustomer && user?.id) {
-          awardEasePoints(user.id, EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO, "Approved EasePix photo");
-        }
         showToast(
           isEligibleCustomer
-            ? `Seat view uploaded to EasePix successfully! You earned +${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`
+            ? `Seat view uploaded to EasePix successfully! (+${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints awarded once approved) ✨`
             : "Seat view uploaded to EasePix successfully! ✨"
         );
         scrollToSection("seat-search-results");
@@ -541,6 +631,7 @@ export default function Community() {
                 submittingReply={feed.submittingReply}
                 onPreview360={(p) => easePix.setPreview360Photo(p)}
                 onShowToast={showToast}
+                onModeratePost={handleModeratePost}
                 composerRef={feed.composerRef}
                 textareaRef={feed.textareaRef}
               />
@@ -626,6 +717,7 @@ export default function Community() {
               }}
               onOpenEaseExplore={(sectionName) => easePix.handleOpenEaseExplore(sectionName)}
               onLikeEasePix={easePix.handleLikeEasePix}
+              onModerateEasePix={handleModerateEasePix}
             />
           </div>
         )}

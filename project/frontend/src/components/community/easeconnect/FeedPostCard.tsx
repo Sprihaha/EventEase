@@ -1,11 +1,15 @@
 import {
   AlertTriangle,
+  Check,
   Heart,
   MessageSquare,
-  Share2,
-  Sparkles,
+  RotateCcw,
   Rotate3d,
   Send,
+  Share2,
+  ShieldAlert,
+  Sparkles,
+  Trash2,
 } from "lucide-react"
 import { cx } from "../../ui"
 import type { DisplayPost, Preview360Photo, User } from "../types"
@@ -25,6 +29,10 @@ interface FeedPostCardProps {
   user: User | null
   onPreview360: (photo: Preview360Photo) => void
   onShowToast: (msg: string) => void
+  onModeratePost?: (
+    postId: string,
+    data: { isFlagged?: boolean; isRemoved?: boolean; flagReason?: string | null },
+  ) => void
 }
 
 export function FeedPostCard({
@@ -42,6 +50,7 @@ export function FeedPostCard({
   user,
   onPreview360,
   onShowToast,
+  onModeratePost,
 }: FeedPostCardProps) {
   const evName = eventName(post.eventId)
 
@@ -167,6 +176,68 @@ export function FeedPostCard({
               </div>
             )}
           </div>
+
+          {/* Admin Manual Moderation Bar */}
+          {user?.role === "admin" && (
+            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand-purple/20 bg-brand-purple/5 p-3 text-xs">
+              <div className="flex items-center gap-2 font-bold text-brand-purple">
+                <ShieldAlert className="h-4 w-4 text-brand-purple shrink-0" />
+                <span>Admin Moderation</span>
+                {post.isRemoved && (
+                  <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-xs">
+                    Removed
+                  </span>
+                )}
+                {post.isFlagged && !post.isRemoved && (
+                  <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-xs">
+                    Flagged
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {post.isFlagged ? (
+                  <button
+                    type="button"
+                    onClick={() => onModeratePost?.(post.id, { isFlagged: false, flagReason: null })}
+                    className="cursor-pointer inline-flex items-center gap-1 rounded-xl border border-amber-300 bg-white px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-xs"
+                    title="Clear flag and mark content clean"
+                  >
+                    <Check className="h-3.5 w-3.5 text-emerald-600" /> Clear Flag
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onModeratePost?.(post.id, { isFlagged: true, flagReason: "Flagged by Admin: Misleading or unverified content" })}
+                    className="cursor-pointer inline-flex items-center gap-1 rounded-xl border border-amber-400 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100 transition shadow-xs"
+                    title="Flag post for potential misinformation"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Flag Misleading
+                  </button>
+                )}
+
+                {post.isRemoved ? (
+                  <button
+                    type="button"
+                    onClick={() => onModeratePost?.(post.id, { isRemoved: false, isFlagged: false, flagReason: null })}
+                    className="cursor-pointer inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-xs"
+                    title="Restore removed post back to community feed"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Restore Post
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onModeratePost?.(post.id, { isRemoved: true, isFlagged: true, flagReason: "Removed by Admin: Policy violation" })}
+                    className="cursor-pointer inline-flex items-center gap-1 rounded-xl bg-rose-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-rose-700 transition shadow-xs"
+                    title="Remove post from community feed"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Remove Post
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Expandable Comments / Replies Section for this post */}
           {isOpenComments && (

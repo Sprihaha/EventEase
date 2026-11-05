@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useNavigate } from "react-router"
 import {
   MapPin,
@@ -8,6 +9,9 @@ import {
   Rotate3d,
   CheckCircle2,
   Heart,
+  Check,
+  X,
+  ShieldAlert,
 } from "lucide-react"
 import { cx } from "../../ui"
 import {
@@ -30,6 +34,10 @@ interface EasePixSectionGridProps {
   onLikeEasePix: (pixId: string) => void
   onOpenUploadModal: (sectionName?: string) => void
   onOpenEaseExplore: (sectionName?: string) => void
+  onModerateEasePix?: (
+    easepixId: string,
+    data: { status: string; rejectionReason?: string | null },
+  ) => void
 }
 
 export function EasePixSectionGrid({
@@ -45,11 +53,47 @@ export function EasePixSectionGrid({
   onLikeEasePix,
   onOpenUploadModal,
   onOpenEaseExplore,
+  onModerateEasePix,
 }: EasePixSectionGridProps) {
   const navigate = useNavigate()
+  const [adminStatusFilter, setAdminStatusFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL")
 
   return (
     <div className="space-y-6">
+      {/* Admin Moderation Queue Filter Bar */}
+      {user?.role === "admin" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-purple/20 bg-brand-purple/5 p-3.5 text-xs">
+          <div className="flex items-center gap-2 font-bold text-brand-purple">
+            <ShieldAlert className="h-4 w-4 text-brand-purple shrink-0" />
+            <span>EasePix Moderation Filter:</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(
+              [
+                { id: "ALL", label: "All Photos" },
+                { id: "PENDING", label: "Pending Review" },
+                { id: "APPROVED", label: "Approved" },
+                { id: "REJECTED", label: "Rejected" },
+              ] as const
+            ).map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                onClick={() => setAdminStatusFilter(st.id)}
+                className={cx(
+                  "cursor-pointer rounded-xl px-3 py-1 font-bold transition shadow-xs",
+                  adminStatusFilter === st.id
+                    ? "bg-brand-purple text-white shadow-sm"
+                    : "bg-white text-brand-deep hover:bg-brand-lilac/50 border border-brand-line"
+                )}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Sections Showcase */}
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -283,7 +327,10 @@ export function EasePixSectionGrid({
 
                   {/* Photos Grid for this section */}
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {sec.photos.map((p, pIdx) => {
+                    {(user?.role === "admin" && adminStatusFilter !== "ALL"
+                      ? sec.photos.filter((p) => (p.status || "APPROVED") === adminStatusFilter)
+                      : sec.photos
+                    ).map((p, pIdx) => {
                       const isExactSeatMatch = Boolean(
                         canMatchSeat &&
                         searchedRow &&
@@ -395,6 +442,59 @@ export function EasePixSectionGrid({
                               </div>
                             </div>
                           </div>
+
+                          {/* Admin Manual Moderation Bar */}
+                          {user?.role === "admin" && (
+                            <div className="border-t border-brand-line bg-brand-warm/60 p-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-[10px] font-bold text-muted">Status:</span>
+                                  <span
+                                    className={cx(
+                                      "rounded-full px-2 py-0.5 text-[9px] font-black uppercase shadow-xs",
+                                      p.status === "REJECTED"
+                                        ? "bg-rose-100 text-rose-700 border border-rose-200"
+                                        : p.status === "PENDING"
+                                          ? "bg-amber-100 text-amber-800 border border-amber-300 animate-pulse"
+                                          : "bg-emerald-100 text-emerald-800 border border-emerald-200",
+                                    )}
+                                  >
+                                    {p.status || "APPROVED"}
+                                  </span>
+                                </div>
+
+                                {p.pixId && (
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {p.status !== "APPROVED" && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onModerateEasePix?.(p.pixId!, { status: "APPROVED" })}
+                                        className="cursor-pointer inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-emerald-700 transition shadow-xs"
+                                        title="Approve this EasePix"
+                                      >
+                                        <Check className="h-3 w-3" /> Approve
+                                      </button>
+                                    )}
+                                    {p.status !== "REJECTED" && (
+                                      <button
+                                        type="button"
+                                        onClick={() => onModerateEasePix?.(p.pixId!, { status: "REJECTED", rejectionReason: "Rejected by Administrator" })}
+                                        className="cursor-pointer inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-rose-700 transition shadow-xs"
+                                        title="Reject this EasePix"
+                                      >
+                                        <X className="h-3 w-3" /> Reject
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              {p.rejectionReason && p.status === "REJECTED" && (
+                                <p className="mt-1 text-[10px] text-rose-600 font-medium truncate">
+                                  Reason: {p.rejectionReason}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )
                     })}

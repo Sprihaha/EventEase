@@ -10,6 +10,45 @@ export const EASEPOINTS_RULES = {
 } as const
 
 const STORAGE_PREFIX = "eventease_easepoints_"
+const AWARDED_PIX_PREFIX = "eventease_awarded_pix_"
+
+export function getAwardedPixIds(userId: string): Set<string> {
+  if (!userId) return new Set()
+  const key = `${AWARDED_PIX_PREFIX}${userId}`
+  const saved = localStorage.getItem(key)
+  if (saved) {
+    try {
+      const arr = JSON.parse(saved)
+      if (Array.isArray(arr)) return new Set(arr)
+    } catch {
+      // ignore
+    }
+  }
+  return new Set()
+}
+
+export function markPixAsAwarded(userId: string, pixId: string): void {
+  if (!userId || !pixId) return
+  const set = getAwardedPixIds(userId)
+  set.add(pixId)
+  const key = `${AWARDED_PIX_PREFIX}${userId}`
+  localStorage.setItem(key, JSON.stringify(Array.from(set)))
+}
+
+/**
+ * Awards points for an approved EasePix photo exactly once.
+ * Returns true if points were newly awarded, or false if already awarded before.
+ */
+export function awardApprovedEasePixPointsOnce(userId: string, pixId: string): boolean {
+  if (!userId || !pixId) return false
+  const awarded = getAwardedPixIds(userId)
+  if (awarded.has(pixId)) {
+    return false
+  }
+  markPixAsAwarded(userId, pixId)
+  awardEasePoints(userId, EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO, "Approved EasePix photo")
+  return true
+}
 
 export function getUserEasePoints(userId: string): number {
   if (!userId) return 0

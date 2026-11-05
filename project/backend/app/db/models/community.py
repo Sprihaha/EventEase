@@ -30,6 +30,7 @@ class EasePix(UUIDPk, Timestamps, Base):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(32), default="PENDING")
     rejection_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    points_awarded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     likes_count: Mapped[int] = mapped_column(Integer, default=0)
 
 

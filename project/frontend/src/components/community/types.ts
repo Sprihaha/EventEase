@@ -23,6 +23,8 @@ export interface SectionSeatPhoto {
   isVerified?: boolean
   pixId?: string
   likesCount?: number
+  status?: string
+  rejectionReason?: string | null
 }
 
 export interface SectionSegment {
@@ -90,6 +92,7 @@ export interface DisplayPost {
   isBackend: boolean
   isVerified?: boolean
   isFlagged?: boolean
+  isRemoved?: boolean
   flagReason?: string | null
   replies: PostReplyItem[]
 }

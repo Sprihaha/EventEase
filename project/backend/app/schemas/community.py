@@ -35,6 +35,7 @@ class EasePixOut(CamelModel):
     is_verified: bool = False
     status: str = "APPROVED"
     rejection_reason: str | None = None
+    points_awarded: bool = False
     likes_count: int = 0
     created_at: datetime
 
@@ -67,3 +68,14 @@ class EaseConnectPostOut(CamelModel):
     likes_count: int = 0
     created_at: datetime
     replies: list["EaseConnectPostOut"] = []
+
+
+class EasePixModerateRequest(CamelModel):
+    status: str
+    rejection_reason: str | None = None
+
+
+class EaseConnectPostModerateRequest(CamelModel):
+    is_flagged: bool | None = None
+    is_removed: bool | None = None
+    flag_reason: str | None = None

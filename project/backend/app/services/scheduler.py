@@ -130,6 +130,8 @@ def _run_easecomms_auto_moderator(db: Session) -> str:
         else:
             pix.status = "APPROVED"
             pix.rejection_reason = None
+            if not pix.points_awarded:
+                pix.points_awarded = True
             pix_approved += 1
 
     # 2. Moderating EaseConnect Posts: inspect active posts
