@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { useNavigate } from "react-router"
 import {
   backendCreatePost,
@@ -57,6 +57,13 @@ export function useCommunityFeed({
   if (events.length > 0 && !selectedEventId) {
     setSelectedEventId(events[0].id)
   }
+
+  // Ensure admin user does not stay on "following" filter
+  useEffect(() => {
+    if (user?.role === "admin" && filter === "following") {
+      setFilter("all")
+    }
+  }, [user?.role, filter])
 
   // Unified list of display posts
   const displayPosts: DisplayPost[] = useMemo(() => {

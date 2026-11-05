@@ -109,41 +109,45 @@ export function CommunitySidebar({
               </button>
             )}
 
-            <div className="my-2 h-px w-8 bg-brand-line" />
+            {user?.role !== "admin" && (
+              <>
+                <div className="my-2 h-px w-8 bg-brand-line" />
 
-            {/* Compact Your Space Icons */}
-            <div className="flex flex-col items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onShowToast("You have 4 saved posts.")}
-                title="Saved posts"
-                className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-brand-lilac/50 hover:text-brand-purple transition"
-              >
-                <Bookmark className="h-4 w-4 text-brand-purple" />
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  onShowToast(
-                    "You are part of: Live Music Fans & Festival Crew",
-                  )
-                }
-                title="My groups"
-                className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-brand-lilac/50 hover:text-brand-purple transition"
-              >
-                <Users className="h-4 w-4 text-brand-magenta" />
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  onShowToast("All recent activity is up to date.")
-                }
-                title="Recent activity"
-                className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-brand-lilac/50 hover:text-brand-purple transition"
-              >
-                <Clock className="h-4 w-4 text-brand-orange" />
-              </button>
-            </div>
+                {/* Compact Your Space Icons */}
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onShowToast("You have 4 saved posts.")}
+                    title="Saved posts"
+                    className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-brand-lilac/50 hover:text-brand-purple transition"
+                  >
+                    <Bookmark className="h-4 w-4 text-brand-purple" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onShowToast(
+                        "You are part of: Live Music Fans & Festival Crew",
+                      )
+                    }
+                    title="My groups"
+                    className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-brand-lilac/50 hover:text-brand-purple transition"
+                  >
+                    <Users className="h-4 w-4 text-brand-magenta" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onShowToast("All recent activity is up to date.")
+                    }
+                    title="Recent activity"
+                    className="cursor-pointer flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-brand-lilac/50 hover:text-brand-purple transition"
+                  >
+                    <Clock className="h-4 w-4 text-brand-orange" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <>
@@ -241,40 +245,44 @@ export function CommunitySidebar({
               )}
             </div>
 
-            <div className="my-3.5 h-px bg-brand-line" />
+            {user?.role !== "admin" && (
+              <>
+                <div className="my-3.5 h-px bg-brand-line" />
 
-            <div className="px-2 pb-1.5 text-[10px] font-black uppercase tracking-wider text-muted">
-              Your space
-            </div>
-            <nav className="space-y-1">
-              <button
-                type="button"
-                onClick={() => onShowToast("You have 4 saved posts.")}
-                className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
-              >
-                <Bookmark className="h-4 w-4 text-brand-purple" /> Saved posts
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  onShowToast(
-                    "You are part of: Live Music Fans & Festival Crew",
-                  )
-                }
-                className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
-              >
-                <Users className="h-4 w-4 text-brand-magenta" /> My groups
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  onShowToast("All recent activity is up to date.")
-                }
-                className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
-              >
-                <Clock className="h-4 w-4 text-brand-orange" /> Recent activity
-              </button>
-            </nav>
+                <div className="px-2 pb-1.5 text-[10px] font-black uppercase tracking-wider text-muted">
+                  Your space
+                </div>
+                <nav className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => onShowToast("You have 4 saved posts.")}
+                    className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
+                  >
+                    <Bookmark className="h-4 w-4 text-brand-purple" /> Saved posts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onShowToast(
+                        "You are part of: Live Music Fans & Festival Crew",
+                      )
+                    }
+                    className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
+                  >
+                    <Users className="h-4 w-4 text-brand-magenta" /> My groups
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onShowToast("All recent activity is up to date.")
+                    }
+                    className="cursor-pointer flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-muted transition hover:bg-brand-lilac/40 hover:text-brand-purple"
+                  >
+                    <Clock className="h-4 w-4 text-brand-orange" /> Recent activity
+                  </button>
+                </nav>
+              </>
+            )}
 
             <div className="mt-4 rounded-2xl bg-gradient-to-br from-brand-lilac/70 via-brand-warm to-brand-lilac/40 p-3.5 border border-brand-purple/15">
               <strong className="block font-brand text-xs font-bold text-brand-deep">

@@ -20,12 +20,14 @@ from app.services.scheduler import (
 logger = logging.getLogger("eventease.developer")
 
 router = APIRouter(prefix="/admin/developer", tags=["Admin Developer Settings"])
+public_router = APIRouter(prefix="/system", tags=["System Clock"])
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────
 
 class BusinessDateSetRequest(BaseModel):
     date: str | None = Field(None, description="ISO Date string YYYY-MM-DD or null to reset to live clock")
+    enabled: bool | None = Field(None, description="Whether business date simulation is enabled")
 
 
 class BusinessDateAdvanceRequest(BaseModel):
@@ -38,6 +40,14 @@ class JobUpdateRequest(BaseModel):
 
 
 # ── Business Date Endpoints ────────────────────────────────────────────────
+
+@public_router.get("/business-date")
+def read_public_business_date(
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Returns current real system date and effective business date for all users (public)."""
+    return get_business_state(db)
+
 
 @router.get("/business-date")
 def read_business_date(
@@ -56,7 +66,7 @@ def update_business_date(
 ) -> dict[str, Any]:
     """Sets a simulated business date (YYYY-MM-DD) or resets to live real-time when null."""
     try:
-        return set_business_date(db, payload.date)
+        return set_business_date(db, target_date=payload.date, enabled=payload.enabled)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid date format (must be YYYY-MM-DD): {e}")
 

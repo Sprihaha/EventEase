@@ -4,6 +4,7 @@ import type { FilterType } from "../types"
 interface FeedFilterBarProps {
   filter: FilterType
   onFilterChange: (filter: FilterType) => void
+  isAdmin?: boolean
 }
 
 const filterOptions: readonly { id: FilterType; label: string }[] = [
@@ -13,10 +14,14 @@ const filterOptions: readonly { id: FilterType; label: string }[] = [
   { id: "questions", label: "Questions" },
 ] as const
 
-export function FeedFilterBar({ filter, onFilterChange }: FeedFilterBarProps) {
+export function FeedFilterBar({ filter, onFilterChange, isAdmin = false }: FeedFilterBarProps) {
+  const visibleOptions = filterOptions.filter(
+    (f) => !isAdmin || f.id !== "following"
+  )
+
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-      {filterOptions.map((f) => (
+      {visibleOptions.map((f) => (
         <button
           key={f.id}
           type="button"

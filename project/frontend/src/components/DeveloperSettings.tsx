@@ -30,6 +30,9 @@ import {
   setBusinessDate,
   triggerSchedulerJob,
   updateSchedulerJob,
+  formatDDMMYYYY,
+  formatDeviceCurrent,
+  formatDeviceBusiness,
   type BusinessDateState,
   type SchedulerJob,
   type SchedulerJobLog,
@@ -46,6 +49,12 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [clockLoading, setClockLoading] = useState<boolean>(false);
   const [clockNotice, setClockNotice] = useState<string | null>(null);
+  const [deviceTime, setDeviceTime] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setDeviceTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // ── Scheduler Jobs State ─────────────────────────────────────────────────
   const [jobs, setJobs] = useState<SchedulerJob[]>([]);
@@ -69,8 +78,8 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
     try {
       const data = await getBusinessDateState();
       setClockState(data);
-      if (!selectedDate && data.effective_date) {
-        setSelectedDate(data.effective_date);
+      if (!selectedDate) {
+        setSelectedDate(data.simulated_date || data.effective_date || data.system_date);
       }
     } catch (e) {
       console.error("Failed to load business date state", e);
@@ -101,38 +110,79 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
     return () => clearTimeout(timer);
   }, [jobToast]);
 
-  // Handle Set Specific Date
-  const handleSetDate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDate) return;
+  const isSimulatedOn = Boolean(clockState?.is_simulated);
+
+  // Toggle Business Date Simulation ON / OFF
+  const handleToggleSimulation = async () => {
+    const nextOn = !isSimulatedOn;
     setClockLoading(true);
     setClockNotice(null);
     try {
-      const updated = await setBusinessDate(selectedDate);
+      const targetDate = selectedDate || clockState?.effective_date || clockState?.system_date;
+      const updated = await setBusinessDate(targetDate, nextOn);
       setClockState(updated);
-      setClockNotice(`Business date switched to ${updated.effective_date}`);
-      void loadJobs(); // Refresh next-run times if any
+      if (updated.simulated_date) {
+        setSelectedDate(updated.simulated_date);
+      }
+      setClockNotice(
+        nextOn
+          ? `Business date simulation ON: applied ${updated.effective_date}`
+          : "Business date simulation OFF: reverted to live system clock."
+      );
+      window.dispatchEvent(new CustomEvent("business-date-changed"));
+      void loadJobs();
     } catch (err: any) {
-      setClockNotice(`Failed to set business date: ${err.message || err}`);
+      setClockNotice(`Failed to toggle business date: ${err.message || err}`);
     } finally {
       setClockLoading(false);
     }
   };
 
-  // Handle Advance Date
-  const handleAdvanceDate = async (days: number) => {
-    setClockLoading(true);
-    setClockNotice(null);
-    try {
-      const updated = await advanceBusinessDate(days);
-      setClockState(updated);
-      setSelectedDate(updated.effective_date);
-      setClockNotice(`Advanced business date by +${days} day(s) to ${updated.effective_date}`);
-      void loadJobs();
-    } catch (err: any) {
-      setClockNotice(`Failed to advance business date: ${err.message || err}`);
-    } finally {
-      setClockLoading(false);
+  // Handle Date Box Change
+  const handleDateChange = async (newDate: string) => {
+    setSelectedDate(newDate);
+    if (!newDate) return;
+    if (isSimulatedOn) {
+      setClockLoading(true);
+      setClockNotice(null);
+      try {
+        const updated = await setBusinessDate(newDate, true);
+        setClockState(updated);
+        setClockNotice(`Business date immediately updated to ${updated.effective_date}`);
+        window.dispatchEvent(new CustomEvent("business-date-changed"));
+        void loadJobs();
+      } catch (err: any) {
+        setClockNotice(`Failed to update business date: ${err.message || err}`);
+      } finally {
+        setClockLoading(false);
+      }
+    }
+  };
+
+  // Handle Quick Jump
+  const handleQuickJump = async (days: number) => {
+    if (isSimulatedOn) {
+      setClockLoading(true);
+      setClockNotice(null);
+      try {
+        const updated = await advanceBusinessDate(days);
+        setClockState(updated);
+        setSelectedDate(updated.effective_date);
+        setClockNotice(`Advanced business date by +${days} day(s) to ${updated.effective_date}`);
+        window.dispatchEvent(new CustomEvent("business-date-changed"));
+        void loadJobs();
+      } catch (err: any) {
+        setClockNotice(`Failed to advance business date: ${err.message || err}`);
+      } finally {
+        setClockLoading(false);
+      }
+    } else {
+      const baseStr = selectedDate || clockState?.effective_date || clockState?.system_date || new Date().toISOString().split("T")[0];
+      const baseDate = new Date(baseStr + "T00:00:00");
+      baseDate.setDate(baseDate.getDate() + days);
+      const nextStr = baseDate.toISOString().split("T")[0];
+      setSelectedDate(nextStr);
+      setClockNotice(`Date box changed to ${nextStr} (simulation is OFF, so not applied)`);
     }
   };
 
@@ -141,10 +191,10 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
     setClockLoading(true);
     setClockNotice(null);
     try {
-      const updated = await setBusinessDate(null);
+      const updated = await setBusinessDate(selectedDate, false);
       setClockState(updated);
-      setSelectedDate(updated.effective_date);
       setClockNotice("Reset back to Live Real-Time system clock.");
+      window.dispatchEvent(new CustomEvent("business-date-changed"));
       void loadJobs();
     } catch (err: any) {
       setClockNotice(`Failed to reset date: ${err.message || err}`);
@@ -313,48 +363,71 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
                 </p>
                 <div className="flex items-baseline gap-2">
                   <span className="font-brand text-2xl font-bold">
-                    {clockState?.effective_date || "Loading..."}
+                    {formatDeviceBusiness(clockState?.effective_date, deviceTime)}
                   </span>
                   <span className="text-xs text-muted">
-                    ({clockState?.timezone || "SGT"})
+                    (Device Time)
                   </span>
                 </div>
               </div>
             </div>
 
             <div className="text-right text-xs text-muted">
-              <p>Real-World System Date: <strong className="text-brand-deep">{clockState?.system_date || "—"}</strong></p>
+              <p>Device Current Date &amp; Time: <strong className="text-brand-deep">{formatDeviceCurrent(deviceTime)}</strong></p>
               <p className="mt-0.5">
-                Mode: {clockState?.is_simulated ? "Virtual Date Simulation" : "Real-Time Clock"}
+                Backend Storage: Generic UTC ({clockState?.effective_date || "—"})
               </p>
             </div>
           </div>
 
-          {/* Date Picker Input & Actions */}
-          <form onSubmit={handleSetDate} className="mt-6 flex flex-wrap items-end gap-3">
+          {/* Date Picker Input, ON/OFF Toggle & Actions */}
+          <div className="mt-6 flex flex-wrap items-end gap-3.5">
             <div className="w-full sm:w-auto">
               <label htmlFor="business-date-input" className="block text-xs font-bold uppercase tracking-wider text-muted mb-1.5">
-                Set Specific Date (YYYY-MM-DD)
+                Business Date (YYYY-MM-DD)
               </label>
               <input
                 id="business-date-input"
                 type="date"
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={(e) => void handleDateChange(e.target.value)}
                 className="w-full sm:w-56 rounded-xl border border-brand-purple/20 bg-white px-3.5 py-2.5 text-sm font-medium text-brand-deep shadow-xs focus:border-brand-purple focus:outline-none focus:ring-4 focus:ring-brand-purple/15"
                 required
               />
             </div>
 
-            <Button
-              type="submit"
-              size="md"
-              disabled={clockLoading || selectedDate === clockState?.effective_date}
-              className="gap-2"
-            >
-              <CalendarClock className="h-4 w-4" />
-              Apply Date
-            </Button>
+            {/* ON / OFF Toggle Button (replaces Apply Date) */}
+            <div className="flex flex-col gap-1.5">
+              <span className="block text-xs font-bold uppercase tracking-wider text-muted">
+                Status
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleToggleSimulation()}
+                disabled={clockLoading}
+                aria-pressed={isSimulatedOn}
+                className={cx(
+                  "inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-bold transition-all focus:outline-none focus:ring-4 cursor-pointer",
+                  isSimulatedOn
+                    ? "bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-300 shadow-xs"
+                    : "bg-slate-200 text-slate-700 hover:bg-slate-300 focus:ring-slate-200 shadow-2xs",
+                  clockLoading && "opacity-60 cursor-not-allowed"
+                )}
+                title={isSimulatedOn ? "Business Date is ON. Click to turn OFF." : "Business Date is OFF. Click to turn ON."}
+              >
+                {isSimulatedOn ? (
+                  <>
+                    <ToggleRight className="h-5 w-5 text-white" />
+                    <span>ON</span>
+                  </>
+                ) : (
+                  <>
+                    <ToggleLeft className="h-5 w-5 text-slate-500" />
+                    <span>OFF</span>
+                  </>
+                )}
+              </button>
+            </div>
 
             <div className="flex flex-wrap items-center gap-1.5 border-l border-brand-purple/15 pl-3 sm:ml-2">
               <span className="text-xs font-bold uppercase tracking-wider text-muted mr-1">Quick Jump:</span>
@@ -363,7 +436,7 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
                 variant="outline"
                 size="sm"
                 disabled={clockLoading}
-                onClick={() => handleAdvanceDate(1)}
+                onClick={() => void handleQuickJump(1)}
                 title="Advance +1 Day"
               >
                 +1 Day
@@ -373,7 +446,7 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
                 variant="outline"
                 size="sm"
                 disabled={clockLoading}
-                onClick={() => handleAdvanceDate(3)}
+                onClick={() => void handleQuickJump(3)}
                 title="Advance +3 Days"
               >
                 +3 Days
@@ -383,19 +456,19 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
                 variant="outline"
                 size="sm"
                 disabled={clockLoading}
-                onClick={() => handleAdvanceDate(7)}
+                onClick={() => void handleQuickJump(7)}
                 title="Advance +1 Week"
               >
                 +1 Week
               </Button>
 
-              {clockState?.is_simulated && (
+              {isSimulatedOn && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   disabled={clockLoading}
-                  onClick={handleResetDate}
+                  onClick={() => void handleResetDate()}
                   className="gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
                   title="Reset to Live Date"
                 >
@@ -404,7 +477,7 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
                 </Button>
               )}
             </div>
-          </form>
+          </div>
 
           {clockNotice && (
             <p className="mt-3 text-xs font-medium text-brand-purple flex items-center gap-1.5">

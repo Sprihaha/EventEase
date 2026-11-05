@@ -399,7 +399,7 @@ export default function Community() {
             id="comms-workspace"
             className={cx(
               "grid grid-cols-1 gap-6",
-              !isOrganizer && "lg:grid-cols-[minmax(0,1fr)_300px]"
+              !isOrganizer && !isAdmin && "lg:grid-cols-[minmax(0,1fr)_300px]"
             )}
           >
             {/* Center Column */}
@@ -418,79 +418,81 @@ export default function Community() {
                 </div>
 
                 {/* Horizontal Quick Actions: Saved posts, My groups, Recent activity */}
-                <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap pt-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-muted mr-1">
-                    Your space:
-                  </span>
-                  <button
-                    type="button"
-                    disabled={!user}
-                    title={!user ? "Log in to view saved posts" : "View your saved posts"}
-                    onClick={() => {
-                      if (!user) {
-                        showToast("Please log in to view your saved posts");
-                        return;
-                      }
-                      showToast("You have 4 saved posts.");
-                    }}
-                    className={cx(
-                      "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs",
-                      user
-                        ? "cursor-pointer border-brand-line/70 bg-white text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple hover:border-brand-purple/30"
-                        : "cursor-not-allowed opacity-45 bg-gray-100 text-gray-400 border-gray-200 shadow-none",
-                    )}
-                  >
-                    <Bookmark className={cx("h-3.5 w-3.5", user ? "text-brand-purple" : "text-gray-400")} />
-                    <span>Saved posts</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!user}
-                    title={!user ? "Log in to view your groups" : "View your groups"}
-                    onClick={() => {
-                      if (!user) {
-                        showToast("Please log in to view your groups");
-                        return;
-                      }
-                      showToast("You are part of: Live Music Fans & Festival Crew");
-                    }}
-                    className={cx(
-                      "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs",
-                      user
-                        ? "cursor-pointer border-brand-line/70 bg-white text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple hover:border-brand-purple/30"
-                        : "cursor-not-allowed opacity-45 bg-gray-100 text-gray-400 border-gray-200 shadow-none",
-                    )}
-                  >
-                    <Users className={cx("h-3.5 w-3.5", user ? "text-brand-magenta" : "text-gray-400")} />
-                    <span>My groups</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!user}
-                    title={!user ? "Log in to view recent activity" : "View recent activity"}
-                    onClick={() => {
-                      if (!user) {
-                        showToast("Please log in to view recent activity");
-                        return;
-                      }
-                      showToast("All recent activity is up to date.");
-                    }}
-                    className={cx(
-                      "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs",
-                      user
-                        ? "cursor-pointer border-brand-line/70 bg-white text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple hover:border-brand-purple/30"
-                        : "cursor-not-allowed opacity-45 bg-gray-100 text-gray-400 border-gray-200 shadow-none",
-                    )}
-                  >
-                    <Clock className={cx("h-3.5 w-3.5", user ? "text-brand-orange" : "text-gray-400")} />
-                    <span>Recent activity</span>
-                  </button>
-                  {!user && (
-                    <span className="text-[11px] text-muted italic ml-1">
-                      (Log in to access)
+                {!isAdmin && (
+                  <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap pt-0.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-muted mr-1">
+                      Your space:
                     </span>
-                  )}
-                </div>
+                    <button
+                      type="button"
+                      disabled={!user}
+                      title={!user ? "Log in to view saved posts" : "View your saved posts"}
+                      onClick={() => {
+                        if (!user) {
+                          showToast("Please log in to view your saved posts");
+                          return;
+                        }
+                        showToast("You have 4 saved posts.");
+                      }}
+                      className={cx(
+                        "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs",
+                        user
+                          ? "cursor-pointer border-brand-line/70 bg-white text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple hover:border-brand-purple/30"
+                          : "cursor-not-allowed opacity-45 bg-gray-100 text-gray-400 border-gray-200 shadow-none",
+                      )}
+                    >
+                      <Bookmark className={cx("h-3.5 w-3.5", user ? "text-brand-purple" : "text-gray-400")} />
+                      <span>Saved posts</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!user}
+                      title={!user ? "Log in to view your groups" : "View your groups"}
+                      onClick={() => {
+                        if (!user) {
+                          showToast("Please log in to view your groups");
+                          return;
+                        }
+                        showToast("You are part of: Live Music Fans & Festival Crew");
+                      }}
+                      className={cx(
+                        "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs",
+                        user
+                          ? "cursor-pointer border-brand-line/70 bg-white text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple hover:border-brand-purple/30"
+                          : "cursor-not-allowed opacity-45 bg-gray-100 text-gray-400 border-gray-200 shadow-none",
+                      )}
+                    >
+                      <Users className={cx("h-3.5 w-3.5", user ? "text-brand-magenta" : "text-gray-400")} />
+                      <span>My groups</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!user}
+                      title={!user ? "Log in to view recent activity" : "View recent activity"}
+                      onClick={() => {
+                        if (!user) {
+                          showToast("Please log in to view recent activity");
+                          return;
+                        }
+                        showToast("All recent activity is up to date.");
+                      }}
+                      className={cx(
+                        "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all shadow-2xs",
+                        user
+                          ? "cursor-pointer border-brand-line/70 bg-white text-brand-deep hover:bg-brand-lilac/50 hover:text-brand-purple hover:border-brand-purple/30"
+                          : "cursor-not-allowed opacity-45 bg-gray-100 text-gray-400 border-gray-200 shadow-none",
+                      )}
+                    >
+                      <Clock className={cx("h-3.5 w-3.5", user ? "text-brand-orange" : "text-gray-400")} />
+                      <span>Recent activity</span>
+                    </button>
+                    {!user && (
+                      <span className="text-[11px] text-muted italic ml-1">
+                        (Log in to access)
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* EaseConnect Feed */}
@@ -547,11 +549,14 @@ export default function Community() {
             </main>
 
             {/* Right Rail: Visible on EaseConnect feed */}
-            <FeedRightRail
-              events={publicEvents?.length ? publicEvents : events}
-              onShowToast={showToast}
-              isOrganizer={isOrganizer}
-            />
+            {!isAdmin && (
+              <FeedRightRail
+                events={publicEvents?.length ? publicEvents : events}
+                onShowToast={showToast}
+                isOrganizer={isOrganizer}
+                isAdmin={isAdmin}
+              />
+            )}
           </div>
         )}
 

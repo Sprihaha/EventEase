@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError
+from app.core.clock import get_business_now
 from app.core.config import get_settings
 from app.core.deps import require_customer, require_roles
 from app.core.security import utcnow
@@ -25,7 +26,8 @@ from app.services.bookings.qr_release import qr_released
 
 def _check_qr_released(db: Session, ticket: Ticket) -> None:
     booking = db.get(Booking, ticket.booking_id)
-    if not qr_released(booking, db.get(Event, booking.event_id)):
+    now = get_business_now(db)
+    if not qr_released(booking, db.get(Event, booking.event_id), now=now):
         raise AppError(409, "QR_NOT_RELEASED", "this ticket's QR code is released when ticket sales close")
 from app.schemas.common import CamelModel
 

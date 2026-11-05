@@ -20,7 +20,10 @@ from app.services.mail.base import send_safely
 
 def qr_released(booking: Booking, event: Event, now: datetime | None = None) -> bool:
     """Released by the job, or due anyway (so a paused job never hides a QR code at the gate)."""
-    return booking.qr_released_at is not None or (now or utcnow()) >= sales_close_at(event)
+    ref_now = now or utcnow()
+    if booking.qr_released_at is not None:
+        return ref_now >= booking.qr_released_at
+    return ref_now >= sales_close_at(event)
 
 
 def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> int:
@@ -32,7 +35,7 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> i
     rows = db.execute(
         select(Booking, Event).join(Event, Event.id == Booking.event_id)
         .where(Booking.status == BookingStatus.CONFIRMED, Booking.qr_released_at.is_(None),
-               Event.status == EventStatus.APPROVED, Event.end_at > now)
+               Event.status == EventStatus.APPROVED)
         .options(selectinload(Booking.tickets))
         .with_for_update(of=Booking, skip_locked=True)
     ).all()

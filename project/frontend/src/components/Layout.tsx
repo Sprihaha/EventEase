@@ -31,6 +31,7 @@ import {
 import { AccessibilityBar } from "./layout/AccessibilityBar";
 import { OrganisationSwitcher } from "./layout/OrganisationSwitcher";
 import { WebSearchableControl } from "./common";
+import { getPublicBusinessDateState, formatDDMMYYYY, formatDeviceCurrent, formatDeviceBusiness, type BusinessDateState } from "../lib/api/developer";
 
 const navLinks = [
   { to: "/events", label: "Discover", icon: Search },
@@ -50,6 +51,37 @@ export default function Layout() {
 
   const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
   const [expiredReturnTo, setExpiredReturnTo] = useState<string | null>(null);
+  const [businessClock, setBusinessClock] = useState<BusinessDateState | null>(null);
+  const [deviceTime, setDeviceTime] = useState<Date>(() => new Date());
+
+  // Keep device time live ticking
+  useEffect(() => {
+    const timer = setInterval(() => setDeviceTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Load Business Date state for footer display (available for all users, logged in or out)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchClock = async () => {
+      try {
+        const data = await getPublicBusinessDateState();
+        if (isMounted) setBusinessClock(data);
+      } catch {
+        // fail silently for public clock
+      }
+    };
+    void fetchClock();
+
+    window.addEventListener("business-date-changed", fetchClock);
+    const timer = setInterval(fetchClock, 10000);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("business-date-changed", fetchClock);
+      clearInterval(timer);
+    };
+  }, []);
 
   // Scroll to top on page navigation and keep title strictly EventEase
   useEffect(() => {
@@ -389,12 +421,24 @@ export default function Layout() {
               </div>
             </div>
 
-            <Link
-              to="/help#terms"
-              className="inline-flex items-center gap-1.5 self-start text-sm text-white/70 underline-offset-4 transition-colors hover:text-brand-orange hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 md:self-center"
-            >
-              Terms and conditions <ChevronRight className="h-3 w-3 opacity-60" />
-            </Link>
+            <div className="flex flex-col items-start gap-1.5 md:self-center">
+              <Link
+                to="/help#terms"
+                className="inline-flex items-center gap-1.5 self-start text-sm text-white/70 underline-offset-4 transition-colors hover:text-brand-orange hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
+              >
+                Terms and conditions <ChevronRight className="h-3 w-3 opacity-60" />
+              </Link>
+              {businessClock?.is_simulated && (
+                <div className="flex flex-col gap-0.5 text-xs font-semibold text-brand-orange">
+                  <div>
+                    Current date: <span className="font-normal text-brand-orange/95">{formatDeviceCurrent(deviceTime)}</span>
+                  </div>
+                  <div>
+                    Business date: <span className="font-normal text-brand-orange/95">{formatDeviceBusiness(businessClock.effective_date, deviceTime)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="mt-10 border-t border-white/10 pt-6 text-sm text-white/50">

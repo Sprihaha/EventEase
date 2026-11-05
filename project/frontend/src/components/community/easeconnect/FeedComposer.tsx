@@ -62,6 +62,10 @@ export function FeedComposer({
     }
   }
 
+  if (user?.role === "admin") {
+    return null
+  }
+
   if (!user) {
     return (
       <div className="rounded-3xl border-2 border-dashed border-brand-purple/20 bg-gradient-to-r from-brand-lilac/30 via-white to-orange-50/40 p-5 sm:p-6 text-center shadow-xs">

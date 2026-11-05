@@ -85,33 +85,38 @@ export function EaseConnectFeed({
   composerRef,
   textareaRef,
 }: EaseConnectFeedProps) {
+  const isAdmin = user?.role === "admin"
+
   return (
     <div className="space-y-4">
       {/* Interactive Post Composer */}
-      <FeedComposer
-        user={user}
-        events={events}
-        draft={draft}
-        onDraftChange={onDraftChange}
-        selectedEventId={selectedEventId}
-        onSelectedEventIdChange={onSelectedEventIdChange}
-        photoUrl={photoUrl}
-        onPhotoUrlChange={onPhotoUrlChange}
-        isQuestion={isQuestion}
-        onIsQuestionChange={onIsQuestionChange}
-        showPhotoInput={showPhotoInput}
-        onTogglePhotoInput={onTogglePhotoInput}
-        attachedEasePix={attachedEasePix}
-        onDetachEasePix={onDetachEasePix}
-        onOpenUploadModal={onOpenUploadModal}
-        onSubmitPost={onSubmitPost}
-        composerRef={composerRef}
-        textareaRef={textareaRef}
-      />
+      {!isAdmin && (
+        <FeedComposer
+          user={user}
+          events={events}
+          draft={draft}
+          onDraftChange={onDraftChange}
+          selectedEventId={selectedEventId}
+          onSelectedEventIdChange={onSelectedEventIdChange}
+          photoUrl={photoUrl}
+          onPhotoUrlChange={onPhotoUrlChange}
+          isQuestion={isQuestion}
+          onIsQuestionChange={onIsQuestionChange}
+          showPhotoInput={showPhotoInput}
+          onTogglePhotoInput={onTogglePhotoInput}
+          attachedEasePix={attachedEasePix}
+          onDetachEasePix={onDetachEasePix}
+          onOpenUploadModal={onOpenUploadModal}
+          onSubmitPost={onSubmitPost}
+          composerRef={composerRef}
+          textareaRef={textareaRef}
+        />
+      )}
 
       {/* Feed Filter Pills */}
       <FeedFilterBar
         filter={filter}
+        isAdmin={isAdmin}
         onFilterChange={(f) => {
           onFilterChange(f)
           const label =

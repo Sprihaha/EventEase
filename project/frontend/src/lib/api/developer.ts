@@ -9,6 +9,34 @@ export type BusinessDateState = {
   timezone: string;
 };
 
+export function formatDDMMYYYY(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  const raw = dateStr.split("T")[0];
+  const parts = raw.split("-");
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`;
+  }
+  return dateStr;
+}
+
+export function formatDeviceCurrent(deviceDate: Date = new Date()): string {
+  const dd = String(deviceDate.getDate()).padStart(2, "0");
+  const mm = String(deviceDate.getMonth() + 1).padStart(2, "0");
+  const yyyy = deviceDate.getFullYear();
+  const time = deviceDate.toLocaleTimeString();
+  return `${dd}/${mm}/${yyyy}, ${time}`;
+}
+
+export function formatDeviceBusiness(effectiveDateStr: string | null | undefined, deviceDate: Date = new Date()): string {
+  if (!effectiveDateStr) return "—";
+  const raw = effectiveDateStr.split("T")[0];
+  const parts = raw.split("-");
+  const dateFormatted = parts.length === 3 ? `${parts[2].padStart(2, "0")}/${parts[1].padStart(2, "0")}/${parts[0]}` : raw;
+  const time = deviceDate.toLocaleTimeString();
+  return `${dateFormatted}, ${time}`;
+}
+
 export type SchedulerJob = {
   id: string;
   name: string;
@@ -40,10 +68,14 @@ export async function getBusinessDateState(): Promise<BusinessDateState> {
   return request<BusinessDateState>("/admin/developer/business-date", undefined, true);
 }
 
-export async function setBusinessDate(dateStr: string | null): Promise<BusinessDateState> {
+export async function getPublicBusinessDateState(): Promise<BusinessDateState> {
+  return request<BusinessDateState>("/system/business-date", undefined, false);
+}
+
+export async function setBusinessDate(dateStr: string | null, enabled?: boolean): Promise<BusinessDateState> {
   return request<BusinessDateState>("/admin/developer/business-date", {
     method: "POST",
-    body: JSON.stringify({ date: dateStr }),
+    body: JSON.stringify({ date: dateStr, enabled }),
   }, true);
 }
 

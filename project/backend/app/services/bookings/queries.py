@@ -6,6 +6,7 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.clock import get_business_now
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.security import utcnow
@@ -60,7 +61,8 @@ def booking_view(db: Session, booking: Booking, settings: Settings | None = None
     item_category = {i.id: i.ticket_category_id for i in booking.items}
     latest = booking.payments[-1] if booking.payments else None
     cutoff = cancellation_cutoff(event, settings)
-    released = qr_released(booking, event)  # until then the code (what the QR encodes) stays hidden
+    now = get_business_now(db)
+    released = qr_released(booking, event, now=now)  # until then the code (what the QR encodes) stays hidden
     return {
         "id": booking.id,
         "status": booking.status,
@@ -96,7 +98,7 @@ def booking_view(db: Session, booking: Booking, settings: Settings | None = None
 def list_my_bookings(db: Session, user: User, when: str, status: BookingStatus | None, page: int, page_size: int) -> dict:
     """Retrieves paginated bookings for a customer, filtered by timeline and status."""
     stmt = select(Booking).join(Event, Event.id == Booking.event_id).where(Booking.user_id == user.id)
-    now = utcnow()
+    now = get_business_now(db)
     if when == "upcoming":
         stmt = stmt.where(Event.end_at >= now)
     elif when == "past":
@@ -124,7 +126,8 @@ def ticket_history(db: Session, user: User) -> list[dict]:
         .where(func.coalesce(Ticket.owner_user_id, Booking.user_id) == user.id)
         .order_by(Ticket.issued_at.desc(), Ticket.id)
     ).all()
-    return [{"id": t.id, "code": t.code if qr_released(b, e) else None, "status": t.status,
+    now = get_business_now(db)
+    return [{"id": t.id, "code": t.code if qr_released(b, e, now=now) else None, "status": t.status,
              "issued_at": t.issued_at, "booking_id": b.id, "qr_available_from": sales_close_at(e),
              "booking_status": b.status, "event": e, "category_type": c.type, "category_name": c.name,
              "unit_price_cents": i.unit_price_cents,

@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import date, datetime, time, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -56,7 +56,7 @@ def get_business_state(db: Session) -> dict:
 
     return {
         "is_simulated": is_enabled,
-        "simulated_date": sim_date_str if is_enabled else None,
+        "simulated_date": sim_date_str,
         "system_date": sys_date.isoformat(),
         "effective_date": effective_date.isoformat(),
         "effective_now": effective_now_utc.isoformat(),
@@ -105,19 +105,47 @@ def get_business_now(db: Session | None = None) -> datetime:
     return sys_now
 
 
-def set_business_date(db: Session, target_date: date | str | None) -> dict:
-    """Sets a simulated business date, or resets to real-time if None."""
-    if target_date:
-        if isinstance(target_date, str):
-            # Validate format YYYY-MM-DD
-            target_date = date.fromisoformat(target_date)
-        _write_config(db, {"enabled": True, "simulated_date": target_date.isoformat()})
-        logger.info("Business date simulation SET to %s", target_date.isoformat())
-    else:
-        _write_config(db, {"enabled": False, "simulated_date": None})
-        logger.info("Business date simulation RESET to real-time system clock")
+def set_business_date(
+    db: Session,
+    target_date: date | str | None = None,
+    enabled: bool | None = None,
+) -> dict:
+    """Sets a simulated business date, toggles simulation on/off, or resets to real-time."""
+    cfg = _read_config(db)
+    current_sim_date = cfg.get("simulated_date")
 
-    return get_business_state(db)
+    if enabled is None:
+        enabled = target_date is not None
+
+    if target_date is not None:
+        if isinstance(target_date, str):
+            target_date_obj = date.fromisoformat(target_date)
+            target_date_str = target_date_obj.isoformat()
+        else:
+            target_date_str = target_date.isoformat()
+    else:
+        target_date_str = current_sim_date
+
+    _write_config(db, {"enabled": bool(enabled), "simulated_date": target_date_str})
+    if enabled:
+        logger.info("Business date simulation ENABLED (target: %s)", target_date_str)
+    else:
+        logger.info("Business date simulation DISABLED (reverted to live system clock)")
+
+    state = get_business_state(db)
+    try:
+        effective_now_dt = datetime.fromisoformat(state["effective_now"])
+        from app.db.models import Booking
+        db.execute(
+            update(Booking)
+            .where(Booking.qr_released_at.is_not(None), Booking.qr_released_at > effective_now_dt)
+            .values(qr_released_at=None)
+        )
+        db.commit()
+    except Exception as e:
+        logger.warning("Could not synchronize future bookings after clock update: %s", e)
+
+    return state
 
 
 def advance_business_date(db: Session, days: int = 1) -> dict:

@@ -8,12 +8,13 @@ interface FeedRightRailProps {
   events: EventItem[]
   onShowToast: (msg: string) => void
   isOrganizer?: boolean
+  isAdmin?: boolean
 }
 
-export function FeedRightRail({ events, onShowToast, isOrganizer = false }: FeedRightRailProps) {
-  // If the signed-in user is an organizer, hide the entire right rail
+export function FeedRightRail({ events, onShowToast, isOrganizer = false, isAdmin = false }: FeedRightRailProps) {
+  // If the signed-in user is an organizer or admin, hide the entire right rail
   // (Events on your radar, Your kind of crowd, and Quick reminder)
-  if (isOrganizer) {
+  if (isOrganizer || isAdmin) {
     return null
   }
 
