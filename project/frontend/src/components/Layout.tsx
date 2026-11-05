@@ -225,7 +225,7 @@ export default function Layout() {
                 >
                   <Sparkles className="h-4 w-4 shrink-0 text-white fill-white/20 transition-transform group-hover:rotate-12" />
                   <span className="font-feature font-black italic tracking-tight text-sm">
-                    Your EasePoints
+                    EasePoints
                   </span>
                   <span className="rounded-full bg-white/25 px-2.5 py-0.5 text-xs font-black text-white not-italic tracking-normal">
                     {userEasePoints} pts
@@ -359,26 +359,49 @@ export default function Layout() {
                       <span className="font-feature italic font-black">EaseHelp</span>
                     </button>
                     {user.role === "customer" && (
-                      <button
-                        role="menuitem"
+                      <div
                         aria-pressed={location.pathname === "/easepoints"}
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          navigate("/easepoints");
-                        }}
                         className={cx(
-                          "dropdown-menu-item group flex w-full cursor-pointer items-center justify-between rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30",
+                          "dropdown-menu-item group flex w-full cursor-pointer items-center justify-between rounded-xl border border-transparent px-3 py-2 text-sm font-semibold transition",
                           location.pathname === "/easepoints" && "is-selected",
                         )}
                       >
-                        <div className="flex items-center gap-3">
+                        <button
+                          role="menuitem"
+                          type="button"
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            navigate("/easepoints");
+                          }}
+                          className="flex flex-1 items-center gap-3 text-left focus-visible:outline-none cursor-pointer"
+                        >
                           <Sparkles className="h-4 w-4 shrink-0 text-brand-orange transition-all duration-150" />
                           <span>EasePoints</span>
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-brand-orange/15 px-2 py-0.5 text-[11px] font-bold text-brand-orange">
+                            {userEasePoints} pts
+                          </span>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <InfoTooltip
+                              side="left"
+                              size="sm"
+                              title="What are EasePoints?"
+                              content={
+                                <div className="space-y-1 text-xs text-white/90">
+                                  <p>
+                                    Earn points by contributing seat views, ticket swaps, and helpful event questions.
+                                  </p>
+                                  <p className="text-[11px] font-semibold text-brand-orange pt-0.5">
+                                    Visit the page to find out more!
+                                  </p>
+                                </div>
+                              }
+                              ariaLabel="Learn about EasePoints"
+                            />
+                          </div>
                         </div>
-                        <span className="rounded-full bg-brand-orange/15 px-2 py-0.5 text-[11px] font-bold text-brand-orange">
-                          {userEasePoints} pts
-                        </span>
-                      </button>
+                      </div>
                     )}
                     {user.canChangePassword !== false && (
                       <button

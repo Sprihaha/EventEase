@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Gift,
   Camera,
-  Rotate3d,
   Repeat,
   Users,
   ShieldCheck,
@@ -86,28 +85,20 @@ export default function EasePoints() {
   const activities = [
     {
       id: "views",
-      label: "EasePix & EaseXplore",
+      label: "EasePix",
       title: "Share your seat view",
       pts: "+23 pts",
       desc: "Earn points after your original EasePix photo is approved. Unlimited uploads. No per-event earning cap.",
       iconRender: () => (
-        <div className="flex items-center -space-x-1.5 shrink-0">
-          <div
-            title="EasePix: Seat View Photos"
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border-2 border-white bg-brand-lilac text-brand-purple shadow-xs"
-          >
-            <Camera className="h-5 w-5" />
-          </div>
-          <div
-            title="EaseXplore: 360° Views"
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border-2 border-white bg-orange-100 text-brand-orange shadow-xs"
-          >
-            <Rotate3d className="h-5 w-5" />
-          </div>
+        <div
+          title="EasePix: Seat View Photos"
+          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-lilac/70 text-brand-purple shadow-2xs"
+        >
+          <Camera className="h-5 w-5" />
         </div>
       ),
-      cta: "Upload Seat View",
-      link: "/community?tab=views&upload=true",
+      cta: "Explore Seat Views",
+      link: "/community?tab=views",
     },
     {
       id: "exchange",
@@ -191,8 +182,8 @@ export default function EasePoints() {
                 <Sparkles className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="font-brand text-2xl sm:text-3xl font-black text-brand-deep tracking-tight">
-                  Your EasePoints Rewards
+                <h1 className="text-2xl font-bold text-brand-deep tracking-tight">
+                  Your <span className="font-feature text-2xl font-black italic tracking-tight text-brand-deep">EasePoints</span> Rewards
                 </h1>
                 <p className="text-xs sm:text-sm text-muted">
                   Official rules, community earning activities & ticket exchange discount guidelines
@@ -203,11 +194,11 @@ export default function EasePoints() {
 
           <div className="flex items-center gap-2.5">
             <Link
-              to="/community?tab=views&upload=true"
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+              to="/community?tab=views"
+              className="inline-flex items-center gap-2 rounded-2xl border border-brand-purple/20 bg-white px-4 py-2.5 text-xs font-bold text-brand-deep hover:bg-brand-lilac/40 transition-all shadow-xs"
             >
-              <Camera className="h-4 w-4" />
-              <span>Upload Seat View (+23 pts)</span>
+              <Camera className="h-4 w-4 text-brand-purple" />
+              <span>EasePix</span>
             </Link>
             <Link
               to="/community?tab=exchange"
@@ -457,18 +448,11 @@ export default function EasePoints() {
 
           <div className="flex flex-wrap items-center justify-center gap-3 shrink-0">
             <Link
-              to="/community?tab=views&upload=true"
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span>Upload Seat View (+23 pts)</span>
-            </Link>
-            <Link
               to="/community"
-              className="inline-flex items-center gap-2 rounded-2xl border border-brand-purple/20 bg-white px-5 py-2.5 text-xs font-bold text-brand-deep hover:bg-brand-lilac/40 transition-all"
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-purple to-brand-magenta px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-purple/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
             >
               <span>Explore EaseComms</span>
-              <ChevronRight className="h-4 w-4 text-brand-purple" />
+              <ChevronRight className="h-4 w-4 text-white" />
             </Link>
           </div>
         </div>
