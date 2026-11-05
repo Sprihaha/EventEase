@@ -9,6 +9,9 @@ import {
   TrendingUp,
   AlertCircle,
   HelpCircle,
+  Camera,
+  Repeat2,
+  CircleHelp,
 } from "lucide-react"
 import { EASEPOINTS_RULES } from "../../../lib/easePoints"
 
@@ -40,22 +43,25 @@ export function EasePointsModal({
 
   const activities = [
     {
-      activity: "Approved EasePix photo",
-      pts: "23 pts",
-      when: "After approval",
-      desc: "Unlimited uploads with no per-event earning cap.",
+      label: "EASEPIX",
+      title: "Share your seat view",
+      pts: "+23 pts",
+      desc: "Earn points after your original EasePix photo is approved. Unlimited uploads. No per-event earning cap.",
+      icon: Camera,
     },
     {
-      activity: "Completed EaseXchange",
-      pts: "17 pts",
-      when: "Once exchange is fully completed",
-      desc: "Awarded to each participant upon successful ticket swap.",
+      label: "EASEXCHANGE",
+      title: "Complete a ticket swap",
+      pts: "+17 pts",
+      desc: "Each participant earns points once the EaseXchange is fully completed.",
+      icon: Repeat2,
     },
     {
-      activity: "Qualifying event question on EaseConnect",
-      pts: "3 pts",
-      when: "Passes basic relevance & duplicate checks",
-      desc: "Helpful event questions and venue advice.",
+      label: "EASECONNECT",
+      title: "Ask a useful event question",
+      pts: "+3 pts",
+      desc: "Earn points for a qualifying EaseConnect question after relevance and duplicate checks.",
+      icon: CircleHelp,
     },
   ]
 
@@ -183,37 +189,40 @@ export function EasePointsModal({
               Ways to Earn EasePoints
             </h4>
 
-            <div className="overflow-hidden rounded-2xl border border-brand-line bg-white shadow-2xs">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-brand-warm/60 border-b border-brand-line text-brand-deep font-bold">
-                  <tr>
-                    <th className="py-2.5 px-3.5">Activity</th>
-                    <th className="py-2.5 px-3 text-center">Points</th>
-                    <th className="py-2.5 px-3.5">When Awarded</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-line/60">
-                  {activities.map((act, i) => (
-                    <tr key={i} className="hover:bg-brand-warm/30 transition-all">
-                      <td className="py-3 px-3.5">
-                        <span className="font-bold text-brand-deep block">{act.activity}</span>
-                        <span className="text-[11px] text-muted">{act.desc}</span>
-                      </td>
-                      <td className="py-3 px-3 text-center whitespace-nowrap">
-                        <span className="rounded-full bg-brand-orange/10 px-2.5 py-1 text-xs font-black text-brand-orange border border-brand-orange/20">
-                          +{act.pts}
+            <div className="grid gap-3 sm:grid-cols-3">
+              {activities.map((act) => {
+                const Icon = act.icon
+                return (
+                  <div
+                    key={act.label}
+                    className="rounded-2xl border border-brand-purple/15 bg-white p-4.5 shadow-xs hover:border-brand-purple/30 hover:shadow-sm transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-lilac/70 text-brand-purple shadow-2xs">
+                          <Icon className="h-5 w-5" />
                         </span>
-                      </td>
-                      <td className="py-3 px-3.5 text-[11px] text-muted">
-                        {act.when}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <span className="rounded-full bg-brand-orange/10 px-3 py-1 font-brand text-xs font-black text-brand-orange border border-brand-orange/20">
+                          {act.pts}
+                        </span>
+                      </div>
+
+                      <p className="mt-4 text-[10px] font-extrabold uppercase tracking-wider text-brand-purple">
+                        {act.label}
+                      </p>
+                      <h5 className="mt-1 font-brand text-sm font-bold text-brand-deep leading-snug">
+                        {act.title}
+                      </h5>
+                      <p className="mt-2 text-xs leading-relaxed text-muted">
+                        {act.desc}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
             <p className="text-[11px] text-muted italic px-1">
-              * Note: Likes on photos do not award EasePoints. Unlimited photo uploads with no per-event earning cap.
+              * Note: Photo likes do not earn points. Duplicate, copied, or rejected photos do not qualify.
             </p>
           </div>
 
