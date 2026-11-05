@@ -3,16 +3,13 @@ import { useNavigate } from "react-router"
 import {
   Rotate3d,
   X,
-  Compass,
   Search,
   ExternalLink,
   Video,
   ShieldCheck,
-  Settings,
 } from "lucide-react"
 import { cx } from "../../ui"
 import { formatMediaEmbedUrl, backendListVenues, type Venue } from "../../../lib/backendApi"
-import { vantagePoints } from "../constants"
 import { isVenueMatch } from "./seatMatching"
 import { useStore } from "../../../lib/store"
 import type { Preview360Photo, SearchableOption, User } from "../types"
@@ -119,101 +116,11 @@ export function EaseXplore360Modal({
           </button>
         </div>
 
-        {/* Vantage Point Switcher inside 360 Modal */}
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-white/10 bg-white/5 px-6 py-2.5 text-xs">
-          <div className="flex items-center gap-1.5 font-bold text-white/70 mr-1">
-            <Compass className="h-3.5 w-3.5 text-brand-orange" />
-            <span>Vantage:</span>
-          </div>
-          {sectionOptions.length > 0 ? (
-            sectionOptions.map((opt) => {
-              const isSelected =
-                preview360Photo.section?.toLowerCase() ===
-                opt.value.toLowerCase()
-              const secLower = opt.value.toLowerCase()
-              const matchedVantage =
-                secLower.includes("balcony") ||
-                secLower.includes("concession") ||
-                secLower.includes("upper")
-                  ? vantagePoints[2]
-                  : secLower.includes("accessible") ||
-                      secLower.includes("wheelchair")
-                    ? vantagePoints[3]
-                    : secLower.includes("vip") ||
-                        secLower.includes("floor") ||
-                        secLower.includes("cat 1")
-                      ? vantagePoints[0]
-                      : vantagePoints[1]
-
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() =>
-                    onUpdatePreview((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            url: matchedVantage.image,
-                            section: opt.value,
-                            elevation: matchedVantage.elevation,
-                            fov: matchedVantage.fov,
-                          }
-                        : null,
-                    )
-                  }
-                  className={cx(
-                    "cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition",
-                    isSelected
-                      ? "bg-gradient-to-r from-brand-purple to-brand-magenta text-white shadow-sm"
-                      : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white",
-                  )}
-                >
-                  {opt.value.toLowerCase().startsWith("section")
-                    ? opt.value
-                    : `Section ${opt.value}`}
-                </button>
-              )
-            })
-          ) : (
-            <span className="text-white/60 text-xs italic">
-              Select an event with seating sections to explore vantage points
-            </span>
-          )}
-          {hasAccessibleSeats && (
-            <button
-              type="button"
-              onClick={() =>
-                onUpdatePreview((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        url: vantagePoints[3].image,
-                        section: "Accessible Platform",
-                        elevation: vantagePoints[3].elevation,
-                        fov: vantagePoints[3].fov,
-                      }
-                    : null,
-                )
-              }
-              className={cx(
-                "cursor-pointer rounded-lg px-2.5 py-1 text-[11px] font-bold transition",
-                preview360Photo.section?.toLowerCase().includes("accessible")
-                  ? "bg-gradient-to-r from-brand-purple to-brand-magenta text-white shadow-sm"
-                  : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white",
-              )}
-            >
-              ♿ Accessible Platform
-            </button>
-          )}
-        </div>
-
         {/* 360 Media Viewer / Video Player */}
         <div className="relative h-[430px] w-full bg-black overflow-hidden flex items-center justify-center">
           {(() => {
             if (!preview360Photo.externalTourUrl) {
               const venueName = preview360Photo.venueName || "Venue"
-              const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(`${venueName} website`)}`
 
               return (
                 <div className="relative h-full w-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-[#120824] via-brand-deep to-[#1b092a] text-white">
@@ -239,30 +146,6 @@ export function EaseXplore360Modal({
                           ? `As the organiser of ${venueName}, you can configure an interactive 360° virtual tour or video walkthrough in Venue Setup.`
                           : "Search for the venue's website instead to view official seating guides, layouts, and facility information."}
                       </p>
-                    </div>
-
-                    <div className="pt-2">
-                      {isOwner ? (
-                        <button
-                          type="button"
-                          onClick={handleConfigureEaseXplore}
-                          className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-6 py-3.5 text-xs font-bold text-white shadow-lg shadow-brand-orange/30 transition-all hover:opacity-95 hover:shadow-xl hover:scale-105 active:scale-95"
-                        >
-                          <Rotate3d className="h-4 w-4" />
-                          <span>Configure EaseXplore</span>
-                        </button>
-                      ) : (
-                        <a
-                          href={googleSearchUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-5 py-3 text-xs font-bold text-white shadow-lg shadow-brand-orange/30 transition-all hover:opacity-95 hover:shadow-xl hover:scale-105 active:scale-95"
-                        >
-                          <Search className="h-4 w-4" />
-                          <span>Search {venueName} website on Google</span>
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-                      )}
                     </div>
                   </div>
                 </div>
