@@ -34,7 +34,6 @@ import {
   CommunityExchangeView,
   ShareSeatViewModal,
   EaseXplore360Modal,
-  EasePointsModal,
   useCommunityFeed,
   useEasePix,
 } from "../components/community";
@@ -54,7 +53,6 @@ export default function Community() {
 
   const [backendPosts, setBackendPosts] = useState<BackendCommunityPost[]>([]);
   const [backendEasePixList, setBackendEasePixList] = useState<BackendEasePix[]>([]);
-  const [isEasePointsModalOpen, setIsEasePointsModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<number | null>(null);
 
@@ -327,6 +325,20 @@ export default function Community() {
     scrollToSection,
   });
   easePixRef.current = easePix;
+
+  // Open upload modal if navigated with ?upload=true (e.g. from EasePoints page)
+  useEffect(() => {
+    if (searchParams.get("upload") === "true") {
+      easePix.setShareModalOrigin("easepix");
+      if (!easePix.seatVenueInput && events.length > 0) {
+        easePix.setSeatVenueInput(events[0].venue);
+      }
+      easePix.setIsShareModalOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("upload");
+      setSearchParams(next, { replace: true, preventScrollReset: true });
+    }
+  }, [searchParams, events, easePix, setSearchParams]);
 
   // Submit seat photo modal upload
   const handleModalUploadSubmit = async () => {
@@ -661,21 +673,6 @@ export default function Community() {
                   Share your seat view and browse verified community photos before buying
                 </p>
               </div>
-
-              {/* Your EasePoints Button - only visible to logged-in non-organizer, non-admin users */}
-              {user && user.role !== "organizer" && user.role !== "admin" && (
-                <button
-                  type="button"
-                  onClick={() => setIsEasePointsModalOpen(true)}
-                  className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-amber px-4.5 py-2.5 text-xs font-bold text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span>Your EasePoints</span>
-                  <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-black text-white">
-                    {totalUserPoints} pts
-                  </span>
-                </button>
-              )}
             </div>
 
             {/* EasePix & EaseXplore View without sidebar */}
@@ -763,23 +760,6 @@ export default function Community() {
         onUpdatePreview={easePix.setPreview360Photo}
         user={user}
       />
-
-      {/* Your EasePoints Rewards Pop-up Modal */}
-      {user && user.role === "customer" && (
-        <EasePointsModal
-          isOpen={isEasePointsModalOpen}
-          onClose={() => setIsEasePointsModalOpen(false)}
-          userPoints={totalUserPoints}
-          uploadedCount={userUploadedPixCount}
-          onOpenUploadModal={() => {
-            easePix.setShareModalOrigin("easepix");
-            if (!easePix.seatVenueInput && events.length > 0) {
-              easePix.setSeatVenueInput(events[0].venue);
-            }
-            easePix.setIsShareModalOpen(true);
-          }}
-        />
-      )}
 
       {/* Toast Notification */}
       <div

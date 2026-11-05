@@ -14,6 +14,7 @@ import {
   KeyRound,
   Route,
   User,
+  Sparkles,
 } from "lucide-react";
 import { useStore } from "../lib/store";
 import { Badge, Button, InfoTooltip, cx } from "./ui";
@@ -32,6 +33,7 @@ import { AccessibilityBar } from "./layout/AccessibilityBar";
 import { OrganisationSwitcher } from "./layout/OrganisationSwitcher";
 import { WebSearchableControl } from "./common";
 import { getPublicBusinessDateState, formatDDMMYYYY, formatDeviceCurrent, formatDeviceBusiness, type BusinessDateState } from "../lib/api/developer";
+import { getUserEasePoints } from "../lib/easePoints";
 
 const navLinks = [
   { to: "/events", label: "Discover", icon: Search },
@@ -52,13 +54,25 @@ export default function Layout() {
   const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
   const [expiredReturnTo, setExpiredReturnTo] = useState<string | null>(null);
   const [businessClock, setBusinessClock] = useState<BusinessDateState | null>(null);
-  const [deviceTime, setDeviceTime] = useState<Date>(() => new Date());
+  const [userEasePoints, setUserEasePoints] = useState<number>(() =>
+    user?.role === "customer" ? getUserEasePoints(user.id) : 0
+  );
 
-  // Keep device time live ticking
+  // Sync EasePoints balance for customer users
   useEffect(() => {
-    const timer = setInterval(() => setDeviceTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (!user || user.role !== "customer") {
+      setUserEasePoints(0);
+      return;
+    }
+    const syncPoints = () => {
+      setUserEasePoints(getUserEasePoints(user.id));
+    };
+    syncPoints();
+    window.addEventListener("eventease:easepoints-updated", syncPoints);
+    return () => {
+      window.removeEventListener("eventease:easepoints-updated", syncPoints);
+    };
+  }, [user]);
 
   // Load Business Date state for footer display (available for all users, logged in or out)
   useEffect(() => {
@@ -201,6 +215,43 @@ export default function Layout() {
               <AccessibilityBar />
             </div>
             {user?.role === "organizer" && <OrganisationSwitcher />}
+            {user?.role === "customer" && (
+              <div className="flex items-center gap-1.5">
+                <Link
+                  to="/easepoints"
+                  className="cursor-pointer group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-orange to-[#ff8c00] px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold text-white shadow-md shadow-brand-orange/20 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+                  aria-label="View EasePoints Rewards"
+                >
+                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-white fill-white/20 transition-transform group-hover:rotate-12" />
+                  <span className="font-brand font-bold tracking-tight">Your EasePoints</span>
+                  <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-black text-white">
+                    {userEasePoints} pts
+                  </span>
+                </Link>
+                <InfoTooltip
+                  side="bottom"
+                  align="end"
+                  size="sm"
+                  ariaLabel="What is EasePoints?"
+                  title="What are EasePoints?"
+                  content={
+                    <div className="space-y-1.5 text-xs text-brand-deep">
+                      <p>
+                        <strong>EasePoints</strong> are EventEase loyalty rewards for community contributions.
+                      </p>
+                      <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-muted">
+                        <li><strong>+23 pts:</strong> Share approved seat views (EasePix)</li>
+                        <li><strong>+17 pts:</strong> Complete ticket swaps (EaseXchange)</li>
+                        <li><strong>+3 pts:</strong> Ask useful event questions (EaseConnect)</li>
+                      </ul>
+                      <p className="text-[11px] font-semibold text-brand-orange pt-1">
+                        ✨ Every 100 points unlocks a 10% discount on ticket swaps! Click the button to view all rules & redeem.
+                      </p>
+                    </div>
+                  }
+                />
+              </div>
+            )}
             {user?.role === "customer" && <ExchangeNotifications key={user.id} userId={user.id} />}
             {user ? (
               <div ref={userMenu} className="relative">
@@ -307,6 +358,28 @@ export default function Layout() {
                       <HelpCircle className="h-4 w-4 shrink-0 text-brand-purple transition-all duration-150" />
                       <span className="font-feature italic font-black">EaseHelp</span>
                     </button>
+                    {user.role === "customer" && (
+                      <button
+                        role="menuitem"
+                        aria-pressed={location.pathname === "/easepoints"}
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigate("/easepoints");
+                        }}
+                        className={cx(
+                          "dropdown-menu-item group flex w-full cursor-pointer items-center justify-between rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-purple/30",
+                          location.pathname === "/easepoints" && "is-selected",
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Sparkles className="h-4 w-4 shrink-0 text-brand-orange transition-all duration-150" />
+                          <span>EasePoints</span>
+                        </div>
+                        <span className="rounded-full bg-brand-orange/15 px-2 py-0.5 text-[11px] font-bold text-brand-orange">
+                          {userEasePoints} pts
+                        </span>
+                      </button>
+                    )}
                     {user.canChangePassword !== false && (
                       <button
                         role="menuitem"
@@ -431,10 +504,10 @@ export default function Layout() {
               {businessClock?.is_simulated && (
                 <div className="flex flex-col gap-0.5 text-xs font-semibold text-brand-orange">
                   <div>
-                    Current date: <span className="font-normal text-brand-orange/95">{formatDeviceCurrent(deviceTime)}</span>
+                    Current date: <span className="font-normal text-brand-orange/95">{formatDeviceCurrent()}</span>
                   </div>
                   <div>
-                    Business date: <span className="font-normal text-brand-orange/95">{formatDeviceBusiness(businessClock.effective_date, deviceTime)}</span>
+                    Business date: <span className="font-normal text-brand-orange/95">{formatDeviceBusiness(businessClock.effective_date)}</span>
                   </div>
                 </div>
               )}

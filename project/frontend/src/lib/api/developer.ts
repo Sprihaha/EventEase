@@ -24,17 +24,14 @@ export function formatDeviceCurrent(deviceDate: Date = new Date()): string {
   const dd = String(deviceDate.getDate()).padStart(2, "0");
   const mm = String(deviceDate.getMonth() + 1).padStart(2, "0");
   const yyyy = deviceDate.getFullYear();
-  const time = deviceDate.toLocaleTimeString();
-  return `${dd}/${mm}/${yyyy}, ${time}`;
+  return `${dd}/${mm}/${yyyy}`;
 }
 
-export function formatDeviceBusiness(effectiveDateStr: string | null | undefined, deviceDate: Date = new Date()): string {
+export function formatDeviceBusiness(effectiveDateStr: string | null | undefined): string {
   if (!effectiveDateStr) return "—";
   const raw = effectiveDateStr.split("T")[0];
   const parts = raw.split("-");
-  const dateFormatted = parts.length === 3 ? `${parts[2].padStart(2, "0")}/${parts[1].padStart(2, "0")}/${parts[0]}` : raw;
-  const time = deviceDate.toLocaleTimeString();
-  return `${dateFormatted}, ${time}`;
+  return parts.length === 3 ? `${parts[2].padStart(2, "0")}/${parts[1].padStart(2, "0")}/${parts[0]}` : raw;
 }
 
 export type SchedulerJob = {

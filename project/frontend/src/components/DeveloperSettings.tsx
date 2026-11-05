@@ -49,12 +49,6 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [clockLoading, setClockLoading] = useState<boolean>(false);
   const [clockNotice, setClockNotice] = useState<string | null>(null);
-  const [deviceTime, setDeviceTime] = useState<Date>(() => new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setDeviceTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // ── Scheduler Jobs State ─────────────────────────────────────────────────
   const [jobs, setJobs] = useState<SchedulerJob[]>([]);
@@ -363,17 +357,14 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
                 </p>
                 <div className="flex items-baseline gap-2">
                   <span className="font-brand text-2xl font-bold">
-                    {formatDeviceBusiness(clockState?.effective_date, deviceTime)}
-                  </span>
-                  <span className="text-xs text-muted">
-                    (Device Time)
+                    {formatDeviceBusiness(clockState?.effective_date)}
                   </span>
                 </div>
               </div>
             </div>
 
             <div className="text-right text-xs text-muted">
-              <p>Device Current Date &amp; Time: <strong className="text-brand-deep">{formatDeviceCurrent(deviceTime)}</strong></p>
+              <p>Current Date: <strong className="text-brand-deep">{formatDeviceCurrent()}</strong></p>
               <p className="mt-0.5">
                 Backend Storage: Generic UTC ({clockState?.effective_date || "—"})
               </p>

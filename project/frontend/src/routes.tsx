@@ -20,6 +20,7 @@ import AssistanceRequests from "./pages/AssistanceRequests";
 import EaseHelp from "./pages/EaseHelp";
 import EaseVoiceNarration from "./pages/EaseVoiceNarration";
 import Profile from "./pages/Profile";
+import EasePoints from "./pages/EasePoints";
 
 import type { ComponentType } from "react";
 import { useStore } from "./lib/store";
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
       { path: "events", Component: Browse },
       { path: "events/:id", Component: EventDetail },
       { path: "community", Component: Community },
+      { path: "easepoints", Component: EasePoints },
       { path: "help", Component: EaseHelp },
       { path: "exchange", Component: () => <Navigate to="/community?tab=exchange" replace /> },
       { path: "easexchange", Component: () => <Navigate to="/community?tab=exchange" replace /> },
