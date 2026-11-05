@@ -105,7 +105,7 @@ export function CommunityHeaderNav({
   ]
 
   const visibleItems = items.filter((item) => {
-    if (isAdmin) return item.id !== "views" && item.id !== "exchange"
+    if (isAdmin) return item.id !== "exchange"
     if (isOrganizer) return item.id !== "exchange"
     return true
   })

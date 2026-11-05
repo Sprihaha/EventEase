@@ -88,6 +88,8 @@ export function useCommunityFeed({
         likes: p.likesCount,
         isBackend: true,
         isVerified: p.easepix?.isVerified ?? false,
+        isFlagged: p.isFlagged ?? false,
+        flagReason: p.flagReason,
         replies: (p.replies || []).map((r) => ({
           id: r.id,
           author: r.authorName,

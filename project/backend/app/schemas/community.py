@@ -33,6 +33,8 @@ class EasePixOut(CamelModel):
     elevation: str | None = None
     fov: str | None = None
     is_verified: bool = False
+    status: str = "APPROVED"
+    rejection_reason: str | None = None
     likes_count: int = 0
     created_at: datetime
 
@@ -59,6 +61,9 @@ class EaseConnectPostOut(CamelModel):
     easepix_id: uuid.UUID | None = None
     easepix: EasePixOut | None = None
     parent_id: uuid.UUID | None = None
+    is_flagged: bool = False
+    is_removed: bool = False
+    flag_reason: str | None = None
     likes_count: int = 0
     created_at: datetime
     replies: list["EaseConnectPostOut"] = []

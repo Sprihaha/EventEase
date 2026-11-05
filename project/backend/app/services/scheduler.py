@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 
 from croniter import croniter
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.clock import get_business_date, get_business_now
@@ -99,6 +99,68 @@ def _run_pre_event_reminders(db: Session) -> str:
     )
 
 
+def _run_easecomms_auto_moderator(db: Session) -> str:
+    from app.db.models.community import EaseConnectPost, EasePix
+
+    prohibited_keywords = [
+        "fake ticket", "selling fake", "scam", "cheat", "dm for ticket", "telegram @",
+        "t.me/", "whatsapp", "wa.me/", "free crypto", "cash app", "paypal me",
+        "counterfeit", "stolen ticket", "fuck", "shit", "bitch", "asshole",
+    ]
+    misleading_keywords = [
+        "cancelled", "canceled", "concert cancelled", "event cancelled",
+        "event is fake", "organizer ran away", "rescheduled to next year",
+        "fake venue", "boycott", "dont go", "evacuate", "unverified rumor",
+    ]
+
+    # 1. Moderating EasePix: process all PENDING (or unapproved)
+    pix_stmt = select(EasePix).where(
+        or_(EasePix.status == "PENDING", EasePix.status.is_(None))
+    )
+    pending_pix = list(db.scalars(pix_stmt))
+    pix_approved = 0
+    pix_rejected = 0
+
+    for pix in pending_pix:
+        text = f"{pix.caption or ''} {pix.photo_url or ''}".lower()
+        if any(kw in text for kw in prohibited_keywords):
+            pix.status = "REJECTED"
+            pix.rejection_reason = "Violated community guidelines: prohibited or spam content."
+            pix_rejected += 1
+        else:
+            pix.status = "APPROVED"
+            pix.rejection_reason = None
+            pix_approved += 1
+
+    # 2. Moderating EaseConnect Posts: inspect active posts
+    posts_stmt = select(EaseConnectPost).where(
+        or_(EaseConnectPost.is_removed.is_(False), EaseConnectPost.is_removed.is_(None))
+    )
+    active_posts = list(db.scalars(posts_stmt))
+    posts_removed = 0
+    posts_flagged = 0
+
+    for post in active_posts:
+        content_lower = (post.content or "").lower()
+        if any(kw in content_lower for kw in prohibited_keywords):
+            post.is_removed = True
+            post.is_flagged = True
+            post.flag_reason = "Removed: prohibited spam, scam, or abusive language detected."
+            posts_removed += 1
+        elif any(kw in content_lower for kw in misleading_keywords):
+            if not post.is_flagged:
+                post.is_flagged = True
+                post.flag_reason = "Flagged: contains potential misinformation or unverified event claims."
+                posts_flagged += 1
+
+    db.commit()
+    return (
+        f"EaseComms Auto Moderator processed: "
+        f"{pix_approved} EasePix approved, {pix_rejected} EasePix rejected; "
+        f"{posts_removed} post(s) removed, {posts_flagged} post(s) flagged"
+    )
+
+
 JOB_ACTIONS: dict[str, Callable[[Session], str]] = {
     "HOLD_SWEEPER": _run_hold_sweeper,
     "EXCHANGE_MATCHER": _run_exchange_matcher,
@@ -107,6 +169,7 @@ JOB_ACTIONS: dict[str, Callable[[Session], str]] = {
     "QR_RELEASE": _run_qr_release,
     "VERIFY_REMINDERS": _run_verify_reminders,
     "PRE_EVENT_REMINDERS": _run_pre_event_reminders,
+    "EASECOMMS_AUTO_MODERATOR": _run_easecomms_auto_moderator,
 }
 
 

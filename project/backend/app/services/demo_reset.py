@@ -23,7 +23,8 @@ RESET_TABLES = (
     "exchange_settlements", "exchange_matches", "exchange_requests",
     "seat_claims", "assistance_requests", "tickets", "payments",
     "booking_items", "bookings", "promo_codes", "event_seats", "ticket_categories",
-    "fraud_signals", "audit_logs", "event_cancellation_requests", "events", "event_sources",
+    "fraud_signals", "audit_logs", "event_cancellation_requests",
+    "easeconnect_posts", "easepix", "events", "event_sources",
 )
 
 
@@ -63,7 +64,7 @@ def _reset_tables():
     for table in Base.metadata.tables.values():
         for fk in table.foreign_keys:
             parent = fk.column.table.name
-            if parent in positions and (table.name not in positions or positions[table.name] >= positions[parent]):
+            if parent != table.name and parent in positions and (table.name not in positions or positions[table.name] >= positions[parent]):
                 raise AppError(409, "RESET_DEPENDENCY_CHANGED", "Reset dependency order requires review.")
     return [Base.metadata.tables[name] for name in RESET_TABLES]
 

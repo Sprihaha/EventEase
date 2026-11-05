@@ -89,5 +89,7 @@ export interface DisplayPost {
   likes: number
   isBackend: boolean
   isVerified?: boolean
+  isFlagged?: boolean
+  flagReason?: string | null
   replies: PostReplyItem[]
 }

@@ -43,9 +43,9 @@ export default function Community() {
   const isAdmin = user?.role === "admin";
   const requestedTab = searchParams.get("tab");
   const rawTab = requestedTab === "access" ? "views" : (allTabs.find((item) => item.id === requestedTab)?.id ?? "feed");
-  const tab = isAdmin ? "feed" : (isOrganizer && rawTab === "exchange") ? "feed" : rawTab;
+  const tab = (isAdmin && rawTab === "exchange") ? "feed" : (isOrganizer && rawTab === "exchange") ? "feed" : rawTab;
   const [lastCommsTab, setLastCommsTab] = useState<CommsChannelId>(
-    (tab === "exchange" || tab === "views") && isAdmin ? "feed" : tab === "exchange" ? "feed" : (tab as CommsChannelId)
+    tab === "exchange" ? "feed" : (tab as CommsChannelId)
   );
 
   const [backendPosts, setBackendPosts] = useState<BackendCommunityPost[]>([]);
@@ -159,9 +159,7 @@ export default function Community() {
 
   const setTab = useCallback((id: (typeof allTabs)[number]["id"]) => {
     let targetId = id;
-    if (user?.role === "admin" && (id === "views" || id === "exchange")) {
-      targetId = "feed";
-    } else if (user?.role === "organizer" && id === "exchange") {
+    if ((user?.role === "admin" || user?.role === "organizer") && id === "exchange") {
       targetId = "feed";
     }
     setSearchParams((current) => {
@@ -560,7 +558,7 @@ export default function Community() {
           </div>
         )}
 
-        {tab === "views" && !isAdmin && (
+        {tab === "views" && (
           <div className="space-y-5 min-h-[580px] pb-10">
             {/* Section Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-1">
@@ -573,8 +571,8 @@ export default function Community() {
                 </p>
               </div>
 
-              {/* Your EasePoints Button - only visible to logged-in non-organizer users */}
-              {user && user.role !== "organizer" && (
+              {/* Your EasePoints Button - only visible to logged-in non-organizer, non-admin users */}
+              {user && user.role !== "organizer" && user.role !== "admin" && (
                 <button
                   type="button"
                   onClick={() => setIsEasePointsModalOpen(true)}

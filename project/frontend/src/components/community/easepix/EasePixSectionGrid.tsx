@@ -256,7 +256,7 @@ export function EasePixSectionGrid({
                           </p>
                         </div>
                       </div>
-                      {(!user || user.role !== "organizer") && (
+                      {(!user || (user.role !== "organizer" && user.role !== "admin")) && (
                         <button
                           type="button"
                           onClick={() => {

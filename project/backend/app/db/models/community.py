@@ -28,6 +28,8 @@ class EasePix(UUIDPk, Timestamps, Base):
     elevation: Mapped[str | None] = mapped_column(String(50), nullable=True)
     fov: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(32), default="PENDING")
+    rejection_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     likes_count: Mapped[int] = mapped_column(Integer, default=0)
 
 
@@ -48,6 +50,9 @@ class EaseConnectPost(UUIDPk, Timestamps, Base):
     is_question: Mapped[bool] = mapped_column(Boolean, default=False)
     easepix_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("easepix.id", ondelete="SET NULL"), nullable=True)
     parent_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("easeconnect_posts.id", ondelete="CASCADE"), nullable=True)
+    is_flagged: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_removed: Mapped[bool] = mapped_column(Boolean, default=False)
+    flag_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     likes_count: Mapped[int] = mapped_column(Integer, default=0)
 
     easepix: Mapped["EasePix | None"] = relationship("EasePix", foreign_keys=[easepix_id])

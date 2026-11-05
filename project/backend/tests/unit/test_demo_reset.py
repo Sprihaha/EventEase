@@ -131,7 +131,8 @@ class DemoResetSafetyTests(unittest.TestCase):
             for fk in table.foreign_keys:
                 if fk.column.table.name in positions:
                     self.assertIn(table.name, positions, f"preserved table {table.name} refers to deleted data")
-                    self.assertLess(positions[table.name], positions[fk.column.table.name])
+                    if fk.column.table.name != table.name:
+                        self.assertLess(positions[table.name], positions[fk.column.table.name])
         self.assertFalse(set(RESET_TABLES) & {"users", "refresh_tokens", "password_reset_tokens",
             "login_attempts", "narration_transcripts", "accessibility_settings"})
 

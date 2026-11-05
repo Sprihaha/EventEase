@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError
@@ -75,6 +75,8 @@ def create_easepix(db: Session, user: User | None, data: EasePixCreate) -> EaseP
         elevation=data.elevation,
         fov=data.fov,
         is_verified=verified,
+        status="PENDING",
+        rejection_reason=None,
         likes_count=0,
     )
     db.add(pix)
@@ -92,7 +94,11 @@ def list_easepix(
     row_label: str | None = None,
     limit: int = 100,
 ) -> list[EasePix]:
-    stmt = select(EasePix).order_by(EasePix.created_at.desc())
+    stmt = (
+        select(EasePix)
+        .where(or_(EasePix.status == "APPROVED", EasePix.status.is_(None)))
+        .order_by(EasePix.created_at.desc())
+    )
     if event_id:
         stmt = stmt.where(EasePix.event_id == event_id)
     if venue_id:
@@ -190,7 +196,10 @@ def list_posts(db: Session, event_id: uuid.UUID | None = None, limit: int = 50) 
             selectinload(EaseConnectPost.easepix),
             selectinload(EaseConnectPost.replies).selectinload(EaseConnectPost.easepix),
         )
-        .where(EaseConnectPost.parent_id.is_(None))
+        .where(
+            EaseConnectPost.parent_id.is_(None),
+            or_(EaseConnectPost.is_removed.is_(False), EaseConnectPost.is_removed.is_(None)),
+        )
         .order_by(EaseConnectPost.created_at.desc())
         .limit(limit)
     )

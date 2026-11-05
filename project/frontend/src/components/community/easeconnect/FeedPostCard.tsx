@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Heart,
   MessageSquare,
   Share2,
@@ -77,6 +78,19 @@ export function FeedPostCard({
             {post.body}
           </p>
 
+          {/* Under Review / Flagged Warning Banner */}
+          {post.isFlagged && (
+            <div className="mt-2.5 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50/90 p-2.5 text-xs text-amber-900 shadow-xs">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+              <div>
+                <span className="font-bold">Under Community Review:</span>{" "}
+                <span className="text-amber-800 font-medium">
+                  {post.flagReason || "This post has been flagged for potential misinformation or content review."}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Post Photo / Seat View with Dark Gradient & Badge */}
           {post.photo && (
             <div className="relative mt-3.5 h-64 overflow-hidden rounded-2xl border border-brand-line bg-brand-deep shadow-sm">
@@ -147,7 +161,7 @@ export function FeedPostCard({
               <Share2 className="h-4 w-4" /> Share
             </button>
 
-            {user && user.role !== "organizer" && post.isQuestion && (
+            {user && user.role !== "organizer" && user.role !== "admin" && post.isQuestion && (
               <div className="ml-auto inline-flex items-center gap-1 text-[11px] font-extrabold text-brand-orange">
                 <Sparkles className="h-3 w-3" /> +3 EasePoints
               </div>

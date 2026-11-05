@@ -141,6 +141,8 @@ export type BackendEasePix = {
   elevation?: string | null;
   fov?: string | null;
   isVerified: boolean;
+  status?: string;
+  rejectionReason?: string | null;
   likesCount: number;
   createdAt: string;
 };
@@ -170,6 +172,9 @@ export type BackendCommunityPost = {
   easepixId?: string | null;
   easepix?: BackendEasePix | null;
   parentId?: string | null;
+  isFlagged?: boolean;
+  isRemoved?: boolean;
+  flagReason?: string | null;
   likesCount: number;
   createdAt: string;
   replies?: BackendCommunityPost[];

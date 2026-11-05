@@ -70,7 +70,7 @@ export function EasePixSearchBar({
             </p>
           </div>
         </div>
-        {user && user.role !== "organizer" && (
+        {user && user.role !== "organizer" && user.role !== "admin" && (
           <div className="inline-flex items-center gap-1 rounded-full bg-brand-orange/10 px-2.5 py-1 text-[11px] font-black text-brand-orange">
             <Sparkles className="h-3 w-3" /> +23 EasePoints
           </div>
@@ -199,7 +199,7 @@ export function EasePixSearchBar({
               <Camera className="h-4 w-4" /> Don&apos;t gatekeep the view, show
               us what we&apos;re missing!
             </button>
-          ) : user.role !== "organizer" ? (
+          ) : user.role !== "organizer" && user.role !== "admin" ? (
             <button
               type="button"
               onClick={onOpenUploadModal}
