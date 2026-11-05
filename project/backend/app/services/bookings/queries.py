@@ -86,9 +86,7 @@ def booking_view(db: Session, booking: Booking, settings: Settings | None = None
         "refunded_at": booking.refunded_at,
         "payment": {"provider": latest.provider, "provider_ref": latest.provider_ref, "status": latest.status,
                     "client_secret": getattr(booking, "_client_secret", None)} if latest else None,
-        "cancellable": booking.status == BookingStatus.PENDING_PAYMENT
-        or (booking.status == BookingStatus.CONFIRMED and utcnow() <= cutoff
-            and not any(t.checked_in_at or t.exchanged_at or (t.owner_user_id and t.owner_user_id != booking.user_id) for t in booking.tickets)),
+        "cancellable": booking.status == BookingStatus.PENDING_PAYMENT,
         "cancellation_cutoff_at": cutoff,
         "qr_released": released,
         "qr_available_from": sales_close_at(event, settings),
@@ -132,6 +130,6 @@ def ticket_history(db: Session, user: User) -> list[dict]:
              "booking_status": b.status, "event": e, "category_type": c.type, "category_name": c.name,
              "unit_price_cents": i.unit_price_cents,
              "seat_label": db.get(EventSeat, t.seat_id).label if t.seat_id else None,
-             "seat_section": c.seat_section or "General Admission", "checked_in_at": t.checked_in_at}
+             "seat_section": c.seat_section or "General Admission", "checked_in_at": t.checked_in_at, "exchanged_at": t.exchanged_at}
             for t, b, i, c, e in rows]
 

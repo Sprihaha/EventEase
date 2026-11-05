@@ -1,0 +1,5 @@
+Section,Row,From,To,Accessible
+Stalls,A,1,10,"1,2"
+Stalls,B,1,10,
+Circle,A,1,8,"1"
+Circle,B,1,8,

@@ -191,8 +191,14 @@ def pay_booking(
     if booking.status != BookingStatus.PENDING_PAYMENT:
         raise AppError(409, "BOOKING_NOT_PAYABLE", "this booking cannot be paid", {"status": booking.status.value})
 
+    now = utcnow()
+    if booking.hold_expires_at and booking.hold_expires_at <= now:
+        expire_booking_hold(db, booking, reason="HOLD_EXPIRED")
+        db.commit()
+        raise AppError(409, "HOLD_EXPIRED", "your reservation has expired; please select your seats again")
+
     event = db.get(Event, booking.event_id)
-    if event.status != EventStatus.APPROVED or event.start_at <= utcnow():
+    if event.status != EventStatus.APPROVED or event.start_at <= now:
         expire_booking_hold(db, booking, reason="EVENT_NOT_ON_SALE")
         db.commit()
         raise AppError(409, "EVENT_NOT_ON_SALE", "this event is no longer on sale; your reservation has been released")

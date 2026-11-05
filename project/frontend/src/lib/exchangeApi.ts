@@ -358,3 +358,5 @@ export async function getExchangeActivity(signal?: AbortSignal): Promise<Exchang
       matchId: nullableString(item, "matchId"), requestId: nullableString(item, "requestId") }
   })
 }
+
+export type { ExchangeActivity } from './exchangeTypes';

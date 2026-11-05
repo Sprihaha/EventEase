@@ -22,7 +22,7 @@ export interface TicketingEvent {
 export interface IssuedTicket {
   // The code (what the QR encodes) is null until QR codes are released, when ticket sales close.
   id: string; code: string | null; status: string; ticketCategoryId: string;
-  seatLabel: string | null; checkedInAt: string | null;
+  seatLabel: string | null; checkedInAt: string | null; exchangedAt?: string | null;
 }
 export interface BackendBooking {
   id: string; status: "PENDING_PAYMENT" | "CONFIRMED" | "CANCELLED" | "REFUNDED";
@@ -37,6 +37,7 @@ export interface OwnedTicket {
   qrAvailableFrom?: string | null;
   event: BackendBooking["event"]; categoryType: string; categoryName: string;
   unitPriceCents: number; seatLabel: string | null; seatSection: string | null; checkedInAt: string | null;
+  exchangedAt?: string | null;
 }
 export interface Verification {
   valid: boolean; status: string; eventTitle: string; seatLabel: string | null;

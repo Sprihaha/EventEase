@@ -46,7 +46,9 @@ export function SeatMap({ seats, selected, onToggle, disabled = false }: {
                     className={cx(
                       "h-10 w-10 rounded-lg border text-xs font-bold transition disabled:cursor-not-allowed cursor-pointer",
                       selected.includes(s.id)
-                        ? "bg-brand-orange text-white border-brand-orange shadow-md"
+                        ? s.isAccessible
+                          ? "bg-brand-orange text-white border-2 border-brand-purple ring-2 ring-brand-purple shadow-md"
+                          : "bg-brand-orange text-white border-brand-orange shadow-md"
                         : s.status === "AVAILABLE"
                           ? s.isAccessible
                             ? "bg-brand-purple text-white border-brand-purple/40 hover:ring-2 hover:ring-brand-purple shadow-sm"
@@ -73,6 +75,11 @@ export function SeatMap({ seats, selected, onToggle, disabled = false }: {
         </span>
         <span className="flex items-center gap-2">
           <span className="h-4 w-4 rounded bg-brand-orange" /> Selected
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="h-4 w-4 rounded bg-brand-orange ring-2 ring-brand-purple flex items-center justify-center text-white">
+            <Accessibility className="h-3 w-3" />
+          </span> Selected Accessible
         </span>
         <span className="flex items-center gap-2">
           <span className="h-4 w-4 rounded bg-stone-200 opacity-60" /> Unavailable

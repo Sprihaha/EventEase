@@ -53,6 +53,9 @@ def my_booking(booking_id: str, user: User = Depends(require_customer), db: Sess
              responses={409: {"description": "CANCELLATION_WINDOW_CLOSED"}})
 def cancel_booking(booking_id: str, request: Request, user: User = Depends(require_customer),
                    db: Session = Depends(get_db)):
+    existing = service.own_booking(db, user, booking_id)
+    if existing.status == BookingStatus.CONFIRMED:
+        raise AppError(409, "NON_REFUNDABLE", "Tickets are strictly non-refundable and cannot be returned once confirmed. You may exchange your ticket once via EaseXchange.")
     booking = service.cancel_booking(db, get_settings(), user, booking_id, client_ip(request))
     return service.booking_view(db, booking)
 

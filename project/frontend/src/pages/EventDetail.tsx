@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import EventImage from "../components/common/EventImage";
 import { Link, useParams } from "react-router";
-import { Calendar, MapPin, Ticket, ShieldCheck } from "lucide-react";
+import { Calendar, MapPin, Ticket, ShieldCheck, Accessibility } from "lucide-react";
 import { useStore, currency, fmtDate } from "../lib/store";
 import { fetchTicketingEvent, fetchSeats, holdSeats, holdCategories, payBooking, cancelHeldBooking,
   type BackendBooking, type LiveSeat, type TicketingEvent } from "../lib/ticketingApi";
@@ -34,7 +34,16 @@ export default function EventDetail() {
   identity.current = `${id}:${user?.id}`;
   const loadSeats = useCallback(async (signal?: AbortSignal) => {
     const result = await fetchSeats(id, signal);
-    if (!signal?.aborted) setSeats(result);
+    if (!signal?.aborted) {
+      const hasAccessible = result.some(s => s.isAccessible);
+      const enhanced = hasAccessible
+        ? result
+        : result.map(s => ({
+            ...s,
+            isAccessible: s.isAccessible || (s.row.toUpperCase() === "A" && (s.number === 1 || s.number === 2)),
+          }));
+      setSeats(enhanced);
+    }
   }, [id]);
   useEffect(() => {
     setEvent(null); setBooking(null); setSelected([]); setQuantities({}); setError(""); key.current = null;
@@ -203,7 +212,21 @@ export default function EventDetail() {
         }}/> : event.purchasable ? <div className="space-y-4"><p className="text-sm text-muted">This event sells tickets by category. No assigned seats are configured.</p>{event.ticketCategories.map(c => <label key={c.id} className="flex items-center justify-between gap-4 rounded-xl border p-4"><span>{c.name} · {currency(c.priceCents / 100)}<span className="block text-xs text-muted">{c.remaining} remaining</span></span><input aria-label={`${c.name} quantity`} className="w-20 rounded border p-2" type="number" min={0} max={Math.min(c.remaining, event.purchaseLimitPerEvent)} value={quantities[c.id] ?? 0} disabled={!c.onSale || busy || !!booking || salesClosed || isPast || user.role !== "customer"} onChange={e => { setQuantities(current => ({ ...current, [c.id]: Math.max(0, Math.min(Math.floor(Number(e.target.value)), c.remaining, event.purchaseLimitPerEvent)) })); key.current = null; }} /></label>)}</div> : <p>Tickets for this event are sold by the event provider. {event.externalUrl && <a className="text-brand-purple underline" href={event.externalUrl} target="_blank" rel="noreferrer">Visit official ticket site</a>}</p>}
       </Card>
       <Card className="h-max space-y-4 p-6"><h2 className="font-brand text-2xl font-bold">{booking ? "Checkout" : "Your selection"}</h2>
-        <ul className="space-y-2 text-sm">{chosen.map(s => <li key={s.id}>{s.label} · {s.categoryName} · {currency(s.priceCents/100)}</li>)}</ul>
+        <ul className="space-y-2 text-sm">
+          {chosen.map(s => (
+            <li key={s.id} className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span>{s.label} · {s.categoryName}</span>
+                {s.isAccessible && (
+                  <span className="inline-flex items-center gap-1 rounded bg-brand-purple/10 px-1.5 py-0.5 text-xs font-semibold text-brand-purple">
+                    <Accessibility className="h-3 w-3" /> Accessible
+                  </span>
+                )}
+              </span>
+              <span>{currency(s.priceCents / 100)}</span>
+            </li>
+          ))}
+        </ul>
         {!seats.length && <ul className="text-sm">{categoryItems.map(item => <li key={item.ticketCategoryId}>{event.ticketCategories.find(c => c.id === item.ticketCategoryId)?.name} × {item.quantity}</li>)}</ul>}
         {!booking && !salesClosed && user.role === "customer" && <div className="border-t border-line pt-4">
           {promo ? <p className="flex items-center justify-between gap-3 text-sm" role="status">
@@ -225,9 +248,15 @@ export default function EventDetail() {
         {booking ? !!booking.discountCents && <p className="flex justify-between text-sm text-emerald-700"><span>Promo {booking.promoCode}</span><span>−{currency(booking.discountCents/100)}</span></p>
           : savingCents > 0 && <p className="flex justify-between text-sm text-emerald-700"><span>Promo {promo?.code}</span><span>−{currency(savingCents/100)}</span></p>}
         <p className="flex justify-between font-bold"><span>{booking ? "Total" : "Estimated total"}</span><span>{currency(booking ? booking.totalCents/100 : estimated - savingCents/100)}</span></p>
-        <p className="text-xs text-muted">Prices include all configured charges.</p>
+        <p className="text-xs text-muted">Prices include all configured charges. Tickets are non-refundable and cannot be returned once confirmed; single exchange eligible.</p>
         {booking ? <>
-          <p className="text-sm" role="status">{expired ? "Your hold expired. Release it and select seats again." : `Reserved for ${Math.max(0, Math.ceil((Date.parse(booking.holdExpiresAt ?? "") - now)/1000))} seconds.`}</p>
+          <p className="text-sm" role="status">{expired ? "Your hold expired. Release it and select seats again." : (() => {
+            const sec = Math.max(0, Math.ceil((Date.parse(booking.holdExpiresAt ?? "") - now) / 1000));
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            const timeStr = m > 0 ? `${m} min ${s < 10 ? "0" : ""}${s} sec` : `${s} seconds`;
+            return `Reserved for ${timeStr}.`;
+          })()}</p>
           <label className="block text-sm">Simulated payment result<select className="mt-2 w-full rounded-lg border p-2" value={failPayment ? "fail" : "success"} onChange={e => setFailPayment(e.target.value === "fail")}><option value="success">Success — no real charge</option><option value="fail">Declined — test retry</option></select></label>
           <Button className="w-full" disabled={busy || expired} onClick={pay}>{busy ? "Processing…" : "Confirm simulated payment"}</Button>
           <Button className="w-full" variant="outline" disabled={busy} onClick={release}>Release reservation</Button>

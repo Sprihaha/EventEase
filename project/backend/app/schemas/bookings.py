@@ -94,3 +94,4 @@ class TicketHistoryItem(CamelModel):
     seat_section: str | None = None
     checked_in_at: datetime | None = None
     qr_available_from: datetime | None = None
+    exchanged_at: datetime | None = None

@@ -125,6 +125,30 @@ def list_venues(user: User = Depends(require_organiser), db: Session = Depends(g
     return [venue_service.venue_out(v) for v in venue_service.list_own_venues(db, user)]
 
 
+@router.put("/venues/{venue_id}", response_model=VenueOut,
+            summary="Update venue details or replace its seat layout")
+def update_venue(venue_id: uuid.UUID,
+                 request: Request,
+                 name: str | None = Form(None),
+                 area: str | None = Form(None),
+                 address: str | None = Form(None),
+                 file: UploadFile | None = File(None),
+                 easeexplore_360_url: str | None = Form(None),
+                 user: User = Depends(require_organiser),
+                 db: Session = Depends(get_db)):
+    content = None
+    filename = None
+    if file and file.filename:
+        filename = file.filename
+        content = file.file.read(get_settings().IMPORT_MAX_BYTES + 1)
+    venue = venue_service.update_venue(db, user, venue_id,
+                                       name=name, area=area, address=address,
+                                       filename=filename, content=content,
+                                       ip=client_ip(request),
+                                       easeexplore_360_url=easeexplore_360_url)
+    return venue_service.venue_out(venue)
+
+
 @router.get("/venues/{venue_id}", response_model=VenueOut)
 def get_venue(venue_id: uuid.UUID, user: User = Depends(require_organiser), db: Session = Depends(get_db)):
     return venue_service.venue_out(venue_service.get_own_venue(db, user, venue_id))

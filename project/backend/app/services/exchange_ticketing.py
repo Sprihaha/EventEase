@@ -105,13 +105,14 @@ class RelationalTicketingGateway:
                      and e.origin == EventOrigin.ORGANISER and e.status == EventStatus.APPROVED
                      and e.start_at > now and not qr_released(b, e, now) and u.status == UserStatus.ACTIVE
                      and not u.must_change_password and not t.checked_in_at
+                     and not t.exchanged_at
                      and b.currency == "SGD" and i.unit_price_cents >= 0)
             # Include code only in the hash so reissues invalidate stale consent;
             # never expose it in a public listing, snapshot or audit record.
             revision_data = [str(t.id), str(b.id), str(u.id), str(i.id), str(c.id), str(e.id),
                              t.code, t.status.value, b.status.value, e.status.value, e.start_at.isoformat(),
                              e.title, c.type.value, section, i.unit_price_cents, b.currency,
-                             str(t.seat_id), seat.label if seat else None, str(t.checked_in_at)]
+                             str(t.seat_id), seat.label if seat else None, str(t.checked_in_at), str(t.exchanged_at)]
             revision = hashlib.sha256(json.dumps(revision_data).encode()).hexdigest()
             result[str(t.id)] = TicketContext(
                 source=self.source, id=str(t.id), owner_user_id=u.id, event_id=str(e.id),
