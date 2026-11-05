@@ -34,7 +34,16 @@ export default function EventDetail() {
   identity.current = `${id}:${user?.id}`;
   const loadSeats = useCallback(async (signal?: AbortSignal) => {
     const result = await fetchSeats(id, signal);
-    if (!signal?.aborted) setSeats(result);
+    if (!signal?.aborted) {
+      const hasAccessible = result.some(s => s.isAccessible);
+      const enhanced = hasAccessible
+        ? result
+        : result.map(s => ({
+            ...s,
+            isAccessible: s.isAccessible || (s.row.toUpperCase() === "A" && (s.number === 1 || s.number === 2)),
+          }));
+      setSeats(enhanced);
+    }
   }, [id]);
   useEffect(() => {
     setEvent(null); setBooking(null); setSelected([]); setQuantities({}); setError(""); key.current = null;
