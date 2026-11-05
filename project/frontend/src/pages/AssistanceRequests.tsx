@@ -44,8 +44,8 @@ export default function AssistanceRequests() {
     <div className="mx-auto max-w-5xl px-5 py-14">
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
-          <h1 className="inline-flex items-center gap-3 rounded-full bg-brand-orange px-6 py-2 font-feature text-4xl font-black italic tracking-tight text-white shadow-sm sm:px-7 sm:text-5xl">
-            <Accessibility className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" aria-hidden="true" /> EaseGuide
+          <h1 className="inline-flex items-center gap-2.5 rounded-full bg-brand-orange px-5 py-2 font-feature text-2xl font-black italic tracking-tight text-white shadow-sm">
+            <Accessibility className="h-6 w-6 shrink-0" aria-hidden="true" /> EaseGuide
           </h1>
           <p className="mt-3 max-w-xl text-sm sm:text-base leading-relaxed text-muted">
             Track venue support for your upcoming EventEase bookings.

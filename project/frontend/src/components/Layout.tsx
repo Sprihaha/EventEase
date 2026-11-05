@@ -215,44 +215,44 @@ export default function Layout() {
               <AccessibilityBar />
             </div>
             {user?.role === "organizer" && <OrganisationSwitcher />}
+            {user?.role === "customer" && <ExchangeNotifications key={user.id} userId={user.id} />}
             {user?.role === "customer" && (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center rounded-full bg-gradient-to-r from-brand-purple to-brand-magenta pl-3.5 pr-2 py-1.5 text-white shadow-md shadow-brand-purple/25 transition-all hover:opacity-95 hover:shadow-lg">
                 <Link
                   to="/easepoints"
-                  className="cursor-pointer group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-orange to-[#ff8c00] px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold text-white shadow-md shadow-brand-orange/20 transition-all hover:opacity-95 hover:shadow-lg active:scale-95"
+                  className="group flex items-center gap-2 focus-visible:outline-none"
                   aria-label="View EasePoints Rewards"
                 >
-                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-white fill-white/20 transition-transform group-hover:rotate-12" />
-                  <span className="font-brand font-bold tracking-tight">Your EasePoints</span>
-                  <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-black text-white">
+                  <Sparkles className="h-4 w-4 shrink-0 text-white fill-white/20 transition-transform group-hover:rotate-12" />
+                  <span className="font-feature font-black italic tracking-tight text-sm">
+                    Your EasePoints
+                  </span>
+                  <span className="rounded-full bg-white/25 px-2.5 py-0.5 text-xs font-black text-white not-italic tracking-normal">
                     {userEasePoints} pts
                   </span>
                 </Link>
-                <InfoTooltip
-                  side="bottom"
-                  align="end"
-                  size="sm"
-                  ariaLabel="What is EasePoints?"
-                  title="What are EasePoints?"
-                  content={
-                    <div className="space-y-1.5 text-xs text-brand-deep">
-                      <p>
-                        <strong>EasePoints</strong> are EventEase loyalty rewards for community contributions.
-                      </p>
-                      <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-muted">
-                        <li><strong>+23 pts:</strong> Share approved seat views (EasePix)</li>
-                        <li><strong>+17 pts:</strong> Complete ticket swaps (EaseXchange)</li>
-                        <li><strong>+3 pts:</strong> Ask useful event questions (EaseConnect)</li>
-                      </ul>
-                      <p className="text-[11px] font-semibold text-brand-orange pt-1">
-                        ✨ Every 100 points unlocks a 10% discount on ticket swaps! Click the button to view all rules & redeem.
-                      </p>
-                    </div>
-                  }
-                />
+                <div className="ml-1.5" onClick={(e) => e.stopPropagation()}>
+                  <InfoTooltip
+                    side="bottom"
+                    align="end"
+                    size="sm"
+                    ariaLabel="What is EasePoints?"
+                    title="What are EasePoints?"
+                    triggerClassName="!bg-white/20 !text-white hover:!bg-white hover:!text-brand-purple border-0 shadow-none"
+                    content={
+                      <div className="space-y-1 text-xs text-white/90">
+                        <p>
+                          Earn points by contributing seat views, ticket swaps, and helpful event questions.
+                        </p>
+                        <p className="text-[11px] font-semibold text-brand-orange pt-0.5">
+                          Visit the page to find out more!
+                        </p>
+                      </div>
+                    }
+                  />
+                </div>
               </div>
             )}
-            {user?.role === "customer" && <ExchangeNotifications key={user.id} userId={user.id} />}
             {user ? (
               <div ref={userMenu} className="relative">
                 <Button

@@ -9,8 +9,9 @@ import {
   TrendingUp,
   Gift,
   Camera,
-  Repeat2,
-  CircleHelp,
+  Rotate3d,
+  Repeat,
+  Users,
   ShieldCheck,
   Zap,
   ChevronRight,
@@ -84,29 +85,55 @@ export default function EasePoints() {
 
   const activities = [
     {
-      label: "EASEPIX",
+      id: "views",
+      label: "EasePix & EaseXplore",
       title: "Share your seat view",
       pts: "+23 pts",
       desc: "Earn points after your original EasePix photo is approved. Unlimited uploads. No per-event earning cap.",
-      icon: Camera,
+      iconRender: () => (
+        <div className="flex items-center -space-x-1.5 shrink-0">
+          <div
+            title="EasePix: Seat View Photos"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border-2 border-white bg-brand-lilac text-brand-purple shadow-xs"
+          >
+            <Camera className="h-5 w-5" />
+          </div>
+          <div
+            title="EaseXplore: 360° Views"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl border-2 border-white bg-orange-100 text-brand-orange shadow-xs"
+          >
+            <Rotate3d className="h-5 w-5" />
+          </div>
+        </div>
+      ),
       cta: "Upload Seat View",
       link: "/community?tab=views&upload=true",
     },
     {
-      label: "EASEXCHANGE",
+      id: "exchange",
+      label: "EaseXchange",
       title: "Complete a ticket swap",
       pts: "+17 pts",
       desc: "Each participant earns points once the EaseXchange is fully completed.",
-      icon: Repeat2,
+      iconRender: () => (
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-100 text-brand-orange shadow-2xs">
+          <Repeat className="h-5 w-5" />
+        </div>
+      ),
       cta: "Browse Swaps",
       link: "/community?tab=exchange",
     },
     {
-      label: "EASECONNECT",
+      id: "feed",
+      label: "EaseConnect",
       title: "Ask a useful event question",
       pts: "+3 pts",
       desc: "Earn points for a qualifying EaseConnect question after relevance and duplicate checks.",
-      icon: CircleHelp,
+      iconRender: () => (
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-lilac/70 text-brand-purple shadow-2xs">
+          <Users className="h-5 w-5" />
+        </div>
+      ),
       cta: "Join Discussion",
       link: "/community?tab=feed",
     },
@@ -186,7 +213,7 @@ export default function EasePoints() {
               to="/community?tab=exchange"
               className="inline-flex items-center gap-2 rounded-2xl border border-brand-purple/20 bg-white px-4 py-2.5 text-xs font-bold text-brand-deep hover:bg-brand-lilac/40 transition-all shadow-xs"
             >
-              <Repeat2 className="h-4 w-4 text-brand-purple" />
+              <Repeat className="h-4 w-4 text-brand-purple" />
               <span>EaseXchange</span>
             </Link>
           </div>
@@ -311,46 +338,41 @@ export default function EasePoints() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            {activities.map((act) => {
-              const Icon = act.icon;
-              return (
-                <div
-                  key={act.label}
-                  className="rounded-3xl border border-brand-purple/15 bg-white p-6 shadow-xs hover:border-brand-purple/30 hover:shadow-md transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-lilac/70 text-brand-purple shadow-2xs">
-                        <Icon className="h-6 w-6" />
-                      </span>
-                      <span className="rounded-full bg-brand-orange/10 px-3 py-1 font-brand text-xs font-black text-brand-orange border border-brand-orange/20">
-                        {act.pts}
-                      </span>
-                    </div>
-
-                    <p className="mt-5 text-[11px] font-extrabold uppercase tracking-wider text-brand-purple">
-                      {act.label}
-                    </p>
-                    <h3 className="mt-1 font-brand text-base font-bold text-brand-deep leading-snug">
-                      {act.title}
-                    </h3>
-                    <p className="mt-2.5 text-xs sm:text-sm leading-relaxed text-muted">
-                      {act.desc}
-                    </p>
+            {activities.map((act) => (
+              <div
+                key={act.label}
+                className="rounded-3xl border border-brand-purple/15 bg-white p-6 shadow-xs hover:border-brand-purple/30 hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    {act.iconRender()}
+                    <span className="rounded-full bg-brand-orange/10 px-3 py-1 font-brand text-xs font-black text-brand-orange border border-brand-orange/20">
+                      {act.pts}
+                    </span>
                   </div>
 
-                  <div className="pt-6 border-t border-brand-line/60 mt-6">
-                    <Link
-                      to={act.link}
-                      className="group inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:text-brand-orange transition-colors"
-                    >
-                      <span>{act.cta}</span>
-                      <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                    </Link>
-                  </div>
+                  <p className="mt-5 font-feature font-black italic tracking-tight text-sm text-brand-purple">
+                    {act.label}
+                  </p>
+                  <h3 className="mt-1 font-brand text-base font-bold text-brand-deep leading-snug">
+                    {act.title}
+                  </h3>
+                  <p className="mt-2.5 text-xs sm:text-sm leading-relaxed text-muted">
+                    {act.desc}
+                  </p>
                 </div>
-              );
-            })}
+
+                <div className="pt-6 border-t border-brand-line/60 mt-6">
+                  <Link
+                    to={act.link}
+                    className="group inline-flex items-center gap-1.5 text-xs font-bold text-brand-purple hover:text-brand-orange transition-colors"
+                  >
+                    <span>{act.cta}</span>
+                    <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="rounded-2xl border border-brand-purple/10 bg-white/70 px-4 py-3 text-xs text-muted italic flex items-center gap-2">

@@ -74,8 +74,8 @@ export default function AssistanceRequestForm() {
       <Badge tone="neutral" className="mt-5 border-0 bg-brand-orange text-white font-bold shadow-sm">
         <Accessibility className="h-3 w-3" /> EaseGuide
       </Badge>
-      <h1 className="mt-4 font-feature text-4xl sm:text-5xl font-black italic tracking-tight text-brand-deep">
-        EaseHelp
+      <h1 className="mt-4 font-feature text-2xl font-black italic tracking-tight text-brand-deep">
+        Request assistance
       </h1>
 
       <Card className="mt-8 overflow-hidden border border-brand-purple/15 bg-white shadow-sm rounded-3xl">

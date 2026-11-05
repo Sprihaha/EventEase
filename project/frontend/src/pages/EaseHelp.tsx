@@ -207,7 +207,7 @@ export default function EaseHelp({ embedded = false, editOnOpen = false }: { emb
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Badge tone="accent"><HelpCircle className="h-3 w-3" /> Help and guides</Badge>
-          <h1 className="mt-4 font-feature text-4xl font-black italic tracking-tight text-brand-deep sm:text-5xl">EaseHelp</h1>
+          <h1 className="mt-4 font-feature text-2xl font-black italic tracking-tight text-brand-deep">EaseHelp</h1>
           <p className="mt-3 max-w-2xl text-muted">
             What each EventEase feature does and how to use it, plus the terms that apply when you use EventEase.
           </p>
