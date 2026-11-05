@@ -33,6 +33,22 @@ export async function backendGetVenue(id: string): Promise<Venue> {
   };
 }
 
+export function backendUpdateVenue(venueId: string, input: {
+  name?: string;
+  area?: string;
+  address?: string;
+  file?: File;
+  easeexplore360Url?: string;
+}) {
+  const body = new FormData();
+  if (input.name) body.append("name", input.name);
+  if (input.area) body.append("area", input.area);
+  if (input.address !== undefined) body.append("address", input.address);
+  if (input.file) body.append("file", input.file);
+  if (input.easeexplore360Url !== undefined) body.append("easeexplore_360_url", input.easeexplore360Url);
+  return request<Venue>(`/organiser/venues/${encodeURIComponent(venueId)}`, { method: "PUT", body }, true);
+}
+
 export function backendImportVenue(input: {
   name: string;
   area: string;
@@ -77,9 +93,7 @@ export async function backendUpdateVenueEaseExplore(venueId: string, url: string
   }
 }
 
-export function backendDownloadVenueTemplate() {
-  return downloadBackendReport("/organiser/venues/template", "venue-layout-template.xlsx");
-}
+export { backendDownloadVenueTemplate } from "../backendApi";
 
 export type VenueLayoutSeat = { id: string; number: number; isAccessible: boolean };
 export type VenueLayoutRow = { label: string; seats: VenueLayoutSeat[] };

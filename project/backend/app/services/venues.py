@@ -121,3 +121,52 @@ def update_venue_easeexplore(db: Session, organiser: User, venue_id: uuid.UUID, 
     db.commit()
     db.refresh(venue)
     return venue
+
+
+def update_venue(db: Session, organiser: User, venue_id: uuid.UUID, *,
+                 name: str | None = None, area: str | None = None, address: str | None = None,
+                 filename: str | None = None, content: bytes | None = None,
+                 ip: str | None = None, easeexplore_360_url: str | None = None) -> Venue:
+    settings = get_settings()
+    venue = get_own_venue(db, organiser, venue_id)
+    before = {"name": venue.name, "area": venue.area, "sections": len(venue.sections),
+              "seats": venue.seat_count}
+
+    if name is not None:
+        trimmed_name = name.strip()
+        if trimmed_name and trimmed_name != venue.name:
+            if db.scalar(select(Venue.id).where(Venue.organiser_id == organiser.id,
+                                                Venue.name == trimmed_name,
+                                                Venue.id != venue_id)):
+                raise AppError(409, "VENUE_EXISTS", "you already have a venue with this name")
+            venue.name = trimmed_name
+
+    if area is not None:
+        trimmed_area = area.strip()
+        if trimmed_area:
+            venue.area = trimmed_area
+
+    if address is not None:
+        venue.address = address.strip() or None
+
+    if easeexplore_360_url is not None:
+        venue.easeexplore_360_url = (easeexplore_360_url or "").strip() or None
+
+    if content is not None and filename:
+        if len(content) > settings.IMPORT_MAX_BYTES:
+            raise AppError(413, "FILE_TOO_LARGE", f"layout files must be {settings.IMPORT_MAX_BYTES // 1000} KB or smaller")
+        sections = parse_layout(filename, content, settings.VENUE_MAX_SEATS)
+        venue.sections.clear()
+        db.flush()
+        for section_position, parsed in enumerate(sections):
+            section = VenueSection(name=parsed.name, position=section_position)
+            section.seats = [VenueSeat(row_label=s.row, number=s.number, is_accessible=s.accessible, position=i)
+                             for i, s in enumerate(parsed.seats)]
+            venue.sections.append(section)
+
+    db.flush()
+    audit.record(db, actor=organiser, action="VENUE_UPDATED", entity_type="Venue", entity_id=venue.id,
+                 before=before, after={"name": venue.name, "area": venue.area, "sections": len(venue.sections),
+                                       "seats": venue.seat_count}, ip=ip)
+    db.commit()
+    return get_own_venue(db, organiser, venue.id)

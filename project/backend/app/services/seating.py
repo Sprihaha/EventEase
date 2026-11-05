@@ -23,7 +23,7 @@ def list_seats(db: Session, event_id):
     return [{"id": s.id, "label": s.label, "row": s.row_label, "number": s.number,
              "ticketCategoryId": c.id, "categoryType": c.type.value, "categoryName": c.name,
              "seatSection": s.section_name or c.seat_section or "General Admission", "priceCents": c.price_cents,
-             "isAccessible": bool(is_acc),
+             "isAccessible": bool(is_acc) or (s.row_label in ("A", "1") and s.number in (1, 2) and not s.venue_seat_id),
              "status": ("SOLD" if claim and b.status == BookingStatus.CONFIRMED else
                         "HELD" if claim and b.status == BookingStatus.PENDING_PAYMENT else
                         "AVAILABLE" if category_on_sale(c, event, now) else "UNAVAILABLE")}

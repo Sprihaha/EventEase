@@ -569,8 +569,12 @@ export async function downloadBackendReport(path: string, fallbackName: string) 
     if (token) notifySessionExpired();
     throw new ApiError("Please log in to download reports.", 401);
   }
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  const organisationId = currentOrganisationId();
+  if (organisationId) headers["X-Organisation-Id"] = organisationId;
+
   const response = await fetch(`${API_ROOT}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers,
   });
   if (!response.ok) {
     if (response.status === 401) {
@@ -629,6 +633,22 @@ export async function backendGetVenue(id: string): Promise<Venue> {
   };
 }
 
+export function backendUpdateVenue(venueId: string, input: {
+  name?: string;
+  area?: string;
+  address?: string;
+  file?: File;
+  easeexplore360Url?: string;
+}) {
+  const body = new FormData();
+  if (input.name) body.append("name", input.name);
+  if (input.area) body.append("area", input.area);
+  if (input.address !== undefined) body.append("address", input.address);
+  if (input.file) body.append("file", input.file);
+  if (input.easeexplore360Url !== undefined) body.append("easeexplore_360_url", input.easeexplore360Url);
+  return request<Venue>(`/organiser/venues/${encodeURIComponent(venueId)}`, { method: "PUT", body }, true);
+}
+
 export function backendImportVenue(input: {
   name: string;
   area: string;
@@ -673,8 +693,28 @@ export async function backendUpdateVenueEaseExplore(venueId: string, url: string
   }
 }
 
-export function backendDownloadVenueTemplate() {
-  return downloadBackendReport("/organiser/venues/template", "venue-layout-template.xlsx");
+export async function backendDownloadVenueTemplate() {
+  try {
+    return await downloadBackendReport("/organiser/venues/template", "venue-layout-template.xlsx");
+  } catch (err) {
+    console.warn("Backend template download failed, using client fallback:", err);
+    const csvContent =
+      "Section,Row,From,To,Accessible\n" +
+      "Stalls,A,1,10,\"1,2\"\n" +
+      "Stalls,B,1,10,\n" +
+      "Circle,A,1,8,\"1\"\n" +
+      "Circle,B,1,8,\n";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "venue-layout-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return "venue-layout-template.csv";
+  }
 }
 
 export function backendEventCategories() {

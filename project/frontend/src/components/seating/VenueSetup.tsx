@@ -5,6 +5,7 @@ import {
   ApiError,
   backendDownloadVenueTemplate,
   backendImportVenue,
+  backendUpdateVenue,
   backendListVenues,
   backendUpdateVenueEaseExplore,
   formatMediaEmbedUrl,
@@ -32,6 +33,65 @@ export function VenueSetup() {
   const [error, setError] = useState("");
   const [lineErrors, setLineErrors] = useState<string[]>([]);
   const [templateError, setTemplateError] = useState("");
+
+  // Editing venue details & seat map layout
+  const [editingVenueId, setEditingVenueId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", area: "", address: "" });
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [editFileInputKey, setEditFileInputKey] = useState(0);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editLineErrors, setEditLineErrors] = useState<string[]>([]);
+
+  const startEditingVenue = (venue: Venue) => {
+    setEditingVenueId(venue.id);
+    setEditForm({ name: venue.name, area: venue.area ?? "", address: venue.address ?? "" });
+    setEditFile(null);
+    setEditFileInputKey((k) => k + 1);
+    setEditError("");
+    setEditLineErrors([]);
+  };
+
+  const cancelEditingVenue = () => {
+    setEditingVenueId(null);
+    setEditFile(null);
+    setEditError("");
+    setEditLineErrors([]);
+  };
+
+  const saveVenueEdit = async (venueId: string) => {
+    if (!editForm.name.trim() || !editForm.area.trim()) {
+      setEditError("Name and Area are required.");
+      return;
+    }
+    setSavingEdit(true);
+    setEditError("");
+    setEditLineErrors([]);
+    try {
+      const updated = await backendUpdateVenue(venueId, {
+        name: editForm.name.trim(),
+        area: editForm.area.trim(),
+        address: editForm.address.trim(),
+        file: editFile ?? undefined,
+      });
+      setVenues((current) => (current ? current.map((v) => (v.id === venueId ? updated : v)) : [updated]));
+      setEditingVenueId(null);
+      setEditFile(null);
+      if (previewVenueId === venueId) {
+        setPreviewVenueId(null);
+        setTimeout(() => setPreviewVenueId(venueId), 50);
+      }
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.details?.errors) {
+        setEditError(cause.message);
+        setEditLineErrors(cause.details.errors as string[]);
+      } else {
+        setEditError(messageOf(cause));
+      }
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   // Editing 360 / Video URL for existing venue
   const [editingVenue360Id, setEditingVenue360Id] = useState<string | null>(null);
@@ -523,16 +583,99 @@ export function VenueSetup() {
                 </div>
               </div>
 
+              {/* Inline Venue & Seat Layout Editor */}
+              {editingVenueId === venue.id && (
+                <div className="mt-4 rounded-xl border border-brand-purple/30 bg-brand-lilac/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h5 className="font-brand text-sm font-bold text-brand-deep flex items-center gap-1.5">
+                      <Edit2 className="h-4 w-4 text-brand-purple" /> Edit Venue & Seat Layout
+                    </h5>
+                    <span className="text-[11px] text-muted">Upload a new file to replace seat map</span>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Venue name">
+                      <Input
+                        value={editForm.name}
+                        onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                        className="text-xs"
+                      />
+                    </Field>
+                    <Field label="Area">
+                      <Input
+                        value={editForm.area}
+                        onChange={(e) => setEditForm((f) => ({ ...f, area: e.target.value }))}
+                        className="text-xs"
+                      />
+                    </Field>
+                    <div className="sm:col-span-2">
+                      <Field label="Address (optional)">
+                        <Input
+                          value={editForm.address}
+                          onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
+                          className="text-xs"
+                        />
+                      </Field>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Field label="Replace Seat Layout file (.xlsx or .csv)">
+                        <p className="mb-1 text-[11px] text-muted">
+                          Leave blank to keep current seat layout, or pick a spreadsheet to replace sections and seats.
+                        </p>
+                        <Input
+                          key={editFileInputKey}
+                          type="file"
+                          accept=".xlsx,.csv"
+                          onChange={(e) => setEditFile(e.target.files?.[0] ?? null)}
+                          className="text-xs"
+                        />
+                      </Field>
+                    </div>
+                  </div>
+
+                  {editError && <p role="alert" className="text-xs font-semibold text-danger">{editError}</p>}
+                  {editLineErrors.length > 0 && (
+                    <ul className="max-h-24 overflow-y-auto space-y-1 text-xs text-danger font-mono bg-rose-50 p-2 rounded">
+                      {editLineErrors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
+                    <Button size="sm" variant="outline" disabled={savingEdit} onClick={cancelEditingVenue}>
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={savingEdit || !editForm.name.trim() || !editForm.area.trim()}
+                      onClick={() => void saveVenueEdit(venue.id)}
+                    >
+                      <Check className="h-3.5 w-3.5" /> {savingEdit ? "Saving…" : "Save layout changes"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
                 <span className="text-xs text-muted">{venue.sections.length} sections</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPreviewVenueId(previewVenueId === venue.id ? null : venue.id)}
-                >
-                  <Armchair className="h-4 w-4" />
-                  {previewVenueId === venue.id ? "Hide layout" : "View seat map"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => (editingVenueId === venue.id ? cancelEditingVenue() : startEditingVenue(venue))}
+                  >
+                    <Edit2 className="h-4 w-4" /> {editingVenueId === venue.id ? "Cancel edit" : "Edit / Replace layout"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPreviewVenueId(previewVenueId === venue.id ? null : venue.id)}
+                  >
+                    <Armchair className="h-4 w-4" />
+                    {previewVenueId === venue.id ? "Hide layout" : "View seat map"}
+                  </Button>
+                </div>
               </div>
             </Card>
           );
