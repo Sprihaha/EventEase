@@ -43,3 +43,31 @@ def test_qr_released_respects_booking_status():
     now = datetime(2026, 11, 7, 2, 5, tzinfo=timezone.utc)
     assert qr_released(booking, event, now=now)
 
+
+def test_qr_released_requires_sales_close_even_if_timestamp_present():
+    # Event starts on Nov 14 at 19:00 SGT (11:00 UTC) -> sales close is Nov 07
+    event = MagicMock()
+    event.start_at = datetime(2026, 11, 14, 11, 0, tzinfo=timezone.utc)
+
+    booking = MagicMock()
+    # Stamped from a simulated or earlier run
+    booking.qr_released_at = datetime(2026, 11, 4, 0, 0, tzinfo=timezone.utc)
+
+    # Reference clock is Nov 05 -> sales close (Nov 07) is still in the future!
+    now = datetime(2026, 11, 5, 0, 0, tzinfo=timezone.utc)
+    assert not qr_released(booking, event, now=now)
+
+
+def test_qr_released_automatically_releases_on_sales_close_when_none():
+    # Event starts on Nov 14 at 19:00 SGT (11:00 UTC) -> sales close is Nov 07
+    event = MagicMock()
+    event.start_at = datetime(2026, 11, 14, 11, 0, tzinfo=timezone.utc)
+
+    booking = MagicMock()
+    booking.qr_released_at = None
+
+    # Reference clock is Nov 07 morning (SGT) -> sales closed!
+    now = datetime(2026, 11, 7, 2, 0, tzinfo=timezone.utc)
+    assert qr_released(booking, event, now=now)
+
+

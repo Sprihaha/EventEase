@@ -63,6 +63,12 @@ def booking_view(db: Session, booking: Booking, settings: Settings | None = None
     cutoff = cancellation_cutoff(event, settings)
     now = get_business_now(db)
     released = qr_released(booking, event, now=now)  # until then the code (what the QR encodes) stays hidden
+    if not released and booking.qr_released_at is not None:
+        booking.qr_released_at = None
+        try:
+            db.commit()
+        except Exception:
+            pass
     return {
         "id": booking.id,
         "status": booking.status,
@@ -125,11 +131,25 @@ def ticket_history(db: Session, user: User) -> list[dict]:
         .order_by(Ticket.issued_at.desc(), Ticket.id)
     ).all()
     now = get_business_now(db)
-    return [{"id": t.id, "code": t.code if qr_released(b, e, now=now) else None, "status": t.status,
-             "issued_at": t.issued_at, "booking_id": b.id, "qr_available_from": sales_close_at(e),
-             "booking_status": b.status, "event": e, "category_type": c.type, "category_name": c.name,
-             "unit_price_cents": i.unit_price_cents,
-             "seat_label": db.get(EventSeat, t.seat_id).label if t.seat_id else None,
-             "seat_section": c.seat_section or "General Admission", "checked_in_at": t.checked_in_at, "exchanged_at": t.exchanged_at}
-            for t, b, i, c, e in rows]
+    items = []
+    need_commit = False
+    for t, b, i, c, e in rows:
+        released = qr_released(b, e, now=now)
+        if not released and b.qr_released_at is not None:
+            b.qr_released_at = None
+            need_commit = True
+        items.append({
+            "id": t.id, "code": t.code if released else None, "status": t.status,
+            "issued_at": t.issued_at, "booking_id": b.id, "qr_available_from": sales_close_at(e),
+            "booking_status": b.status, "event": e, "category_type": c.type, "category_name": c.name,
+            "unit_price_cents": i.unit_price_cents,
+            "seat_label": db.get(EventSeat, t.seat_id).label if t.seat_id else None,
+            "seat_section": c.seat_section or "General Admission", "checked_in_at": t.checked_in_at, "exchanged_at": t.exchanged_at,
+        })
+    if need_commit:
+        try:
+            db.commit()
+        except Exception:
+            pass
+    return items
 

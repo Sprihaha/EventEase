@@ -135,15 +135,30 @@ def set_business_date(
     state = get_business_state(db)
     try:
         effective_now_dt = datetime.fromisoformat(state["effective_now"])
-        from app.db.models import Booking
-        db.execute(
-            update(Booking)
-            .where(Booking.qr_released_at.is_not(None), Booking.qr_released_at > effective_now_dt)
-            .values(qr_released_at=None)
+        if effective_now_dt.tzinfo is None:
+            effective_now_dt = effective_now_dt.replace(tzinfo=timezone.utc)
+        from app.db.models import Booking, Event
+        from app.services.bookings.qr_release import is_qr_release_due
+
+        stamped_bookings = list(
+            db.scalars(
+                select(Booking).where(Booking.qr_released_at.is_not(None))
+            )
         )
+        reset_count = 0
+        for b in stamped_bookings:
+            rel_at = b.qr_released_at
+            if rel_at.tzinfo is None:
+                rel_at = rel_at.replace(tzinfo=timezone.utc)
+            event = db.get(Event, b.event_id)
+            if rel_at > effective_now_dt or (event and not is_qr_release_due(event, effective_now_dt)):
+                b.qr_released_at = None
+                reset_count += 1
         db.commit()
+        if reset_count:
+            logger.info("Reset qr_released_at to None for %d booking(s) after clock update", reset_count)
     except Exception as e:
-        logger.warning("Could not synchronize future bookings after clock update: %s", e)
+        logger.warning("Could not synchronize bookings after clock update: %s", e)
 
     return state
 

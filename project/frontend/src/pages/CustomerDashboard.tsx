@@ -76,9 +76,9 @@ function getTicketStatus(t: OwnedTicket): {
   if (t.status === "VALID") {
     return {
       key: "upcoming",
-      label: t.code ? "Active (QR Issued)" : "Confirmed",
+      label: t.code ? "VALID" : "Confirmed",
       tone: "live",
-      description: t.code ? "Ready for admission" : (t.qrAvailableFrom ? `QR code releases on ${fmtDate(t.qrAvailableFrom)}` : "Booking confirmed"),
+      description: t.code ? "Ready for admission" : (t.qrAvailableFrom ? `Your QR code will be available from ${fmtDate(t.qrAvailableFrom)}` : "Booking confirmed"),
     };
   }
   return {
@@ -143,13 +143,16 @@ export default function CustomerDashboard() {
     });
     const refresh = () => {
       void load(controller.signal).catch(() => {});
+      void refreshBookings();
     };
     const timer = window.setInterval(refresh, 30_000);
     window.addEventListener("focus", refresh);
+    window.addEventListener("business-date-changed", refresh);
     return () => {
       controller.abort();
       window.clearInterval(timer);
       window.removeEventListener("focus", refresh);
+      window.removeEventListener("business-date-changed", refresh);
     };
   }, [user?.id, load]);
 
@@ -313,7 +316,7 @@ export default function CustomerDashboard() {
             <span className="font-medium text-emerald-800">Non-refundable policy</span>
           </div>
           {!t.code && t.qrAvailableFrom && st.key === "upcoming" && (
-            <p className="text-xs text-muted italic">QR code releases on {fmtDate(t.qrAvailableFrom)}.</p>
+            <p className="text-xs text-muted italic">Your QR code will be available from {fmtDate(t.qrAvailableFrom)}.</p>
           )}
           {st.key !== "upcoming" && <p className="text-xs font-medium text-muted">{st.description}</p>}
         </div>

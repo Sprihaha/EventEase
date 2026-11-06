@@ -42,6 +42,8 @@ def is_qr_release_due(event: Event, now: datetime | None = None, settings: Setti
 def qr_released(booking: Booking, event: Event, now: datetime | None = None) -> bool:
     """Released by the job, or due anyway (so a paused job never hides a QR code at the gate)."""
     ref_now = now or utcnow()
+    if not is_qr_release_due(event, ref_now):
+        return False
     if booking.qr_released_at is not None:
         if ref_now.tzinfo is None:
             ref_now = ref_now.replace(tzinfo=timezone.utc)
@@ -52,7 +54,7 @@ def qr_released(booking: Booking, event: Event, now: datetime | None = None) -> 
             return True
         tz = get_settings().tz
         return ref_now.astimezone(tz).date() >= rel_at.astimezone(tz).date()
-    return is_qr_release_due(event, ref_now)
+    return True
 
 
 def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> int:
@@ -61,6 +63,15 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> i
     Several backends may share one database, so rows are locked and marked before any email
     goes out: a booking is only ever claimed and emailed by one run.
     """
+    premature_rows = db.execute(
+        select(Booking, Event).join(Event, Event.id == Booking.event_id)
+        .where(Booking.status == BookingStatus.CONFIRMED, Booking.qr_released_at.is_not(None))
+        .with_for_update(of=Booking, skip_locked=True)
+    ).all()
+    for b_item, e_item in premature_rows:
+        if not is_qr_release_due(e_item, now, settings) or (b_item.qr_released_at and b_item.qr_released_at > now):
+            b_item.qr_released_at = None
+
     rows = db.execute(
         select(Booking, Event).join(Event, Event.id == Booking.event_id)
         .where(Booking.status == BookingStatus.CONFIRMED, Booking.qr_released_at.is_(None),
