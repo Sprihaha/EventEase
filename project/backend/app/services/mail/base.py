@@ -18,10 +18,18 @@ class MailMessage:
     subject: str
     body: str
     sent_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    html: str | None = None
 
 
 class Mailer(Protocol):
-    def send(self, to: str, subject: str, body: str) -> None: ...
+    def send(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        html: str | None = None,
+        inline_images: dict[str, tuple[bytes, str, str]] | None = None,
+    ) -> None: ...
 
 
 class ConsoleMailer:
@@ -31,8 +39,15 @@ class ConsoleMailer:
         self.outbox: list[MailMessage] = []
         self._keep = keep
 
-    def send(self, to: str, subject: str, body: str) -> None:
-        message = MailMessage(to=to, subject=subject, body=body)
+    def send(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        html: str | None = None,
+        inline_images: dict[str, tuple[bytes, str, str]] | None = None,
+    ) -> None:
+        message = MailMessage(to=to, subject=subject, body=body, html=html)
         self.outbox = (self.outbox + [message])[-self._keep :]
         if not get_settings().APP_ENV == "test":
             sys.stdout.write(f"\n--- MAIL to={to} subject={subject!r} ---\n{body}\n--- END MAIL ---\n")
@@ -49,7 +64,15 @@ class ResendMailer:
         if not self.api_key:
             raise RuntimeError("RESEND_API_KEY must be set when MAIL_TRANSPORT=resend")
 
-    def send(self, to: str, subject: str, body: str) -> None:
+    def send(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        html: str | None = None,
+        inline_images: dict[str, tuple[bytes, str, str]] | None = None,
+    ) -> None:
+        import base64
         import httpx
 
         url = "https://api.resend.com/emails"
@@ -57,12 +80,22 @@ class ResendMailer:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        payload = {
+        payload: dict[str, object] = {
             "from": self.mail_from,
             "to": [to],
             "subject": subject,
             "text": body,
         }
+        if html:
+            payload["html"] = html
+        if inline_images:
+            attachments = []
+            for cid, (data, _mime, filename) in inline_images.items():
+                attachments.append({
+                    "filename": filename,
+                    "content": base64.b64encode(data).decode("ascii"),
+                })
+            payload["attachments"] = attachments
         with httpx.Client(timeout=10.0) as client:
             resp = client.post(url, headers=headers, json=payload)
             if resp.is_error:
@@ -82,7 +115,14 @@ class SendGridMailer:
         if not self.api_key:
             raise RuntimeError("SENDGRID_API_KEY must be set when MAIL_TRANSPORT=sendgrid")
 
-    def send(self, to: str, subject: str, body: str) -> None:
+    def send(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        html: str | None = None,
+        inline_images: dict[str, tuple[bytes, str, str]] | None = None,
+    ) -> None:
         # Parse "Display Name <email@addr>" format
         from_email = self.mail_from
         from_name = None
@@ -93,13 +133,14 @@ class SendGridMailer:
 
         try:
             from sendgrid import SendGridAPIClient
-            from sendgrid.helpers.mail import From, Mail, PlainTextContent, To
+            from sendgrid.helpers.mail import From, HtmlContent, Mail, PlainTextContent, To
 
             message = Mail(
                 from_email=From(email=from_email, name=from_name),
                 to_emails=To(email=to),
                 subject=subject,
                 plain_text_content=PlainTextContent(body),
+                html_content=HtmlContent(html) if html else None,
             )
             sg = SendGridAPIClient(self.api_key)
             response = sg.send(message)
@@ -115,11 +156,15 @@ class SendGridMailer:
             if from_name:
                 from_obj["name"] = from_name
 
-            payload = {
+            content_list: list[dict[str, str]] = [{"type": "text/plain", "value": body}]
+            if html:
+                content_list.append({"type": "text/html", "value": html})
+
+            payload: dict[str, object] = {
                 "personalizations": [{"to": [{"email": to}]}],
                 "from": from_obj,
                 "subject": subject,
-                "content": [{"type": "text/plain", "value": body}],
+                "content": content_list,
             }
             with httpx.Client(timeout=10.0) as client:
                 resp = client.post(
@@ -145,13 +190,42 @@ class SmtpMailer:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings
 
-    def send(self, to: str, subject: str, body: str) -> None:
+    def send(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        html: str | None = None,
+        inline_images: dict[str, tuple[bytes, str, str]] | None = None,
+    ) -> None:
         settings = self.settings or get_settings()
         message = EmailMessage()
         message["From"] = settings.MAIL_FROM
         message["To"] = to
         message["Subject"] = subject
         message.set_content(body)
+
+        if html:
+            message.add_alternative(html, subtype="html")
+            images = inline_images
+            if images is None and ("cid:eventease_logo" in html or "cid:gendol_company_logo" in html):
+                try:
+                    from app.services.mail.templates import get_branding_images
+                    images = get_branding_images()
+                except Exception:
+                    images = None
+            if images:
+                html_part = message.get_payload()[-1]
+                for cid, (img_bytes, mime_type, filename) in images.items():
+                    maintype, subtype = mime_type.split("/", 1)
+                    html_part.add_related(
+                        img_bytes,
+                        maintype=maintype,
+                        subtype=subtype,
+                        cid=f"<{cid}>",
+                        filename=filename,
+                    )
+
         context = ssl.create_default_context()
         if settings.SMTP_PORT == 465:
             smtp = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS,
@@ -205,11 +279,22 @@ def get_mailer() -> Mailer:
     return _mailer
 
 
-def send_safely(to: str | None, subject: str, body: str, mailer: Mailer | None = None) -> None:
+def send_safely(
+    to: str | None,
+    subject: str,
+    body: str,
+    mailer: Mailer | None = None,
+    html: str | None = None,
+    inline_images: dict[str, tuple[bytes, str, str]] | None = None,
+) -> None:
     """Notifications must never break the request that triggered them."""
     if not to:
         return
+    resolved_mailer = mailer or get_mailer()
     try:
-        (mailer or get_mailer()).send(to, subject, body)
+        resolved_mailer.send(to, subject, body, html=html, inline_images=inline_images)
+    except TypeError:
+        # Backward compatibility if a custom/mock mailer only accepts (to, subject, body)
+        resolved_mailer.send(to, subject, body)
     except Exception:
         logger.exception("Failed to send mail to %s", to)

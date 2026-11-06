@@ -16,6 +16,7 @@ from app.core.security import utcnow
 from app.db.models import Booking, BookingStatus, Event, EventStatus, TicketStatus, User
 from app.services.events import sales_close_at
 from app.services.mail.base import send_safely
+from app.services.mail.templates import build_ticket_release_email
 
 
 def is_qr_release_due(event: Event, now: datetime | None = None, settings: Settings | None = None) -> bool:
@@ -84,10 +85,19 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> i
             user = db.get(User, user_id)
             if user is None or not user.email:
                 continue
-            lines = "\n".join(f"  - {code}" for code in codes)
-            send_safely(user.email, f"Your QR tickets for {event.title} are ready",
-                        f"Hi {user.username},\n\nTicket sales for '{event.title}' have closed and your QR tickets "
-                        f"are now ready.\n\nEvent: {event.title}\nDate & time: {when} (SGT)\n"
-                        f"Venue: {event.venue_name}\n\nTicket codes:\n{lines}\n\nShow the QR codes at the gate. "
-                        f"You can open them any time at:\n{link}\n\nThe EventEase team")
+            text_body, html_body = build_ticket_release_email(
+                username=user.username,
+                event_title=event.title,
+                event_venue=event.venue_name,
+                when_str=when,
+                ticket_codes=codes,
+                dashboard_url=link,
+                support_email=settings.SMTP_USERNAME or "admin.gendol@gmail.com",
+            )
+            send_safely(
+                user.email,
+                f"Your QR tickets for {event.title} are ready",
+                text_body,
+                html=html_body,
+            )
     return len(due)

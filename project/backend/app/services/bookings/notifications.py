@@ -26,18 +26,26 @@ def send_booking_confirmation(db: Session, booking_id: uuid.UUID, mailer: Mailer
         return
 
     settings = get_settings()
-    if qr_released(booking, event):
-        tickets = "Your QR tickets are ready in your EventEase dashboard."
-    else:
-        release = sales_close_at(event, settings).astimezone(settings.tz).strftime("%d %B %Y")
-        tickets = (f"Your QR tickets will be emailed to you on {release}, when ticket sales close. "
-                   f"Until then you can still swap tickets on EaseXchange.")
+    release_date: str | None = None
+    if not qr_released(booking, event):
+        release_date = sales_close_at(event, settings).astimezone(settings.tz).strftime("%d %B %Y")
+
+    from app.services.mail.templates import build_booking_confirmation_email
+
+    text_body, html_body = build_booking_confirmation_email(
+        username=user.username,
+        event_title=event.title,
+        ticket_count=len(booking.tickets),
+        total_amount_str=f"S${booking.total_cents / 100:.2f}",
+        release_date_str=release_date,
+        dashboard_url=f"{settings.FRONTEND_URL.rstrip('/')}/dashboard/customer",
+        support_email=settings.SMTP_USERNAME or "admin.gendol@gmail.com",
+    )
     send_safely(
         user.email,
         f"Your tickets for {event.title}",
-        f"Hi {user.username},\n\nPayment received - your booking for '{event.title}' is confirmed "
-        f"({len(booking.tickets)} ticket(s), S${booking.total_cents / 100:.2f}).\n\n{tickets}\n\n"
-        f"{settings.FRONTEND_URL.rstrip('/')}/dashboard/customer\n\nThe EventEase team",
+        text_body,
+        html=html_body,
         mailer=mailer,
     )
 
