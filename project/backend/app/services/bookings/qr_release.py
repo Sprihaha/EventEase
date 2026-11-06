@@ -90,6 +90,8 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> i
                 holders[ticket.owner_user_id or booking.user_id].append(ticket.code)
         emails.append((event, holders))
     db.commit()
+
+    email_tasks = []
     for event, holders in emails:
         when = event.start_at.astimezone(tz).strftime("%A, %d %B %Y at %I:%M %p")
         for user_id, codes in holders.items():
@@ -106,11 +108,33 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> i
                 support_email=settings.SMTP_USERNAME or "admin.gendol@gmail.com",
                 base_url=settings.FRONTEND_URL,
             )
-            send_safely(
+            email_tasks.append((
                 user.email,
                 f"Your QR tickets for {event.title} are ready",
                 text_body,
-                html=html_body,
-                inline_images=inline_images,
+                html_body,
+                inline_images,
+            ))
+
+    if email_tasks:
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _send(task: tuple) -> None:
+            send_safely(
+                task[0],
+                task[1],
+                task[2],
+                html=task[3],
+                inline_images=task[4],
             )
+
+        workers = min(len(email_tasks), 5)
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = [executor.submit(_send, t) for t in email_tasks]
+            for f in futures:
+                try:
+                    f.result(timeout=settings.SMTP_TIMEOUT_SECONDS + 5)
+                except Exception:
+                    pass
+
     return len(due)

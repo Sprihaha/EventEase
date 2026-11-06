@@ -258,6 +258,20 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
     }
   };
 
+  // Auto-refresh logs modal if active job has running logs
+  useEffect(() => {
+    if (!activeLogJob) return;
+    const hasRunning = jobLogs.some((l) => l.status === "RUNNING");
+    if (!hasRunning) return;
+    const interval = window.setInterval(async () => {
+      try {
+        const fresh = await getSchedulerJobLogs(activeLogJob.id, 15);
+        setJobLogs(fresh);
+      } catch {}
+    }, 2000);
+    return () => window.clearInterval(interval);
+  }, [activeLogJob, jobLogs]);
+
   // Edit Cron Expression
   const handleOpenEditCron = (job: SchedulerJob) => {
     setEditingJob(job);
@@ -766,6 +780,8 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
                       "rounded-2xl border p-4 text-xs transition-all",
                       log.status === "SUCCESS"
                         ? "border-emerald-200 bg-emerald-50/40"
+                        : log.status === "RUNNING"
+                        ? "border-amber-200 bg-amber-50/40"
                         : "border-red-200 bg-red-50/40",
                     )}
                   >
@@ -773,6 +789,8 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
                       <div className="flex items-center gap-2">
                         {log.status === "SUCCESS" ? (
                           <Badge tone="live" className="text-[10px]">SUCCESS</Badge>
+                        ) : log.status === "RUNNING" ? (
+                          <Badge tone="warn" className="text-[10px] animate-pulse">RUNNING</Badge>
                         ) : (
                           <Badge tone="danger" className="text-[10px]">FAILURE</Badge>
                         )}
@@ -786,7 +804,7 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
                         )}
                       </div>
                       <span className="text-muted">
-                        {new Date(log.started_at).toLocaleString()} · {log.duration_ms}ms
+                        {new Date(log.started_at).toLocaleString()} · {log.duration_ms != null ? `${log.duration_ms}ms` : "In Progress..."}
                       </span>
                     </div>
 
