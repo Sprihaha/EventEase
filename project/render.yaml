@@ -83,7 +83,3 @@ services:
         value: admin.gendol@gmail.com
       - key: SMTP_PASSWORD
         sync: false
-      - key: SENDGRID_API_KEY
-        sync: false
-      - key: RESEND_API_KEY
-        sync: false
