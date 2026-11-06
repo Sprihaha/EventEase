@@ -5,6 +5,7 @@ QR encodes), and its tickets can still be swapped on EaseXchange. The QR_RELEASE
 marks each due booking released once and emails every ticket holder their codes.
 """
 
+import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -17,6 +18,9 @@ from app.db.models import Booking, BookingStatus, Event, EventStatus, TicketStat
 from app.services.events import sales_close_at
 from app.services.mail.base import send_safely
 from app.services.mail.templates import build_ticket_release_email
+
+
+logger = logging.getLogger("eventease.qr_release")
 
 
 def is_qr_release_due(event: Event, now: datetime | None = None, settings: Settings | None = None) -> bool:
@@ -147,7 +151,7 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime, forc
             for f in futures:
                 try:
                     f.result(timeout=settings.SMTP_TIMEOUT_SECONDS + 5)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Failed sending QR code email: %s", e)
 
     return len(due)

@@ -40,7 +40,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app/backend
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    MAIL_TRANSPORT=smtp \
+    SMTP_HOST=smtp.gmail.com \
+    SMTP_PORT=465 \
+    SMTP_USERNAME=admin.gendol@gmail.com \
+    SMTP_PASSWORD=vvwazmhyfstvauut
 
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
