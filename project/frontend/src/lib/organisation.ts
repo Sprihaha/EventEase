@@ -60,6 +60,45 @@ export const OTHERS = "__others__";
 
 export const fetchOrganisations = () => request<Organisation[]>("/organisations");
 
+export function isValidUen(uen: string): boolean {
+  const clean = (uen || "").trim().toUpperCase();
+  if (clean.length !== 9 && clean.length !== 10) return false;
+  if (clean.includes("O")) return false;
+
+  const currentYear = new Date().getFullYear();
+
+  // Format 1: Sole proprietorship / partnership / local business (8 digits + check letter)
+  // e.g. 53499999V
+  if (clean.length === 9) {
+    return /^[0-9]{8}[A-Z]$/.test(clean);
+  }
+
+  // 10 characters: Format 2 or Format 3
+  // Format 2: Local company (Pte Ltd) (4-digit year + 5 digits + check letter)
+  // e.g. 201888888A
+  const m2 = clean.match(/^([0-9]{4})[0-9]{5}[A-Z]$/);
+  if (m2) {
+    const year = parseInt(m2[1], 10);
+    if (year < 1800 || year > currentYear) return false;
+    return true;
+  }
+
+  // Format 3: Other registered entities, e.g. LLP (Letter + 2-digit year + entity code + 4 digits + check letter)
+  // e.g. T18LL7777F
+  const m3 = clean.match(/^([A-Z])([0-9]{2})[A-Z]{2}[0-9]{4}[A-Z]$/);
+  if (m3) {
+    const prefix = m3[1];
+    const yy = parseInt(m3[2], 10);
+    if (prefix === "T") {
+      const year = 2000 + yy;
+      if (year > currentYear) return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
 export type UenLookupResult = {
   uen: string;
   alreadyRegistered: boolean;

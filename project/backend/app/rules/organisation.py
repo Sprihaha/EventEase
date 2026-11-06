@@ -10,14 +10,63 @@ ORGANISATION_NAME_REQUIRED = ("ORGANISATION_NAME_REQUIRED", "organisation name i
 ORGANISATION_EMAIL_INVALID = ("ORGANISATION_EMAIL_INVALID", "organisation email is invalid")
 PERSONAL_COMPANY_EMAIL_INVALID = ("PERSONAL_COMPANY_EMAIL_INVALID", "personal company email is invalid")
 UEN_REQUIRED = ("UEN_REQUIRED", "company Unique Entity Number (UEN) is required")
-UEN_INVALID = ("UEN_INVALID", "company Unique Entity Number (UEN) must be 8 to 20 alphanumeric characters")
+UEN_INVALID = ("UEN_INVALID", "Invalid UEN")
+
+
+def is_valid_uen(uen: str | None, current_year: int | None = None) -> bool:
+    """Validates Singapore Unique Entity Number (UEN).
+
+    Supported formats (9 or 10 characters):
+    1. Sole proprietorship / partnership / local business: 8 digits + check letter (e.g. 53499999V)
+    2. Local company (Pte Ltd): 4-digit year + 5 digits + check letter (e.g. 201888888A)
+       - Year cannot be in the future (e.g. 2027 is invalid).
+    3. Other registered entities, e.g. LLP: Letter + 2-digit year + entity code + 4 digits + check letter (e.g. T18LL7777F)
+       - If prefix is 'T' (year 2000+), 2000 + YY cannot be in the future.
+    Letter 'O' is never used in UEN.
+    """
+    cleaned = (uen or "").strip().upper()
+    if len(cleaned) not in (9, 10):
+        return False
+    if "O" in cleaned:
+        return False
+
+    if current_year is None:
+        from datetime import datetime
+        current_year = datetime.now().year
+
+    # Format 1: Sole proprietorship / partnership / local business (8 digits + 1 check letter)
+    # e.g. 53499999V
+    if len(cleaned) == 9:
+        return bool(re.match(r"^[0-9]{8}[A-Z]$", cleaned))
+
+    # Format 2: Local company (Pte Ltd) (4-digit year + 5 digits + check letter)
+    # e.g. 201888888A
+    m2 = re.match(r"^([0-9]{4})[0-9]{5}[A-Z]$", cleaned)
+    if m2:
+        year = int(m2.group(1))
+        if year < 1800 or year > current_year:
+            return False
+        return True
+
+    # Format 3: Other registered entities, e.g. LLP (Letter + 2-digit year + entity code + 4 digits + check letter)
+    # e.g. T18LL7777F
+    m3 = re.match(r"^([A-Z])([0-9]{2})[A-Z]{2}[0-9]{4}[A-Z]$", cleaned)
+    if m3:
+        prefix, yy = m3.group(1), int(m3.group(2))
+        if prefix == "T":
+            year = 2000 + yy
+            if year > current_year:
+                return False
+        return True
+
+    return False
 
 
 def normalise_uen(uen: str | None) -> str:
     cleaned = (uen or "").strip().upper()
     if not cleaned:
         raise RuleError(*UEN_REQUIRED)
-    if not re.match(r"^[A-Z0-9]{4,20}$", cleaned):
+    if not is_valid_uen(cleaned):
         raise RuleError(*UEN_INVALID)
     return cleaned
 

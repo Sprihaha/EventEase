@@ -42,3 +42,4 @@ def test_qr_released_respects_booking_status():
     # On or after release timestamp
     now = datetime(2026, 11, 7, 2, 5, tzinfo=timezone.utc)
     assert qr_released(booking, event, now=now)
+

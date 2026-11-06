@@ -24,7 +24,7 @@ import {
 import type { SignUpPrefill, SignUpRole } from "./SignUpChoice";
 import { getSavedExpiredReturnTo, clearSavedExpiredReturnTo, resolveReturnUrl } from "../lib/session";
 import { Badge, Button, Card, Field, Input, Select } from "../components/ui";
-import { OTHERS, fetchOrganisations, fetchSignInOrganisations, getCurrentOrganisation, lookupUen, type Organisation } from "../lib/organisation";
+import { OTHERS, fetchOrganisations, fetchSignInOrganisations, getCurrentOrganisation, lookupUen, isValidUen, type Organisation } from "../lib/organisation";
 
 type SignUp = {
   userId: string;
@@ -348,7 +348,21 @@ export default function Login() {
   useEffect(() => {
     if (signUpRole !== "ORGANISER" || mode !== "signup") return;
     const cleanUen = signUp.organisationUen.trim().toUpperCase();
-    if (cleanUen.length < 8) {
+    if (!cleanUen) {
+      setUenRegisteredError(null);
+      setIsOrgNameGreyedOut(false);
+      setAcraSuggested(false);
+      return;
+    }
+
+    if (cleanUen.length >= 9 && !isValidUen(cleanUen)) {
+      setUenRegisteredError("Invalid UEN");
+      setIsOrgNameGreyedOut(false);
+      setAcraSuggested(false);
+      return;
+    }
+
+    if (!isValidUen(cleanUen)) {
       setUenRegisteredError(null);
       setIsOrgNameGreyedOut(false);
       setAcraSuggested(false);
@@ -400,15 +414,19 @@ export default function Login() {
   const handleSignUp = async (event: FormEvent) => {
     event.preventDefault();
     if (signUpRole === "ORGANISER") {
+      if (!signUp.organisationUen.trim()) {
+        setSignUpError("Please enter your company Unique Entity Number (UEN).");
+        return;
+      }
+      if (!isValidUen(signUp.organisationUen)) {
+        setSignUpError("Invalid UEN");
+        return;
+      }
       if (isOrgNameGreyedOut || uenRegisteredError) {
         setSignUpError(
           uenRegisteredError ||
             "Organisation is already registered, ask your organisation admin to add your account"
         );
-        return;
-      }
-      if (!signUp.organisationUen.trim()) {
-        setSignUpError("Please enter your company Unique Entity Number (UEN).");
         return;
       }
       if (!signUp.organisationName.trim()) {
@@ -468,7 +486,7 @@ export default function Login() {
     if (!signUp.billingAddress.trim()) return false;
 
     if (signUpRole === "ORGANISER") {
-      if (!signUp.organisationUen.trim() || signUp.organisationUen.trim().length < 4) return false;
+      if (!signUp.organisationUen.trim() || !isValidUen(signUp.organisationUen)) return false;
       if (uenLookupLoading || isOrgNameGreyedOut || uenRegisteredError) return false;
       if (!signUp.organisationName.trim() || signUp.organisationName.trim().length < 2) return false;
       if (!signUp.organisationEmail.trim() || !signUp.organisationEmail.includes("@")) return false;
@@ -718,6 +736,12 @@ export default function Login() {
                           placeholder="e.g. 201812345A"
                           value={signUp.organisationUen}
                           onChange={(e) => update("organisationUen", e.target.value.toUpperCase())}
+                          onBlur={() => {
+                            const clean = signUp.organisationUen.trim().toUpperCase();
+                            if (clean && !isValidUen(clean)) {
+                              setUenRegisteredError("Invalid UEN");
+                            }
+                          }}
                           minLength={4}
                           maxLength={50}
                           required
@@ -731,11 +755,6 @@ export default function Login() {
                       {uenRegisteredError && (
                         <p className="mt-1.5 text-xs font-semibold text-danger">
                           {uenRegisteredError}
-                        </p>
-                      )}
-                      {acraSuggested && !uenRegisteredError && (
-                        <p className="mt-1.5 text-xs font-semibold text-emerald-600 flex items-center gap-1">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Auto-filled from ACRA registry
                         </p>
                       )}
                     </Field>
@@ -758,6 +777,11 @@ export default function Login() {
                         }
                         required={!isOrgNameGreyedOut}
                       />
+                      {acraSuggested && !uenRegisteredError && (
+                        <p className="mt-1.5 text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Auto-filled from ACRA registry
+                        </p>
+                      )}
                       {isOrgNameGreyedOut && (
                         <p className="mt-1 text-xs text-muted">
                           Company name cannot be edited because this organisation is already registered.

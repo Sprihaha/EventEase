@@ -45,8 +45,18 @@ def lookup_uen(db: Session, settings: Settings, uen: str) -> dict:
     import json
     import urllib.request
     from app.db.models import OrganiserApplication, OrganiserApplicationStatus
+    from app.rules.organisation import is_valid_uen
 
     cleaned = uen.strip().upper()
+    if not is_valid_uen(cleaned):
+        return {
+            "uen": cleaned,
+            "already_registered": False,
+            "organisation_name": None,
+            "message": "Invalid UEN",
+            "found": False,
+            "entity_name": None,
+        }
     # 1. Check local database for existing registered organisation
     existing_org = find_by_uen(db, cleaned)
     if existing_org:
