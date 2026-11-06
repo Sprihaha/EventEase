@@ -100,7 +100,7 @@ def trigger_job_run(
 ) -> dict[str, Any]:
     """Manually triggers an immediate execution of a job (works whether active or inactive)."""
     try:
-        return execute_job(job_id, triggered_by=f"ADMIN:{admin.name}")
+        return execute_job(job_id, triggered_by=f"ADMIN:{admin.username}")
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
