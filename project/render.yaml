@@ -70,21 +70,20 @@ services:
       - key: PAYMENT_PROVIDER
         value: mock
 
-      # ── Mail (SendGrid works on Render free — no outbound SMTP block) ──
+      # ── Mail (Gmail SMTP over port 465 for verified inbox delivery) ──
       - key: MAIL_TRANSPORT
-        value: sendgrid
+        value: smtp
       - key: MAIL_FROM
         value: "EventEase <admin.gendol@gmail.com>"
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_USERNAME
+        value: admin.gendol@gmail.com
+      - key: SMTP_PASSWORD
+        sync: false
       - key: SENDGRID_API_KEY
         sync: false
-      # Resend / SMTP kept as optional fallbacks; set in dashboard if needed
       - key: RESEND_API_KEY
-        sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_USERNAME
-        sync: false
-      - key: SMTP_PASSWORD
         sync: false

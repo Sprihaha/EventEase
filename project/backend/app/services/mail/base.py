@@ -83,9 +83,6 @@ class SendGridMailer:
             raise RuntimeError("SENDGRID_API_KEY must be set when MAIL_TRANSPORT=sendgrid")
 
     def send(self, to: str, subject: str, body: str) -> None:
-        from sendgrid import SendGridAPIClient
-        from sendgrid.helpers.mail import From, Mail, PlainTextContent, To
-
         # Parse "Display Name <email@addr>" format
         from_email = self.mail_from
         from_name = None
@@ -94,13 +91,16 @@ class SendGridMailer:
             from_name = parts[0].strip()
             from_email = parts[1].rstrip(">").strip()
 
-        message = Mail(
-            from_email=From(email=from_email, name=from_name),
-            to_emails=To(email=to),
-            subject=subject,
-            plain_text_content=PlainTextContent(body),
-        )
         try:
+            from sendgrid import SendGridAPIClient
+            from sendgrid.helpers.mail import From, Mail, PlainTextContent, To
+
+            message = Mail(
+                from_email=From(email=from_email, name=from_name),
+                to_emails=To(email=to),
+                subject=subject,
+                plain_text_content=PlainTextContent(body),
+            )
             sg = SendGridAPIClient(self.api_key)
             response = sg.send(message)
             logger.info(
@@ -108,6 +108,32 @@ class SendGridMailer:
                 to,
                 response.status_code,
             )
+        except (ImportError, ModuleNotFoundError):
+            import httpx
+
+            from_obj: dict[str, str] = {"email": from_email}
+            if from_name:
+                from_obj["name"] = from_name
+
+            payload = {
+                "personalizations": [{"to": [{"email": to}]}],
+                "from": from_obj,
+                "subject": subject,
+                "content": [{"type": "text/plain", "value": body}],
+            }
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(
+                    "https://api.sendgrid.com/v3/mail/send",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+                if resp.is_error:
+                    logger.error("SendGrid delivery failed (%s): %s", resp.status_code, resp.text)
+                    resp.raise_for_status()
+                logger.info("SendGrid mail sent successfully to %s", to)
         except Exception as e:
             logger.error("SendGrid delivery failed: %s", getattr(e, "message", str(e)))
             raise
