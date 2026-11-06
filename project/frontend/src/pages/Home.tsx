@@ -397,124 +397,148 @@ export default function Home() {
                         <div className="relative z-10 w-full mb-2">
                           {feat.name === "EaseConnect" && (
                             <div className="relative w-full h-40 sm:h-44 flex flex-col justify-center px-1">
-                              <div className="relative z-10 w-[84%] rounded-2xl rounded-bl-xs bg-white p-2.5 shadow-xl -rotate-2 border border-white/60 text-brand-deep mb-2">
-                                <div className="flex items-center gap-1.5 mb-1">
-                                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-purple text-[7px] font-bold text-white">
-                                    M
+                              {/* Fan question post */}
+                              <div className="relative z-10 w-[88%] rounded-2xl rounded-bl-xs bg-white p-2.5 shadow-xl -rotate-1 border border-white/60 text-brand-deep mb-2">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-purple text-[7px] font-bold text-white">
+                                      M
+                                    </span>
+                                    <span className="text-[9px] font-bold text-brand-deep">Marcus L.</span>
+                                    <span className="text-[7px] font-semibold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                                      Verified Attendee
+                                    </span>
+                                  </div>
+                                  <span className="text-[7px] font-extrabold text-brand-purple bg-brand-lilac/70 px-1.5 py-0.2 rounded-full border border-brand-purple/20">
+                                    Question
                                   </span>
-                                  <span className="text-[9px] font-bold text-brand-deep">Marcus L.</span>
-                                  <span className="text-[7px] text-muted">· Fan</span>
                                 </div>
                                 <p className="text-[9px] text-brand-deep/90 font-medium leading-tight">
-                                  "Which gate has the shortest merch queue right now?"
+                                  "Can latecomers enter after the acoustic set starts?"
                                 </p>
                               </div>
 
-                              <div className="relative z-10 w-[84%] ml-auto rounded-2xl rounded-br-xs bg-brand-deep text-white p-2.5 shadow-2xl rotate-2 border border-white/20">
+                              {/* Official Admin answer */}
+                              <div className="relative z-10 w-[88%] ml-auto rounded-2xl rounded-br-xs bg-brand-deep text-white p-2.5 shadow-2xl rotate-1 border border-white/20">
                                 <div className="flex items-center justify-between mb-1">
-                                  <span className="text-[9px] font-bold text-brand-orange flex items-center gap-1">
-                                    ✓ Gate 3 booth
-                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-orange text-[7px] font-bold text-white">
+                                      ★
+                                    </span>
+                                    <span className="text-[9px] font-bold text-white">EventEase Admin</span>
+                                    <span className="rounded bg-brand-purple text-white px-1 py-0.2 text-[7px] font-extrabold tracking-wider">
+                                      Official Answer
+                                    </span>
+                                  </div>
                                   <span className="text-[7px] text-white/60">Just now</span>
                                 </div>
                                 <p className="text-[9px] text-white/95 font-medium leading-tight">
-                                  "Totally clear! Less than 3 mins wait! 👍"
+                                  "Yes! Ushers seat attendees between pieces so you won't miss the show. 🎶"
                                 </p>
                               </div>
 
-                              <div className="absolute -top-1 -right-1 z-20 rounded-full bg-white px-2.5 py-1 text-[8px] font-bold text-brand-purple shadow-xl border border-slate-100 flex items-center gap-1 rotate-3">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                <span>142 Fans Online</span>
+                              <div className="absolute -top-1 -right-1 z-20 rounded-full bg-brand-orange px-2.5 py-0.5 text-[8px] font-extrabold text-white shadow-xl flex items-center gap-1 rotate-2 border border-white/30">
+                                <Sparkles className="h-2.5 w-2.5" />
+                                <span>+3 EasePoints</span>
                               </div>
                             </div>
                           )}
 
                           {feat.name === "EasePix" && (
                             <div className="relative w-full h-40 sm:h-44 flex items-center justify-center">
-                              <div className="relative z-10 w-[86%] rounded-xl bg-white p-2.5 shadow-2xl -rotate-2 border border-white/60 text-brand-deep">
+                              <div className="relative z-10 w-[88%] rounded-xl bg-white p-2.5 shadow-2xl -rotate-1 border border-white/60 text-brand-deep">
                                 <div className="flex items-center justify-between pb-1 border-b border-brand-purple/10">
-                                  <span className="text-[9px] font-bold text-brand-deep">Section 104 · Row C</span>
-                                  <span className="text-[8px] font-bold text-emerald-600">Unobstructed</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[9px] font-bold text-brand-deep">Singapore Indoor Stadium</span>
+                                    <span className="text-[7px] font-semibold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                                      Verified
+                                    </span>
+                                  </div>
+                                  <span className="text-[8px] font-bold text-brand-orange">Sec 102 · Row G</span>
                                 </div>
-                                <div className="relative mt-1.5 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-[#120524] via-[#240b3b] to-[#40121d] p-1.5 flex flex-col justify-between border border-brand-purple/20">
+                                <div className="relative mt-1.5 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-[#120524] via-[#240b3b] to-[#40121d] p-2 flex flex-col justify-between border border-brand-purple/20">
                                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(255,101,0,0.5),transparent_70%)]" />
-                                  <span className="self-end z-10 rounded bg-white/20 px-1 py-0.2 text-[7px] font-bold text-white backdrop-blur-xs">
-                                    ACTUAL PATRON PHOTO
-                                  </span>
-                                  <div className="relative z-10 flex items-center justify-center py-1">
-                                    <div className="h-3 px-3 rounded-full bg-brand-orange/90 text-[7px] font-black tracking-widest text-white shadow-sm flex items-center justify-center">
-                                      MAIN STAGE
+                                  <div className="flex items-center justify-between z-10">
+                                    <span className="rounded bg-brand-orange px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider text-white">
+                                      SEAT VIEW
+                                    </span>
+                                    <span className="rounded bg-black/50 px-1.5 py-0.2 text-[7px] font-bold text-white backdrop-blur-xs">
+                                      ★ 5.0 Sightline
+                                    </span>
+                                  </div>
+                                  <div className="relative z-10 flex items-center justify-center py-0.5">
+                                    <div className="h-3.5 px-3 rounded-full bg-brand-purple/90 text-[7px] font-black tracking-widest text-white shadow-sm flex items-center justify-center border border-white/20">
+                                      MAIN STAGE SIGHTLINE
                                     </div>
                                   </div>
-                                  <div className="relative z-10 flex items-center justify-between text-[7px] text-white/80">
-                                    <span>24m to center</span>
-                                    <span>Row C Seat 12</span>
+                                  <div className="relative z-10 flex items-center justify-between text-[7px] text-white/90 font-medium">
+                                    <span>Unobstructed View</span>
+                                    <span>Seat 14</span>
                                   </div>
                                 </div>
                               </div>
 
-                              <div className="absolute -top-1 -right-2 z-20 rounded-xl bg-white px-2.5 py-1 shadow-xl border border-slate-100 flex items-center gap-1 text-[9px] font-bold text-brand-orange rotate-3">
-                                <span>★ 4.9</span>
-                                <span className="text-muted font-normal text-[8px]">(48 reviews)</span>
+                              <div className="absolute -top-1 -right-2 z-20 rounded-full bg-brand-orange px-2.5 py-1 shadow-xl border border-white/30 flex items-center gap-1 text-[8px] font-extrabold text-white rotate-3">
+                                <Sparkles className="h-2.5 w-2.5" />
+                                <span>+25 EasePoints ✓</span>
                               </div>
 
-                              <div className="absolute -bottom-1 -left-1 z-20 rounded-full bg-brand-orange px-2.5 py-0.5 text-[8px] font-bold text-white shadow-xl -rotate-2 border border-white/40">
-                                +23 pts earned ✓
+                              <div className="absolute -bottom-1 -left-1 z-20 rounded-full bg-brand-deep px-2.5 py-0.5 text-[8px] font-bold text-white shadow-xl -rotate-2 border border-white/20">
+                                Approved Patron Photo ✓
                               </div>
                             </div>
                           )}
 
                           {feat.name === "EaseXplore" && (
                             <div className="relative w-full h-40 sm:h-44 flex items-center justify-center">
-                              <div className="relative z-10 w-[86%] rounded-xl bg-white p-2.5 shadow-2xl -rotate-1 border border-white/60 text-brand-deep">
+                              <div className="relative z-10 w-[88%] rounded-xl bg-white p-2.5 shadow-2xl -rotate-1 border border-white/60 text-brand-deep">
                                 <div className="flex items-center justify-between pb-1 border-b border-brand-purple/10">
-                                  <span className="text-[9px] font-bold text-brand-deep">360° Arena Panorama</span>
-                                  <span className="text-[8px] font-bold text-brand-orange">Section 104</span>
-                                </div>
-                                <div className="relative mt-1.5 h-16 rounded-lg bg-gradient-to-t from-slate-900 via-indigo-950 to-slate-900 border border-brand-purple/20 flex items-center justify-center overflow-hidden">
-                                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,101,0,0.25),transparent_70%)]" />
-                                  <div className="absolute -bottom-6 h-18 w-28 rounded-t-full border border-white/20" />
-                                  <div className="absolute -bottom-2 h-12 w-20 rounded-t-full border border-dashed border-brand-orange/40" />
-                                  <div className="absolute top-1 flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/20 backdrop-blur-xs text-[7px] font-bold text-white">
-                                    <span>STAGE RADAR</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <Rotate3d className="h-3 w-3 text-brand-orange animate-spin" />
+                                    <span className="text-[9px] font-bold text-brand-deep">EaseXplore · Official Venue View</span>
                                   </div>
-                                  <div className="absolute bottom-1.5 flex items-center gap-1.5 z-10">
-                                    <div className="h-2 w-2 rounded-full bg-brand-orange animate-ping" />
-                                    <div className="h-2.5 w-2.5 rounded-full bg-brand-orange ring-2 ring-white" />
-                                    <span className="text-[8px] font-bold text-white bg-black/60 px-1 rounded backdrop-blur-xs">Sec 104</span>
+                                  <span className="text-[8px] font-bold text-brand-purple">CHIJMES Hall</span>
+                                </div>
+                                <div className="relative mt-1.5 h-16 rounded-lg bg-gradient-to-t from-slate-950 via-indigo-950 to-purple-950 border border-brand-purple/20 flex flex-col justify-between p-2 overflow-hidden">
+                                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,101,0,0.3),transparent_75%)]" />
+                                  <div className="flex items-center justify-between z-10">
+                                    <span className="rounded bg-brand-purple/80 px-1.5 py-0.2 text-[7px] font-bold text-white backdrop-blur-xs">
+                                      Section A (Floor)
+                                    </span>
+                                    <span className="rounded bg-emerald-500/80 px-1.5 py-0.2 text-[7px] font-bold text-white backdrop-blur-xs">
+                                      Venue Tour Active
+                                    </span>
+                                  </div>
+                                  <div className="relative z-10 flex items-center justify-center">
+                                    <div className="flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-0.5 backdrop-blur-md border border-white/30 text-[7.5px] font-bold text-white shadow-xs">
+                                      <Rotate3d className="h-2.5 w-2.5 text-brand-orange" />
+                                      <span>360° Drag &amp; Walkthrough</span>
+                                    </div>
+                                  </div>
+                                  <div className="relative z-10 flex items-center justify-between text-[7px] text-white/80">
+                                    <span>Elevation: Floor Level</span>
+                                    <span>Full Stage Panorama</span>
                                   </div>
                                 </div>
                               </div>
 
                               <div className="absolute -top-1 -right-2 z-20 rounded-full bg-brand-orange px-2.5 py-1 text-[8px] font-bold text-white shadow-xl rotate-3 flex items-center gap-1 border border-white/40">
-                                <span>↻ 360° Drag &amp; Tour</span>
+                                <span>Official 360° View ✓</span>
                               </div>
 
-                              <div className="absolute -bottom-1 -left-1 z-20 rounded-lg bg-white px-2 py-0.5 text-[8px] font-bold text-brand-deep shadow-xl border border-slate-100 -rotate-2">
-                                Incline: 35° · Tier 1
+                              <div className="absolute -bottom-1 -left-1 z-20 rounded-lg bg-brand-deep text-white px-2 py-0.5 text-[8px] font-bold shadow-xl border border-white/20 -rotate-2">
+                                Interactive Venue Elevation
                               </div>
                             </div>
                           )}
 
                           {feat.name === "EaseXchange" && (
                             <div className="relative w-full h-40 sm:h-44 flex items-center justify-center">
-                              <div className="absolute w-[82%] rounded-xl bg-white/80 p-2.5 shadow-lg -rotate-4 -translate-y-2 -translate-x-3 text-brand-deep border border-white/40 pointer-events-none">
-                                <div className="flex items-center justify-between pb-1 opacity-70">
-                                  <span className="text-[8px] font-bold">Original E-Ticket</span>
-                                  <span className="text-[7px] font-mono">#TK-8842</span>
-                                </div>
-                                <div className="h-3.5 rounded bg-slate-200/70 my-1" />
-                                <div className="flex justify-between text-[7px] text-muted">
-                                  <span>Sec 104 · Row C</span>
-                                  <span>S$128.00</span>
-                                </div>
-                              </div>
-
                               <div className="relative z-10 w-[88%] rounded-xl bg-white p-3 shadow-2xl rotate-1 border border-white/60 text-brand-deep">
                                 <div className="flex items-center justify-between pb-1.5 border-b border-brand-purple/10">
                                   <div className="flex items-center gap-1.5">
                                     <Repeat className="h-3.5 w-3.5 text-brand-orange" />
-                                    <span className="text-[10px] font-bold text-brand-deep">Verified Seat Swap</span>
+                                    <span className="text-[10px] font-bold text-brand-deep">Verified Ticket Swap</span>
                                   </div>
                                   <span className="text-[7.5px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">
                                     Face Value Cap ✓
@@ -523,31 +547,32 @@ export default function Home() {
 
                                 <div className="my-1.5 rounded-lg bg-brand-warm/60 p-2 border border-brand-purple/10 flex items-center justify-between gap-1.5">
                                   <div className="min-w-0 flex-1">
-                                    <span className="text-[7px] font-bold text-muted uppercase block">Your Seat</span>
-                                    <span className="text-[9px] font-bold text-brand-deep block truncate">Sec 104 · Row C</span>
+                                    <span className="text-[7px] font-bold text-muted uppercase block">Your Ticket</span>
+                                    <span className="text-[9px] font-bold text-brand-deep block truncate">Cat 1 · Sec 104 · Row C</span>
                                   </div>
                                   <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-orange text-white shadow-xs">
                                     <Repeat className="h-2.5 w-2.5" />
                                   </div>
                                   <div className="min-w-0 flex-1 text-right">
                                     <span className="text-[7px] font-bold text-brand-orange uppercase block">Requested</span>
-                                    <span className="text-[9px] font-bold text-brand-deep block truncate">Sec 102 · Row A</span>
+                                    <span className="text-[9px] font-bold text-brand-deep block truncate">Cat 1 · Sec 102 · Row A</span>
                                   </div>
                                 </div>
 
                                 <div className="flex items-center justify-between text-[7.5px] pt-1 border-t border-brand-purple/10 text-muted">
-                                  <span>QR issued after sales close</span>
+                                  <span>QR released on release date</span>
                                   <span className="font-bold text-brand-orange">100% Scam-Proof ✓</span>
                                 </div>
                               </div>
 
-                              <div className="absolute -top-1.5 -right-2 z-20 rounded-full bg-brand-orange px-2.5 py-1 text-[8px] font-bold text-white shadow-xl rotate-3 border border-white/40 flex items-center gap-1">
-                                <span>Pre-QR Swap ✓</span>
+                              <div className="absolute -top-1.5 -right-2 z-20 rounded-full bg-brand-orange px-2.5 py-1 text-[8px] font-extrabold text-white shadow-xl rotate-3 border border-white/40 flex items-center gap-1">
+                                <Sparkles className="h-2.5 w-2.5" />
+                                <span>+17 EasePoints ✓</span>
                               </div>
 
                               <div className="absolute -bottom-1 -left-1 z-20 rounded-full bg-brand-deep text-white px-2 py-0.5 text-[8px] font-bold shadow-lg -rotate-2 border border-white/20 flex items-center gap-1">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                <span>Verified Fans Only</span>
+                                <span>Pre-QR Swap · Verified Fans</span>
                               </div>
                             </div>
                           )}
@@ -618,27 +643,27 @@ export default function Home() {
                   {[
                     {
                       name: "EaseGuide",
-                      tag: "01 · Journey",
-                      hook: "Step-by-step guidance",
-                      chip: "Routes",
-                      icon: Route,
+                      tag: "01 · Assistance",
+                      hook: "Companion support & booking assistance",
+                      chip: "Assistance",
+                      icon: Accessibility,
                       gradient: "bg-gradient-to-br from-[#50107a] via-[#7a2840] to-[#b83c00]",
-                      title: "Accessible routes & companion support",
-                      description: "Follow accessible venue routes, request companion assistance, and track assigned on-site staff.",
-                      pills: ["Accessible paths", "Companion staff"],
-                      link: "/login?portal=CUSTOMER",
+                      title: "Companion support & venue assistance",
+                      description: "Request companion assistance for your booking, choose support levels, and get paired with on-site venue staff.",
+                      pills: ["Companion staff", "Support levels"],
+                      link: user ? "/assistance" : "/login?portal=CUSTOMER",
                     },
                     {
                       name: "EaseVoice",
                       tag: "02 · Audio",
-                      hook: "Speech & narration controls",
-                      chip: "Audio",
+                      hook: "Text-to-speech screen reader",
+                      chip: "Voice",
                       icon: Volume2,
                       gradient: "bg-gradient-to-br from-[#581382] via-[#7e2945] to-[#c43c00]",
-                      title: "Audio narration for event details",
-                      description: "Listen to event descriptions, seat selections, and accessibility notes with adjustable speech controls.",
-                      pills: ["Speech narration", "Audio controls"],
-                      link: "/login?portal=CUSTOMER",
+                      title: "Highlight-to-speech audio reader",
+                      description: "Switch EaseVoice on and highlight any words across the platform to have them read aloud at your preferred speed.",
+                      pills: ["Highlight to speech", "Voice speed"],
+                      link: "/settings/accessibility",
                     },
                   ].map((feat) => (
                     <Link
@@ -681,87 +706,90 @@ export default function Home() {
                         <div className="relative z-10 w-full mb-2">
                           {feat.name === "EaseGuide" && (
                             <div className="relative w-full h-40 sm:h-44 flex items-center justify-center">
-                              <div className="relative z-10 w-[86%] rounded-xl bg-white p-3 shadow-2xl rotate-1 border border-white/60 text-brand-deep">
+                              <div className="relative z-10 w-[88%] rounded-xl bg-white p-3 shadow-2xl rotate-1 border border-white/60 text-brand-deep">
                                 <div className="flex items-center justify-between pb-1.5 border-b border-brand-purple/10">
-                                  <div className="flex items-center gap-1">
-                                    <Route className="h-3 w-3 text-brand-orange" />
-                                    <span className="text-[10px] font-bold text-brand-deep">Accessible Route</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <Accessibility className="h-3.5 w-3.5 text-brand-orange" />
+                                    <span className="text-[10px] font-bold text-brand-deep">EaseGuide · Assistance</span>
                                   </div>
-                                  <span className="text-[8px] text-muted">60m total</span>
+                                  <span className="text-[7.5px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">
+                                    Assigned ✓
+                                  </span>
                                 </div>
-                                <div className="my-2 flex items-center justify-between gap-1">
-                                  <div className="flex items-center gap-1 text-[8px] font-bold text-brand-deep">
-                                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-purple text-white text-[7px]">1</span>
-                                    <span>Gate 2 Lift</span>
+
+                                <div className="my-1.5 rounded-lg bg-brand-warm/60 p-2 border border-brand-purple/10 space-y-1">
+                                  <div className="flex items-center justify-between text-[8px]">
+                                    <span className="font-bold text-brand-deep">Harry Potter: Visions of Magic</span>
+                                    <span className="rounded bg-brand-lilac px-1.5 py-0.2 text-[7px] font-bold text-brand-purple">
+                                      Moderate Support
+                                    </span>
                                   </div>
-                                  <span className="text-[8px] text-muted">→</span>
-                                  <div className="flex items-center gap-1 text-[8px] font-bold text-brand-deep">
-                                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-purple text-white text-[7px]">2</span>
-                                    <span>Concourse</span>
-                                  </div>
-                                  <span className="text-[8px] text-muted">→</span>
-                                  <div className="flex items-center gap-1 text-[8px] font-bold text-brand-orange">
-                                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-orange text-white text-[7px]">✓</span>
-                                    <span>Seat 12B</span>
-                                  </div>
+                                  <p className="text-[8px] text-muted leading-tight">
+                                    Wheelchair arrival support &amp; companion escort to seat
+                                  </p>
                                 </div>
-                                <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
-                                  <div className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-orange" style={{ width: "75%" }} />
+
+                                <div className="flex items-center justify-between text-[7.5px] pt-1 border-t border-brand-purple/10 text-muted">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-purple text-[7px] font-bold text-white">
+                                      SK
+                                    </span>
+                                    <span className="font-bold text-brand-deep">Sarah K. (Venue Staff)</span>
+                                  </div>
+                                  <span className="font-bold text-brand-orange">On-site standby ●</span>
                                 </div>
                               </div>
 
-                              <div className="absolute -bottom-2 -right-1 z-20 rounded-xl bg-white p-2 shadow-xl border border-brand-purple/15 flex items-center gap-2 -rotate-3 text-brand-deep">
-                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-purple text-[8px] font-bold text-white">
-                                  SK
-                                </span>
-                                <div>
-                                  <span className="text-[9px] font-bold text-brand-deep block leading-tight">Sarah K. (Staff)</span>
-                                  <span className="text-[8px] text-brand-orange font-semibold block">On-site standby ●</span>
-                                </div>
+                              <div className="absolute -top-1.5 -right-2 z-20 rounded-full bg-brand-orange px-2.5 py-0.5 text-[8px] font-bold text-white shadow-xl rotate-2 border border-white/30">
+                                Booking Linked ✓
                               </div>
 
-                              <div className="absolute -top-1.5 -left-1 z-20 rounded-full bg-emerald-500 text-white px-2.5 py-0.5 text-[8px] font-bold shadow-lg rotate-2 flex items-center gap-1">
-                                <span>Step-Free Path ✓</span>
+                              <div className="absolute -bottom-1 -left-1 z-20 rounded-full bg-brand-deep text-white px-2 py-0.5 text-[8px] font-bold shadow-lg -rotate-2 border border-white/20 flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                <span>Companion Support</span>
                               </div>
                             </div>
                           )}
 
                           {feat.name === "EaseVoice" && (
                             <div className="relative w-full h-40 sm:h-44 flex items-center justify-center">
-                              <div className="relative z-10 w-[86%] rounded-xl bg-white p-3 shadow-2xl rotate-1 border border-white/60 text-brand-deep">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-orange text-white text-[8px] font-bold shadow-xs">
-                                    ▶
+                              <div className="relative z-10 w-[88%] rounded-xl bg-white p-3 shadow-2xl rotate-1 border border-white/60 text-brand-deep">
+                                <div className="flex items-center justify-between pb-1.5 border-b border-brand-purple/10">
+                                  <div className="flex items-center gap-1.5">
+                                    <Volume2 className="h-3.5 w-3.5 text-brand-orange" />
+                                    <span className="text-[10px] font-bold text-brand-deep">EaseVoice · Screen Reader</span>
                                   </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-[9px] font-bold text-brand-deep truncate">
-                                      Section 104 &amp; Calm Facilities
-                                    </p>
-                                    <div className="flex items-center justify-between text-[7px] text-muted">
-                                      <span>0:45</span>
-                                      <span>2:15</span>
-                                    </div>
+                                  <span className="text-[7.5px] font-bold text-white bg-brand-purple px-1.5 py-0.5 rounded-full">
+                                    Voice ON
+                                  </span>
+                                </div>
+
+                                {/* Text selection highlight simulation */}
+                                <div className="my-1.5 rounded-lg bg-brand-warm/60 p-2 border border-brand-purple/10">
+                                  <div className="text-[8px] leading-relaxed text-brand-deep/80">
+                                    <span>Accessible entrance via </span>
+                                    <span className="bg-brand-orange/20 text-brand-deep font-bold px-1 py-0.5 rounded border border-brand-orange/40">
+                                      Gate 2 Lift concourse
+                                    </span>
+                                    <span>. Wheelchair bays reserved.</span>
                                   </div>
                                 </div>
-                                <div className="flex items-end gap-1 h-3.5 px-1 bg-slate-50 rounded border border-brand-purple/10">
-                                  <span className="flex-1 bg-brand-purple/30 rounded-t h-1.5" />
-                                  <span className="flex-1 bg-brand-purple/60 rounded-t h-2.5" />
-                                  <span className="flex-1 bg-brand-orange rounded-t h-3.5" />
-                                  <span className="flex-1 bg-brand-purple rounded-t h-2" />
-                                  <span className="flex-1 bg-brand-orange rounded-t h-3" />
-                                  <span className="flex-1 bg-brand-purple/60 rounded-t h-2" />
-                                  <span className="flex-1 bg-brand-purple/40 rounded-t h-1" />
-                                  <span className="flex-1 bg-brand-orange rounded-t h-3" />
-                                  <span className="flex-1 bg-brand-purple/50 rounded-t h-2" />
+
+                                <div className="flex items-center justify-between text-[7.5px] pt-1 border-t border-brand-purple/10">
+                                  <span className="text-brand-orange font-bold flex items-center gap-1">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-brand-orange animate-ping" />
+                                    Reading highlighted text aloud…
+                                  </span>
+                                  <span className="font-bold text-muted">1.0× Speed</span>
                                 </div>
                               </div>
 
-                              <div className="absolute -top-1 -right-2 z-20 rounded-full bg-brand-deep text-white px-2.5 py-1 text-[8px] font-bold shadow-xl -rotate-3 border border-white/20">
-                                1.0× Speed
+                              <div className="absolute -top-1 -right-2 z-20 rounded-full bg-brand-deep text-white px-2.5 py-1 text-[8px] font-bold shadow-xl -rotate-2 border border-white/20">
+                                Highlight Any Text
                               </div>
 
-                              <div className="absolute -bottom-1 -left-1 z-20 rounded-full bg-brand-orange text-white px-2.5 py-0.5 text-[8px] font-bold shadow-xl rotate-2 flex items-center gap-1 border border-white/40">
-                                <span>◉ Narration Active</span>
+                              <div className="absolute -bottom-1 -left-1 z-20 rounded-full bg-brand-orange text-white px-2.5 py-0.5 text-[8px] font-bold shadow-xl rotate-2 flex items-center gap-1 border border-white/30">
+                                <span>Text-to-Speech Active</span>
                               </div>
                             </div>
                           )}
