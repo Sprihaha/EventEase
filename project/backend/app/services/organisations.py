@@ -37,6 +37,10 @@ def find_by_name(db: Session, name: str) -> Organisation | None:
     return db.scalar(select(Organisation).where(func.lower(Organisation.name) == name.strip().lower()))
 
 
+# In-memory cache for ACRA lookup results (cleaned UEN -> entity_name)
+_acra_cache: dict[str, str | None] = {}
+
+
 def find_by_uen(db: Session, uen: str) -> Organisation | None:
     return db.scalar(select(Organisation).where(func.upper(Organisation.uen) == uen.strip().upper()))
 
@@ -86,28 +90,43 @@ def lookup_uen(db: Session, settings: Settings, uen: str) -> dict:
             "entity_name": pending_app.organisation_name,
         }
 
-    # 3. Query Data.gov.sg ACRA dataset
-    entity_name = None
-    try:
-        url = f"https://data.gov.sg/api/action/datastore_search?resource_id=d_3f960c10fed6145404ca7b821f263b87&q={cleaned}"
-        headers = {"User-Agent": "EventEase/1.0"}
-        if settings.DATA_GOV_SG_API_KEY:
-            headers["x-api-key"] = settings.DATA_GOV_SG_API_KEY
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=5) as res:
-            if res.status == 200:
-                payload = json.loads(res.read().decode("utf-8"))
-                records = payload.get("result", {}).get("records", [])
-                for record in records:
-                    if record.get("uen", "").strip().upper() == cleaned:
-                        entity_name = record.get("entity_name")
-                        break
-                if not entity_name and records:
-                    first = records[0]
-                    if first.get("uen", "").strip().upper() == cleaned:
-                        entity_name = first.get("entity_name")
-    except Exception:
-        pass
+    # 3. Query Data.gov.sg ACRA dataset (with in-memory cache)
+    if cleaned in _acra_cache:
+        entity_name = _acra_cache[cleaned]
+    else:
+        entity_name = None
+        try:
+            import urllib.parse
+            filters_json = json.dumps({"uen": cleaned})
+            url = f"https://data.gov.sg/api/action/datastore_search?resource_id=d_3f960c10fed6145404ca7b821f263b87&filters={urllib.parse.quote(filters_json)}"
+            headers = {"User-Agent": "EventEase/1.0"}
+            if settings.DATA_GOV_SG_API_KEY:
+                headers["x-api-key"] = settings.DATA_GOV_SG_API_KEY
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=8) as res:
+                if res.status == 200:
+                    payload = json.loads(res.read().decode("utf-8"))
+                    records = payload.get("result", {}).get("records", [])
+                    for record in records:
+                        if record.get("uen", "").strip().upper() == cleaned:
+                            entity_name = record.get("entity_name")
+                            break
+            if not entity_name:
+                fallback_url = f"https://data.gov.sg/api/action/datastore_search?resource_id=d_3f960c10fed6145404ca7b821f263b87&q={cleaned}"
+                req_fallback = urllib.request.Request(fallback_url, headers=headers)
+                with urllib.request.urlopen(req_fallback, timeout=5) as res:
+                    if res.status == 200:
+                        payload = json.loads(res.read().decode("utf-8"))
+                        records = payload.get("result", {}).get("records", [])
+                        for record in records:
+                            if record.get("uen", "").strip().upper() == cleaned:
+                                entity_name = record.get("entity_name")
+                                break
+        except Exception:
+            pass
+
+        if entity_name:
+            _acra_cache[cleaned] = entity_name
 
     return {
         "uen": cleaned,

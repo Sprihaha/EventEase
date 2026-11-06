@@ -108,8 +108,20 @@ export type UenLookupResult = {
   entityName?: string | null;
 };
 
-export const lookupUen = (uen: string) =>
-  request<UenLookupResult>(`/organisations/lookup-uen?uen=${encodeURIComponent(uen.trim())}`);
+// In-memory cache for searched UEN results
+const uenCache = new Map<string, UenLookupResult>();
+
+export const lookupUen = async (uen: string): Promise<UenLookupResult> => {
+  const clean = uen.trim().toUpperCase();
+  if (uenCache.has(clean)) {
+    return uenCache.get(clean)!;
+  }
+  const result = await request<UenLookupResult>(`/organisations/lookup-uen?uen=${encodeURIComponent(clean)}`);
+  if (result.found || result.alreadyRegistered) {
+    uenCache.set(clean, result);
+  }
+  return result;
+};
 
 // The organiser sign-in dropdown also lists organisations hidden from sign-up (EventEase).
 export const fetchSignInOrganisations = () => request<Organisation[]>("/organisations?purpose=signin");

@@ -355,7 +355,9 @@ export default function Login() {
       return;
     }
 
-    if (cleanUen.length >= 9 && !isValidUen(cleanUen)) {
+    // If 10 chars, or 9 chars ending with a letter, validate format
+    const isCompletedLength = cleanUen.length >= 10 || (cleanUen.length === 9 && !/^[0-9]+$/.test(cleanUen));
+    if (isCompletedLength && !isValidUen(cleanUen)) {
       setUenRegisteredError("Invalid UEN");
       setIsOrgNameGreyedOut(false);
       setAcraSuggested(false);
@@ -368,6 +370,9 @@ export default function Login() {
       setAcraSuggested(false);
       return;
     }
+
+    // Valid UEN format reached: clear format error and trigger lookup
+    setUenRegisteredError(null);
 
     let active = true;
     const timer = setTimeout(() => {
