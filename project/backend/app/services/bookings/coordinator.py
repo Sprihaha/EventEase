@@ -318,6 +318,5 @@ def cancel_booking(
     booking.cancelled_at, booking.cancel_reason = now, "CUSTOMER_CANCELLED"
     audit_booking_status(db, booking, BookingStatus.CONFIRMED.value, user, ip, reason="CUSTOMER_CANCELLED")
     db.commit()
-    send_booking_cancellation(user, event, refunded=(booking.status == BookingStatus.REFUNDED), mailer=mailer)
     events.publish(db, "booking.cancelled", user=user, booking=booking)
     return load_booking(db, booking.id)

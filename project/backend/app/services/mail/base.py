@@ -293,6 +293,12 @@ def send_safely(
     if not to:
         return
     resolved_mailer = mailer or get_mailer()
+    if not html:
+        try:
+            from app.services.mail.templates import build_standard_branded_email
+            html = build_standard_branded_email(subject=subject, body_text=body)
+        except Exception:
+            html = None
     try:
         resolved_mailer.send(to, subject, body, html=html, inline_images=inline_images)
     except TypeError:

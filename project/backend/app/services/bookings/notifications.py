@@ -54,10 +54,7 @@ def send_booking_confirmation(db: Session, booking_id: uuid.UUID, mailer: Mailer
 _send_confirmation = send_booking_confirmation
 
 
-def send_booking_cancellation(user: User, event: Event, refunded: bool, mailer: Mailer | None = None) -> None:
-    """Formats and dispatches booking cancellation notification to the customer."""
-    message = (
-        f"Hi {user.username},\n\nYour booking for '{event.title}' was cancelled"
-        + (" and a refund has been issued." if refunded else ".")
-    )
-    send_safely(user.email, f"Booking cancelled: {event.title}", message, mailer=mailer)
+def send_booking_cancellation(*args, **kwargs) -> None:
+    """Customer booking cancellation emails have been removed per specification."""
+    pass
+

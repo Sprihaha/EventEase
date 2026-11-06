@@ -10,6 +10,7 @@ Features professional, mobile-responsive HTML layouts incorporating:
 import functools
 import html
 import io
+import re
 from pathlib import Path
 from typing import Sequence
 
@@ -466,3 +467,186 @@ Support: {support_email}
 </html>
 """
     return text_body, html_body
+
+
+def build_standard_branded_email(
+    subject: str,
+    body_text: str,
+    support_email: str = "admin.gendol@gmail.com",
+) -> str:
+    """Wraps any notification in the official responsive EventEase layout with brand & company logos."""
+    safe_title = html.escape(subject)
+    safe_support = html.escape(support_email)
+
+    raw_lines = [line.strip() for line in body_text.strip().splitlines()]
+
+    # Extract greeting if first line starts with Hi/Hello
+    greeting_html = ""
+    start_idx = 0
+    if raw_lines and re.match(r"^(Hi|Hello|Dear)\s+[^,]+,", raw_lines[0], re.IGNORECASE):
+        greeting_html = f'<p style="margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: #111827;">{html.escape(raw_lines[0])}</p>'
+        start_idx = 1
+
+    content_blocks: list[str] = []
+    cta_buttons: list[str] = []
+    in_card_rows: list[str] = []
+
+    def flush_card() -> None:
+        nonlocal in_card_rows
+        if in_card_rows:
+            rows_inner = "".join(in_card_rows)
+            card = f"""
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #fdf4ff; border: 1px solid #f0abfc; border-radius: 12px; margin: 18px 0;">
+              <tr>
+                <td style="padding: 16px 20px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                    {rows_inner}
+                  </table>
+                </td>
+              </tr>
+            </table>
+            """
+            content_blocks.append(card)
+            in_card_rows = []
+
+    for line in raw_lines[start_idx:]:
+        if not line:
+            flush_card()
+            continue
+
+        # Check if line contains a URL
+        url_match = re.search(r"https?://[^\s]+", line)
+        if url_match and len(line) < 250:
+            flush_card()
+            url = url_match.group(0)
+            btn_text = "View in dashboard"
+            if "verify-email" in url:
+                btn_text = "Verify email address"
+            elif "reset-password" in url:
+                btn_text = "Reset password"
+            elif "login" in url:
+                btn_text = "Sign in to EventEase"
+            elif "verify" in url:
+                btn_text = "Verify ticket pass"
+
+            pre_text = line[:url_match.start()].strip()
+            if pre_text:
+                content_blocks.append(f'<p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; color: #4b5563;">{html.escape(pre_text)}</p>')
+
+            btn_html = f"""
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 22px 0;">
+              <tr>
+                <td align="center">
+                  <a href="{html.escape(url)}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: #ffffff; font-size: 15px; font-weight: 700; text-decoration: none; padding: 13px 32px; border-radius: 10px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); letter-spacing: 0.3px;">
+                    {btn_text} &rarr;
+                  </a>
+                </td>
+              </tr>
+            </table>
+            """
+            cta_buttons.append(btn_html)
+            continue
+
+        # Key-value lines (e.g. "Event: Coldplay", "Venue: Sands", "Reason: ...")
+        kv_match = re.match(r"^([A-Za-z0-9\s&/-]{2,25}):\s+(.+)$", line)
+        if kv_match and not line.startswith("http"):
+            k, v = kv_match.group(1).strip(), kv_match.group(2).strip()
+            in_card_rows.append(f"""
+              <tr>
+                <td style="font-size: 13px; color: #6b7280; padding: 4px 0; width: 35%; vertical-align: top;">{html.escape(k)}</td>
+                <td align="right" style="font-size: 14px; font-weight: 600; color: #111827; padding: 4px 0; vertical-align: top;">{html.escape(v)}</td>
+              </tr>
+            """)
+            continue
+
+        # Bullet lists
+        if line.startswith("•") or line.startswith("-") or line.startswith("*"):
+            flush_card()
+            bullet_text = line.lstrip("•-* ").strip()
+            content_blocks.append(f'<div style="font-size: 14px; line-height: 1.6; color: #374151; margin-bottom: 6px; padding-left: 12px;">&bull; {html.escape(bullet_text)}</div>')
+            continue
+
+        flush_card()
+        content_blocks.append(f'<p style="margin: 0 0 14px 0; font-size: 15px; line-height: 1.6; color: #4b5563;">{html.escape(line)}</p>')
+
+    flush_card()
+
+    body_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>{safe_title}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f1f3f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1f2937;">
+
+  <!-- Outer Canvas Table -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f1f3f9; padding: 30px 12px;">
+    <tr>
+      <td align="center">
+
+        <!-- Main Email Container (600px max) -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 18px; overflow: hidden; box-shadow: 0 10px 30px rgba(15, 7, 40, 0.08); border: 1px solid #e5e7eb;">
+          
+          <!-- Brand Header Banner with EventEase Logo -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1e0b36 0%, #3b0764 45%, #701a75 75%, #c2410c 100%); padding: 30px 24px 26px 24px; text-align: center;">
+              <img src="cid:eventease_logo" alt="EventEase - The Ultimate Event Experience" width="340" style="display: block; margin: 0 auto; max-width: 90%; height: auto; border: 0;" />
+              <div style="margin-top: 10px; font-size: 12px; color: #f3e8ff; letter-spacing: 2px; text-transform: uppercase; font-weight: 600;">
+                Official Notification
+              </div>
+            </td>
+          </tr>
+
+          <!-- Primary Body Content -->
+          <tr>
+            <td style="padding: 32px 28px 24px 28px;">
+              <h1 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 800; color: #111827; letter-spacing: -0.3px;">
+                {safe_title}
+              </h1>
+              {greeting_html}
+              {"".join(content_blocks)}
+              {"".join(cta_buttons)}
+            </td>
+          </tr>
+
+          <!-- Footer with GenDoL Company Logo -->
+          <tr>
+            <td style="background-color: #fafbfc; border-top: 1px solid #edf0f5; padding: 26px 24px 22px 24px; text-align: center;">
+              
+              <!-- GenDoL Logo -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 10px auto;">
+                <tr>
+                  <td align="center">
+                    <img src="cid:gendol_company_logo" alt="GenDoL - Generations of Doing, Limberly" width="140" style="display: block; max-width: 100%; height: auto; border: 0;" />
+                  </td>
+                </tr>
+              </table>
+
+              <div style="font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 4px;">
+                EventEase &bull; Operated by GenDoL (Generations of Doing, Limberly)
+              </div>
+              <div style="font-size: 11px; color: #6b7280; line-height: 1.5; max-width: 440px; margin: 0 auto 10px auto;">
+                Singapore Registered Enterprise &bull; Secure Ticketing &amp; Access Infrastructure.<br>
+                For questions or support, contact us at <a href="mailto:{safe_support}" style="color: #7c3aed; text-decoration: none;">{safe_support}</a>.
+              </div>
+
+              <div style="font-size: 10px; color: #9ca3af;">
+                &copy; 2026 GenDoL &amp; EventEase. All rights reserved. Strictly confidential.
+              </div>
+            </td>
+          </tr>
+
+        </table>
+        <!-- End Main Email Container -->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+"""
+    return body_html

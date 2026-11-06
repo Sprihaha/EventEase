@@ -5,6 +5,7 @@ from app.core.config import Settings
 from app.services.mail import base as mail
 from app.services.mail.templates import (
     build_booking_confirmation_email,
+    build_standard_branded_email,
     build_ticket_release_email,
     get_branding_images,
 )
@@ -147,3 +148,34 @@ def test_smtp_mailer_embeds_html_and_inline_logos(monkeypatch):
     assert "text/html" in part_types
     assert "image/png" in part_types
     assert "image/jpeg" in part_types
+
+
+def test_build_standard_branded_email():
+    body = "Hi Alice,\n\nWelcome to EventEase!\n\nPlease open this link:\nhttps://eventease.com/verify-email/xyz123\n\nThanks,\nEventEase Team"
+    html_output = build_standard_branded_email("Verify your EventEase email", body)
+
+    assert "cid:eventease_logo" in html_output
+    assert "cid:gendol_company_logo" in html_output
+    assert "Verify your EventEase email" in html_output
+    assert "Hi Alice," in html_output
+    assert "https://eventease.com/verify-email/xyz123" in html_output
+    assert "Verify email address" in html_output
+
+
+def test_send_safely_auto_wraps_in_brand_template():
+    mock_mailer = MagicMock()
+    mail.set_mailer(mock_mailer)
+    try:
+        mail.send_safely("user@example.com", "Password Reset", "Hi Bob,\n\nReset at:\nhttps://eventease.com/reset-password?token=abc")
+        assert mock_mailer.send.called
+        args, kwargs = mock_mailer.send.call_args
+        assert args[0] == "user@example.com"
+        assert args[1] == "Password Reset"
+        assert "Hi Bob," in args[2]
+        html_passed = kwargs.get("html")
+        assert html_passed is not None
+        assert "cid:eventease_logo" in html_passed
+        assert "cid:gendol_company_logo" in html_passed
+        assert "Reset password" in html_passed
+    finally:
+        mail.set_mailer(None)
