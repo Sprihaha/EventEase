@@ -185,8 +185,9 @@ export default function DeveloperSettings({ embedded = false }: DeveloperSetting
     setClockLoading(true);
     setClockNotice(null);
     try {
-      const updated = await setBusinessDate(selectedDate, false);
+      const updated = await setBusinessDate(null, false);
       setClockState(updated);
+      setSelectedDate(updated.system_date);
       setClockNotice("Reset back to Live Real-Time system clock.");
       window.dispatchEvent(new CustomEvent("business-date-changed"));
       void loadJobs();

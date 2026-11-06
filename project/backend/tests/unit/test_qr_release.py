@@ -58,7 +58,7 @@ def test_qr_released_requires_sales_close_even_if_timestamp_present():
     assert not qr_released(booking, event, now=now)
 
 
-def test_qr_released_automatically_releases_on_sales_close_when_none():
+def test_qr_released_requires_job_stamp_or_event_start_gate_safety():
     # Event starts on Nov 14 at 19:00 SGT (11:00 UTC) -> sales close is Nov 07
     event = MagicMock()
     event.start_at = datetime(2026, 11, 14, 11, 0, tzinfo=timezone.utc)
@@ -66,8 +66,12 @@ def test_qr_released_automatically_releases_on_sales_close_when_none():
     booking = MagicMock()
     booking.qr_released_at = None
 
-    # Reference clock is Nov 07 morning (SGT) -> sales closed!
+    # Reference clock is Nov 07 morning (SGT) -> sales closed, but job hasn't run yet -> not released!
     now = datetime(2026, 11, 7, 2, 0, tzinfo=timezone.utc)
-    assert qr_released(booking, event, now=now)
+    assert not qr_released(booking, event, now=now)
+
+    # But once event start passes (at gate safety), it is released even if job didn't stamp
+    gate_now = datetime(2026, 11, 14, 11, 5, tzinfo=timezone.utc)
+    assert qr_released(booking, event, now=gate_now)
 
 

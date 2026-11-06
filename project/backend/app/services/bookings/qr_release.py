@@ -40,7 +40,7 @@ def is_qr_release_due(event: Event, now: datetime | None = None, settings: Setti
 
 
 def qr_released(booking: Booking, event: Event, now: datetime | None = None) -> bool:
-    """Released by the job, or due anyway (so a paused job never hides a QR code at the gate)."""
+    """True if released by the QR release job, or if gate safety threshold (event start) has passed."""
     ref_now = now or utcnow()
     if not is_qr_release_due(event, ref_now):
         return False
@@ -54,10 +54,17 @@ def qr_released(booking: Booking, event: Event, now: datetime | None = None) -> 
             return True
         tz = get_settings().tz
         return ref_now.astimezone(tz).date() >= rel_at.astimezone(tz).date()
-    return True
+
+    # Gate safety: if event start time has arrived/passed, release even if job didn't stamp yet
+    if ref_now.tzinfo is None:
+        ref_now = ref_now.replace(tzinfo=timezone.utc)
+    start_at = event.start_at
+    if start_at.tzinfo is None:
+        start_at = start_at.replace(tzinfo=timezone.utc)
+    return ref_now >= start_at
 
 
-def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> int:
+def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime, force: bool = False) -> int:
     """Release and email the QR codes of confirmed bookings whose ticket sales have closed.
 
     Several backends may share one database, so rows are locked and marked before any email
@@ -72,13 +79,19 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> i
         if not is_qr_release_due(e_item, now, settings) or (b_item.qr_released_at and b_item.qr_released_at > now):
             b_item.qr_released_at = None
 
-    rows = db.execute(
+    db.flush()
+
+    query = (
         select(Booking, Event).join(Event, Event.id == Booking.event_id)
-        .where(Booking.status == BookingStatus.CONFIRMED, Booking.qr_released_at.is_(None),
+        .where(Booking.status == BookingStatus.CONFIRMED,
                Event.status == EventStatus.APPROVED)
         .options(selectinload(Booking.tickets))
         .with_for_update(of=Booking, skip_locked=True)
-    ).all()
+    )
+    if not force:
+        query = query.where(Booking.qr_released_at.is_(None))
+
+    rows = db.execute(query).all()
     due = [(booking, event) for booking, event in rows if is_qr_release_due(event, now, settings)]
     tz, link = settings.tz, f"{settings.FRONTEND_URL.rstrip('/')}/dashboard/customer"
     emails = []

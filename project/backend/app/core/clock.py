@@ -151,9 +151,14 @@ def set_business_date(
             if rel_at.tzinfo is None:
                 rel_at = rel_at.replace(tzinfo=timezone.utc)
             event = db.get(Event, b.event_id)
-            if rel_at > effective_now_dt or (event and not is_qr_release_due(event, effective_now_dt)):
-                b.qr_released_at = None
-                reset_count += 1
+            if not enabled:
+                if event and not is_qr_release_due(event, effective_now_dt):
+                    b.qr_released_at = None
+                    reset_count += 1
+            else:
+                if rel_at > effective_now_dt or (event and not is_qr_release_due(event, effective_now_dt)):
+                    b.qr_released_at = None
+                    reset_count += 1
         db.commit()
         if reset_count:
             logger.info("Reset qr_released_at to None for %d booking(s) after clock update", reset_count)

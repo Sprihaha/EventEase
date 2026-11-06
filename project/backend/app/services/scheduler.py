@@ -76,10 +76,10 @@ def _run_eventfinda_import(db: Session) -> str:
     return run_import(db, get_settings(), now=get_business_now(db))
 
 
-def _run_qr_release(db: Session) -> str:
+def _run_qr_release(db: Session, force: bool = False) -> str:
     from app.services.bookings.qr_release import release_due_qr_codes
     now = get_business_now(db)
-    released = release_due_qr_codes(db, get_settings(), now=now)
+    released = release_due_qr_codes(db, get_settings(), now=now, force=force)
     return f"Released QR codes for {released} booking(s) (reference time: {now.isoformat()})"
 
 
@@ -219,7 +219,14 @@ def execute_job(
         error_msg = None
 
         try:
-            summary = JOB_ACTIONS[job_id](db)
+            action = JOB_ACTIONS[job_id]
+            import inspect
+            sig = inspect.signature(action)
+            if "force" in sig.parameters:
+                force_param = triggered_by.startswith("ADMIN:")
+                summary = action(db, force=force_param)
+            else:
+                summary = action(db)
             success = True
             logger.info("Job %s [%s] SUCCEEDED: %s", job_id, triggered_by, summary)
         except Exception as e:
