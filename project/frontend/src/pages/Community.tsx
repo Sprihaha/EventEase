@@ -652,7 +652,7 @@ export default function Community() {
             {/* Right Rail: Visible on EaseConnect feed */}
             {!isAdmin && (
               <FeedRightRail
-                events={publicEvents?.length ? publicEvents : events}
+                events={publicEvents?.length ? publicEvents.filter((e) => e.status !== "cancelled") : events}
                 onShowToast={showToast}
                 isOrganizer={isOrganizer}
                 isAdmin={isAdmin}

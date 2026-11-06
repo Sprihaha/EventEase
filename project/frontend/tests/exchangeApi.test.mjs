@@ -426,3 +426,50 @@ test('stable desired category IDs and completion timestamps survive API mapping'
   h.respond({ ...match, status: 'COMPLETED', aAccepted: true, bAccepted: true, updatedAt: expiresAt })
   assert.equal((await h.api.getExchangeMatch(match.id)).updatedAt, expiresAt)
 })
+
+test('recipient lookup encodes input, authenticates, validates results and surfaces unavailable API', async () => {
+  const h = await harness()
+  const signal = new AbortController().signal
+  h.respond([{ username: 'BobFan' }])
+  assert.deepEqual(plain(await h.api.searchExchangeRecipients(' bo & ', signal)), ['BobFan'])
+  const call = h.calls.at(-1)
+  assert.equal(call.url, 'https://contract.invalid/api/v1/exchanges/recipients?q=bo%20%26')
+  assert.equal(call.method ?? 'GET', 'GET')
+  assert.equal(call.headers.get('Authorization'), 'Bearer contract-token')
+  assert.equal(call.signal, signal)
+  h.respond([])
+  assert.deepEqual(plain(await h.api.searchExchangeRecipients('missing')), [])
+  h.respond([{ username: null }])
+  await assert.rejects(h.api.searchExchangeRecipients('bo'), /invalid response/)
+  h.respond({ error: { code: 'NOT_FOUND', message: 'Not available' } }, 404)
+  await assert.rejects(h.api.searchExchangeRecipients('bo'), error => error.status === 404)
+  h.respond({ error: { code: 'INVALID_RECIPIENT', message: 'Invalid' } }, 422)
+  await assert.rejects(h.api.createExchangeRequest({ ...payload, requestType: 'DIRECT', recipientUsername: 'missing' }),
+    error => /active customer username/.test(h.api.exchangeErrorMessage(error)))
+})
+
+test('Phase 2 payment metadata and recipient eligibility are validated without exposing recipient tickets', async () => {
+  const h = await harness()
+  h.respond({ eligible: true })
+  assert.equal(await h.api.getRecipientEligibility('ticket /a', 'Bob Fan'), true)
+  assert.match(h.calls.at(-1).url, /recipients\/eligibility\?offeredTicketId=ticket%20%2Fa&username=Bob%20Fan$/)
+  assert.equal(h.calls.at(-1).headers.get('Authorization'), 'Bearer contract-token')
+  h.respond({ eligible: 'yes' })
+  await assert.rejects(h.api.getRecipientEligibility('ticket', 'Bob'), /invalid response/)
+  const paid = { ...match, status: 'READY', aAccepted: true, bAccepted: true, amountCents: 2500, isPayer: true, paymentStatus: 'PENDING' }
+  h.respond(paid)
+  assert.deepEqual(plain(await h.api.getExchangeMatch(match.id)), paid)
+  for (const outcome of ['mock_success', 'mock_fail', 'mock_pending', 'mock_cancel']) {
+    h.respond(paid)
+    await h.api.settleExchangeMatch(match.id, outcome)
+    assert.deepEqual(JSON.parse(h.calls.at(-1).body), { paymentMethod: outcome })
+  }
+  for (const extra of [{ amountCents: -1 }, { amountCents: 1.1 }, { isPayer: 'true' }, { paymentStatus: 'COMPLETED' }]) {
+    h.respond({ ...paid, ...extra })
+    await assert.rejects(h.api.getExchangeMatch(match.id), /invalid response/)
+  }
+  h.respond({ ...request, status: 'CANCELLED', requestType: 'DIRECT' })
+  assert.equal((await h.api.rejectExchangeInvitation('request /id')).status, 'CANCELLED')
+  assert.match(h.calls.at(-1).url, /request%20%2Fid\/reject-invitation$/)
+  assert.equal(h.calls.at(-1).method, 'POST')
+})

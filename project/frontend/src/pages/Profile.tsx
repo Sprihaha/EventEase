@@ -23,13 +23,17 @@ import {
   Code2,
   Camera,
   CalendarX,
+  Pencil,
 } from "lucide-react";
 import { useStore } from "../lib/store";
-import { backendMe, type UserProfile } from "../lib/backendApi";
+import { backendMe, backendUpdateParticulars, type UserProfile } from "../lib/backendApi";
 import { getCurrentOrganisation, fetchMyOrganisations, type Membership } from "../lib/organisation";
 import { useAccessibility } from "../lib/accessibility";
 import { processAndCompressImage } from "../utils/imageOptimization";
-import { Badge, Button, Card } from "../components/ui";
+import { Badge, Button, Card, Input } from "../components/ui";
+
+// The team's demo accounts keep their particulars fixed.
+const FIXED_PARTICULARS = new Set(["john", "jay"]);
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -43,6 +47,12 @@ export default function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingParticulars, setEditingParticulars] = useState(false);
+  const [draftEmail, setDraftEmail] = useState("");
+  const [draftPhone, setDraftPhone] = useState("");
+  const [savingParticulars, setSavingParticulars] = useState(false);
+  const [particularsError, setParticularsError] = useState<string | null>(null);
+  const [particularsSuccess, setParticularsSuccess] = useState<string | null>(null);
 
   const currentOrg = getCurrentOrganisation();
   const activeOrgUen =
@@ -121,6 +131,49 @@ export default function Profile() {
     navigator.clipboard.writeText(profile.id);
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
+  };
+
+  const canEditParticulars =
+    (profile?.role ?? (user.role === "customer" ? "CUSTOMER" : null)) === "CUSTOMER" &&
+    !FIXED_PARTICULARS.has((profile?.username || user.name).toLowerCase());
+
+  const startEditingParticulars = () => {
+    setDraftEmail(profile?.email || user.email || "");
+    setDraftPhone(profile?.phone || "");
+    setParticularsError(null);
+    setParticularsSuccess(null);
+    setEditingParticulars(true);
+  };
+
+  const saveParticulars = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = draftEmail.trim();
+    const phone = draftPhone.trim();
+    if (!email || !email.includes("@")) {
+      setParticularsError("Please enter a valid email address.");
+      return;
+    }
+    if (!phone) {
+      setParticularsError("Please enter your phone number.");
+      return;
+    }
+    setSavingParticulars(true);
+    setParticularsError(null);
+    try {
+      const updated = await backendUpdateParticulars({ email, phone });
+      const { message, verificationSent, ...rest } = updated;
+      setProfile(rest);
+      setEditingParticulars(false);
+      setParticularsSuccess(
+        verificationSent
+          ? `${message} Please open the link to verify your new email address.`
+          : "Your particulars have been updated successfully."
+      );
+    } catch (err: unknown) {
+      setParticularsError(err instanceof Error ? err.message : "Could not update your particulars. Please try again.");
+    } finally {
+      setSavingParticulars(false);
+    }
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -295,7 +348,52 @@ export default function Profile() {
             <h2 className="font-brand text-lg font-bold text-brand-deep flex items-center gap-2 pb-3 border-b border-brand-purple/10">
               <User className="h-5 w-5 text-brand-purple" />
               <span>Personal & Account Details</span>
+              {canEditParticulars && !editingParticulars && (
+                <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={startEditingParticulars}>
+                  <Pencil className="h-4 w-4" /> Update particulars
+                </Button>
+              )}
             </h2>
+
+            {particularsSuccess && (
+              <div role="status" className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-sm font-medium text-emerald-700">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{particularsSuccess}</span>
+              </div>
+            )}
+
+            {editingParticulars && (
+              <form className="mt-5 grid gap-4 rounded-2xl border border-brand-purple/15 bg-brand-lilac/10 p-4 sm:grid-cols-2" onSubmit={saveParticulars}>
+                <label className="block">
+                  <span className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-brand-deep">
+                    <Mail className="h-3.5 w-3.5 text-brand-purple" /> Email address
+                  </span>
+                  <Input type="email" autoComplete="email" value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} required />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-brand-deep">
+                    <Phone className="h-3.5 w-3.5 text-brand-purple" /> Phone number
+                  </span>
+                  <Input type="tel" autoComplete="tel" placeholder="e.g. 91234567" value={draftPhone} onChange={(e) => setDraftPhone(e.target.value)} required />
+                </label>
+                <p className="text-xs text-muted sm:col-span-2">
+                  If you change your email address, we'll send a verification link to the new address.
+                </p>
+                {particularsError && (
+                  <div role="alert" className="rounded-xl border border-rose-200 bg-danger/10 p-3 text-sm font-medium text-danger sm:col-span-2">
+                    {particularsError}
+                  </div>
+                )}
+                <div className="flex gap-2 sm:col-span-2">
+                  <Button type="submit" size="sm" disabled={savingParticulars}>
+                    {savingParticulars ? "Saving…" : "Save changes"}
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" disabled={savingParticulars} onClick={() => setEditingParticulars(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl border border-brand-purple/10 bg-brand-lilac/20 p-4">
@@ -314,6 +412,11 @@ export default function Profile() {
                 <p className="mt-1 font-semibold text-brand-deep text-base truncate">
                   {profile?.email || user.email || "No email linked"}
                 </p>
+                {profile && !profile.emailVerified && profile.email && (
+                  <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-amber-600">
+                    <AlertCircle className="h-3.5 w-3.5" /> Not verified yet. Check your inbox for the link.
+                  </p>
+                )}
               </div>
 
               <div className="rounded-2xl border border-brand-purple/10 bg-brand-lilac/20 p-4">

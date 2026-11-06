@@ -101,7 +101,7 @@ def default_features() -> list[dict]:
                 "Offer a ticket you own and say which seat or tier you would like instead. When another "
                 "attendee's offer matches, you both compare the seats side by side and accept. If one ticket "
                 "costs more, the difference is settled when the swap completes, and the QR codes update "
-                f"straight away. Requests stay open for {s.EXCHANGE_REQUEST_TTL_HOURS // 24} days; a match must "
+                f"straight away. Requests stay open for {min(s.EXCHANGE_REQUEST_TTL_HOURS, 72)} hours; a match must "
                 f"be accepted within {s.EXCHANGE_MATCH_TTL_MINUTES} minutes."
             ),
         },
@@ -162,7 +162,7 @@ EventEase is a student project built for a university course. Payments are simul
 
 ## EaseXchange
 - You can only offer tickets you own.
-- Requests stay open for {s.EXCHANGE_REQUEST_TTL_HOURS // 24} days. A match must be accepted by both people within {s.EXCHANGE_MATCH_TTL_MINUTES} minutes.
+- Requests stay open for {min(s.EXCHANGE_REQUEST_TTL_HOURS, 72)} hours. A match must be accepted by both people within {s.EXCHANGE_MATCH_TTL_MINUTES} minutes.
 - When a swap completes, ticket ownership and QR codes change immediately and cannot be undone.
 
 ## Community content (EaseComms, EaseConnect, EasePix)

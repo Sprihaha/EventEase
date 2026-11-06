@@ -62,6 +62,7 @@ type BackendEvent = {
   salesCloseAt?: string | null;
   salesClosed?: boolean;
   isPast?: boolean;
+  cancelled?: boolean;
 };
 
 type BackendTicketCategory = {
@@ -169,7 +170,7 @@ function mapEvent(event: BackendEvent, index: number): EventItem {
     blurb: event.shortDescription ?? "An upcoming EventEase experience.",
     organizerId: "",
     organizerName: event.imported ? "Imported by System" : event.sourceName ?? "EventEase Organizer",
-    status: "published",
+    status: event.cancelled ? "cancelled" : "published",
     featured: index < 6,
     rows: 0,
     cols: 0,
@@ -232,7 +233,7 @@ function mapManagedEvent(event: BackendManagedEvent, index: number, ownerId = ""
 }
 
 export async function fetchBackendEvents() {
-  return (await pages<BackendEvent>("/events?sort=date&includePast=true")).filter(event => !event.isSample).map(mapEvent);
+  return (await pages<BackendEvent>("/events?sort=date&includePast=true&includeCancelled=true")).filter(event => !event.isSample).map(mapEvent);
 }
 
 export const updateTicketTier = (eventId: string, tierId: string, changes: { priceCents: number; quantity: number }) =>
@@ -451,6 +452,16 @@ export function backendUpdateAvatar(avatarUrl: string | null) {
   return request<UserProfile>(
     "/auth/avatar",
     { method: "PUT", body: JSON.stringify({ avatarUrl }) },
+    true,
+  );
+}
+
+export type ParticularsUpdate = UserProfile & { message: string; verificationSent: boolean };
+
+export function backendUpdateParticulars(particulars: { phone?: string; email?: string }) {
+  return request<ParticularsUpdate>(
+    "/auth/me/particulars",
+    { method: "PATCH", body: JSON.stringify(particulars) },
     true,
   );
 }

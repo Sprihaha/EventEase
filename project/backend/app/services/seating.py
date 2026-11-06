@@ -11,7 +11,8 @@ from app.services.events import category_on_sale
 
 def list_seats(db: Session, event_id):
     event = db.get(Event, event_id)
-    if event is None or event.status != EventStatus.APPROVED:
+    # Cancelled events keep a read-only seat map; holds and payments still require an approved event.
+    if event is None or event.status not in (EventStatus.APPROVED, EventStatus.CANCELLED):
         raise AppError(404, "EVENT_NOT_FOUND", "event not found")
     now = utcnow()
     rows = db.execute(select(EventSeat, TicketCategory, SeatClaim, Booking, VenueSeat.is_accessible)

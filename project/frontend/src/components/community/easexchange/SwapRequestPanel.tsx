@@ -5,12 +5,14 @@ import {
   exchangeErrorMessage,
   getEligibleExchangeTickets,
   getExchangeOptions,
+  getRecipientEligibility,
 } from "../../../lib/exchangeApi";
 import type { ExchangeRequest } from "../../../lib/exchangeTypes";
 import useExchangeResource from "../../../lib/useExchangeResource";
 import ExchangeSelect from "./ExchangeSelect";
+import RecipientAutocomplete from "./RecipientAutocomplete";
 import { useStore } from "../../../lib/store";
-import { Badge, Button, Card, Field, Input } from "../../ui";
+import { Badge, Button, Card, Field } from "../../ui";
 
 export type SwapRequestPanelProps = {
   onCreated: (request: ExchangeRequest) => void;
@@ -34,12 +36,26 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
   const [allowCrossTier, setAllowCrossTier] = useState(false);
   const [requestType, setRequestType] = useState<"PUBLIC" | "DIRECT">("PUBLIC");
   const [recipientUsername, setRecipientUsername] = useState("");
+  const [selectedRecipient, setSelectedRecipient] = useState<string | null>(null);
+  const [recipientRevision, setRecipientRevision] = useState(0);
+  const selectRecipient = useCallback((username: string) => {
+    setRecipientUsername(username);
+    setSelectedRecipient(username);
+  }, []);
+  const validRecipient = requestType === "PUBLIC" || (!!selectedRecipient && selectedRecipient === recipientUsername);
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const eligibleTickets =
     tickets.data?.filter((ticket) => ticket.eligible) ?? [];
   const selected = eligibleTickets.find((ticket) => ticket.id === ticketId);
+
+  const loadRecipientEligibility = useCallback((signal: AbortSignal) =>
+    getRecipientEligibility(selected?.id ?? "", selectedRecipient ?? "", AbortSignal.any([signal, AbortSignal.timeout(10_000)])), [selected?.id, selectedRecipient]);
+  const recipientEligibility = useExchangeResource(
+    requestType === "DIRECT" && selected && validRecipient && user
+      ? `recipient:${user.id}:${selected.id}:${selectedRecipient}:${recipientRevision}` : null, loadRecipientEligibility);
+  const canInvite = requestType === "PUBLIC" || (recipientEligibility.status === "success" && recipientEligibility.data === true);
 
   const loadOptions = useCallback(
     (signal: AbortSignal) => getExchangeOptions(selected?.id ?? "", signal),
@@ -63,7 +79,7 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!selected || tickets.status !== "success" || !validPreferences || submitting.current)
+    if (!selected || tickets.status !== "success" || !validPreferences || !validRecipient || !canInvite || submitting.current)
       return;
     submitting.current = true;
     setPending(true);
@@ -77,10 +93,11 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
         desiredSeatSection: desiredSection.trim() || null,
         allowCrossTier,
         requestType,
-        ...(requestType === "DIRECT" ? { recipientUsername: recipientUsername.trim() } : {}),
+        ...(requestType === "DIRECT" ? { recipientUsername: selectedRecipient! } : {}),
       });
       onCreated(result);
     } catch (cause) {
+      if (requestType === "DIRECT") setSelectedRecipient(null);
       setError(
         `${exchangeErrorMessage(cause)} Creation was not confirmed. Check My Exchanges before submitting again.`,
       );
@@ -151,17 +168,18 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
             </ExchangeSelect>
           </Field>
           {requestType === "DIRECT" && (
-            <Field label="Recipient customer username">
-              <Input
-                required
-                maxLength={100}
-                value={recipientUsername}
-                onChange={(e) => setRecipientUsername(e.target.value)}
-              />
-              <p className="mt-2 text-xs text-muted">
-                Only this recipient can see your invitation and offer a compatible ticket.
-              </p>
-            </Field>
+            <div className="space-y-2"><RecipientAutocomplete value={recipientUsername} selected={validRecipient}
+              onChange={value => { setRecipientUsername(value); setSelectedRecipient(null); setRecipientRevision(n => n + 1) }}
+              onSelect={selectRecipient} />
+              {!selected && <p className="text-xs text-muted">Select your offered ticket first to check recipient eligibility.</p>}
+              {selected && validRecipient && <>
+                {recipientEligibility.status === "loading" && <p role="status" className="text-sm text-muted">Checking recipient eligibility…</p>}
+                {recipientEligibility.status === "success" && <p role="status" className={`rounded-xl border p-3 text-sm font-semibold ${recipientEligibility.data ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                  {recipientEligibility.data ? "This user has an eligible ticket for this event." : "This user has no eligible tickets for this event."}
+                </p>}
+                {recipientEligibility.error && <div role="alert"><p className="text-sm text-danger">Recipient eligibility could not be checked.</p><Button type="button" size="sm" variant="outline" onClick={recipientEligibility.reload}>Retry eligibility check</Button></div>}
+              </>}
+            </div>
           )}
           <Field label="Ticket to Offer">
             <ExchangeSelect
@@ -170,6 +188,7 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
               value={selected?.id ?? ""}
               onChange={(event) => {
                 setTicketId(event.target.value);
+                setRecipientRevision(n => n + 1);
                 setDesiredCategory("");
                 setDesiredSection("");
               }}
@@ -264,10 +283,11 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
             </div>
           )}
           <p className="text-sm text-muted">
-            Compatible matches are selected by the exchange service. After mutual
-            acceptance, complete simulated settlement from the match details.
+            New requests expire within 72 hours and before the final seven days of the event.
+            Review the actual expiry shown on your request. Acceptance cannot be withdrawn;
+            equal-value exchanges complete automatically after both participants accept. Any price difference must be paid before tickets transfer.
           </p>
-          <Button type="submit" disabled={!selected || !validPreferences || pending}>
+          <Button type="submit" disabled={!selected || !validPreferences || !validRecipient || !canInvite || pending}>
             {pending ? "Creating request…" : "Create request"}
           </Button>
         </fieldset>

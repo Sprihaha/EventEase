@@ -9,13 +9,13 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Booking, BookingItem, BookingStatus, Event, EventOrigin, EventStatus, EventSeat, Ticket, TicketCategory, TicketStatus, User, UserStatus
+from app.db.models import Booking, BookingItem, BookingStatus, Event, EventOrigin, EventStatus, EventSeat, Ticket, TicketCategory, TicketStatus, User, UserStatus, Role
 
 
 @dataclass(frozen=True)
@@ -35,6 +35,11 @@ class TicketContext:
     revision: str
     seat_label: str | None = None
     category_id: str | None = None
+    exchange_deadline: datetime | None = None
+
+    @property
+    def exchange_cutoff_at(self) -> datetime:
+        return min(self.event_start_at - timedelta(days=7), self.exchange_deadline or self.event_start_at)
 
     def snapshot(self) -> dict:
         return {"id": self.id, "event_id": self.event_id, "event_name": self.event_name,
@@ -93,6 +98,7 @@ class RelationalTicketingGateway:
             .where(Ticket.id.in_(ids)).execution_options(populate_existing=True)
         ).all()
         from app.services.bookings.qr_release import qr_released
+        from app.services.events import sales_close_at
 
         result = {}
         for t, b, i, c, e, u in rows:
@@ -100,10 +106,11 @@ class RelationalTicketingGateway:
             section = ((seat.section_name if seat else None) or c.seat_section or "").strip() or "General Admission"
             # Preferences remain section-based; actual seat identity is included
             # in the revision so changes invalidate consent.
-            # Swaps close once QR codes are released (ticket sales close 30 days before the event).
+            # Exchange is allowed only before the final seven days and QR release.
             valid = (t.status == TicketStatus.VALID and b.status == BookingStatus.CONFIRMED
                      and e.origin == EventOrigin.ORGANISER and e.status == EventStatus.APPROVED
-                     and e.start_at > now and not qr_released(b, e, now) and u.status == UserStatus.ACTIVE
+                     and e.start_at - timedelta(days=7) > now and not qr_released(b, e, now)
+                     and u.role == Role.CUSTOMER and u.status == UserStatus.ACTIVE
                      and not u.must_change_password and not t.checked_in_at
                      and not t.exchanged_at
                      and b.currency == "SGD" and i.unit_price_cents >= 0)
@@ -121,16 +128,25 @@ class RelationalTicketingGateway:
                 status=t.status.value, eligible=valid, revision=revision,
                 seat_label=seat.label if seat else None,
                 category_id=str(c.id),
+                exchange_deadline=min(e.start_at - timedelta(days=7), sales_close_at(e)),
             )
         return result
 
     def swap(self, db: Session, ticket_a_id: str, ticket_b_id: str, owner_a: uuid.UUID, owner_b: uuid.UUID):
         """Called under the exchange transaction's booking/ticket locks only."""
-        from app.core.security import new_ticket_code
+        from app.core.security import new_ticket_code, utcnow
+        from app.core.errors import AppError
+        now = utcnow()
+        contexts = self.load(db, [ticket_a_id, ticket_b_id], now, lock=True)
+        now = utcnow()
+        x, y = contexts.get(ticket_a_id), contexts.get(ticket_b_id)
+        if (not x or not y or not x.eligible or not y.eligible or x.event_id != y.event_id
+                or x.owner_user_id != owner_a or y.owner_user_id != owner_b
+                or now >= min(x.exchange_cutoff_at, y.exchange_cutoff_at)):
+            raise AppError(409, "TICKET_INELIGIBLE", "Tickets are no longer eligible for exchange.")
         a, b = db.get(Ticket, uuid.UUID(ticket_a_id)), db.get(Ticket, uuid.UUID(ticket_b_id))
         a.owner_user_id, b.owner_user_id = owner_b, owner_a
         a.code, b.code = new_ticket_code(), new_ticket_code()
-        from app.core.security import utcnow
         a.exchanged_at = b.exchanged_at = utcnow()
 
 

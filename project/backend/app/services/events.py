@@ -27,8 +27,11 @@ def escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def publicly_visible(stmt: Select, now: datetime | None = None, include_past: bool = True) -> Select:
-    stmt = stmt.where(Event.status == EventStatus.APPROVED)
+def publicly_visible(stmt: Select, now: datetime | None = None, include_past: bool = True,
+                     include_cancelled: bool = False) -> Select:
+    # Cancelled events stay listed (read-only) only when asked for, e.g. Discover's "Cancelled" filter.
+    shown = (EventStatus.APPROVED, EventStatus.CANCELLED) if include_cancelled else (EventStatus.APPROVED,)
+    stmt = stmt.where(Event.status.in_(shown))
     if not include_past and now is not None:
         stmt = stmt.where(Event.end_at >= now)
     if not get_settings().include_sample_events:
@@ -50,8 +53,10 @@ def list_public_events(
     price_max_cents: int | None = None,
     sort: SortKey = "date",
     include_past: bool = True,
+    include_cancelled: bool = False,
 ) -> dict:
-    stmt = publicly_visible(select(Event, PRICE_MIN.label("pmin"), PRICE_MAX.label("pmax")), utcnow(), include_past=include_past)
+    stmt = publicly_visible(select(Event, PRICE_MIN.label("pmin"), PRICE_MAX.label("pmax")), utcnow(),
+                            include_past=include_past, include_cancelled=include_cancelled)
     if q:
         pattern = f"%{escape_like(q.strip())}%"
         stmt = stmt.where(or_(*(col.ilike(pattern, escape="\\") for col in
@@ -119,6 +124,7 @@ def list_item(event: Event, pmin: int | None, pmax: int | None) -> dict:
         "sales_closed": sales_closed,
         "sales_paused": cancellation_pending(event),
         "is_past": is_past,
+        "cancelled": event.status == EventStatus.CANCELLED,
     }
 
 
@@ -161,7 +167,8 @@ def can_view(event: Event, user: User) -> bool:
         and event.organisation_id == selected_org.id
     ):
         return True
-    if event.status != EventStatus.APPROVED:
+    # Cancelled events stay viewable so Discover's "Cancelled" filter can open them; nothing is on sale.
+    if event.status not in (EventStatus.APPROVED, EventStatus.CANCELLED):
         return False
     return not event.is_sample or get_settings().include_sample_events
 

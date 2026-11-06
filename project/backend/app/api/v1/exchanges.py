@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -12,9 +12,23 @@ from app.schemas.exchange import (CreateExchangeRequest, EligibleTicketView, Exc
                                   ExchangeMatchView, ExchangeRequestView, ExpressInterest, MyExchangesView)
 from app.services import exchanges
 from app.services.exchange_ticketing import TicketingGateway, get_exchange_ticketing
-from app.schemas.exchange import SettleExchange, TicketInterest, ExchangeCategoryOption, ExchangeActivityView
+from app.schemas.exchange import SettleExchange, TicketInterest, ExchangeCategoryOption, ExchangeActivityView, ExchangeRecipientView, ExchangeRecipientEligibility
 
 router = APIRouter(prefix="/exchanges", tags=["EaseXchange"])
+
+
+@router.get("/recipients", response_model=list[ExchangeRecipientView])
+def recipients(q: str = Query(min_length=2, max_length=100),
+               user: User = Depends(require_customer), db: Session = Depends(get_db)):
+    return exchanges.recipients(db, user, q)
+
+
+@router.get("/recipients/eligibility", response_model=ExchangeRecipientEligibility)
+def recipient_eligibility(offered_ticket_id: str = Query(alias="offeredTicketId", min_length=1, max_length=200),
+                          username: str = Query(min_length=1, max_length=100),
+                          user: User = Depends(require_customer), db: Session = Depends(get_db),
+                          gateway: TicketingGateway = Depends(get_exchange_ticketing)):
+    return _run(db, exchanges.recipient_eligibility, gateway, user, offered_ticket_id, username)
 
 
 def _run(db, fn, *args):
@@ -28,6 +42,10 @@ def _run(db, fn, *args):
     except Exception:
         db.rollback()
         raise
+
+
+def _run_match(db, user, fn, *args):
+    return exchanges.match_view(db, user, _run(db, fn, *args))
 
 
 @router.get("/listings", response_model=list[ExchangeListingView])
@@ -78,31 +96,31 @@ def create(body: CreateExchangeRequest, user: User = Depends(require_customer), 
 @router.get("/matches/{match_id}", response_model=ExchangeMatchView)
 def match(match_id: UUID, user: User = Depends(require_customer), db: Session = Depends(get_db),
           gateway: TicketingGateway = Depends(get_exchange_ticketing)):
-    return _run(db, exchanges.get_match, gateway, user, match_id)
+    return _run_match(db, user, exchanges.get_match, gateway, user, match_id)
 
 
 @router.post("/matches/{match_id}/accept", response_model=ExchangeMatchView)
 def accept(match_id: UUID, user: User = Depends(require_customer), db: Session = Depends(get_db),
            gateway: TicketingGateway = Depends(get_exchange_ticketing)):
-    return _run(db, exchanges.act_on_match, gateway, user, match_id, "accept")
+    return _run_match(db, user, exchanges.act_on_match, gateway, user, match_id, "accept")
 
 
 @router.post("/matches/{match_id}/reject", response_model=ExchangeMatchView)
 def reject(match_id: UUID, user: User = Depends(require_customer), db: Session = Depends(get_db),
            gateway: TicketingGateway = Depends(get_exchange_ticketing)):
-    return _run(db, exchanges.act_on_match, gateway, user, match_id, "reject")
+    return _run_match(db, user, exchanges.act_on_match, gateway, user, match_id, "reject")
 
 
 @router.post("/matches/{match_id}/cancel", response_model=ExchangeMatchView)
 def cancel_match(match_id: UUID, user: User = Depends(require_customer), db: Session = Depends(get_db),
                  gateway: TicketingGateway = Depends(get_exchange_ticketing)):
-    return _run(db, exchanges.act_on_match, gateway, user, match_id, "cancel")
+    return _run_match(db, user, exchanges.act_on_match, gateway, user, match_id, "cancel")
 
 
 @router.post("/matches/{match_id}/settle", response_model=ExchangeMatchView)
 def settle(match_id: UUID, body: SettleExchange, user: User = Depends(require_customer), db: Session = Depends(get_db),
            gateway: TicketingGateway = Depends(get_exchange_ticketing)):
-    return _run(db, exchanges.settle, gateway, get_settings(), user, match_id, body.payment_method)
+    return _run_match(db, user, exchanges.settle, gateway, get_settings(), user, match_id, body.payment_method)
 
 
 @router.get("/{request_id}/matches", response_model=list[ExchangeListingView])
@@ -114,7 +132,7 @@ def suggestions(request_id: UUID, user: User = Depends(require_customer), db: Se
 @router.post("/{request_id}/interest", response_model=ExchangeMatchView)
 def interest(request_id: UUID, body: ExpressInterest, user: User = Depends(require_customer), db: Session = Depends(get_db),
              gateway: TicketingGateway = Depends(get_exchange_ticketing)):
-    return _run(db, exchanges.interest, gateway, get_settings(), user, request_id, body.target_request_id)
+    return _run_match(db, user, exchanges.interest, gateway, get_settings(), user, request_id, body.target_request_id)
 
 
 @router.get("/{request_id}/eligible-tickets", response_model=list[EligibleTicketView])
@@ -126,7 +144,13 @@ def interest_tickets(request_id: UUID, user: User = Depends(require_customer), d
 @router.post("/{request_id}/ticket-interest", response_model=ExchangeMatchView)
 def ticket_interest(request_id: UUID, body: TicketInterest, user: User = Depends(require_customer),
                     db: Session = Depends(get_db), gateway: TicketingGateway = Depends(get_exchange_ticketing)):
-    return _run(db, exchanges.ticket_interest, gateway, get_settings(), user, request_id, body.offered_ticket_id)
+    return _run_match(db, user, exchanges.ticket_interest, gateway, get_settings(), user, request_id, body.offered_ticket_id)
+
+
+@router.post("/{request_id}/reject-invitation", response_model=ExchangeRequestView)
+def reject_invitation(request_id: UUID, user: User = Depends(require_customer), db: Session = Depends(get_db),
+                      gateway: TicketingGateway = Depends(get_exchange_ticketing)):
+    return _run(db, exchanges.reject_invitation, gateway, user, request_id)
 
 
 @router.post("/{request_id}/cancel", response_model=ExchangeRequestView)

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { UserPlus } from "lucide-react";
-import { Badge, Button, Card, Field, Input } from "./ui";
+import { Badge, Button, Card, Field, Input, PasswordInput } from "./ui";
 import { fmtDate } from "../lib/store";
 import {
   createOrganisationMember,
@@ -91,7 +91,7 @@ export default function OrganisationTeam() {
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </Field>
           <Field label="Temporary password">
-            <Input type="password" autoComplete="new-password" value={password}
+            <PasswordInput autoComplete="new-password" value={password}
               onChange={(e) => setPassword(e.target.value)} required />
           </Field>
           <p className="text-xs text-muted">

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Shield, ShieldAlert, ShieldCheck, UserPlus } from "lucide-react";
-import { Badge, Button, Card, Field, Input } from "./ui";
+import { Badge, Button, Card, Field, Input, PasswordInput } from "./ui";
 import { useStore, fmtDate } from "../lib/store";
 import {
   fetchAdministrators,
@@ -172,8 +172,8 @@ export default function AdminManagement() {
               </Field>
 
               <Field label="Temporary Password">
-                <Input
-                  type="password"
+                <PasswordInput
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 8 chars with upper, lower, digit & symbol"

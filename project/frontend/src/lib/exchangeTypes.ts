@@ -81,6 +81,9 @@ export interface ExchangeMatch {
   status: ExchangeMatchStatus
   expiresAt: string
   updatedAt?: string
+  amountCents?: number
+  isPayer?: boolean
+  paymentStatus?: "NOT_STARTED" | "PENDING" | "FAILED" | "CANCELLED" | "SUCCEEDED"
 }
 
 export interface MyExchanges {

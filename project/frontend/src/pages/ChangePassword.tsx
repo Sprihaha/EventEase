@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router";
-import { CheckCircle2, Circle, Eye, EyeOff, KeyRound, LockKeyhole, ShieldAlert } from "lucide-react";
-import { Button, Card, Field, Input } from "../components/ui";
+import { CheckCircle2, Circle, KeyRound, LockKeyhole, ShieldAlert } from "lucide-react";
+import { Button, Card, Field, PasswordInput } from "../components/ui";
 import { ApiError, backendChangePassword } from "../lib/backendApi";
 import { PASSWORD_RULES, isStrongPassword } from "../lib/passwordRules";
 import { useStore } from "../lib/store";
@@ -105,8 +105,9 @@ export default function ChangePassword() {
             </p>
             <form className="mt-7 space-y-5" onSubmit={submit}>
               <Field label="Current password">
-                <Input
-                  type={showPassword ? "text" : "password"}
+                <PasswordInput
+                  shown={showPassword}
+                  onToggleShown={() => setShowPassword((shown) => !shown)}
                   autoComplete="current-password"
                   value={current}
                   onChange={(e) => setCurrent(e.target.value)}
@@ -114,26 +115,14 @@ export default function ChangePassword() {
                 />
               </Field>
               <Field label="New password">
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pr-12"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    aria-label={showPassword ? "Hide passwords" : "Show passwords"}
-                    onClick={() => setShowPassword((shown) => !shown)}
-                    className="absolute right-1 top-1 h-9 w-9 px-0 cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
+                <PasswordInput
+                  shown={showPassword}
+                  onToggleShown={() => setShowPassword((shown) => !shown)}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
               </Field>
               <ul className="grid gap-1.5 text-xs sm:grid-cols-2" aria-label="Password requirements">
                 {PASSWORD_RULES.map((rule) => {
@@ -147,8 +136,9 @@ export default function ChangePassword() {
                 })}
               </ul>
               <Field label="Confirm new password">
-                <Input
-                  type={showPassword ? "text" : "password"}
+                <PasswordInput
+                  shown={showPassword}
+                  onToggleShown={() => setShowPassword((shown) => !shown)}
                   autoComplete="new-password"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}

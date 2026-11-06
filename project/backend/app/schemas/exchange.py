@@ -40,7 +40,7 @@ class TicketInterest(CamelModel):
 
 class SettleExchange(CamelModel):
     model_config = ConfigDict(extra="forbid")
-    payment_method: Literal["mock_success", "mock_fail"] = "mock_success"
+    payment_method: Literal["mock_success", "mock_fail", "mock_pending", "mock_cancel"] = "mock_success"
 
 
 class ExchangeTicketView(CamelModel):
@@ -104,6 +104,9 @@ class ExchangeMatchView(CamelModel):
     status: ExchangeMatchStatus
     expires_at: datetime
     updated_at: datetime
+    amount_cents: int
+    is_payer: bool
+    payment_status: Literal["NOT_STARTED", "PENDING", "FAILED", "CANCELLED", "SUCCEEDED"]
 
 
 class ExchangeCategoryOption(CamelModel):
@@ -126,3 +129,11 @@ class ExchangeActivityView(CamelModel):
 class MyExchangesView(CamelModel):
     requests: list[ExchangeRequestView]
     matches: list[ExchangeMatchView]
+
+
+class ExchangeRecipientView(CamelModel):
+    username: str
+
+
+class ExchangeRecipientEligibility(CamelModel):
+    eligible: bool
