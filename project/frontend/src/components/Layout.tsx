@@ -217,7 +217,7 @@ export default function Layout() {
             {user?.role === "organizer" && <OrganisationSwitcher />}
             {user?.role === "customer" && <ExchangeNotifications key={user.id} userId={user.id} />}
             {user?.role === "customer" && (
-              <div className="flex items-center rounded-full bg-gradient-to-r from-brand-purple to-brand-magenta pl-3.5 pr-2 py-1.5 text-white shadow-md shadow-brand-purple/25 transition-all hover:opacity-95 hover:shadow-lg">
+              <div className="flex items-center rounded-full bg-gradient-to-r from-brand-orange to-brand-amber pl-3.5 pr-2 py-1.5 text-white shadow-md shadow-brand-orange/25 transition-all hover:opacity-95 hover:shadow-lg">
                 <Link
                   to="/easepoints"
                   className="group flex items-center gap-2 focus-visible:outline-none"
@@ -238,7 +238,7 @@ export default function Layout() {
                     size="sm"
                     ariaLabel="What is EasePoints?"
                     title="What are EasePoints?"
-                    triggerClassName="!bg-white/20 !text-white hover:!bg-white hover:!text-brand-purple border-0 shadow-none"
+                    triggerClassName="!bg-white/20 !text-white hover:!bg-white hover:!text-brand-orange border-0 shadow-none"
                     content={
                       <div className="space-y-1 text-xs text-white/90">
                         <p>

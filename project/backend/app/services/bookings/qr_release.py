@@ -6,24 +6,52 @@ marks each due booking released once and emails every ticket holder their codes.
 """
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.core.security import utcnow
 from app.db.models import Booking, BookingStatus, Event, EventStatus, TicketStatus, User
 from app.services.events import sales_close_at
 from app.services.mail.base import send_safely
 
 
+def is_qr_release_due(event: Event, now: datetime | None = None, settings: Settings | None = None) -> bool:
+    """True if now has reached or passed the sales-close / QR release threshold for the event.
+
+    Release is calendar-date inclusive in the configured timezone (e.g. Asia/Singapore):
+    once the release date arrives, daily scheduled runs at 07:00 SGT or simulated business dates
+    release tickets scheduled for that day, regardless of the event's start hour later in the day.
+    """
+    settings = settings or get_settings()
+    ref_now = now or utcnow()
+    close_at = sales_close_at(event, settings)
+    if ref_now.tzinfo is None:
+        ref_now = ref_now.replace(tzinfo=timezone.utc)
+    if close_at.tzinfo is None:
+        close_at = close_at.replace(tzinfo=timezone.utc)
+    if ref_now >= close_at:
+        return True
+    tz = settings.tz
+    return ref_now.astimezone(tz).date() >= close_at.astimezone(tz).date()
+
+
 def qr_released(booking: Booking, event: Event, now: datetime | None = None) -> bool:
     """Released by the job, or due anyway (so a paused job never hides a QR code at the gate)."""
     ref_now = now or utcnow()
     if booking.qr_released_at is not None:
-        return ref_now >= booking.qr_released_at
-    return ref_now >= sales_close_at(event)
+        if ref_now.tzinfo is None:
+            ref_now = ref_now.replace(tzinfo=timezone.utc)
+        rel_at = booking.qr_released_at
+        if rel_at.tzinfo is None:
+            rel_at = rel_at.replace(tzinfo=timezone.utc)
+        if ref_now >= rel_at:
+            return True
+        tz = get_settings().tz
+        return ref_now.astimezone(tz).date() >= rel_at.astimezone(tz).date()
+    return is_qr_release_due(event, ref_now)
 
 
 def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> int:
@@ -39,7 +67,7 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> i
         .options(selectinload(Booking.tickets))
         .with_for_update(of=Booking, skip_locked=True)
     ).all()
-    due = [(booking, event) for booking, event in rows if now >= sales_close_at(event, settings)]
+    due = [(booking, event) for booking, event in rows if is_qr_release_due(event, now, settings)]
     tz, link = settings.tz, f"{settings.FRONTEND_URL.rstrip('/')}/dashboard/customer"
     emails = []
     for booking, event in due:
