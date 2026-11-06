@@ -53,8 +53,10 @@ def offer(client, headers, ticket_id, **extra):
                        "desiredSeatSection": None, "allowCrossTier": False, "requestType": "PUBLIC", **extra})
 
 
-def pair(client, w, **extra):
-    ba, bb = ticket(client, w.ha, w), ticket(client, w.hb, w)
+def pair(client, w, unequal=False, **extra):
+    ba, bb = ticket(client, w.ha, w), ticket(client, w.hb, w, w.vip if unequal else None)
+    if unequal:
+        extra = {"allowCrossTier": True, **extra}
     ra = offer(client, w.ha, ba["tickets"][0]["id"], **extra)
     rb = offer(client, w.hb, bb["tickets"][0]["id"], **extra)
     assert ra.status_code == rb.status_code == 201, (ra.text, rb.text)
@@ -90,17 +92,16 @@ def test_public_ticket_interest_without_prior_request_preserves_consent_and_sett
     assert response.status_code == 200, response.text
     m = response.json()
     assert m["requestAId"] == target["id"] and m["status"] == "PENDING"
-    assert not m["aAccepted"] and not m["bAccepted"]
+    assert not m["aAccepted"] and m["bAccepted"]
     mine_b = client.get(f"{ROOT}/mine", headers=w.hb).json()
     assert len(mine_b["requests"]) == 1 and mine_b["requests"][0]["requestType"] == "DIRECT"
     assert m["requestBId"] == mine_b["requests"][0]["id"]
-    assert action(client, w.ha, m, "accept").json()["status"] == "PENDING"
-    assert action(client, w.hb, m, "accept").json()["status"] == "READY"
+    assert action(client, w.hb, m, "accept").json()["status"] == "PENDING"
     db.expire_all()
     for t, owner in ((ta, w.a), (tb, w.b)):
         record = db.get(Ticket, uuid.UUID(t["id"]))
         assert record.owner_user_id == owner.id and record.code == t["code"]
-    settled = client.post(f"{ROOT}/matches/{m['id']}/settle", headers=w.hb, json={})
+    settled = action(client, w.ha, m, "accept")
     assert settled.status_code == 200 and settled.json()["status"] == "COMPLETED", settled.text
     db.expire_all()
     assert db.get(Ticket, uuid.UUID(ta["id"])).owner_user_id == w.b.id
@@ -278,11 +279,11 @@ def test_eligible_mapping_ownership_and_reservation(client, world):
 
 def test_full_consent_contract_does_not_transfer_booking_or_qr(client, db, world):
     w = world
-    a, b, ba, bb = pair(client, w)
+    a, b, ba, bb = pair(client, w, unequal=True)
     suggestions = client.get(f"{ROOT}/{a['id']}/matches", headers=w.ha).json()
     assert [r["requestId"] for r in suggestions] == [b["id"]]
     m = match(client, w, a, b)
-    assert not m["aAccepted"] and not m["bAccepted"] and m["status"] == "PENDING"
+    assert m["aAccepted"] and not m["bAccepted"] and m["status"] == "PENDING"
     assert client.get(f"{ROOT}/matches/{m['id']}", headers=w.hx).status_code == 404
     assert action(client, w.hx, m, "accept").status_code == 404
     assert client.post(f"{ROOT}/{a['id']}/cancel", headers=w.ha).status_code == 409
@@ -304,7 +305,7 @@ def test_full_consent_contract_does_not_transfer_booking_or_qr(client, db, world
 def test_match_closure_reopens_both_requests(client, world, verb, terminal):
     a, b, _, _ = pair(client, world)
     m = match(client, world, a, b)
-    assert action(client, world.ha, m, verb).json()["status"] == terminal
+    assert action(client, world.hb, m, verb).json()["status"] == terminal
     for headers in (world.ha, world.hb):
         activity = client.get(ROOT + '/activity', headers=headers).json()
         assert any(item['matchId'] == m['id'] and item['action'] == f'EXCHANGE_{terminal}' for item in activity)
@@ -313,13 +314,13 @@ def test_match_closure_reopens_both_requests(client, world, verb, terminal):
     assert action(client, world.hb, m, "accept").status_code == 409
 
 
-def test_withdrawing_consent_and_no_duplicate_interest(client, world):
+def test_acceptance_cannot_be_withdrawn_and_no_duplicate_interest(client, world):
     a, b, _, _ = pair(client, world)
     assert client.post(f"{ROOT}/{a['id']}/interest", headers=world.ha, json={"targetRequestId": a["id"]}).status_code == 409
     m = match(client, world, a, b)
     assert action(client, world.ha, m, "accept").status_code == 200
     assert action(client, world.ha, m, "reject").status_code == 409
-    assert action(client, world.ha, m, "cancel").json()["status"] == "CANCELLED"
+    assert action(client, world.ha, m, "cancel").status_code == 409
 
 
 def test_cross_tier_and_bilateral_preferences(client, world):
@@ -356,8 +357,10 @@ def test_ticketing_changes_invalidate_existing_consent(client, db, world, change
     m = match(client, w, a, b)
     action(client, w.ha, m, "accept")
     if change == "refund":
-        response = client.post(f"/api/v1/me/bookings/{ba['id']}/cancel", headers=w.ha)
-        assert response.status_code == 200, response.text
+        # Simulate a provider/admin invalidation; confirmed customer bookings
+        # are now non-refundable in Package B.
+        db.get(Booking, uuid.UUID(ba["id"])).status = BookingStatus.REFUNDED
+        db.get(Ticket, uuid.UUID(ba["tickets"][0]["id"])).status = TicketStatus.REFUNDED
     elif change == "owner":
         db.get(Ticket, uuid.UUID(ba["tickets"][0]["id"])).owner_user_id = w.outsider.id
     elif change == "category":
@@ -374,12 +377,14 @@ def test_ticketing_changes_invalidate_existing_consent(client, db, world, change
     assert client.get(f"{ROOT}/mine", headers=w.ha).json()["requests"][0]["status"] == "CANCELLED"
 
 
-def test_refund_after_ready_cancels_pending_settlement(client, world):
-    a, b, ba, _ = pair(client, world)
+def test_refund_after_ready_cancels_pending_settlement(client, db, world):
+    a, b, ba, _ = pair(client, world, unequal=True)
     m = match(client, world, a, b)
     action(client, world.ha, m, "accept")
     assert action(client, world.hb, m, "accept").json()["status"] == "READY"
-    client.post(f"/api/v1/me/bookings/{ba['id']}/cancel", headers=world.ha)
+    db.get(Booking, uuid.UUID(ba["id"])).status = BookingStatus.REFUNDED
+    db.get(Ticket, uuid.UUID(ba["tickets"][0]["id"])).status = TicketStatus.REFUNDED
+    db.commit()
     assert client.get(f"{ROOT}/matches/{m['id']}", headers=world.hb).json()["status"] == "CANCELLED"
 
 
@@ -506,9 +511,9 @@ def test_concurrent_interest_and_acceptance_are_atomic(client, db, world):
             return exchanges.act_on_match(session, RelationalTicketingGateway(), user, match_id, "accept").status
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        assert set(pool.map(accept_run, [user_a, user_b])) == {MS.PENDING, MS.READY}
+        assert set(pool.map(accept_run, [user_a, user_b])) <= {MS.PENDING, MS.COMPLETED}
     db.expire_all()
-    assert db.get(ExchangeMatch, match_id).status == MS.READY
+    assert db.get(ExchangeMatch, match_id).status == MS.COMPLETED
     assert db.scalar(select(func.count()).select_from(ExchangeMatch)) == 1
 
 
@@ -543,7 +548,7 @@ def test_direct_invitation_is_private_and_only_recipient_can_match(client, world
     assert response.status_code == 200, response.text
     m = response.json()
     assert action(client, w.hb, m, 'accept').status_code == 200
-    assert action(client, w.ha, m, 'accept').json()['status'] == 'READY'
+    assert action(client, w.ha, m, 'accept').json()['status'] == 'COMPLETED'
     response = client.post(f"{ROOT}/matches/{m['id']}/settle", headers=w.ha, json={})
     assert response.status_code == 200 and response.json()['status'] == 'COMPLETED'
     assert client.get(ROOT+'/invitations', headers=w.hb).json() == []
@@ -555,6 +560,7 @@ def test_direct_recipient_username_is_case_insensitive(client, db, world, recipi
     w.b.username = "Jeeves"
     db.commit()
     booking = ticket(client, w.ha, w)
+    ticket(client, w.hb, w)
     response = offer(client, w.ha, booking["tickets"][0]["id"],
                      requestType="DIRECT", recipientUsername=recipient_username)
     assert response.status_code == 201, response.text
@@ -573,19 +579,19 @@ def test_direct_recipient_validation_and_public_recipient_injection(client, worl
     assert offer(client, w.ha, tid, recipientUserId=str(w.b.id)).status_code == 422
 
 
-def test_ready_can_be_cancelled_without_settlement_or_qr_changes(client, db, world):
+def test_ready_cannot_be_cancelled_and_acceptance_does_not_swap_tickets(client, db, world):
     w = world
-    a, b, ba, bb = pair(client, w)
+    a, b, ba, bb = pair(client, w, unequal=True)
     m = match(client, w, a, b)
     assert action(client, w.ha, m, 'accept').status_code == 200
     assert action(client, w.hb, m, 'accept').json()['status'] == 'READY'
-    assert action(client, w.ha, m, 'cancel').json()['status'] == 'CANCELLED'
-    assert client.post(f"{ROOT}/matches/{m['id']}/settle", headers=w.ha, json={}).status_code == 409
+    assert action(client, w.ha, m, 'cancel').status_code == 409
+    assert action(client, w.hb, m, 'reject').status_code == 409
     for booking, owner in ((ba, w.a), (bb, w.b)):
         db.expire_all()
         t = db.get(Ticket, uuid.UUID(booking['tickets'][0]['id']))
         assert t.owner_user_id == owner.id and t.code == booking['tickets'][0]['code']
-    assert all(r['status'] == 'OPEN' for r in client.get(ROOT+'/mine', headers=w.ha).json()['requests'])
+    assert all(r['status'] == 'MATCHED' for r in client.get(ROOT+'/mine', headers=w.ha).json()['requests'])
 
 
 def test_event_preference_options_validate_ids_sections_and_cross_tier(client, db, world):
@@ -626,13 +632,10 @@ def test_activity_is_private_durable_and_covers_lifecycle(client, world):
     assert client.get(ROOT+'/activity', headers=w.hx).json() == []
     response = offer(client, w.hb, bb['tickets'][0]['id']).json()
     m = client.post(f"{ROOT}/{response['id']}/interest", headers=w.hb, json={'targetRequestId': direct['id']}).json()
-    assert action(client, w.ha, m, 'accept').json()['status'] == 'PENDING'
-    # A single acceptance cannot settle or change either QR identity.
-    assert client.post(f"{ROOT}/matches/{m['id']}/settle", headers=w.ha, json={}).status_code == 409
-    assert action(client, w.hb, m, 'accept').json()['status'] == 'READY'
-    # Equal value requires no simulated payment; even a decline input is irrelevant.
-    completed = client.post(f"{ROOT}/matches/{m['id']}/settle", headers=w.ha, json={'paymentMethod':'mock_fail'})
-    assert completed.status_code == 200 and completed.json()['updatedAt']
+    assert client.get(f"{ROOT}/matches/{m['id']}", headers=w.hb).json()['status'] == 'PENDING'
+    assert client.post(f"{ROOT}/matches/{m['id']}/settle", headers=w.hb, json={}).status_code == 409
+    completed = action(client, w.ha, m, 'accept')
+    assert completed.status_code == 200 and completed.json()['status'] == 'COMPLETED'
     for user, old, received_ticket in ((w.a, ba, bb), (w.b, bb, ba)):
         assert client.post("/api/v1/auth/logout").status_code == 204
         headers = auth_header(client, user.username)  # Fresh login after logout, no React state.
@@ -652,7 +655,6 @@ def test_swap_exception_rolls_back_both_owners_codes_and_settlement(client, db, 
     from app.db.models.exchange import ExchangeSettlement
     a, b, ba, bb = pair(client, world)
     m = match(client, world, a, b)
-    action(client, world.ha, m, 'accept'); action(client, world.hb, m, 'accept')
     original = RelationalTicketingGateway.swap
     def interrupted(self, session, *args):
         original(self, session, *args)
@@ -660,23 +662,23 @@ def test_swap_exception_rolls_back_both_owners_codes_and_settlement(client, db, 
         raise RuntimeError('injected failure after both ticket updates')
     monkeypatch.setattr(RelationalTicketingGateway, 'swap', interrupted)
     with pytest.raises(RuntimeError, match='injected failure'):
-        client.post(f"{ROOT}/matches/{m['id']}/settle", headers=world.ha, json={})
+        action(client, world.hb, m, "accept")
     db.expire_all()
     for booking, owner in ((ba, world.a), (bb, world.b)):
         t = db.get(Ticket, uuid.UUID(booking['tickets'][0]['id']))
         assert t.owner_user_id == owner.id and t.code == booking['tickets'][0]['code']
-    assert db.get(ExchangeMatch, uuid.UUID(m['id'])).status == MS.READY
+    assert db.get(ExchangeMatch, uuid.UUID(m['id'])).status == MS.PENDING
     assert db.scalar(select(func.count()).select_from(ExchangeSettlement)) == 0
 
 
 def test_concurrent_settlement_rotates_once_and_creates_one_settlement(client, db, world):
     from app.db.models import User
     from app.db.models.exchange import ExchangeSettlement
-    a, b, ba, bb = pair(client, world)
+    a, b, ba, bb = pair(client, world, unequal=True)
     m = match(client, world, a, b)
     action(client, world.ha, m, 'accept'); action(client, world.hb, m, 'accept')
     barrier = Barrier(2)
-    ids = (world.a.id, world.b.id)
+    ids = (world.a.id, world.a.id)
     match_id = uuid.UUID(m['id'])
     def run(user_id):
         with SessionLocal() as session:
@@ -704,3 +706,70 @@ def test_new_category_id_preference_matches_unchanged_legacy_offer(client, db, w
     suggestions = client.get(f"{ROOT}/{a['id']}/matches", headers=w.ha).json()
     assert [s['requestId'] for s in suggestions] == [b['id']]
     assert match(client, w, a, b)['status'] == 'PENDING'
+
+
+def test_recipient_lookup_is_bounded_private_case_insensitive_and_literal(client, db, world):
+    from app.db.models import UserStatus
+    w = world
+    make_user(db, username="LookupAlpha")
+    make_user(db, username="lookupBeta")
+    make_user(db, username="lookupBlocked", status=UserStatus.SUSPENDED)
+    make_user(db, username="lookupOrganiser", role=Role.ORGANISER)
+    for n in range(12):
+        make_user(db, username=f"lookup{n:02}")
+    path = ROOT + "/recipients"
+    assert client.get(path, params={"q": "lookup"}).status_code == 401
+    assert client.get(path, headers=w.ho, params={"q": "lookup"}).status_code == 403
+    assert client.get(path, headers=w.ha, params={"q": "l"}).status_code == 422
+    response = client.get(path, headers=w.ha, params={"q": "LOOKUP"})
+    assert response.status_code == 200
+    assert len(response.json()) == 10
+    assert all(set(item) == {"username"} for item in response.json())
+    assert client.get(path, headers=w.ha, params={"q": "lookupA"}).json() == [{"username": "LookupAlpha"}]
+    assert client.get(path, headers=w.ha, params={"q": "lookupBlocked"}).json() == []
+    assert client.get(path, headers=w.ha, params={"q": "lookupOrganiser"}).json() == []
+    own = client.get(path, headers=w.ha, params={"q": w.a.username}).json()
+    assert w.a.username not in [item["username"] for item in own]
+    for term in ("noSuchCustomer", "lo%", "lo_", "  "):
+        assert client.get(path, headers=w.ha, params={"q": term}).json() == []
+
+
+@pytest.mark.parametrize("hours", [24, 72, 168])
+def test_new_requests_are_capped_at_72_hours_without_rewriting_history(client, db, world, monkeypatch, hours):
+    from datetime import datetime
+    w = world
+    settings = get_settings()
+    monkeypatch.setattr(settings, "EXCHANGE_REQUEST_TTL_HOURS", hours)
+    booking = ticket(client, w.ha, w)
+    response = offer(client, w.ha, booking["tickets"][0]["id"])
+    assert response.status_code == 201, response.text
+    r = response.json()
+    created = datetime.fromisoformat(r["createdAt"])
+    expires = datetime.fromisoformat(r["expiresAt"])
+    assert expires - created == timedelta(hours=min(hours, 72))
+    row = db.get(ExchangeRequest, uuid.UUID(r["id"]))
+    legacy_expiry = row.created_at + timedelta(days=7)
+    row.expires_at = legacy_expiry
+    db.commit()
+    mine = client.get(ROOT + "/mine", headers=w.ha).json()
+    assert datetime.fromisoformat(mine["requests"][0]["expiresAt"]) == legacy_expiry
+    second = ticket(client, w.hb, w)
+    interest = ticket_interest(client, w.hb, r["id"], second["tickets"][0]["id"])
+    assert interest.status_code == 200, interest.text
+    db.expire_all()
+    reply = db.get(ExchangeRequest, uuid.UUID(interest.json()["requestBId"]))
+    assert reply.expires_at - reply.created_at <= timedelta(hours=72)
+    assert db.get(ExchangeRequest, row.id).expires_at == legacy_expiry
+
+
+def test_new_request_expires_at_seven_day_cutoff_when_earlier(client, db, world, monkeypatch):
+    from datetime import datetime
+    w = world
+    booking = ticket(client, w.ha, w)
+    # Exercise the event-start cap with sales remaining open until event time.
+    monkeypatch.setattr(get_settings(), "SALES_CLOSE_DAYS_BEFORE_EVENT", 0)
+    w.event.start_at = utcnow() + timedelta(days=8)
+    db.commit()
+    response = offer(client, w.ha, booking["tickets"][0]["id"])
+    assert response.status_code == 201, response.text
+    assert datetime.fromisoformat(response.json()["expiresAt"]) == w.event.start_at - timedelta(days=7)

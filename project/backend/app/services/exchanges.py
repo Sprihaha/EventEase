@@ -1,4 +1,4 @@
-"""Transactional exchange workflow. READY is consent, never settlement."""
+"""Transactional exchange workflow; READY awaits simulated difference payment."""
 
 import uuid
 from datetime import timedelta
@@ -18,6 +18,19 @@ from app.services.exchange_ticketing import TicketingGateway
 
 ACTIVE_REQUESTS = (RS.OPEN, RS.MATCHED)
 ACTIVE_MATCHES = (MS.PENDING, MS.READY)
+MAX_REQUEST_TTL_HOURS = 72
+
+
+def recipients(db: Session, user: User, query: str) -> list[dict]:
+    """Bounded username-only discovery; never expose email, IDs or ticket data."""
+    term = query.strip().lower()
+    if len(term) < 2:
+        return []
+    usernames = db.scalars(select(User.username).where(
+        User.role == Role.CUSTOMER, User.status == UserStatus.ACTIVE,
+        User.id != user.id, func.lower(User.username).startswith(term, autoescape=True),
+    ).order_by(func.lower(User.username), User.username).limit(10))
+    return [{"username": username} for username in usernames]
 
 
 def fail(code="EXCHANGE_CONFLICT", message="this exchange has changed or is no longer available", status=409):
@@ -69,7 +82,8 @@ def _match(db: Session, user: User, match_id: uuid.UUID, *, lock=False) -> tuple
 
 
 def _record(db, entity, before, actor=None):
-    audit.record(db, actor=actor, action=f"EXCHANGE_{entity.status.value}",
+    action = "EXCHANGE_REJECTED" if entity.closed_reason == "RECIPIENT_REJECTED" else f"EXCHANGE_{entity.status.value}"
+    audit.record(db, actor=actor, action=action,
                  entity_type="ExchangeMatch" if isinstance(entity, ExchangeMatch) else "ExchangeRequest",
                  entity_id=entity.id, before={"status": before} if before else None,
                  after={"status": entity.status.value, "reason": entity.closed_reason})
@@ -83,10 +97,12 @@ def _state(db, entity, status, reason=None, actor=None):
 
 def _live(gateway: TicketingGateway, db, requests, now, *, lock=False) -> dict[uuid.UUID, bool]:
     contexts = gateway.load(db, [r.offered_ticket_id for r in requests if r.ticketing_source == gateway.source], now, lock=lock)
+    if lock:
+        now = utcnow()  # A lock wait may cross the cutoff.
     live = {}
     for r in requests:
         t = contexts.get(r.offered_ticket_id)
-        live[r.id] = bool(t and r.ticketing_source == gateway.source and t.eligible
+        live[r.id] = bool(t and now < t.exchange_cutoff_at and r.ticketing_source == gateway.source and t.eligible
                           and t.owner_user_id == r.requester_user_id and t.revision == r.ticket_revision)
         # Older offers predate category IDs in snapshots. Resolve them only
         # from unchanged live tickets, so new ID preferences can match safely.
@@ -115,6 +131,7 @@ def _close_match(db, m, requests, live, now, status, reason, actor=None):
 def _refresh_locked(db, gateway, requests, m=None):
     now = utcnow()
     live = _live(gateway, db, requests, now, lock=True)
+    now = utcnow()
     if m and m.status in ACTIVE_MATCHES:
         expired = m.expires_at <= now or any(r.expires_at <= now for r in requests)
         if expired or not all(live.values()):
@@ -180,12 +197,13 @@ def eligible_tickets(db, gateway, user):
 
 def create(db, gateway, settings: Settings, user, data: CreateExchangeRequest):
     refresh(db, gateway, owned_request_ids(db, user) + ticket_request_ids(db, gateway, [data.offered_ticket_id]))
+    gateway.load(db, [data.offered_ticket_id], utcnow(), lock=True)
     now = utcnow()
-    t = gateway.load(db, [data.offered_ticket_id], now, lock=True).get(data.offered_ticket_id)
+    t = gateway.load(db, [data.offered_ticket_id], now).get(data.offered_ticket_id)
     if not t or t.owner_user_id != user.id:
         fail("TICKET_NOT_FOUND", "ticket not found", 404)
-    if not t.eligible:
-        fail("TICKET_INELIGIBLE", "this ticket cannot be offered for exchange")
+    if not t.eligible or utcnow() >= t.exchange_cutoff_at:
+        fail("TICKET_INELIGIBLE", "this ticket is no longer eligible for exchange; exchanges close seven days before the event")
     has_preferences = bool(data.desired_category_id or data.desired_category_type or data.desired_seat_section)
     options = gateway.preferences(db, t.event_id) if has_preferences else []
     choices = [c for c in options if (not data.desired_category_id or c["id"] == str(data.desired_category_id))
@@ -206,11 +224,15 @@ def create(db, gateway, settings: Settings, user, data: CreateExchangeRequest):
                                                 User.role == Role.CUSTOMER, User.status == UserStatus.ACTIVE))
         if not recipient or recipient.id == user.id:
             fail("INVALID_RECIPIENT", "choose another active customer username", 422)
+        if not _has_recipient_ticket(db, gateway, recipient, t.event_id):
+            fail("RECIPIENT_INELIGIBLE", "This user has no eligible tickets for this event.", 422)
     r = ExchangeRequest(recipient_user_id=recipient.id if recipient else None, requester_user_id=user.id, ticketing_source=t.source, offered_ticket_id=t.id,
                         ticket_snapshot={**t.snapshot(), "desired_category_id": str(data.desired_category_id) if data.desired_category_id else None}, ticket_revision=t.revision,
                         desired_category_type=data.desired_category_type, desired_seat_section=data.desired_seat_section,
                         allow_cross_tier=data.allow_cross_tier, request_type=data.request_type, status=RS.OPEN,
-                        created_at=now, expires_at=min(t.event_start_at, now + timedelta(hours=settings.EXCHANGE_REQUEST_TTL_HOURS)))
+                        created_at=now, expires_at=min(t.exchange_cutoff_at, now + timedelta(hours=min(settings.EXCHANGE_REQUEST_TTL_HOURS, MAX_REQUEST_TTL_HOURS))))
+    if utcnow() >= t.exchange_cutoff_at:
+        fail("TICKET_INELIGIBLE", "Exchanges close seven days before the event.")
     db.add(r)
     db.flush()
     _record(db, r, None, user)
@@ -242,8 +264,8 @@ def preference_options(db, gateway, user, ticket_id):
     t = gateway.load(db, [ticket_id], utcnow()).get(ticket_id)
     if not t or t.owner_user_id != user.id:
         fail("TICKET_NOT_FOUND", "ticket not found", 404)
-    if not t.eligible:
-        fail("TICKET_INELIGIBLE", "this ticket cannot be offered for exchange")
+    if not t.eligible or utcnow() >= t.exchange_cutoff_at:
+        fail("TICKET_INELIGIBLE", "this ticket is no longer eligible for exchange; exchanges close seven days before the event")
     return gateway.preferences(db, t.event_id)
 
 
@@ -312,13 +334,14 @@ def interest(db, gateway, settings, user, request_id, target_id):
         fail()
     now = utcnow()
     m = ExchangeMatch(request_a_id=a.id, request_b_id=b.id, ticket_a=a.ticket_snapshot, ticket_b=b.ticket_snapshot,
-                      a_accepted=False, b_accepted=False, status=MS.PENDING,
+                      a_accepted=True, b_accepted=False, status=MS.PENDING,
                       expires_at=min(a.expires_at, b.expires_at, now + timedelta(minutes=settings.EXCHANGE_MATCH_TTL_MINUTES)))
     db.add(m)
     for r in requests:
         _state(db, r, RS.MATCHED, actor=user)
     db.flush()
     _record(db, m, None, user)
+    audit.record(db, actor=user, action="EXCHANGE_ACCEPTED", entity_type="ExchangeMatch", entity_id=m.id, after={"side": "A"})
     db.commit()
     return m
 
@@ -348,8 +371,8 @@ def _interest_response(target, ticket, user, settings, now):
         desired_seat_section=target.ticket_snapshot["seat_section"],
         allow_cross_tier=target.allow_cross_tier, request_type="DIRECT", status=RS.MATCHED,
         created_at=now,
-        expires_at=min(target.expires_at, ticket.event_start_at,
-                       now + timedelta(hours=settings.EXCHANGE_REQUEST_TTL_HOURS)),
+        expires_at=min(target.expires_at, ticket.exchange_cutoff_at,
+                       now + timedelta(hours=min(settings.EXCHANGE_REQUEST_TTL_HOURS, MAX_REQUEST_TTL_HOURS))),
     )
 
 
@@ -380,8 +403,8 @@ def ticket_interest(db, gateway, settings, user, target_id, offered_ticket_id):
     offered = contexts.get(offered_ticket_id)
     if offered is None or offered.owner_user_id != user.id:
         fail("TICKET_NOT_FOUND", "ticket not found", 404)
-    if not offered.eligible:
-        fail("TICKET_INELIGIBLE", "this ticket cannot be offered for exchange")
+    if not offered.eligible or utcnow() >= offered.exchange_cutoff_at:
+        fail("TICKET_INELIGIBLE", "this ticket is no longer eligible for exchange; exchanges close seven days before the event")
     _refresh_locked(db, gateway, [target])
     if target.status != RS.OPEN:
         db.commit()
@@ -397,7 +420,7 @@ def ticket_interest(db, gateway, settings, user, target_id, offered_ticket_id):
     match = ExchangeMatch(
         request_a_id=target.id, request_b_id=response.id,
         ticket_a=target.ticket_snapshot, ticket_b=offered.snapshot(),
-        a_accepted=False, b_accepted=False, status=MS.PENDING,
+        a_accepted=False, b_accepted=True, status=MS.PENDING,
         expires_at=min(target.expires_at, response.expires_at,
                        now + timedelta(minutes=settings.EXCHANGE_MATCH_TTL_MINUTES)),
     )
@@ -408,6 +431,7 @@ def ticket_interest(db, gateway, settings, user, target_id, offered_ticket_id):
     _state(db, target, RS.MATCHED, actor=user)
     db.flush()
     _record(db, match, None, user)
+    audit.record(db, actor=user, action="EXCHANGE_ACCEPTED", entity_type="ExchangeMatch", entity_id=match.id, after={"side": "B"})
     db.commit()
     return match
 
@@ -419,7 +443,7 @@ def mine(db, gateway, user):
                          .order_by(ExchangeRequest.created_at.desc(), ExchangeRequest.id)).all()
     matches = db.scalars(select(ExchangeMatch).where(or_(ExchangeMatch.request_a_id.in_(ids), ExchangeMatch.request_b_id.in_(ids)))
                         .order_by(ExchangeMatch.created_at.desc(), ExchangeMatch.id)).all()
-    return {"requests": [request_view(r) for r in requests], "matches": matches}
+    return {"requests": [request_view(r) for r in requests], "matches": [match_view(db, user, m) for m in matches]}
 
 
 def get_match(db, gateway, user, match_id):
@@ -431,20 +455,19 @@ def get_match(db, gateway, user, match_id):
 def act_on_match(db, gateway, user, match_id, action):
     m, requests = _match(db, user, match_id, lock=True)
     live = _refresh_locked(db, gateway, requests, m)
-    if m.status == MS.READY and action == "cancel":
-        _close_match(db, m, requests, live, utcnow(), MS.CANCELLED, "PARTICIPANT_CANCELLED", user)
-        db.commit()
+    side_a = next(r for r in requests if r.id == m.request_a_id).requester_user_id == user.id
+    accepted = m.a_accepted if side_a else m.b_accepted
+    if action in ("cancel", "reject") and accepted and m.status in ACTIVE_MATCHES:
+        fail("ACCEPTANCE_FINAL", "acceptance cannot be withdrawn")
+    if action == "accept" and m.status == MS.COMPLETED:
         return m
     if m.status != MS.PENDING:
-        # Repeated acceptance is safe, but consent never triggers settlement.
-        side_a = next(r for r in requests if r.id == m.request_a_id).requester_user_id == user.id
+        # Repeated acceptance is idempotent; never silently complete legacy READY records.
         if action == "accept" and m.status == MS.READY and (m.a_accepted if side_a else m.b_accepted):
             db.commit()
             return m
         db.commit()
         fail()
-    side_a = next(r for r in requests if r.id == m.request_a_id).requester_user_id == user.id
-    accepted = m.a_accepted if side_a else m.b_accepted
     if action == "accept":
         if not accepted:
             if side_a:
@@ -455,9 +478,14 @@ def act_on_match(db, gateway, user, match_id, action):
                          after={"side": "A" if side_a else "B"})
         if m.a_accepted and m.b_accepted:
             _state(db, m, MS.READY, actor=user)
+            a, b, cents_a, cents_b, payer = _payment_context(db, gateway, m, requests)
+            if cents_a == cents_b:
+                settlement = _settlement(db, m, payer, 0)
+                _complete(db, gateway, user, m, requests, settlement)
+            else:
+                _settlement(db, m, payer, abs(cents_b - cents_a))
+                audit.record(db, actor=user, action="EXCHANGE_PAYMENT_REQUIRED", entity_type="ExchangeMatch", entity_id=m.id)
     else:
-        if action == "reject" and accepted:
-            fail("ALREADY_ACCEPTED", "cancel the pending match to withdraw acceptance")
         _close_match(db, m, requests, live, utcnow(), MS.REJECTED if action == "reject" else MS.CANCELLED,
                      "PARTICIPANT_REJECTED" if action == "reject" else "PARTICIPANT_CANCELLED", user)
     db.commit()
@@ -475,38 +503,116 @@ def cancel_request(db, gateway, user, request_id):
     return request_view(r)
 
 
-def settle(db, gateway, settings, user, match_id, payment_method):
-    """Simulated settlement with one atomic swap in B; never calls a real gateway."""
-    if settings.PAYMENT_PROVIDER != "mock" or not callable(getattr(gateway, "swap", None)):
-        fail("SETTLEMENT_UNAVAILABLE", "simulated settlement is unavailable with this ticketing/payment provider", 501)
-    m, requests = _match(db, user, match_id, lock=True)
-    if m.status == MS.COMPLETED:
-        return m  # Idempotent replay cannot swap or charge twice.
-    _refresh_locked(db, gateway, requests, m)
-    if m.status != MS.READY:
-        db.commit()
-        fail("NOT_READY", "both participants must accept an active match before settlement")
+def _payment_context(db, gateway, m, requests):
     by_id = {r.id: r for r in requests}
     a, b = by_id[m.request_a_id], by_id[m.request_b_id]
-    cents_a = int(Decimal(str(m.ticket_a["price"])) * 100)
-    cents_b = int(Decimal(str(m.ticket_b["price"])) * 100)
-    payer = a.requester_user_id if cents_b > cents_a else b.requester_user_id if cents_a > cents_b else None
-    if payer and user.id != payer:
-        fail("PAYER_REQUIRED", "the participant receiving the higher-priced ticket must settle the difference", 403)
+    now = utcnow()
+    contexts = gateway.load(db, [a.offered_ticket_id, b.offered_ticket_id], now, lock=True)
+    now = utcnow()
+    x, y = contexts.get(a.offered_ticket_id), contexts.get(b.offered_ticket_id)
+    if not x or not y or not all((x.eligible, y.eligible)) or now >= min(x.exchange_cutoff_at, y.exchange_cutoff_at):
+        fail("TICKET_INELIGIBLE", "Tickets are no longer eligible; exchanges close seven days before the event.")
+    if x.owner_user_id != a.requester_user_id or y.owner_user_id != b.requester_user_id or x.event_id != y.event_id:
+        fail("INCOMPATIBLE_EXCHANGE", "These tickets no longer belong to the participants or the same event.")
+    if x.revision != a.ticket_revision or y.revision != b.ticket_revision:
+        fail("TICKETING_CHANGED", "Ticket details changed. No tickets were transferred.")
+    payer = a.requester_user_id if y.price_cents > x.price_cents else b.requester_user_id if x.price_cents > y.price_cents else None
+    return a, b, x.price_cents, y.price_cents, payer
+
+
+def _settlement(db, m, payer, amount):
     settlement = db.scalar(select(ExchangeSettlement).where(ExchangeSettlement.match_id == m.id))
     if settlement is None:
-        settlement = ExchangeSettlement(match_id=m.id, payer_user_id=payer, amount_cents=abs(cents_b-cents_a),
-                                        currency="SGD", status="PENDING")
+        settlement = ExchangeSettlement(match_id=m.id, payer_user_id=payer, amount_cents=amount, currency="SGD", status="PENDING")
         db.add(settlement)
-    if payer and payment_method == "mock_fail":
-        settlement.status = "FAILED"
-        audit.record(db, actor=user, action="EXCHANGE_SETTLEMENT_FAILED", entity_type="ExchangeMatch", entity_id=m.id)
-        db.commit()
-        fail("EXCHANGE_PAYMENT_FAILED", "simulated payment declined; tickets are unchanged and you can retry", 402)
+        db.flush()
+    elif settlement.amount_cents != amount or settlement.payer_user_id != payer:
+        fail("PAYMENT_CHANGED", "Payment details changed. No tickets were transferred.")
+    return settlement
+
+
+def _complete(db, gateway, user, m, requests, settlement):
+    if not callable(getattr(gateway, "swap", None)):
+        fail("SETTLEMENT_UNAVAILABLE", "Ticket transfer is unavailable with this ticketing provider.", 501)
+    a, b, _, _, _ = _payment_context(db, gateway, m, requests)
     gateway.swap(db, a.offered_ticket_id, b.offered_ticket_id, a.requester_user_id, b.requester_user_id)
     settlement.status = "SUCCEEDED"
     for r in requests:
         _state(db, r, RS.COMPLETED, actor=user)
     _state(db, m, MS.COMPLETED, actor=user)
+
+
+def settle(db, gateway, settings, user, match_id, payment_method):
+    """One locked simulated payment/transfer transaction; never calls a live gateway."""
+    if settings.PAYMENT_PROVIDER != "mock":
+        fail("SETTLEMENT_UNAVAILABLE", "Simulated exchange payment is unavailable with this payment provider.", 501)
+    m, requests = _match(db, user, match_id, lock=True)
+    if m.status == MS.COMPLETED:
+        return m  # Replays cannot charge or swap twice.
+    _refresh_locked(db, gateway, requests, m)
+    if m.status != MS.READY:
+        db.commit()
+        fail("NOT_READY", "Both participants must accept an active match before payment.")
+    _, _, cents_a, cents_b, payer = _payment_context(db, gateway, m, requests)
+    if payer and user.id != payer:
+        fail("PAYER_REQUIRED", "Only the participant receiving the higher-valued ticket can pay the difference.", 403)
+    settlement = _settlement(db, m, payer, abs(cents_b - cents_a))
+    outcome = {"mock_fail": "FAILED", "mock_pending": "PENDING", "mock_cancel": "CANCELLED"}.get(payment_method, "SUCCEEDED")
+    if payer and outcome != "SUCCEEDED":
+        settlement.status = outcome
+        audit.record(db, actor=user, action={"FAILED": "EXCHANGE_SETTLEMENT_FAILED", "PENDING": "EXCHANGE_PAYMENT_PENDING", "CANCELLED": "EXCHANGE_PAYMENT_CANCELLED"}[outcome], entity_type="ExchangeMatch", entity_id=m.id)
+        db.commit()
+        if outcome == "FAILED":
+            fail("EXCHANGE_PAYMENT_FAILED", "Simulated payment declined. Tickets are unchanged; you can retry.", 402)
+        return m
+    _complete(db, gateway, user, m, requests, settlement)
     db.commit()
     return m
+
+
+def match_view(db, user, m):
+    """Participant-specific payment metadata, without disclosing the other's user ID."""
+    own_a = db.scalar(select(ExchangeRequest.requester_user_id).where(ExchangeRequest.id == m.request_a_id)) == user.id
+    cents_a = int(Decimal(str(m.ticket_a["price"])) * 100)
+    cents_b = int(Decimal(str(m.ticket_b["price"])) * 100)
+    settlement = db.scalar(select(ExchangeSettlement).where(ExchangeSettlement.match_id == m.id))
+    fields = {name: getattr(m, name) for name in ("id", "request_a_id", "request_b_id", "ticket_a", "ticket_b", "a_accepted", "b_accepted", "status", "expires_at", "updated_at")}
+    return {**fields, "amount_cents": abs(cents_b - cents_a),
+            "is_payer": (cents_b > cents_a if own_a else cents_a > cents_b),
+            "payment_status": settlement.status if settlement else "NOT_STARTED"}
+
+
+def _has_recipient_ticket(db, gateway, recipient, event_id):
+    now = utcnow()
+    reserved = set(db.scalars(select(ExchangeRequest.offered_ticket_id).where(
+        ExchangeRequest.ticketing_source == gateway.source, ExchangeRequest.status.in_(ACTIVE_REQUESTS), ExchangeRequest.expires_at > now)))
+    return any(t.eligible and now < t.exchange_cutoff_at and t.event_id == event_id and t.id not in reserved
+               for t in gateway.owned(db, recipient.id, now))
+
+
+def recipient_eligibility(db, gateway, user, ticket_id, username):
+    now = utcnow()
+    offered = gateway.load(db, [ticket_id], now).get(ticket_id)
+    if not offered or offered.owner_user_id != user.id:
+        fail("TICKET_NOT_FOUND", "ticket not found", 404)
+    if not offered.eligible or now >= offered.exchange_cutoff_at:
+        fail("TICKET_INELIGIBLE", "Your offered ticket is no longer eligible for exchange.")
+    recipient = db.scalar(select(User).where(func.lower(User.username) == username.strip().lower(),
+        User.role == Role.CUSTOMER, User.status == UserStatus.ACTIVE, User.id != user.id))
+    return {"eligible": bool(recipient and _has_recipient_ticket(db, gateway, recipient, offered.event_id))}
+
+
+def reject_invitation(db, gateway, user, request_id):
+    rows = _lock_requests(db, [request_id])
+    if not rows or rows[0].request_type != "DIRECT" or rows[0].recipient_user_id != user.id:
+        fail("EXCHANGE_NOT_FOUND", "invitation not found", 404)
+    r = rows[0]
+    if r.status != RS.OPEN or r.expires_at <= utcnow():
+        fail()
+    _refresh_locked(db, gateway, [r])
+    if r.status != RS.OPEN:
+        db.commit()
+        fail()
+    _state(db, r, RS.CANCELLED, "RECIPIENT_REJECTED", user)
+    db.commit()
+    return request_view(r)

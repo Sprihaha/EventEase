@@ -117,7 +117,7 @@ class Settings(BaseSettings):
     HOLD_SWEEP_INTERVAL_SECONDS: int = 30
 
     # EaseXchange policy, independent of Package B's booking hold duration.
-    EXCHANGE_REQUEST_TTL_HOURS: int = Field(default=168, ge=1, le=8760)
+    EXCHANGE_REQUEST_TTL_HOURS: int = Field(default=72, ge=1, le=8760)
     EXCHANGE_MATCH_TTL_MINUTES: int = Field(default=30, ge=1, le=1440)
 
     # Payments

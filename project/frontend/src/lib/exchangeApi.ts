@@ -165,12 +165,33 @@ function match(value: unknown): ExchangeMatch {
   if (result.status === "READY" && (!result.aAccepted || !result.bAccepted))
     throw new ExchangeContractError("READY acceptance")
   if (field(item, "updatedAt") !== undefined) result.updatedAt = timestamp(item, "updatedAt")
+  if (field(item, "amountCents") !== undefined) {
+    const amount = field(item, "amountCents")
+    if (typeof amount !== "number" || !Number.isSafeInteger(amount) || amount < 0) throw new ExchangeContractError("amountCents")
+    result.amountCents = amount
+    result.isPayer = boolean(item, "isPayer")
+    result.paymentStatus = enumeration(item, "paymentStatus", ["NOT_STARTED", "PENDING", "FAILED", "CANCELLED", "SUCCEEDED"] as const)
+  }
   return result
 }
 
 const root = "/exchanges"
 const idPath = (id: string) => `${root}/${encodeURIComponent(id)}`
 const matchPath = (id: string) => `${root}/matches/${encodeURIComponent(id)}`
+
+export async function searchExchangeRecipients(query: string, signal?: AbortSignal): Promise<string[]> {
+  return list(await request<unknown>(`${root}/recipients?q=${encodeURIComponent(query.trim())}`, { signal }, true), value =>
+    string(object(value), "username"))
+}
+
+export async function getRecipientEligibility(offeredTicketId: string, username: string, signal?: AbortSignal): Promise<boolean> {
+  const response = await request<unknown>(`${root}/recipients/eligibility?offeredTicketId=${encodeURIComponent(offeredTicketId)}&username=${encodeURIComponent(username)}`, { signal }, true)
+  return boolean(object(response), "eligible")
+}
+
+export async function rejectExchangeInvitation(requestId: string): Promise<ExchangeRequest> {
+  return exchangeRequest(await request<unknown>(`${idPath(requestId)}/reject-invitation`, { method: "POST" }, true))
+}
 
 export async function getEligibleExchangeTickets(
   signal?: AbortSignal,
@@ -304,9 +325,10 @@ export async function cancelExchangeMatch(
   )
 }
 
-export async function settleExchangeMatch(matchId: string, failPayment = false): Promise<ExchangeMatch> {
+export type ExchangePaymentMethod = "mock_success" | "mock_fail" | "mock_pending" | "mock_cancel"
+export async function settleExchangeMatch(matchId: string, outcome: boolean | ExchangePaymentMethod = false): Promise<ExchangeMatch> {
   return match(await request<unknown>(`${matchPath(matchId)}/settle`, {
-    method: "POST", body: JSON.stringify({ paymentMethod: failPayment ? "mock_fail" : "mock_success" }),
+    method: "POST", body: JSON.stringify({ paymentMethod: typeof outcome === "boolean" ? (outcome ? "mock_fail" : "mock_success") : outcome }),
   }, true))
 }
 export async function cancelExchangeRequest(
@@ -323,6 +345,12 @@ export async function cancelExchangeRequest(
 
 export function exchangeErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.code === "RECIPIENT_INELIGIBLE") return "This user has no eligible tickets for this event."
+    if (error.code === "TICKET_INELIGIBLE") return "This ticket is no longer eligible. Exchanges must complete before the final seven days of the event."
+    if (error.code === "PAYER_REQUIRED") return "Only the participant receiving the higher-valued ticket can pay the difference."
+    if (error.code === "EXCHANGE_PAYMENT_FAILED") return "Simulated payment declined. Your tickets are unchanged; you can retry."
+    if (error.code === "INVALID_RECIPIENT") return "Choose another active customer username from the suggestions."
+    if (error.code === "ACCEPTANCE_FINAL") return "Your acceptance cannot be withdrawn."
     if (error.status === 401)
       return "Your session is unavailable or has expired. Please sign in again."
     if (error.status === 403)

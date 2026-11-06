@@ -11,6 +11,7 @@ import {
   getExchangeListings,
   getExchangeInvitations,
   getMyExchanges,
+  rejectExchangeInvitation,
 } from "../../../lib/exchangeApi"
 import {
   exchangeRequestStatuses,
@@ -122,7 +123,8 @@ export default function SecureExchange() {
   const linkedMatch = params.get("match")
   useEffect(() => {
     if (linkedMatch && user) setDialog({ type: "match", matchId: linkedMatch })
-  }, [linkedMatch, user?.id])
+    else if (params.get("view") === "create" && user) setDialog({ type: "create" })
+  }, [linkedMatch, params.get("view"), user?.id])
   const previousUser = useRef(user?.id)
   useEffect(() => {
     if (previousUser.current && previousUser.current !== user?.id) { setDialog(null); setNotice(null); setActionError(null); setCreating(false) }
@@ -212,6 +214,13 @@ export default function SecureExchange() {
       refresh()
     }
   }
+  const rejectInvitation = async (listing: ExchangeListing) => {
+    if (submitting.current || Date.parse(listing.expiresAt) <= Date.now() || !window.confirm("Reject this Direct Exchange invitation?")) return;
+    submitting.current = true; setPendingId(listing.requestId); setActionError(null); setNotice(null);
+    try { await rejectExchangeInvitation(listing.requestId); setNotice("Invitation rejected"); }
+    catch (cause) { setActionError(exchangeErrorMessage(cause)); }
+    finally { submitting.current = false; setPendingId(null); refresh(); }
+  }
   const openInterest = (listing: ExchangeListing, sourceId?: string) => {
     setNotice(null)
     setActionError(null)
@@ -254,8 +263,8 @@ export default function SecureExchange() {
         </p>
         <p className="mt-2">
           Offer an eligible owned ticket, explore compatible requests, and
-          accept a match. After both accept, complete simulated settlement to
-          swap the tickets and receive new QR codes.
+          review and accept a match. Acceptance cannot be withdrawn.
+          Equal-value tickets exchange automatically when both participants accept. Any price difference must be paid before tickets transfer. Exchanges close seven days before the event.
         </p>
       </div>
       {notice && (
@@ -354,14 +363,14 @@ export default function SecureExchange() {
         <div className="space-y-4">
           {(invitations.data ?? [])
             .slice((invitationsPage - 1) * PAGE_SIZE, invitationsPage * PAGE_SIZE)
-            .map(listing => <ListingCard key={listing.requestId} listing={listing} direct><Button onClick={() => openInterest(listing)}>Review & offer a ticket</Button></ListingCard>)}
+            .map(listing => <ListingCard key={listing.requestId} listing={listing} direct><div className="flex flex-wrap gap-3"><Button disabled={!!pendingId || Date.parse(listing.expiresAt) <= now} onClick={() => openInterest(listing)}>{Date.parse(listing.expiresAt) <= now ? "Invitation expired" : "Accept invitation"}</Button><Button variant="outline" disabled={!!pendingId || Date.parse(listing.expiresAt) <= now} onClick={() => void rejectInvitation(listing)}>Reject invitation</Button></div></ListingCard>)}
         </div>
         <Pagination
           currentPage={invitationsPage}
           totalItems={invitations.data?.length ?? 0}
           onPageChange={setInvitationsPage}
         />
-        <p className="text-sm text-muted">Review the invitation and select an eligible owned ticket. Both users must accept before settlement.</p>
+        <p className="text-sm text-muted">Review the invitation and select an eligible owned ticket for the same event. Both users must review the match before accepting.</p>
       </>}
       {view === "mine" && user && (
         <>
@@ -646,8 +655,8 @@ function ListingCard({
         </p>
       )}
       <Preferences request={listing} />
-      <p className="mt-3 text-xs text-muted">
-        Expires {formatDate(listing.expiresAt)}
+      <p className="mt-3 w-fit rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+        Expires <time dateTime={listing.expiresAt}>{formatDate(listing.expiresAt)}</time>
       </p>
       {children && <div className="mt-auto pt-4">{children}</div>}
     </Card>
@@ -672,6 +681,8 @@ export function TicketInterestPanel({ listing, onCreated, onChanged }: {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!selected || tickets.status !== "success" || expired || submitting.current) return
+    if (!window.confirm("Proceeding registers your acceptance and cannot be withdrawn. The other participant can review and accept or reject your offered ticket. Continue?")) return
+    if (Date.parse(listing.expiresAt) <= Date.now()) return
     submitting.current = true
     setPending(true)
     setError(null)
@@ -692,15 +703,15 @@ export function TicketInterestPanel({ listing, onCreated, onChanged }: {
     <ListingCard listing={listing} />
     <LoadState status={tickets.status} error={tickets.error}
       empty={tickets.status === "success" && !available.length}
-      emptyText="You do not currently have an eligible ticket for this exchange."
+      emptyText="You don't have any eligible tickets for this exchange."
       onRetry={tickets.reload} />
     <form onSubmit={(event) => void submit(event)} className="space-y-4" aria-busy={pending}>
       <Field label="Your eligible ticket">
         <Select required value={selected?.id ?? ""} onChange={event => setTicketId(event.target.value)}
           disabled={pending || tickets.status !== "success" || !available.length || expired}>
           <option value="">Select your eligible owned ticket</option>
-          {available.map(ticket => <option key={ticket.id} value={ticket.id}>
-            {ticket.eventName} · {ticket.categoryType} · Section {ticket.seatSection}{ticket.seatLabel ? ` · Seat ${ticket.seatLabel}` : ""}
+          {available.map((ticket, index) => <option key={ticket.id} value={ticket.id}>
+            Ticket {index + 1} · {ticket.eventName} · {ticket.categoryType} · Section {ticket.seatSection}{ticket.seatLabel ? ` · Seat ${ticket.seatLabel}` : ""}{ticket.price != null ? ` · S$${ticket.price.toFixed(2)}` : ""}
           </option>)}
         </Select>
       </Field>
@@ -709,7 +720,7 @@ export function TicketInterestPanel({ listing, onCreated, onChanged }: {
         <p className="text-sm">{selected.eventName} · {selected.categoryType} · Section {selected.seatSection} · Seat {selected.seatLabel ?? "Unassigned"}</p>
         {selected.price != null && <p className="text-sm">Value: S${selected.price.toFixed(2)}{listing.offeredPrice != null && ` · Price difference: S$${Math.abs(listing.offeredPrice - selected.price).toFixed(2)}${listing.offeredPrice > selected.price ? " — you pay" : listing.offeredPrice < selected.price ? " — the other participant pays" : " — no payment required"}`}</p>}
       </Card>}
-      <p className="text-sm text-muted">Only your compatible eligible tickets are shown. No separate public request is needed. Both participants must accept before simulated settlement can swap ownership.</p>
+      <p className="text-sm text-muted">Only your compatible eligible tickets for the same event are shown. No separate public request is needed. Confirming your offer registers your acceptance immediately. The other participant then accepts or rejects; your acceptance cannot be withdrawn.</p>
       {expired && <p className="text-sm text-muted">This listing's expiry time has passed. Refresh listings.</p>}
       <Button type="submit" disabled={!selected || pending || tickets.status !== "success" || expired}>
         {pending ? "Submitting interest…" : "Express interest"}
@@ -759,6 +770,8 @@ function InterestPanel({
       Date.parse(selected.expiresAt) <= Date.now()
     )
       return
+    if (!window.confirm("Proceeding registers your acceptance and cannot be withdrawn. Continue?")) return
+    if (Date.parse(selected.expiresAt) <= Date.now() || Date.parse(listing.expiresAt) <= Date.now()) return
     submitting.current = true
     setPending(true)
     setActionError(null)

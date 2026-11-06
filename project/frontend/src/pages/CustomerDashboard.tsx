@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import {
   LayoutDashboard,
   History,
@@ -29,7 +29,10 @@ const exchangeMessages: Record<string, string> = {
   EXCHANGE_MATCHED: "Proposal received — review tickets",
   EXCHANGE_PENDING: "Proposal pending review",
   EXCHANGE_ACCEPTED: "Proposal accepted",
-  EXCHANGE_READY: "Both accepted — ready for settlement",
+  EXCHANGE_READY: "Both accepted — awaiting difference payment",
+  EXCHANGE_PAYMENT_REQUIRED: "Price difference payment required",
+  EXCHANGE_PAYMENT_PENDING: "Payment pending — tickets unchanged",
+  EXCHANGE_PAYMENT_CANCELLED: "Payment cancelled — tickets unchanged",
   EXCHANGE_SETTLEMENT_FAILED: "Settlement declined — tickets unchanged",
   EXCHANGE_COMPLETED: "Exchange completed",
   EXCHANGE_REJECTED: "Exchange rejected",
@@ -87,6 +90,7 @@ function getTicketStatus(t: OwnedTicket): {
 }
 
 export default function CustomerDashboard() {
+  const [exchangeParams] = useSearchParams();
   const { user, sessionLoading, bookings, bookingsError, refreshBookings } = useStore();
   const [tickets, setTickets] = useState<OwnedTicket[]>([]);
   const [exchangeActivity, setExchangeActivity] = useState<ExchangeActivity[]>([]);
@@ -281,6 +285,7 @@ export default function CustomerDashboard() {
       !t.checkedInAt &&
       !t.code &&
       !t.exchangedAt &&
+      Date.parse(t.event.startAt) - 7 * 24 * 60 * 60 * 1000 > Date.now() &&
       !eventPassed(t.event.endAt ?? t.event.startAt);
 
     return (
@@ -355,6 +360,7 @@ export default function CustomerDashboard() {
         <>
           {active === "tickets" && (
             <div className="space-y-6">
+              {exchangeParams.get("exchange") === "completed" && <p role="status" className="rounded-xl bg-emerald-50 p-4 font-semibold text-emerald-900">Exchange completed. Your received tickets are now in My Tickets.</p>}
               {(error || bookingsError) && (
                 <p role="alert" className="rounded-xl bg-rose-50 p-4 text-danger">
                   {error || bookingsError}

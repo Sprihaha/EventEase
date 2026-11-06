@@ -79,6 +79,7 @@ async function harness() {
     return module
   }
   async function load(path) {
+    if (modules.has(path)) return modules.get(path)
     if (pendingModules.has(path)) return pendingModules.get(path)
     const pending = loadUncached(path)
     pendingModules.set(path, pending)
@@ -99,6 +100,7 @@ async function harness() {
                 error: null,
               })),
           reload: noop,
+          refresh: noop,
         }),
       })
     if (!path.startsWith(sourceRoot))
@@ -119,7 +121,12 @@ async function harness() {
       },
     })
     modules.set(path, module)
-    await module.link(async (specifier, parent) => {
+    return module
+  }
+  const secure = await load(
+    resolve(sourceRoot, "components/community/easexchange/SecureExchange.tsx"),
+  )
+  await secure.link(async (specifier, parent) => {
       if (!specifier.startsWith(".")) return load(specifier)
       const base = resolve(dirname(parent.identifier), specifier)
       try {
@@ -129,14 +136,9 @@ async function harness() {
         return load(`${base}.ts`)
       }
     })
-    return module
-  }
-  const secure = await load(
-    resolve(sourceRoot, "components/SecureExchange.tsx"),
-  )
   await secure.evaluate()
   const matchPanel = modules.get(
-    resolve(sourceRoot, "components/ExchangeMatchPanel.tsx"),
+    resolve(sourceRoot, "components/community/easexchange/ExchangeMatchPanel.tsx"),
   )
   return {
     renderInterest(states, account = user) {
@@ -154,6 +156,10 @@ async function harness() {
     render(view, states, account = user) {
       currentUser = account
       resources = states
+      if (view === "create" && account) return renderToStaticMarkup(React.createElement(
+        modules.get(resolve(sourceRoot, "components/community/easexchange/SwapRequestPanel.tsx")).namespace.default,
+        { onCreated: noop },
+      ))
       return renderToStaticMarkup(
         React.createElement(
           MemoryRouter,
@@ -165,12 +171,12 @@ async function harness() {
     renderMatch(value, myRequests = [request]) {
       resources = { [match.id]: success(value) }
       return renderToStaticMarkup(
-        React.createElement(matchPanel.namespace.default, {
+        React.createElement(MemoryRouter, null, React.createElement(matchPanel.namespace.default, {
           matchId: match.id,
           myRequests,
           userId: user.id,
           onChanged: noop,
-        }),
+        })),
       )
     },
   }
@@ -199,7 +205,7 @@ test("listings render loading, empty, and unavailable states without demo seller
 test("private views require sign-in and unavailable eligible tickets disable creation", async () => {
   const h = await harness()
   assert.match(h.render("mine", {}, null), /Sign in to use EaseXchange/)
-  assert.match(h.render("create", {}, null), /Sign in to use EaseXchange/)
+  assert.match(h.render("invitations", {}, null), /Sign in to use EaseXchange/)
   const unavailable = h.render("create", { [`eligible-tickets:${user.id}`]: failure })
   assert.match(unavailable, /Exchange service unavailable/)
   assert.match(unavailable, /<fieldset disabled=""/)
@@ -219,32 +225,19 @@ test("My Exchanges shows real empty and error states and all request status filt
     [`mine:${user.id}`]: success({ requests: [], matches: [] }),
   })
   assert.match(empty, /You have no exchange requests or matches yet/)
-  for (const status of ["OPEN", "MATCHED", "COMPLETED", "CANCELLED", "EXPIRED"])
-    assert.match(empty, new RegExp(`<option value="${status}">`))
+  assert.match(empty, /All statuses/)
+  assert.doesNotMatch(empty, /My matches|Suggested matches/i)
 })
 
-test("READY exposes settlement and hides acceptance controls; missing prices disable settlement", async () => {
+test("READY truthfully reports pending completion without manual settlement or cancellation", async () => {
   const h = await harness()
-  const html = h.renderMatch({
-    ...match,
-    status: "READY",
-    aAccepted: true,
-    bAccepted: true,
-  })
-  assert.match(html, /Both users accepted\. Awaiting settlement\./)
-  assert.doesNotMatch(html, /Exchange completed|Accept match|Reject match/)
-  assert.ok(!disabledButtons(html).includes("Cancel match"))
-  assert.ok(disabledButtons(html).includes("Complete simulated settlement"))
-  const priced = h.renderMatch({
-    ...match,
-    status: "READY",
-    aAccepted: true,
-    bAccepted: true,
-    ticketA: { ...ticket, price: 50 },
-    ticketB: { ...ticket, id: "other", price: 75 },
-  })
-  assert.match(priced, /Your simulated payment: S\$25\.00/)
-  assert.ok(!disabledButtons(priced).includes("Complete simulated settlement"))
+  const html = h.renderMatch({ ...match, status: "READY", aAccepted: true, bAccepted: true })
+  assert.match(html, /Both users accepted/)
+  assert.match(html, /Awaiting exchange completion/)
+  assert.doesNotMatch(html, /Exchange completed|Accept match|Reject match|Cancel match|Complete equal-value swap|Complete simulated settlement|EasePoints/)
+  const priced = h.renderMatch({ ...match, status: "READY", aAccepted: true, bAccepted: true,
+    ticketA: { ...ticket, price: 50 }, ticketB: { ...ticket, id: "other", price: 75 } })
+  assert.match(priced, /Price difference: S\$25\.00/)
 })
 
 test("pending acceptance, expiry, missing ownership, and terminal states restrict actions", async () => {
@@ -255,12 +248,12 @@ test("pending acceptance, expiry, missing ownership, and terminal states restric
   assert.ok(disabledButtons(waiting).includes("Reject match"))
   assert.ok(!disabledButtons(waiting).includes("Cancel match"))
   const expired = h.renderMatch({ ...match, expiresAt: "2000-01-01T00:00:00Z" })
-  for (const action of ["Accept match", "Reject match", "Cancel match"])
+  for (const action of ["Accept match", "Reject match"])
     assert.ok(disabledButtons(expired).includes(action))
   assert.match(expired, /expiry time has passed/)
   const unknown = h.renderMatch(match, [])
   assert.match(unknown, /participant details are unavailable/)
-  for (const action of ["Accept match", "Reject match", "Cancel match"])
+  for (const action of ["Accept match", "Reject match"])
     assert.ok(disabledButtons(unknown).includes(action))
   for (const status of ["REJECTED", "CANCELLED", "EXPIRED", "COMPLETED"])
     assert.doesNotMatch(
@@ -278,10 +271,10 @@ test("public interest selects eligible owned tickets without requiring any exist
     { ...ticket, id: "unrelated-ticket", eventId: "other-event", status: "VALID", eligible: true },
   ]) })
   assert.match(html, /Your eligible ticket/)
-  assert.match(html, new RegExp(`<option value="${ticket.id}">`))
+  assert.match(html, /Select your eligible owned ticket/)
   assert.doesNotMatch(html, /reserved-ticket|unrelated-ticket|Your open exchange request|Create a public request/)
   assert.match(html, /No separate public request is needed/)
-  assert.match(html, /Both participants must accept/)
+  assert.match(html, /registers your acceptance immediately/)
 })
 
 test("public interest has private loading, error, empty and signed-out states", async () => {
@@ -289,7 +282,7 @@ test("public interest has private loading, error, empty and signed-out states", 
   const key = `interest-tickets:${user.id}:public-target`
   assert.match(h.renderInterest({}), /Loading exchange data/)
   const empty = h.renderInterest({ [key]: success([]) })
-  assert.match(empty, /You do not currently have an eligible ticket for this exchange/)
+  assert.match(empty, /eligible tickets for this exchange/)
   assert.ok(disabledButtons(empty).includes("Express interest"))
   assert.match(h.renderInterest({ [key]: failure }), /Exchange service unavailable/)
   const signedOut = h.renderInterest({ [key]: success([{ ...ticket, eligible: true, status: "VALID" }]) }, null)

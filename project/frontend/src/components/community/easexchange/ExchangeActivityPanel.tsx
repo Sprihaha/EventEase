@@ -9,7 +9,10 @@ const messages: Record<string, string> = {
   EXCHANGE_MATCHED: "Exchange proposal received — review both tickets",
   EXCHANGE_PENDING: "Exchange proposal received — both users must review",
   EXCHANGE_ACCEPTED: "The other participant accepted",
-  EXCHANGE_READY: "Both accepted — ready for settlement; the user receiving the higher value pays the difference",
+  EXCHANGE_READY: "Both accepted — awaiting price difference payment",
+  EXCHANGE_PAYMENT_REQUIRED: "Both accepted — price difference payment is required",
+  EXCHANGE_PAYMENT_PENDING: "Payment pending — tickets are unchanged",
+  EXCHANGE_PAYMENT_CANCELLED: "Payment cancelled — tickets are unchanged; you can retry",
   EXCHANGE_SETTLEMENT_FAILED: "Simulated settlement declined — tickets unchanged",
   EXCHANGE_COMPLETED: "Exchange completed — your received ticket and fresh QR are in My Tickets",
   EXCHANGE_REJECTED: "Exchange rejected",
@@ -35,7 +38,7 @@ export function ExchangeActivityPanel({
       <ul className="max-h-[min(650px,calc(100vh-280px))] space-y-3 overflow-y-auto text-sm pr-1">
         {activity.data?.map(item => (
           <li key={item.id} className="rounded-xl bg-white p-3">
-            <Link className="font-semibold text-brand-purple underline" to={item.matchId
+            <Link className="font-semibold text-brand-purple underline" to={item.action === "EXCHANGE_COMPLETED" ? "/dashboard/customer?exchange=completed" : item.matchId
               ? `/community?tab=exchange&view=mine&match=${encodeURIComponent(item.matchId)}`
               : `/community?tab=exchange&view=${item.ownAction ? "mine" : "invitations"}`}>
               {item.eventName} · {item.action === "EXCHANGE_ACCEPTED" && item.ownAction ? "You accepted" : messages[item.action] ?? "Exchange updated"}

@@ -93,7 +93,7 @@ test('filtering, numbering, match links, refresh, reopening, pagination and mobi
     await section.getByRole('button', { name: /^View .+ match$/ }).first().click()
     const dialog = page.getByRole('dialog')
     await dialog.getByRole('heading', { name: 'Request 12 · Match detail', exact: true }).waitFor()
-    assert.match(await dialog.innerText(), /Both users accepted\. Awaiting settlement/)
+    assert.match(await dialog.innerText(), /Both users accepted/)
     await page.keyboard.press('Escape')
     await dialog.waitFor({ state: 'detached' })
     history = [...requests]

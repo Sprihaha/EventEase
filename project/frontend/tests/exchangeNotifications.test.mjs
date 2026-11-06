@@ -40,3 +40,17 @@ test('read storage rejects malformed input, removes duplicates, and bounds histo
 test('read storage keys isolate accounts', () => {
   assert.notEqual(api.notificationReadKey('user-a'), api.notificationReadKey('user-b'));
 });
+
+test('payment notifications include payer actions and completion opens My Tickets', () => {
+  const required = event('required', 'EXCHANGE_PAYMENT_REQUIRED', { ownAction: true })
+  const pending = event('pending', 'EXCHANGE_PAYMENT_PENDING', { ownAction: true })
+  const cancelled = event('cancelled', 'EXCHANGE_PAYMENT_CANCELLED', { ownAction: true })
+  assert.equal(api.exchangeNotifications([required, pending, cancelled]).length, 3)
+  assert.match(api.notificationMessage(required), /payment/)
+  assert.equal(api.notificationLink(event('done', 'EXCHANGE_COMPLETED')), '/dashboard/customer?exchange=completed')
+})
+
+test('completed exchanges retire stale payment and proposal prompts', () => {
+  const items = ['EXCHANGE_PENDING', 'EXCHANGE_ACCEPTED', 'EXCHANGE_READY', 'EXCHANGE_PAYMENT_REQUIRED', 'EXCHANGE_PAYMENT_PENDING', 'EXCHANGE_COMPLETED'].map((action, n) => event(String(n), action))
+  assert.deepEqual(api.exchangeNotifications(items).map(item => item.action), ['EXCHANGE_COMPLETED'])
+})
