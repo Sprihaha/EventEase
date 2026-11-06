@@ -439,7 +439,7 @@ export default function Home() {
 
                               <div className="absolute -top-1 -right-1 z-20 rounded-full bg-brand-orange px-2.5 py-0.5 text-[8px] font-extrabold text-white shadow-xl flex items-center gap-1 rotate-2 border border-white/30">
                                 <Sparkles className="h-2.5 w-2.5" />
-                                <span>+3 EasePoints</span>
+                                <span>Earn EasePoints</span>
                               </div>
                             </div>
                           )}
@@ -480,7 +480,7 @@ export default function Home() {
 
                               <div className="absolute -top-1 -right-2 z-20 rounded-full bg-brand-orange px-2.5 py-1 shadow-xl border border-white/30 flex items-center gap-1 text-[8px] font-extrabold text-white rotate-3">
                                 <Sparkles className="h-2.5 w-2.5" />
-                                <span>+25 EasePoints ✓</span>
+                                <span>Earn EasePoints ✓</span>
                               </div>
 
                               <div className="absolute -bottom-1 -left-1 z-20 rounded-full bg-brand-deep px-2.5 py-0.5 text-[8px] font-bold text-white shadow-xl -rotate-2 border border-white/20">
@@ -567,7 +567,7 @@ export default function Home() {
 
                               <div className="absolute -top-1.5 -right-2 z-20 rounded-full bg-brand-orange px-2.5 py-1 text-[8px] font-extrabold text-white shadow-xl rotate-3 border border-white/40 flex items-center gap-1">
                                 <Sparkles className="h-2.5 w-2.5" />
-                                <span>+17 EasePoints ✓</span>
+                                <span>Earn EasePoints ✓</span>
                               </div>
 
                               <div className="absolute -bottom-1 -left-1 z-20 rounded-full bg-brand-deep text-white px-2 py-0.5 text-[8px] font-bold shadow-lg -rotate-2 border border-white/20 flex items-center gap-1">
@@ -948,21 +948,84 @@ export default function Home() {
 
                     <div className="mt-4">
                       <div className="flex items-center justify-between text-[10px] mb-2">
-                        <span className="font-bold text-brand-deep">Revenue velocity</span>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-brand-deep">Revenue velocity</span>
+                          <div className="flex items-center gap-2.5 text-[8.5px] text-muted">
+                            <span className="flex items-center gap-1">
+                              <span className="h-2 w-2 rounded-full bg-brand-purple" />
+                              <span>Running total</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="h-2 w-2 rounded-full bg-brand-orange" />
+                              <span>Daily revenue</span>
+                            </span>
+                          </div>
+                        </div>
                         <span className="text-muted text-[9px]">Last 30 days trend</span>
                       </div>
-                      <div className="h-20 flex items-end gap-2 border-b border-brand-purple/10 pb-1 px-1 bg-[repeating-linear-gradient(to_top,transparent_0_20px,#f5f0fb_20px_21px)]">
-                        <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "24%" }} />
-                        <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "38%" }} />
-                        <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "33%" }} />
-                        <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "55%" }} />
-                        <div className="flex-1 bg-brand-purple/40 rounded-t" style={{ height: "48%" }} />
-                        <div className="flex-1 bg-brand-purple rounded-t" style={{ height: "72%" }} />
-                        <div className="flex-1 bg-brand-purple rounded-t" style={{ height: "91%" }} />
-                      </div>
-                      <div className="flex justify-between text-[8px] text-muted mt-1.5 px-1">
-                        <span>Day 1</span>
-                        <span>Day 30</span>
+
+                      {/* SVG Line Graph (matching EaseAnalytics) */}
+                      <div className="rounded-xl border border-brand-purple/10 bg-brand-warm/40 p-2.5">
+                        <svg
+                          viewBox="0 0 380 95"
+                          className="w-full h-24 overflow-visible"
+                          role="img"
+                          aria-label="Revenue velocity line graph showing daily revenue and running total over 30 days"
+                        >
+                          <defs>
+                            <linearGradient id="runningGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#6b21a8" stopOpacity="0.25" />
+                              <stop offset="100%" stopColor="#6b21a8" stopOpacity="0.0" />
+                            </linearGradient>
+                            <linearGradient id="dailyGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#ea580c" stopOpacity="0.15" />
+                              <stop offset="100%" stopColor="#ea580c" stopOpacity="0.0" />
+                            </linearGradient>
+                          </defs>
+
+                          {/* Horizontal guide lines */}
+                          <line x1="0" y1="18" x2="380" y2="18" stroke="#e2d9f3" strokeDasharray="3 5" strokeWidth="1" />
+                          <line x1="0" y1="46" x2="380" y2="46" stroke="#e2d9f3" strokeDasharray="3 5" strokeWidth="1" />
+                          <line x1="0" y1="74" x2="380" y2="74" stroke="#e2d9f3" strokeDasharray="3 5" strokeWidth="1" />
+
+                          {/* Running total gradient area & curve */}
+                          <path
+                            d="M 10,78 Q 65,74 120,64 T 230,42 T 320,24 T 370,12 L 370,88 L 10,88 Z"
+                            fill="url(#runningGrad)"
+                          />
+                          <path
+                            d="M 10,78 Q 65,74 120,64 T 230,42 T 320,24 T 370,12"
+                            fill="none"
+                            stroke="#6b21a8"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          />
+
+                          {/* Daily revenue line with fluctuations */}
+                          <path
+                            d="M 10,80 L 35,76 L 65,68 L 95,74 L 125,62 L 155,67 L 185,55 L 215,58 L 245,46 L 275,52 L 305,38 L 335,32 L 370,22"
+                            fill="none"
+                            stroke="#ea580c"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+
+                          {/* Peak / current day highlight nodes */}
+                          <g>
+                            <circle cx="370" cy="12" r="4.5" fill="#ffffff" stroke="#6b21a8" strokeWidth="2.5" />
+                            <circle cx="370" cy="22" r="3.5" fill="#ffffff" stroke="#ea580c" strokeWidth="2" />
+                          </g>
+
+                          {/* Mid point highlight dot */}
+                          <circle cx="245" cy="46" r="3" fill="#ffffff" stroke="#ea580c" strokeWidth="1.5" />
+                        </svg>
+
+                        <div className="flex justify-between text-[8px] text-muted mt-1 px-1 border-t border-brand-purple/10 pt-1">
+                          <span>Day 1</span>
+                          <span>Day 15</span>
+                          <span>Day 30</span>
+                        </div>
                       </div>
                     </div>
 
