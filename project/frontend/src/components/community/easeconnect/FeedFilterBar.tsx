@@ -7,17 +7,13 @@ interface FeedFilterBarProps {
   isAdmin?: boolean
 }
 
-const filterOptions: readonly { id: FilterType; label: string }[] = [
-  { id: "all", label: "For you" },
-  { id: "following", label: "Following" },
-  { id: "views", label: "Seat views" },
-  { id: "questions", label: "Questions" },
-] as const
-
 export function FeedFilterBar({ filter, onFilterChange, isAdmin = false }: FeedFilterBarProps) {
-  const visibleOptions = filterOptions.filter(
-    (f) => !isAdmin || f.id !== "following"
-  )
+  const visibleOptions: readonly { id: FilterType; label: string }[] = [
+    { id: "all", label: isAdmin ? "All posts" : "For you" },
+    ...(isAdmin ? [] : [{ id: "following" as const, label: "Following" }]),
+    { id: "views", label: "Seat views" },
+    { id: "questions", label: "Questions" },
+  ]
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">

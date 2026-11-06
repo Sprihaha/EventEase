@@ -53,6 +53,8 @@ export function FeedPostCard({
   onModeratePost,
 }: FeedPostCardProps) {
   const evName = eventName(post.eventId)
+  const isAdmin = user?.role === "admin"
+  const isQuestionPost = Boolean(post.isQuestion)
 
   return (
     <article className="group rounded-3xl border border-brand-line bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -78,9 +80,16 @@ export function FeedPostCard({
                 </span>
               </div>
             </div>
-            <span className="rounded-full bg-brand-warm px-2 py-0.5 text-[10px] font-bold text-muted border border-brand-line">
-              {post.section ? `Sec ${post.section}` : "Fan Post"}
-            </span>
+            <div className="flex items-center gap-1.5">
+              {isQuestionPost && (
+                <span className="rounded-full bg-brand-lilac/80 px-2 py-0.5 text-[10px] font-extrabold text-brand-purple border border-brand-purple/20">
+                  Question
+                </span>
+              )}
+              <span className="rounded-full bg-brand-warm px-2 py-0.5 text-[10px] font-bold text-muted border border-brand-line">
+                {post.section ? `Sec ${post.section}` : "Fan Post"}
+              </span>
+            </div>
           </div>
 
           <p className="mt-3 text-sm leading-relaxed text-brand-deep/90">
@@ -153,9 +162,11 @@ export function FeedPostCard({
               <span>
                 {post.replies.length > 0
                   ? `${post.replies.length} ${
-                      post.replies.length === 1 ? "comment" : "comments"
+                      post.replies.length === 1
+                        ? (isQuestionPost ? "answer" : "comment")
+                        : (isQuestionPost ? "answers" : "comments")
                     }`
-                  : "Comment"}
+                  : (isAdmin && isQuestionPost ? "Answer" : "Comment")}
               </span>
             </button>
 
@@ -252,68 +263,97 @@ export function FeedPostCard({
               {/* Comment List */}
               {post.replies.length > 0 ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {post.replies.map((reply) => (
-                    <div
-                      key={reply.id}
-                      className="rounded-xl border border-brand-line/60 bg-white p-3 text-xs shadow-xs"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-brand-deep">
-                            {reply.author}
-                          </span>
-                          {reply.isVerified && (
-                            <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-[9px] font-bold">
-                              Verified Attendee
+                  {post.replies.map((reply) => {
+                    const isReplyByAdmin = reply.isAdmin || reply.author.toLowerCase().includes("admin")
+                    return (
+                      <div
+                        key={reply.id}
+                        className={cx(
+                          "rounded-xl border p-3 text-xs shadow-xs",
+                          isReplyByAdmin
+                            ? "border-brand-purple/30 bg-brand-purple/5"
+                            : "border-brand-line/60 bg-white"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-brand-deep">
+                              {reply.author}
                             </span>
-                          )}
+                            {isReplyByAdmin && (
+                              <span className="rounded bg-brand-purple text-white px-1.5 py-0.5 text-[9px] font-extrabold tracking-wider">
+                                Official Answer
+                              </span>
+                            )}
+                            {reply.isVerified && !isReplyByAdmin && (
+                              <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-[9px] font-bold">
+                                Verified Attendee
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-muted">
+                            {reply.when}
+                          </span>
                         </div>
-                        <span className="text-[10px] text-muted">
-                          {reply.when}
-                        </span>
+                        <p className="mt-1 leading-relaxed text-brand-deep/90">
+                          {reply.body}
+                        </p>
                       </div>
-                      <p className="mt-1 leading-relaxed text-brand-deep/90">
-                        {reply.body}
-                      </p>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="py-2.5 text-center text-xs text-muted">
-                  No comments on this post yet. Be the first to reply!
+                  {isQuestionPost
+                    ? "No answers to this question yet. Be the first to answer!"
+                    : "No comments on this post yet. Be the first to reply!"}
                 </div>
               )}
 
               {/* Inline Reply Composer */}
-              <div className="flex items-center gap-2 pt-2 border-t border-brand-line/60">
-                <input
-                  type="text"
-                  placeholder={
-                    user
-                      ? "Write a comment..."
-                      : "Sign in to leave a comment..."
-                  }
-                  disabled={!user || isSubmittingReply}
-                  value={replyDraft}
-                  onChange={(e) => onReplyDraftChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault()
-                      onSubmitReply()
+              {isAdmin && !isQuestionPost ? (
+                <div className="flex items-center gap-2 pt-2 border-t border-brand-line/60">
+                  <div className="flex-1 rounded-xl border border-dashed border-brand-purple/30 bg-brand-purple/5 px-3 py-2 text-xs text-brand-purple/80 font-medium">
+                    Admins can only answer question posts.
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 pt-2 border-t border-brand-line/60">
+                  <input
+                    type="text"
+                    placeholder={
+                      isAdmin
+                        ? "Answer this question as Admin..."
+                        : user
+                          ? (isQuestionPost ? "Answer this question..." : "Write a comment...")
+                          : "Sign in to leave a comment..."
                     }
-                  }}
-                  className="flex-1 rounded-xl border border-brand-line bg-white px-3 py-2 text-xs text-brand-deep outline-none focus:border-brand-purple disabled:bg-stone-100 disabled:cursor-not-allowed"
-                />
-                <button
-                  type="button"
-                  disabled={!user || isSubmittingReply || !replyDraft.trim()}
-                  onClick={onSubmitReply}
-                  className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="h-3 w-3" />
-                  <span>{isSubmittingReply ? "Posting..." : "Reply"}</span>
-                </button>
-              </div>
+                    disabled={!user || isSubmittingReply}
+                    value={replyDraft}
+                    onChange={(e) => onReplyDraftChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault()
+                        onSubmitReply()
+                      }
+                    }}
+                    className="flex-1 rounded-xl border border-brand-line bg-white px-3 py-2 text-xs text-brand-deep outline-none focus:border-brand-purple disabled:bg-stone-100 disabled:cursor-not-allowed"
+                  />
+                  <button
+                    type="button"
+                    disabled={!user || isSubmittingReply || !replyDraft.trim()}
+                    onClick={onSubmitReply}
+                    className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-brand-purple to-brand-magenta px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send className="h-3 w-3" />
+                    <span>
+                      {isSubmittingReply
+                        ? (isAdmin ? "Answering..." : "Posting...")
+                        : (isAdmin ? "Answer" : isQuestionPost ? "Answer" : "Reply")}
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

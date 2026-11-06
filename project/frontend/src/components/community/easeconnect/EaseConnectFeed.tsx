@@ -126,7 +126,7 @@ export function EaseConnectFeed({
           onFilterChange(f)
           const label =
             f === "all"
-              ? "For you"
+              ? (isAdmin ? "All posts" : "For you")
               : f === "following"
                 ? "Following"
                 : f === "views"

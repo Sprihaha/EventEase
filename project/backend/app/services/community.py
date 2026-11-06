@@ -3,7 +3,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import AppError
-from app.db.models import Booking, BookingStatus, Event, User, Venue
+from app.db.models import Booking, BookingStatus, Event, Role, User, Venue
 from app.db.models.community import EaseConnectPost, EasePix
 from app.schemas.community import EaseConnectPostCreate, EasePixCreate
 
@@ -183,7 +183,18 @@ def create_post(db: Session, user: User | None, data: EaseConnectPostCreate) -> 
             except (ValueError, TypeError):
                 target_easepix_id = None
 
+    if user and user.role == Role.ADMIN:
+        if not target_parent_id:
+            raise AppError(400, "ADMIN_CAN_ONLY_ANSWER_QUESTIONS", "Administrators can only answer questions in EaseConnect")
+        parent_post = db.get(EaseConnectPost, target_parent_id)
+        if not parent_post:
+            raise AppError(404, "POST_NOT_FOUND", "The question being answered was not found")
+        if not parent_post.is_question:
+            raise AppError(400, "ADMIN_CAN_ONLY_ANSWER_QUESTIONS", "Administrators can only answer posts that are questions")
+
     author = data.author_name or (user.name if user and getattr(user, "name", None) else (user.username if user else "Fan"))
+    if user and user.role == Role.ADMIN and "admin" not in author.lower():
+        author = f"{author} (Admin)"
 
     # If post includes a new EasePix upload simultaneously
     if data.easepix:

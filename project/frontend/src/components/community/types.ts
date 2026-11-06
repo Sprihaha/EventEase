@@ -76,6 +76,7 @@ export interface PostReplyItem {
   body: string
   when: string
   isVerified?: boolean
+  isAdmin?: boolean
 }
 
 export interface DisplayPost {

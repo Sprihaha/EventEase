@@ -97,6 +97,7 @@ export function useCommunityFeed({
           body: r.content,
           when: formatRelativeWhen(r.createdAt),
           isVerified: r.easepix?.isVerified ?? false,
+          isAdmin: r.authorName.toLowerCase().includes("admin"),
         })),
       }
     })
@@ -149,7 +150,7 @@ export function useCommunityFeed({
   const submitReply = async (postId: string, eventId: string) => {
     const text = (replyDrafts[postId] || "").trim()
     if (!text) {
-      onShowToast("Write a reply before sending")
+      onShowToast(user?.role === "admin" ? "Write an answer before sending" : "Write a reply before sending")
       return
     }
     if (!user) {
@@ -158,17 +159,30 @@ export function useCommunityFeed({
       return
     }
 
+    const targetPost = displayPosts.find((p) => p.id === postId)
+    if (user.role === "admin" && targetPost && !targetPost.isQuestion) {
+      onShowToast("Admins can only answer question posts")
+      return
+    }
+
     setSubmittingReply((prev) => ({ ...prev, [postId]: true }))
     try {
+      const authorName =
+        user.role === "admin"
+          ? user.name && user.name.toLowerCase().includes("admin")
+            ? user.name
+            : `${user.name || "EventEase"} (Admin)`
+          : user.name
+
       await backendCreatePost({
         content: text,
         eventId,
         parentId: postId,
-        authorName: user.name,
+        authorName,
       })
       setReplyDrafts((prev) => ({ ...prev, [postId]: "" }))
       await reloadCommunityData()
-      onShowToast("Comment posted! 💬")
+      onShowToast(user.role === "admin" ? "Official answer posted! 💬" : "Comment posted! 💬")
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to post comment"
       onShowToast(msg)
