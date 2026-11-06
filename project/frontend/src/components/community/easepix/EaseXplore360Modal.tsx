@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { useNavigate } from "react-router"
 import {
   Rotate3d,
@@ -7,6 +7,8 @@ import {
   ExternalLink,
   Video,
   ShieldCheck,
+  Maximize2,
+  Minimize2,
 } from "lucide-react"
 import { cx } from "../../ui"
 import { formatMediaEmbedUrl, backendListVenues, type Venue } from "../../../lib/backendApi"
@@ -38,6 +40,63 @@ export function EaseXplore360Modal({
   const currentUser = user ?? storeUser
 
   const [ownedVenues, setOwnedVenues] = useState<Venue[]>([])
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  const toggleFullscreen = async () => {
+    if (!isFullscreen) {
+      try {
+        if (modalRef.current && document.fullscreenEnabled && !document.fullscreenElement) {
+          await modalRef.current.requestFullscreen?.()
+        }
+      } catch {
+        // Fallback gracefully to CSS fullscreen
+      }
+      setIsFullscreen(true)
+    } else {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen?.()
+        }
+      } catch {
+        // ignore
+      }
+      setIsFullscreen(false)
+    }
+  }
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    }
+    document.addEventListener("fullscreenchange", onFullscreenChange)
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isFullscreen) {
+          if (document.fullscreenElement) {
+            document.exitFullscreen?.().catch(() => {})
+          }
+          setIsFullscreen(false)
+        } else {
+          onClose()
+        }
+      } else if (e.key === "f" || e.key === "F") {
+        const target = e.target as HTMLElement | null
+        if (target && !["INPUT", "TEXTAREA"].includes(target.tagName)) {
+          e.preventDefault()
+          toggleFullscreen()
+        }
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [isFullscreen, onClose])
 
   useEffect(() => {
     if (currentUser?.role === "organizer") {
@@ -77,23 +136,39 @@ export function EaseXplore360Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-brand-deep/75 p-4 backdrop-blur-md"
-      onClick={onClose}
+      className={cx(
+        "fixed inset-0 z-50 flex items-center justify-center transition-all duration-200",
+        isFullscreen ? "bg-black p-0" : "bg-brand-deep/80 p-3 sm:p-4 backdrop-blur-md"
+      )}
+      onClick={isFullscreen ? undefined : onClose}
     >
       <div
-        className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-white/20 bg-brand-deep shadow-2xl"
+        ref={modalRef}
+        className={cx(
+          "relative overflow-hidden bg-brand-deep shadow-2xl flex flex-col transition-all duration-200",
+          isFullscreen
+            ? "w-screen h-screen max-w-none rounded-none border-0"
+            : "w-full max-w-4xl rounded-3xl border border-white/20"
+        )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4 text-white">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 sm:px-6 py-3.5 text-white shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-orange to-brand-amber text-white shadow-md">
               <Rotate3d className="h-5 w-5 animate-spin" />
             </div>
-            <div>
-              <h3 className="font-brand text-lg font-bold text-white leading-tight">
-                EaseXplore · 360° View
-              </h3>
-              <p className="text-xs text-white/80 mt-0.5 font-medium">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-brand text-base sm:text-lg font-bold text-white leading-tight truncate">
+                  EaseXplore · 360° View
+                </h3>
+                {isFullscreen && (
+                  <span className="hidden sm:inline-flex rounded-full bg-brand-orange/20 px-2 py-0.5 text-[10px] font-extrabold text-brand-orange border border-brand-orange/30">
+                    Full Screen Mode
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-white/80 mt-0.5 font-medium truncate">
                 {preview360Photo.title}
                 {preview360Photo.section
                   ? ` · ${
@@ -107,17 +182,66 @@ export function EaseXplore360Modal({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer rounded-full p-1.5 text-white/70 hover:bg-white/10 hover:text-white transition"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="cursor-pointer rounded-xl px-2.5 py-1.5 text-white/80 hover:bg-white/10 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold border border-white/10 hover:border-white/20"
+              title={isFullscreen ? "Exit full screen (Esc or F)" : "Expand to full screen (F)"}
+              aria-label={isFullscreen ? "Exit full screen" : "Expand to full screen"}
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="h-4 w-4 text-brand-orange" />
+                  <span className="hidden sm:inline">Exit Full Screen</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="h-4 w-4 text-brand-orange" />
+                  <span className="hidden sm:inline">Full Screen</span>
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="cursor-pointer rounded-xl p-1.5 text-white/80 hover:bg-white/10 hover:text-white transition border border-white/10 hover:border-white/20"
+              title="Close EaseXplore"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* 360 Media Viewer / Video Player */}
-        <div className="relative h-[430px] w-full bg-black overflow-hidden flex items-center justify-center">
+        <div
+          className={cx(
+            "relative w-full bg-black overflow-hidden flex items-center justify-center",
+            isFullscreen ? "flex-1 min-h-0 h-full" : "h-[450px]"
+          )}
+        >
+          {/* Overlay fullscreen toggle inside viewer */}
+          <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="cursor-pointer rounded-full bg-brand-deep/85 px-3 py-1.5 text-xs font-bold text-white backdrop-blur border border-white/20 flex items-center gap-1.5 shadow-md hover:bg-brand-deep hover:border-white/40 transition active:scale-95"
+              title={isFullscreen ? "Exit full screen (Esc or F)" : "Expand to full screen (F)"}
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="h-3.5 w-3.5 text-brand-orange" />
+                  <span>Exit Full Screen</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="h-3.5 w-3.5 text-brand-orange" />
+                  <span>Full Screen</span>
+                </>
+              )}
+            </button>
+          </div>
           {(() => {
             if (!preview360Photo.externalTourUrl) {
               const venueName = preview360Photo.venueName || "Venue"
@@ -209,7 +333,7 @@ export function EaseXplore360Modal({
         </div>
 
         {/* Rights Reserved Notice & External Website / Configure Button */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/10 bg-black/50 px-5 py-3.5 text-xs text-white">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/10 bg-black/50 px-5 py-3 text-xs text-white shrink-0">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-brand-orange shrink-0" />
             <span className="text-[11px] text-white/90 font-medium">
