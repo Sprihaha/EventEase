@@ -134,24 +134,16 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime, forc
             ))
 
     if email_tasks:
-        from concurrent.futures import ThreadPoolExecutor
+        import threading
+        from app.services.mail.base import send_safely_batch
 
-        def _send(task: tuple) -> None:
-            send_safely(
-                task[0],
-                task[1],
-                task[2],
-                html=task[3],
-                inline_images=task[4],
-            )
-
-        workers = min(len(email_tasks), 5)
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = [executor.submit(_send, t) for t in email_tasks]
-            for f in futures:
-                try:
-                    f.result(timeout=settings.SMTP_TIMEOUT_SECONDS + 5)
-                except Exception as e:
-                    logger.warning("Failed sending QR code email: %s", e)
+        # Dispatch emails in background daemon thread so the scheduler job returns immediately (<100ms)
+        # and delivers all messages over a single authenticated connection
+        threading.Thread(
+            target=send_safely_batch,
+            args=(email_tasks,),
+            daemon=True,
+            name="qr-release-mailer",
+        ).start()
 
     return len(due)

@@ -241,6 +241,65 @@ class SmtpMailer:
             smtp.login(username, settings.SMTP_PASSWORD)
             smtp.send_message(message)
 
+    def send_batch(
+        self,
+        messages: list[tuple[str, str, str, str | None, dict[str, tuple[bytes, str, str]] | None]],
+    ) -> int:
+        """Sends multiple emails efficiently over a single authenticated SMTP session."""
+        if not messages:
+            return 0
+        settings = self.settings or get_settings()
+        prepared = []
+        for to, subject, body, html, inline_images in messages:
+            msg = EmailMessage()
+            msg["From"] = settings.MAIL_FROM
+            msg["To"] = to
+            msg["Subject"] = subject
+            msg.set_content(body)
+            if html:
+                msg.add_alternative(html, subtype="html")
+                images = dict(inline_images) if inline_images else {}
+                if "cid:eventease_logo" in html or "cid:gendol_company_logo" in html:
+                    try:
+                        from app.services.mail.templates import get_branding_images
+                        for k, v in get_branding_images().items():
+                            if k not in images and f"cid:{k}" in html:
+                                images[k] = v
+                    except Exception:
+                        pass
+                if images:
+                    html_part = msg.get_payload()[-1]
+                    for cid, (img_bytes, mime_type, filename) in images.items():
+                        maintype, subtype = mime_type.split("/", 1)
+                        html_part.add_related(
+                            img_bytes,
+                            maintype=maintype,
+                            subtype=subtype,
+                            cid=f"<{cid}>",
+                            filename=filename,
+                        )
+            prepared.append(msg)
+
+        context = ssl.create_default_context()
+        sent = 0
+        if settings.SMTP_PORT == 465:
+            smtp = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS,
+                                    context=context)
+        else:
+            smtp = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT_SECONDS)
+        with smtp:
+            if settings.SMTP_PORT != 465:
+                smtp.starttls(context=context)
+            username = settings.SMTP_USERNAME or getattr(settings, "SMTP_USER", None)
+            smtp.login(username, settings.SMTP_PASSWORD)
+            for msg in prepared:
+                try:
+                    smtp.send_message(msg)
+                    sent += 1
+                except Exception as e:
+                    logger.warning("Failed sending batch email to %s: %s", msg["To"], e)
+        return sent
+
 
 MailerFactory = Callable[[Settings], Mailer]
 
@@ -306,3 +365,21 @@ def send_safely(
         resolved_mailer.send(to, subject, body)
     except Exception:
         logger.exception("Failed to send mail to %s", to)
+
+
+def send_safely_batch(
+    messages: list[tuple[str, str, str, str | None, dict[str, tuple[bytes, str, str]] | None]],
+    mailer: Mailer | None = None,
+) -> None:
+    """Dispatches a batch of emails efficiently using connection pooling or batch SMTP."""
+    if not messages:
+        return
+    resolved_mailer = mailer or get_mailer()
+    if hasattr(resolved_mailer, "send_batch"):
+        try:
+            resolved_mailer.send_batch(messages)
+            return
+        except Exception:
+            logger.exception("Batch mail delivery failed, falling back to individual send")
+    for to, subject, body, html, inline_images in messages:
+        send_safely(to, subject, body, mailer=resolved_mailer, html=html, inline_images=inline_images)
