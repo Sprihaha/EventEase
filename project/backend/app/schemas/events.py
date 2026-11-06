@@ -33,6 +33,7 @@ class EventListItem(CamelModel):
     # The organiser asked to cancel the event; no new bookings until an administrator decides.
     sales_paused: bool = False
     is_past: bool = False
+    cancelled: bool = False
 
 
 class PublicTicketCategory(CamelModel):

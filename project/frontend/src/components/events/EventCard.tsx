@@ -19,6 +19,7 @@ export function EventCard({
   const now = Date.now();
   const isPast = ev.isPast ?? (Date.parse(ev.endAt ?? ev.date) <= now);
   const isSalesClosed = ev.salesClosed ?? (!!ev.salesCloseAt && Date.parse(ev.salesCloseAt) <= now);
+  const isCancelled = ev.status === "cancelled";
   const from = ev.priceFrom ?? (ev.tiers.length ? Math.min(...ev.tiers.map((t) => t.price)) : 0);
   const sold = ev.tiers.reduce((a, t) => a + t.sold, 0);
   const total = ev.tiers.reduce((a, t) => a + t.total, 0);
@@ -86,7 +87,11 @@ export function EventCard({
           >
             {ev.category}
           </Badge>
-          {isPast ? (
+          {isCancelled ? (
+            <Badge tone="neutral" className="border-0 bg-rose-600/95 text-white font-bold shadow-sm backdrop-blur">
+              Cancelled
+            </Badge>
+          ) : isPast ? (
             <Badge tone="neutral" className="border-0 bg-slate-900/90 text-white font-bold shadow-sm backdrop-blur">
               Event Ended
             </Badge>
@@ -142,6 +147,10 @@ export function EventCard({
                   Edit →
                 </span>
               )
+            ) : isCancelled ? (
+              <span className="flex items-center gap-1 font-brand text-sm font-semibold text-danger">
+                Event cancelled
+              </span>
             ) : isPast ? (
               <span className="flex items-center gap-1 font-brand text-sm font-semibold text-muted">
                 Event ended
@@ -155,6 +164,10 @@ export function EventCard({
                 View seats →
               </span>
             )
+          ) : isCancelled ? (
+            <span className="flex items-center gap-1 font-brand text-sm font-semibold text-danger">
+              Event cancelled
+            </span>
           ) : isPast ? (
             <span className="flex items-center gap-1 font-brand text-sm font-semibold text-muted">
               Event ended

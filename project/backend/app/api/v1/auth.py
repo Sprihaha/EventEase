@@ -17,6 +17,8 @@ from app.schemas.auth import (
     SignupRequest,
     SignupResponse,
     UpdateAvatarRequest,
+    UpdateParticularsRequest,
+    UpdateParticularsResponse,
     UsernameAvailability,
     VerifyEmailRequest,
 )
@@ -25,6 +27,7 @@ from app.rules.protected_accounts import is_protected_username
 from app.schemas.common import Message
 from app.services import auth as auth_service
 from app.services import email_verification
+from app.services.auth.particulars import update_particulars
 from app.services.usernames import check_username_available
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -191,6 +194,31 @@ def update_avatar(
         email_verified=user.email_verified_at is not None,
         password_changeable=not is_protected_username(user.username),
         created_at=user.created_at,
+    )
+
+
+@router.patch("/me/particulars", response_model=UpdateParticularsResponse, dependencies=[Depends(check_origin)],
+              responses={403: {"description": "PARTICULARS_CUSTOMERS_ONLY or PARTICULARS_FIXED"},
+                         409: {"description": "EMAIL_TAKEN"}})
+def update_my_particulars(body: UpdateParticularsRequest, user: User = Depends(get_current_user),
+                          db: Session = Depends(get_db)):
+    sent = update_particulars(db, get_settings(), user, phone=body.phone, email=body.email)
+    db.refresh(user)
+    message = (f"Particulars updated. We've sent a verification link to {mask_email(user.email)}."
+               if sent else "Particulars updated.")
+    return UpdateParticularsResponse(
+        id=user.id,
+        username=user.username,
+        role=user.role,
+        email=user.email,
+        phone=user.phone_e164,
+        avatar_url=user.avatar_url,
+        must_change_password=user.must_change_password,
+        email_verified=user.email_verified_at is not None,
+        password_changeable=not is_protected_username(user.username),
+        created_at=user.created_at,
+        message=message,
+        verification_sent=sent,
     )
 
 

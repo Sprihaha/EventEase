@@ -2,7 +2,7 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import { getDemoResetTarget, resetDemoData, type DemoResetTarget } from "../../lib/backendApi";
 import { canConfirmReset, emptyResetConfirmation, resetConfirmationReducer, RESET_CONFIRMATION } from "../../lib/resetConfirmation";
 import { useStore } from "../../lib/store";
-import { Button, Card, Field, Input } from "../ui";
+import { Button, Card, Field, Input, PasswordInput } from "../ui";
 
 export default function ResetDemoData() {
   const { user } = useStore();
@@ -93,7 +93,7 @@ function AdminResetControls({ username }: { username: string }) {
         <Input value={form.username} onChange={event => dispatch({ type: "edit", field: "username", value: event.target.value })} disabled={pending || !target?.enabled} autoComplete="username" required />
       </Field>
       <Field label="Confirm your current administrator password">
-        <Input type="password" value={form.password} onChange={event => dispatch({ type: "edit", field: "password", value: event.target.value })} disabled={pending || !target?.enabled} autoComplete="current-password" required />
+        <PasswordInput value={form.password} onChange={event => dispatch({ type: "edit", field: "password", value: event.target.value })} disabled={pending || !target?.enabled} autoComplete="current-password" required />
       </Field>
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" checked={form.acknowledged} onChange={event => dispatch({ type: "acknowledge", value: event.target.checked })} disabled={pending || !target?.enabled} required />

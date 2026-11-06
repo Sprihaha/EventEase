@@ -48,8 +48,8 @@ export default function Layout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenu = useRef<HTMLDivElement>(null);
   const dash = user ? (user.mustChangePassword ? "/change-password" : `/dashboard/${user.role}`) : "/login";
-  // The logo opens the dashboard for any logged-in user; visitors go to "/"
-  const logoTo = user ? dash : "/";
+  // The logo opens Discover for customers and the dashboard for other logged-in users; visitors go to "/"
+  const logoTo = !user ? "/" : user.role === "customer" && !user.mustChangePassword ? "/events" : dash;
 
   const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
   const [expiredReturnTo, setExpiredReturnTo] = useState<string | null>(null);

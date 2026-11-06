@@ -99,6 +99,16 @@ class UpdateAvatarRequest(CamelModel):
     avatar_url: str | None = None
 
 
+class UpdateParticularsRequest(CamelModel):
+    phone: str | None = Field(None, max_length=32)
+    email: str | None = Field(None, max_length=320)
+
+
+class UpdateParticularsResponse(MeResponse):
+    message: str
+    verification_sent: bool = Field(False, description="True when a link was emailed to a new address")
+
+
 class UsernameAvailability(CamelModel):
     username: str
     available: bool

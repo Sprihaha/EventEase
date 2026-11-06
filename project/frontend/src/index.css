@@ -269,3 +269,10 @@ body {
 
 
 
+
+/* Password fields use our own always-visible eye button (PasswordInput); hide the browser's own,
+   which Edge removes again once the field loses focus. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}

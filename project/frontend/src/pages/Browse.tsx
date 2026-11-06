@@ -9,7 +9,7 @@ import { SEO } from "../components/common";
 
 const PAGE_SIZES = [10, 20, 50];
 const DEFAULT_PAGE_SIZE = 10;
-type Availability = "all" | "open" | "closed" | "past";
+type Availability = "all" | "open" | "closed" | "past" | "cancelled";
 
 export default function Browse() {
   const { publicEvents: events, eventsSource, eventsError } = useStore();
@@ -23,7 +23,7 @@ export default function Browse() {
   });
   const [availability, setAvailability] = useState<Availability>(() => {
     const fromUrl = params.get("status") as Availability | null;
-    return fromUrl && ["all", "open", "closed", "past"].includes(fromUrl) ? fromUrl : "open";
+    return fromUrl && ["all", "open", "closed", "past", "cancelled"].includes(fromUrl) ? fromUrl : "open";
   });
   const [sort, setSort] = useState("date");
   const [maxPrice, setMaxPrice] = useState(400);
@@ -34,7 +34,8 @@ export default function Browse() {
   });
 
   const results = useMemo(() => {
-    let list = events.filter((e) => e.status === "published");
+    // Cancelled events only appear under the "Cancelled" filter.
+    let list = events.filter((e) => e.status === (availability === "cancelled" ? "cancelled" : "published"));
     if (cat !== "All") list = list.filter((e) => e.category === cat);
     const term = q.trim().toLowerCase();
     if (term) list = list.filter((e) => [e.title, e.venue, e.city, e.blurb, e.category].join(" ").toLowerCase().includes(term));
@@ -188,6 +189,7 @@ export default function Browse() {
                 { id: "all", label: "All Events" },
                 { id: "closed", label: "Sales Closed" },
                 { id: "past", label: "Past Events" },
+                { id: "cancelled", label: "Cancelled" },
               ].map(({ id, label }) => (
                 <button
                   key={id}

@@ -65,6 +65,7 @@ def list_events(
     price_max: Decimal | None = Query(None, alias="priceMax", ge=0, le=100_000, description="SGD"),
     sort: event_service.SortKey = Query("date", description="date, -date, price or -price"),
     include_past: bool = Query(True, alias="includePast", description="Include events whose end date is in the past"),
+    include_cancelled: bool = Query(False, alias="includeCancelled", description="Include events cancelled by an administrator"),
 ):
     return event_service.list_public_events(
         db,
@@ -79,6 +80,7 @@ def list_events(
         price_max_cents=_cents(price_max),
         sort=sort,
         include_past=include_past,
+        include_cancelled=include_cancelled,
     )
 
 

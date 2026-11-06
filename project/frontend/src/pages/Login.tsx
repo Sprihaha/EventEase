@@ -4,8 +4,6 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  Eye,
-  EyeOff,
   LockKeyhole,
   Mail,
   ShieldCheck,
@@ -23,7 +21,7 @@ import {
 } from "../lib/backendApi";
 import type { SignUpPrefill, SignUpRole } from "./SignUpChoice";
 import { getSavedExpiredReturnTo, clearSavedExpiredReturnTo, resolveReturnUrl } from "../lib/session";
-import { Badge, Button, Card, Field, Input, Select } from "../components/ui";
+import { Badge, Button, Card, Field, Input, PasswordInput, Select } from "../components/ui";
 import { OTHERS, fetchOrganisations, fetchSignInOrganisations, getCurrentOrganisation, lookupUen, isValidUen, type Organisation } from "../lib/organisation";
 
 type SignUp = {
@@ -447,13 +445,15 @@ export default function Login() {
         return;
       }
     }
+    // Organisers don't enter a separate email: their personal company email is the account email.
+    const accountEmail = signUpRole === "ORGANISER" ? signUp.personalCompanyEmail.trim() : signUp.email;
     setSigningUp(true);
     setSignUpError("");
     try {
       await backendSignup({
         username: signUp.userId,
         password: signUp.password,
-        email: signUp.email,
+        email: accountEmail,
         phone: signUp.phone,
         role: signUpRole ?? "CUSTOMER",
         ...(signUpRole === "ORGANISER"
@@ -466,7 +466,7 @@ export default function Login() {
           : {}),
       });
       setApprovalRequired(signUpRole === "ORGANISER");
-      setSignUp((current) => ({ ...current, password: "" }));
+      setSignUp((current) => ({ ...current, email: accountEmail, password: "" }));
       setResendState("idle");
       setMode("sent");
     } catch (err: unknown) {
@@ -486,7 +486,7 @@ export default function Login() {
   const isFormValid = useMemo(() => {
     if (!signUp.userId.trim() || signUp.userId.trim().length < 3) return false;
     if (!signUp.phone.trim()) return false;
-    if (!signUp.email.trim() || !signUp.email.includes("@")) return false;
+    if (signUpRole !== "ORGANISER" && (!signUp.email.trim() || !signUp.email.includes("@"))) return false;
     if (!signUp.password || signUp.password.length < 8) return false;
     if (!signUp.billingAddress.trim()) return false;
 
@@ -589,26 +589,14 @@ export default function Login() {
                   />
                 </Field>
                 <Field label="Password">
-                  <div className="relative">
-                    <Input
-                      autoComplete="current-password"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      required
-                      className="pr-12"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      onClick={() => setShowPassword((shown) => !shown)}
-                      className="absolute right-1 top-1 h-9 w-9 px-0 cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
+                  <PasswordInput
+                    autoComplete="current-password"
+                    shown={showPassword}
+                    onToggleShown={() => setShowPassword((shown) => !shown)}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                  />
                   {portal !== "ADMIN" && (
                     <div className="mt-1.5 text-right">
                       <button
@@ -722,14 +710,16 @@ export default function Login() {
                 <Field label="Phone number">
                   <Input type="tel" value={signUp.phone} onChange={(e) => update("phone", e.target.value)} required />
                 </Field>
-                <div className="sm:col-span-2">
-                  <Field label="Email address">
-                    <Input type="email" value={signUp.email} onChange={(e) => update("email", e.target.value)} required />
-                  </Field>
-                </div>
+                {signUpRole !== "ORGANISER" && (
+                  <div className="sm:col-span-2">
+                    <Field label="Email address">
+                      <Input type="email" value={signUp.email} onChange={(e) => update("email", e.target.value)} required />
+                    </Field>
+                  </div>
+                )}
                 <div className="sm:col-span-2">
                   <Field label="Password">
-                    <Input type="password" value={signUp.password} onChange={(e) => update("password", e.target.value)} minLength={8} required />
+                    <PasswordInput autoComplete="new-password" value={signUp.password} onChange={(e) => update("password", e.target.value)} minLength={8} required />
                   </Field>
                   {passwordHint && <p className="mt-1.5 text-xs text-muted">{passwordHint}</p>}
                 </div>
