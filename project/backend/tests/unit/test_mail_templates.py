@@ -26,7 +26,7 @@ def test_branding_images_exist():
 
 
 def test_build_ticket_release_email_content():
-    text, html_content = build_ticket_release_email(
+    text, html_content, inline_images = build_ticket_release_email(
         username="Sarah Tan",
         event_title="Neon Festival 2026",
         event_venue="Singapore Indoor Stadium",
@@ -40,15 +40,31 @@ def test_build_ticket_release_email_content():
     assert "TKT-SEC104-001" in text
     assert "TKT-SEC104-002" in text
     assert "GenDoL" in text
+    assert "View in dashboard" in text
+
+    # Verify NO mention of sales closure
+    assert "sales have closed" not in text.lower()
+    assert "sales closed" not in text.lower()
+    assert "sales have closed" not in html_content.lower()
+    assert "sales closed" not in html_content.lower()
 
     # Check HTML content
     assert "cid:eventease_logo" in html_content
     assert "cid:gendol_company_logo" in html_content
+    assert "cid:qr_pass_0" in html_content
+    assert "cid:qr_pass_1" in html_content
     assert "Neon Festival 2026" in html_content
     assert "Singapore Indoor Stadium" in html_content
     assert "TKT-SEC104-001" in html_content
     assert "TKT-SEC104-002" in html_content
     assert "Generations of Doing, Limberly" in html_content
+    assert "View in dashboard" in html_content
+
+    # Check QR code images generated
+    assert "qr_pass_0" in inline_images
+    assert "qr_pass_1" in inline_images
+    assert inline_images["qr_pass_0"][1] == "image/png"
+    assert len(inline_images["qr_pass_0"][0]) > 500
 
 
 def test_build_booking_confirmation_email_content():
@@ -64,6 +80,11 @@ def test_build_booking_confirmation_email_content():
     assert "S$240.00" in text
     assert "07 November 2026" in text
     assert "GenDoL" in text
+    assert "View in dashboard" in text
+
+    # Verify NO mention of sales closure
+    assert "sales close" not in text.lower()
+    assert "sales close" not in html_content.lower()
 
     assert "cid:eventease_logo" in html_content
     assert "cid:gendol_company_logo" in html_content
@@ -103,7 +124,7 @@ def test_smtp_mailer_embeds_html_and_inline_logos(monkeypatch):
     )
     mailer = mail.SmtpMailer(settings)
 
-    text, html_content = build_ticket_release_email(
+    text, html_content, inline_images = build_ticket_release_email(
         username="Marcus Lee",
         event_title="Grand Gala",
         event_venue="Marina Bay Sands",
@@ -112,7 +133,7 @@ def test_smtp_mailer_embeds_html_and_inline_logos(monkeypatch):
         dashboard_url="https://eventease.com/dashboard",
     )
 
-    mailer.send("marcus@example.com", "Your tickets are ready", text, html=html_content)
+    mailer.send("marcus@example.com", "Your tickets are ready", text, html=html_content, inline_images=inline_images)
 
     assert len(MockSmtp.instances) == 1
     sent = MockSmtp.instances[0].sent_msg
@@ -120,7 +141,7 @@ def test_smtp_mailer_embeds_html_and_inline_logos(monkeypatch):
     assert sent["To"] == "marcus@example.com"
     assert sent.is_multipart()
 
-    # Verify that parts include text, html, and the two related image parts
+    # Verify that parts include text, html, and the related image parts (QR + 2 brand logos)
     part_types = [p.get_content_type() for p in sent.walk()]
     assert "text/plain" in part_types
     assert "text/html" in part_types

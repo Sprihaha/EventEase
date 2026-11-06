@@ -80,7 +80,7 @@ def _run_qr_release(db: Session) -> str:
     from app.services.bookings.qr_release import release_due_qr_codes
     now = get_business_now(db)
     released = release_due_qr_codes(db, get_settings(), now=now)
-    return f"Released QR codes for {released} booking(s) whose ticket sales have closed (reference time: {now.isoformat()})"
+    return f"Released QR codes for {released} booking(s) (reference time: {now.isoformat()})"
 
 
 def _run_verify_reminders(db: Session) -> str:

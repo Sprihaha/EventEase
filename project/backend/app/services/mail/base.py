@@ -207,13 +207,15 @@ class SmtpMailer:
 
         if html:
             message.add_alternative(html, subtype="html")
-            images = inline_images
-            if images is None and ("cid:eventease_logo" in html or "cid:gendol_company_logo" in html):
+            images = dict(inline_images) if inline_images else {}
+            if "cid:eventease_logo" in html or "cid:gendol_company_logo" in html:
                 try:
                     from app.services.mail.templates import get_branding_images
-                    images = get_branding_images()
+                    for k, v in get_branding_images().items():
+                        if k not in images and f"cid:{k}" in html:
+                            images[k] = v
                 except Exception:
-                    images = None
+                    pass
             if images:
                 html_part = message.get_payload()[-1]
                 for cid, (img_bytes, mime_type, filename) in images.items():

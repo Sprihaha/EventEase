@@ -85,7 +85,7 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> i
             user = db.get(User, user_id)
             if user is None or not user.email:
                 continue
-            text_body, html_body = build_ticket_release_email(
+            text_body, html_body, inline_images = build_ticket_release_email(
                 username=user.username,
                 event_title=event.title,
                 event_venue=event.venue_name,
@@ -93,11 +93,13 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime) -> i
                 ticket_codes=codes,
                 dashboard_url=link,
                 support_email=settings.SMTP_USERNAME or "admin.gendol@gmail.com",
+                base_url=settings.FRONTEND_URL,
             )
             send_safely(
                 user.email,
                 f"Your QR tickets for {event.title} are ready",
                 text_body,
                 html=html_body,
+                inline_images=inline_images,
             )
     return len(due)

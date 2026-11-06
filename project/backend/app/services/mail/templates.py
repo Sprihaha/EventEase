@@ -3,14 +3,17 @@
 Features professional, mobile-responsive HTML layouts incorporating:
 - Official EventEase Ticket Banner Logo
 - GenDoL (Generations of Doing, Limberly) Parent Company Branding
-- High contrast, gate-admission pass cards
+- High contrast, gate-admission pass cards with real scannable QR codes
 - Universal email client support (Gmail, Outlook, Apple Mail)
 """
 
 import functools
 import html
+import io
 from pathlib import Path
 from typing import Sequence
+
+import qrcode
 
 
 @functools.lru_cache(maxsize=1)
@@ -27,6 +30,23 @@ def get_branding_images() -> dict[str, tuple[bytes, str, str]]:
     return res
 
 
+def generate_ticket_qr_png(ticket_code: str, base_url: str = "https://eventease-ggz2.onrender.com") -> bytes:
+    """Generates a PNG QR code encoding the ticket check-in verification URL."""
+    verify_url = f"{base_url.rstrip('/')}/verify/{ticket_code}"
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=6,
+        border=2,
+    )
+    qr.add_data(verify_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#1e0b36", back_color="#ffffff")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def build_ticket_release_email(
     username: str,
     event_title: str,
@@ -35,14 +55,17 @@ def build_ticket_release_email(
     ticket_codes: Sequence[str],
     dashboard_url: str,
     support_email: str = "admin.gendol@gmail.com",
-) -> tuple[str, str]:
-    """Builds both plain-text and professional responsive HTML versions of the ticket release notification."""
+    base_url: str | None = None,
+) -> tuple[str, str, dict[str, tuple[bytes, str, str]]]:
+    """Builds plain-text, responsive HTML, and inline QR images for ticket release notification."""
     safe_user = html.escape(username or "Valued Guest")
     safe_title = html.escape(event_title)
     safe_venue = html.escape(event_venue)
     safe_when = html.escape(when_str)
     safe_url = html.escape(dashboard_url)
     safe_support = html.escape(support_email)
+
+    effective_base = base_url or dashboard_url.split("/dashboard")[0] if "/dashboard" in dashboard_url else dashboard_url
 
     # 1. Plain text version
     code_lines = "\n".join(f"  • Pass #{idx + 1}: {code}" for idx, code in enumerate(ticket_codes))
@@ -53,7 +76,7 @@ def build_ticket_release_email(
 
 Hi {username},
 
-Ticket sales for '{event_title}' have officially closed, and your digital QR tickets are now ready for gate admission.
+Your digital QR tickets for '{event_title}' are now released and ready for gate admission.
 
 EVENT DETAILS:
 • Event:       {event_title}
@@ -64,10 +87,11 @@ YOUR ADMISSION PASSES ({len(ticket_codes)} ticket(s)):
 {code_lines}
 
 HOW TO ENTER AT THE GATE:
-1. Open your dashboard on your mobile phone:
-   {dashboard_url}
-2. Present the digital QR code at the turnstile / gate scanner.
-3. Bring an official photo ID matching your EventEase account.
+1. Scan your digital QR pass from this email or in your dashboard at the gate scanner.
+2. Bring an official photo ID matching your EventEase account.
+
+View in dashboard:
+{dashboard_url}
 
 ------------------------------------------------------------
 EventEase is engineered and operated by GenDoL
@@ -77,38 +101,45 @@ Support: {support_email}
 ============================================================
 """
 
-    # 2. HTML passes cards
+    # 2. HTML passes cards with embedded QR code images
+    inline_images: dict[str, tuple[bytes, str, str]] = {}
     ticket_cards_html = ""
     for idx, code in enumerate(ticket_codes):
         safe_code = html.escape(code)
+        qr_cid = f"qr_pass_{idx}"
+        qr_png_bytes = generate_ticket_qr_png(code, effective_base)
+        inline_images[qr_cid] = (qr_png_bytes, "image/png", f"{qr_cid}.png")
+
         ticket_cards_html += f"""
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px; background-color: #faf5ff; border: 1.5px dashed #a855f7; border-radius: 12px; overflow: hidden;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px; background-color: #faf5ff; border: 1.5px dashed #a855f7; border-radius: 14px; overflow: hidden;">
           <tr>
-            <td style="padding: 16px 20px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <td style="padding: 18px 20px 16px 20px; text-align: center;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
                 <tr>
-                  <td style="font-size: 11px; font-weight: 700; color: #7e22ce; text-transform: uppercase; letter-spacing: 1.2px;">
+                  <td align="left" style="font-size: 11px; font-weight: 700; color: #7e22ce; text-transform: uppercase; letter-spacing: 1.2px;">
                     ADMISSION PASS #{idx + 1}
                   </td>
-                  <td align="right" style="font-size: 11px; font-weight: 600; color: #16a34a;">
+                  <td align="right" style="font-size: 11px; font-weight: 700; color: #16a34a;">
                     &#10003; GATE READY
                   </td>
                 </tr>
+              </table>
+
+              <!-- QR Code Card Container -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #ffffff; border: 1px solid #e9d5ff; border-radius: 12px; padding: 12px; box-shadow: 0 2px 8px rgba(126, 34, 206, 0.08);">
                 <tr>
-                  <td colspan="2" style="padding-top: 8px;">
-                    <div style="background-color: #ffffff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 10px 14px; text-align: center;">
-                      <span style="font-family: 'SF Mono', Monaco, Consolas, 'Courier New', monospace; font-size: 17px; font-weight: 700; color: #581c87; letter-spacing: 2px;">
-                        {safe_code}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan="2" style="padding-top: 6px; font-size: 11px; color: #6b7280; text-align: center;">
-                    Scan dynamic QR pass on mobile or present this code at venue entry
+                  <td align="center">
+                    <img src="cid:{qr_cid}" alt="QR Ticket Code" width="160" height="160" style="display: block; width: 160px; height: 160px; border: 0;" />
                   </td>
                 </tr>
               </table>
+
+              <div style="margin-top: 10px; font-family: 'SF Mono', Monaco, Consolas, 'Courier New', monospace; font-size: 14px; font-weight: 700; color: #581c87; letter-spacing: 1.5px;">
+                {safe_code}
+              </div>
+              <div style="margin-top: 4px; font-size: 11px; color: #6b7280;">
+                Scan QR code at venue gate turnstile for admission
+              </div>
             </td>
           </tr>
         </table>
@@ -153,7 +184,7 @@ Support: {support_email}
               </h1>
               <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: #4b5563;">
                 Hi <strong style="color: #111827;">{safe_user}</strong>,<br>
-                Ticket sales for <strong style="color: #6b21a8;">{safe_title}</strong> have closed, and your digital passes and secure QR admission codes are now live and ready for gate check-in.
+                Your digital passes and secure QR admission codes for <strong style="color: #6b21a8;">{safe_title}</strong> are now released and ready for gate check-in.
               </p>
 
               <!-- Event Overview Card -->
@@ -189,8 +220,8 @@ Support: {support_email}
 
               <!-- Section: Your Ticket Passes -->
               <div style="margin-bottom: 12px;">
-                <div style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 10px;">
-                  Your Secure Ticket Codes ({len(ticket_codes)} pass{"" if len(ticket_codes) == 1 else "es"}):
+                <div style="font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 12px;">
+                  Your Digital Gate Passes ({len(ticket_codes)} pass{"" if len(ticket_codes) == 1 else "es"}):
                 </div>
                 {ticket_cards_html}
               </div>
@@ -200,7 +231,7 @@ Support: {support_email}
                 <tr>
                   <td align="center">
                     <a href="{safe_url}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: #ffffff; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 34px; border-radius: 10px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); letter-spacing: 0.3px;">
-                      View Mobile QR Passes in Dashboard &rarr;
+                      View in dashboard
                     </a>
                   </td>
                 </tr>
@@ -214,7 +245,7 @@ Support: {support_email}
                       &#128161; Entry &amp; Gate Guidelines
                     </div>
                     <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.6; color: #64748b;">
-                      <li><strong>Mobile Access:</strong> Show the live QR code on your smartphone screen at turnstiles for fastest admission.</li>
+                      <li><strong>Mobile Access:</strong> Present your QR code on your mobile device at the turnstiles for fast admission.</li>
                       <li><strong>Identification:</strong> Keep an official ID ready that matches your EventEase account profile.</li>
                       <li><strong>Arrival:</strong> We recommend arriving 30-45 minutes before showtime to clear security checks comfortably.</li>
                       <li><strong>Assistance:</strong> Wheelchair routes and EaseGuide companion assistance are available at on-site service counters.</li>
@@ -263,7 +294,7 @@ Support: {support_email}
 </body>
 </html>
 """
-    return text_body, html_body
+    return text_body, html_body, inline_images
 
 
 def build_booking_confirmation_email(
@@ -284,12 +315,12 @@ def build_booking_confirmation_email(
 
     if release_date_str:
         release_note_text = (
-            f"Your dynamic QR tickets will be released and emailed on {release_date_str}, "
-            f"when ticket sales close. Until then, you can swap seats on EaseXchange."
+            f"Your dynamic QR tickets will be released and emailed on {release_date_str}. "
+            f"Until then, you can swap seats on EaseXchange."
         )
         release_note_html = (
-            f"Your dynamic QR tickets will be released on <strong>{html.escape(release_date_str)}</strong>, "
-            f"when ticket sales close. Until then, your booking is guaranteed and eligible for verified seat swap on EaseXchange."
+            f"Your dynamic QR tickets will be released on <strong>{html.escape(release_date_str)}</strong>. "
+            f"Until then, your booking is guaranteed and eligible for verified seat swap on EaseXchange."
         )
     else:
         release_note_text = "Your digital QR tickets are already available in your customer dashboard."
@@ -312,7 +343,7 @@ BOOKING SUMMARY:
 ADMISSION STATUS:
 {release_note_text}
 
-Manage your booking and tickets at:
+View in dashboard:
 {dashboard_url}
 
 ------------------------------------------------------------
@@ -395,7 +426,7 @@ Support: {support_email}
                 <tr>
                   <td align="center">
                     <a href="{safe_url}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: #ffffff; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 34px; border-radius: 10px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);">
-                      Manage Booking in Dashboard &rarr;
+                      View in dashboard
                     </a>
                   </td>
                 </tr>
