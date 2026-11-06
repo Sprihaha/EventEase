@@ -167,6 +167,20 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
               <option value="DIRECT">Direct</option>
             </ExchangeSelect>
           </Field>
+          {requestType === "DIRECT" && (
+            <div className="space-y-2"><RecipientAutocomplete value={recipientUsername} selected={validRecipient}
+              onChange={value => { setRecipientUsername(value); setSelectedRecipient(null); setRecipientRevision(n => n + 1) }}
+              onSelect={selectRecipient} />
+              {!selected && <p className="text-xs text-muted">Select your offered ticket first to check recipient eligibility.</p>}
+              {selected && validRecipient && <>
+                {recipientEligibility.status === "loading" && <p role="status" className="text-sm text-muted">Checking recipient eligibility…</p>}
+                {recipientEligibility.status === "success" && <p role="status" className={`rounded-xl border p-3 text-sm font-semibold ${recipientEligibility.data ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                  {recipientEligibility.data ? "This user has an eligible ticket for this event." : "This user has no eligible tickets for this event."}
+                </p>}
+                {recipientEligibility.error && <div role="alert"><p className="text-sm text-danger">Recipient eligibility could not be checked.</p><Button type="button" size="sm" variant="outline" onClick={recipientEligibility.reload}>Retry eligibility check</Button></div>}
+              </>}
+            </div>
+          )}
           <Field label="Ticket to Offer">
             <ExchangeSelect
               aria-label="Ticket to Offer"
@@ -191,20 +205,6 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
               The offered ticket determines the event and its available categories and sections.
             </p>
           </Field>
-          {requestType === "DIRECT" && (
-            <div className="space-y-2"><RecipientAutocomplete value={recipientUsername} selected={validRecipient}
-              onChange={value => { setRecipientUsername(value); setSelectedRecipient(null); setRecipientRevision(n => n + 1) }}
-              onSelect={selectRecipient} />
-              {!selected && <p className="text-xs text-muted">Select your offered ticket first to check recipient eligibility.</p>}
-              {selected && validRecipient && <>
-                {recipientEligibility.status === "loading" && <p role="status" className="text-sm text-muted">Checking recipient eligibility…</p>}
-                {recipientEligibility.status === "success" && <p role="status" className={`rounded-xl border p-3 text-sm font-semibold ${recipientEligibility.data ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
-                  {recipientEligibility.data ? "This user has an eligible ticket for this event." : "This user has no eligible tickets for this event."}
-                </p>}
-                {recipientEligibility.error && <div role="alert"><p className="text-sm text-danger">Recipient eligibility could not be checked.</p><Button type="button" size="sm" variant="outline" onClick={recipientEligibility.reload}>Retry eligibility check</Button></div>}
-              </>}
-            </div>
-          )}
           <div>
             <label className="flex items-center gap-3 text-sm text-brand-deep">
               <input
