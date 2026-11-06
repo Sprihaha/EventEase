@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import useExchangeConfirmation from "./useExchangeConfirmation";
 import {
   acceptExchangeMatch,
   exchangeErrorMessage,
@@ -31,6 +32,7 @@ export function ExchangeMatchPanel({
   userId,
   onChanged,
 }: ExchangeMatchPanelProps) {
+  const { confirm, confirmation } = useExchangeConfirmation();
   const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState<ExchangePaymentMethod>("mock_success");
   const sawActive = useRef(false);
@@ -91,10 +93,16 @@ export function ExchangeMatchPanel({
       Date.parse(match.expiresAt) <= Date.now()
     )
       return;
-    if (action === "accept" && !window.confirm(
-      "Your acceptance cannot be withdrawn. Equal-value tickets will exchange automatically once both participants accept. Any price difference must be paid before tickets transfer. Accept this match?"
-    )) return;
-    if (Date.parse(match.expiresAt) <= Date.now()) return;
+    if (!await confirm(action === "accept" ? {
+      title: "Accept exchange match?",
+      message: "Your acceptance cannot be withdrawn. Equal-value tickets will exchange automatically once both participants accept. Any price difference must be paid before tickets transfer.",
+      confirmLabel: "Confirm acceptance",
+    } : {
+      title: "Reject exchange match?",
+      message: "This rejects the current proposal and cannot be undone. No tickets will be exchanged. The original request may reopen for another offer.",
+      confirmLabel: "Confirm rejection", destructive: true,
+    })) return;
+    if (submitting.current || Date.parse(match.expiresAt) <= Date.now()) return;
     submitting.current = true;
     setPending(action);
     setError(null);
@@ -121,8 +129,8 @@ export function ExchangeMatchPanel({
 
   const pay = async () => {
     if (!match || match.status !== "READY" || !match.isPayer || !match.amountCents || expired || pending || submitting.current) return;
-    if (!window.confirm(`Pay S$${(match.amountCents / 100).toFixed(2)} using simulated payment? Successful payment automatically completes the exchange.`)) return;
-    if (Date.parse(match.expiresAt) <= Date.now()) return;
+    if (!await confirm({ title: "Confirm simulated payment", message: `Pay S$${(match.amountCents / 100).toFixed(2)} using simulated payment? Successful payment automatically completes the exchange and cannot be undone.`, confirmLabel: "Confirm payment" })) return;
+    if (submitting.current || Date.parse(match.expiresAt) <= Date.now()) return;
     submitting.current = true; setPending("pay"); setError(null);
     try {
       setConfirmed(await settleExchangeMatch(matchId, paymentMethod));
@@ -134,6 +142,7 @@ export function ExchangeMatchPanel({
 
   return (
     <div className="space-y-5" aria-busy={!!pending}>
+      {confirmation}
       <h3 className="font-brand text-2xl font-bold text-brand-deep">
         {ownRequest ? `Request ${numbers.get(ownRequest.id)} · Match detail` : "Match detail"}
       </h3>
@@ -201,7 +210,7 @@ export function ExchangeMatchPanel({
               </p>
               {myAccepted && knownSide && !theirAccepted && (
                 <p className="mt-2">
-                  Waiting for the other participant. Refresh to check their
+                  Your acceptance cannot be withdrawn. Waiting for the other participant. Refresh to check their
                   response.
                 </p>
               )}

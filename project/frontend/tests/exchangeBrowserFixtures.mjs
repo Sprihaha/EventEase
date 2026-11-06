@@ -14,15 +14,16 @@ export async function fixture() {
   const context = await browser.newContext({ serviceWorkers: 'block' })
   const page = await context.newPage()
   page.setDefaultTimeout(8000)
-  const state = { match: { ...initialMatch }, requests: [request], listings: [], invitations: [], writes: [], forbidden: [], lookups: [], lookupFailure: false, recipientEligible: true, eligibleTickets: [ticket], ownedTickets: [], activity: [], errors: [] }
+  const state = { match: { ...initialMatch }, requests: [request], listings: [], invitations: [], writes: [], forbidden: [], lookups: [], lookupFailure: false, lookupGates: {}, eligibilityGates: {}, eligibilityLookups: [], eligibilityFailure: false, recipientEligible: true, eligibleTickets: [ticket], ownedTickets: [], activity: [], errors: [] }
   page.on('pageerror', error => state.errors.push(error.message))
+  page.on('dialog', async dialog => { state.errors.push(`Unexpected native ${dialog.type()} dialog`); await dialog.dismiss() })
   page.on('console', message => { if (message.type() === 'error' && message.text().includes('same key')) state.errors.push(message.text()) })
   await page.addInitScript(() => sessionStorage.setItem('eventease-access-token', `fixture.${btoa(JSON.stringify({ exp: 4070908800 }))}.signature`))
   await context.route('**/*', async route => {
     const url = new URL(route.request().url()), method = route.request().method()
     if (url.pathname.startsWith('/api/')) {
       const path = url.pathname.slice('/api/v1'.length)
-      if (url.origin !== 'http://127.0.0.1:18765' || (method !== 'GET' && !(method === 'POST' && ['/exchanges', '/exchanges/matches/match-a/accept', '/exchanges/matches/match-a/reject', '/exchanges/matches/match-a/settle', '/exchanges/public-target/ticket-interest', '/exchanges/public-target/reject-invitation'].includes(path)))) {
+      if (url.origin !== 'http://127.0.0.1:18765' || (method !== 'GET' && !(method === 'POST' && ['/exchanges', '/exchanges/request-a/cancel', '/exchanges/matches/match-a/accept', '/exchanges/matches/match-a/reject', '/exchanges/matches/match-a/settle', '/exchanges/public-target/ticket-interest', '/exchanges/public-target/reject-invitation'].includes(path)))) {
         state.forbidden.push(`${method} ${url}`); return route.abort()
       }
       let body = [], status = 200
@@ -32,7 +33,13 @@ export async function fixture() {
       else if (path.endsWith('/options')) body = [{ id: 'category-a', type: 'STANDARD', name: 'Standard', sections: ['Floor'] }]
       else if (path === '/me/tickets/history') body = state.ownedTickets
       else if (path === '/exchanges/activity') body = state.activity
-      else if (path === '/exchanges/recipients/eligibility') body = { eligible: state.recipientEligible }
+      else if (path === '/exchanges/recipients/eligibility') {
+        const username = url.searchParams.get('username')
+        state.eligibilityLookups.push({ username, ticketId: url.searchParams.get('offeredTicketId') })
+        body = { eligible: state.recipientEligible }
+        if (state.eligibilityFailure) { status = 503; body = { error: { code: 'UNAVAILABLE', message: 'Unavailable' } } }
+        if (state.eligibilityGates[username]) await state.eligibilityGates[username]
+      }
       else if (path === '/exchanges/public-target/eligible-tickets') body = state.eligibleTickets
       else if (path === '/exchanges/public-target/ticket-interest') {
         state.writes.push({ path, payload: route.request().postDataJSON() })
@@ -47,7 +54,11 @@ export async function fixture() {
       else if (path === '/exchanges/recipients') {
         const q = url.searchParams.get('q'); state.lookups.push(q)
         if (state.lookupFailure) { status = 404; body = { error: { code: 'NOT_FOUND', message: 'Unavailable' } } }
-        else body = q.toLowerCase().startsWith('bo') ? [{ username: 'BobFan' }, { username: 'Bobby' }] : []
+        else body = ['BobFan', 'Bobby', 'Charlie'].filter(name => name.toLowerCase().startsWith(q.toLowerCase())).map(username => ({ username }))
+        if (state.lookupGates[q]) await state.lookupGates[q]
+      }
+      else if (path === '/exchanges/request-a/cancel') {
+        state.writes.push({ path }); body = { ...state.requests[0], status: 'CANCELLED' }; state.requests = [body]
       }
       else if (path === '/exchanges' && method === 'POST') {
         const payload = route.request().postDataJSON()
@@ -76,4 +87,3 @@ export async function fixture() {
   })
   return { page, state, close: async () => { await context.close(); await browser.close() } }
 }
-

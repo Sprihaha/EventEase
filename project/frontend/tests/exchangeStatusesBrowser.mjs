@@ -30,6 +30,7 @@ test('filtering, numbering, match links, refresh, reopening, pagination and mobi
   const page = await context.newPage()
   const forbidden = [], errors = []
   page.on('pageerror', error => errors.push(error.message))
+  page.on('dialog', async dialog => { errors.push(`Unexpected native ${dialog.type()} dialog`); await dialog.dismiss() })
   let history = [...requests].reverse(), mineCalls = 0
   await page.addInitScript(() => sessionStorage.setItem('eventease-access-token', `fixture.${btoa(JSON.stringify({ exp: 4070908800 }))}.signature`))
   await context.route('**/*', async route => {
@@ -85,12 +86,12 @@ test('filtering, numbering, match links, refresh, reopening, pagination and mobi
       await choose(label)
       const expected = [...requests].reverse().filter(r => r.status === statuses[i]).map(r => `Request ${requests.indexOf(r) + 1}`)
       assert.deepEqual(await numbers(), expected)
-      assert.equal(await section.getByRole('button', { name: /^View .+ match$/ }).count(), label === 'Open' ? 0 : expected.length)
+      assert.equal(await section.getByRole('button', { name: /^View (Match|Exchange Details)$/ }).count(), label === 'Open' ? 0 : expected.length)
       const badge = section.locator('span.inline-flex').filter({ hasText: new RegExp(`^${label}$`) }).first()
       assert.equal(await badge.evaluate(el => getComputedStyle(el).color), colours[i])
     }
     await choose('Matched')
-    await section.getByRole('button', { name: /^View .+ match$/ }).first().click()
+    await section.getByRole('button', { name: /^View (Match|Exchange Details)$/ }).first().click()
     const dialog = page.getByRole('dialog')
     await dialog.getByRole('heading', { name: 'Request 12 · Match detail', exact: true }).waitFor()
     assert.match(await dialog.innerText(), /Both users accepted/)
@@ -134,6 +135,7 @@ test('filtering, numbering, match links, refresh, reopening, pagination and mobi
     await cancel.waitFor()
     await page.screenshot({ path: '/private/tmp/eventease-request-cancel-mobile.png', fullPage: true })
     await cancel.click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Confirm cancellation', exact: true }).click()
     const cancelledNotice = section.getByRole('status').filter({ hasText: /^Request 13 cancelled$/ })
     await cancelledNotice.waitFor()
     await page.waitForTimeout(4000)
@@ -144,7 +146,7 @@ test('filtering, numbering, match links, refresh, reopening, pagination and mobi
     await page.reload()
     await section.getByText('No requests with this status.', { exact: true }).waitFor()
     assert.deepEqual(await numbers(), [])
-    assert.equal(await section.getByRole('button', { name: /^View .+ match$/ }).count(), 0)
+    assert.equal(await section.getByRole('button', { name: /^View (Match|Exchange Details)$/ }).count(), 0)
     assert.deepEqual(forbidden, [])
     assert.deepEqual(errors, [])
   } finally { await context.close(); await browser.close() }

@@ -19,11 +19,12 @@ import {
   type ExchangeRequest,
   type ExchangeRequestStatus,
 } from "../../../lib/exchangeTypes"
-import { exchangeStatusLabels, matchDisplayStatus, requestNumbers } from "../../../lib/exchangePresentation"
+import { exchangeStatusLabels, requestNumbers } from "../../../lib/exchangePresentation"
 import ExchangeStatusBadge from "./ExchangeStatusBadge"
 import { useStore } from "../../../lib/store"
 import useExchangeResource from "../../../lib/useExchangeResource"
 import { EXCHANGE_ACTIVITY_CHANGED } from "../../../lib/exchangeNotifications"
+import useExchangeConfirmation from "./useExchangeConfirmation"
 import ExchangeMatchPanel from "./ExchangeMatchPanel"
 import SwapRequestPanel from "./SwapRequestPanel"
 import ExchangeActivityPanel from "./ExchangeActivityPanel"
@@ -109,6 +110,7 @@ function Pagination({
 }
 
 export default function SecureExchange() {
+  const { confirm, confirmation } = useExchangeConfirmation()
   const { user } = useStore()
   const [params, setParams] = useSearchParams()
   const view =
@@ -193,6 +195,8 @@ export default function SecureExchange() {
       submitting.current
     )
       return
+    if (!await confirm({ title: "Cancel exchange request?", message: "This cancels your open request and cannot be undone. No tickets will be exchanged.", confirmLabel: "Confirm cancellation", destructive: true })) return
+    if (submitting.current || Date.parse(request.expiresAt) <= Date.now()) return
     submitting.current = true
     setPendingId(request.id)
     setNotice(null)
@@ -215,7 +219,9 @@ export default function SecureExchange() {
     }
   }
   const rejectInvitation = async (listing: ExchangeListing) => {
-    if (submitting.current || Date.parse(listing.expiresAt) <= Date.now() || !window.confirm("Reject this Direct Exchange invitation?")) return;
+    if (submitting.current || Date.parse(listing.expiresAt) <= Date.now()) return;
+    if (!await confirm({ title: "Reject exchange invitation?", message: "This rejects the invitation and cannot be undone. No tickets will be exchanged.", confirmLabel: "Confirm rejection", destructive: true })) return;
+    if (submitting.current || Date.parse(listing.expiresAt) <= Date.now()) return;
     submitting.current = true; setPendingId(listing.requestId); setActionError(null); setNotice(null);
     try { await rejectExchangeInvitation(listing.requestId); setNotice("Invitation rejected"); }
     catch (cause) { setActionError(exchangeErrorMessage(cause)); }
@@ -483,7 +489,7 @@ export default function SecureExchange() {
                               variant="outline"
                               onClick={() => setDialog({ type: "match", matchId: match.id })}
                             >
-                              View {exchangeStatusLabels[matchDisplayStatus(match.status)]} match
+                              {match.status === "COMPLETED" ? "View Exchange Details" : "View Match"}
                             </Button>
                           ))}
                       </div>
@@ -562,6 +568,7 @@ export default function SecureExchange() {
           )}
         </ExchangeDialog>
       )}
+      {confirmation}
     </section>
   )
 }
@@ -667,6 +674,7 @@ export function TicketInterestPanel({ listing, onCreated, onChanged }: {
   onCreated: (matchId: string) => void
   onChanged: () => void
 }) {
+  const { confirm, confirmation } = useExchangeConfirmation()
   const { user } = useStore()
   const load = useCallback((signal: AbortSignal) => getListingEligibleTickets(listing.requestId, signal), [listing.requestId])
   const tickets = useExchangeResource(user ? `interest-tickets:${user.id}:${listing.requestId}` : null, load)
@@ -681,8 +689,8 @@ export function TicketInterestPanel({ listing, onCreated, onChanged }: {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!selected || tickets.status !== "success" || expired || submitting.current) return
-    if (!window.confirm("Proceeding registers your acceptance and cannot be withdrawn. The other participant can review and accept or reject your offered ticket. Continue?")) return
-    if (Date.parse(listing.expiresAt) <= Date.now()) return
+    if (!await confirm({ title: "Confirm your ticket offer", message: "Proceeding registers your acceptance and cannot be withdrawn. The other participant can review and accept or reject your offered ticket.", confirmLabel: "Confirm offer" })) return
+    if (submitting.current || Date.parse(listing.expiresAt) <= Date.now()) return
     submitting.current = true
     setPending(true)
     setError(null)
@@ -699,6 +707,7 @@ export function TicketInterestPanel({ listing, onCreated, onChanged }: {
     }
   }
   return <div className="space-y-5">
+    {confirmation}
     <h3 className="font-brand text-2xl font-bold text-brand-deep">Express interest</h3>
     <ListingCard listing={listing} />
     <LoadState status={tickets.status} error={tickets.error}
@@ -751,6 +760,7 @@ function InterestPanel({
   onCreated: (matchId: string) => void
   onChanged: () => void
 }) {
+  const { confirm, confirmation } = useExchangeConfirmation()
   const [requestId, setRequestId] = useState(sourceId ?? "")
   const [pending, setPending] = useState(false)
   const submitting = useRef(false)
@@ -770,8 +780,8 @@ function InterestPanel({
       Date.parse(selected.expiresAt) <= Date.now()
     )
       return
-    if (!window.confirm("Proceeding registers your acceptance and cannot be withdrawn. Continue?")) return
-    if (Date.parse(selected.expiresAt) <= Date.now() || Date.parse(listing.expiresAt) <= Date.now()) return
+    if (!await confirm({ title: "Confirm your ticket offer", message: "Proceeding registers your acceptance and cannot be withdrawn. The other participant can review and accept or reject your offered ticket.", confirmLabel: "Confirm offer" })) return
+    if (submitting.current || Date.parse(selected.expiresAt) <= Date.now() || Date.parse(listing.expiresAt) <= Date.now()) return
     submitting.current = true
     setPending(true)
     setActionError(null)
@@ -790,6 +800,7 @@ function InterestPanel({
   }
   return (
     <div className="space-y-5">
+      {confirmation}
       <h3 className="font-brand text-2xl font-bold text-brand-deep">
         Express interest
       </h3>

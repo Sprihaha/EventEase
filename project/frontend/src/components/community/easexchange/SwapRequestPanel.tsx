@@ -37,6 +37,11 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
   const [requestType, setRequestType] = useState<"PUBLIC" | "DIRECT">("PUBLIC");
   const [recipientUsername, setRecipientUsername] = useState("");
   const [selectedRecipient, setSelectedRecipient] = useState<string | null>(null);
+  const [recipientRevision, setRecipientRevision] = useState(0);
+  const selectRecipient = useCallback((username: string) => {
+    setRecipientUsername(username);
+    setSelectedRecipient(username);
+  }, []);
   const validRecipient = requestType === "PUBLIC" || (!!selectedRecipient && selectedRecipient === recipientUsername);
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
@@ -46,10 +51,10 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
   const selected = eligibleTickets.find((ticket) => ticket.id === ticketId);
 
   const loadRecipientEligibility = useCallback((signal: AbortSignal) =>
-    getRecipientEligibility(selected?.id ?? "", selectedRecipient ?? "", signal), [selected?.id, selectedRecipient]);
+    getRecipientEligibility(selected?.id ?? "", selectedRecipient ?? "", AbortSignal.any([signal, AbortSignal.timeout(10_000)])), [selected?.id, selectedRecipient]);
   const recipientEligibility = useExchangeResource(
     requestType === "DIRECT" && selected && validRecipient && user
-      ? `recipient:${user.id}:${selected.id}:${selectedRecipient}` : null, loadRecipientEligibility);
+      ? `recipient:${user.id}:${selected.id}:${selectedRecipient}:${recipientRevision}` : null, loadRecipientEligibility);
   const canInvite = requestType === "PUBLIC" || (recipientEligibility.status === "success" && recipientEligibility.data === true);
 
   const loadOptions = useCallback(
@@ -169,6 +174,7 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
               value={selected?.id ?? ""}
               onChange={(event) => {
                 setTicketId(event.target.value);
+                setRecipientRevision(n => n + 1);
                 setDesiredCategory("");
                 setDesiredSection("");
               }}
@@ -187,12 +193,12 @@ export function SwapRequestPanel({ onCreated, onCancel, onPendingChange }: SwapR
           </Field>
           {requestType === "DIRECT" && (
             <div className="space-y-2"><RecipientAutocomplete value={recipientUsername} selected={validRecipient}
-              onChange={value => { setRecipientUsername(value); setSelectedRecipient(null) }}
-              onSelect={username => { setRecipientUsername(username); setSelectedRecipient(username) }} />
+              onChange={value => { setRecipientUsername(value); setSelectedRecipient(null); setRecipientRevision(n => n + 1) }}
+              onSelect={selectRecipient} />
               {!selected && <p className="text-xs text-muted">Select your offered ticket first to check recipient eligibility.</p>}
               {selected && validRecipient && <>
                 {recipientEligibility.status === "loading" && <p role="status" className="text-sm text-muted">Checking recipient eligibility…</p>}
-                {recipientEligibility.status === "success" && <p role="status" className={`text-sm font-semibold ${recipientEligibility.data ? "text-emerald-700" : "text-danger"}`}>
+                {recipientEligibility.status === "success" && <p role="status" className={`rounded-xl border p-3 text-sm font-semibold ${recipientEligibility.data ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
                   {recipientEligibility.data ? "This user has an eligible ticket for this event." : "This user has no eligible tickets for this event."}
                 </p>}
                 {recipientEligibility.error && <div role="alert"><p className="text-sm text-danger">Recipient eligibility could not be checked.</p><Button type="button" size="sm" variant="outline" onClick={recipientEligibility.reload}>Retry eligibility check</Button></div>}

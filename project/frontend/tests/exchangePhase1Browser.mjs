@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { fixture, ticket, initialMatch } from './exchangeBrowserFixtures.mjs'
 const base = process.env.EVENTEASE_BROWSER_URL ?? 'http://127.0.0.1:18446'
-test('Direct autocomplete requires selection, handles unavailable/empty lookup, and preserves Public creation', { timeout: 30_000 }, async () => {
+test('Direct autocomplete allows suggestion selection, handles unavailable/empty lookup, and preserves Public creation', { timeout: 30_000 }, async () => {
   const { page, state, close } = await fixture()
   try {
     await page.goto(`${base}/community?tab=exchange&view=mine`)
@@ -16,16 +16,16 @@ test('Direct autocomplete requires selection, handles unavailable/empty lookup, 
     await dialog.getByRole('option', { name: 'Direct', exact: true }).click()
     const input = dialog.getByRole('combobox', { name: 'Recipient customer username' })
     await input.fill('b')
-    await dialog.getByText('Type at least 2 characters, then select a customer username.', { exact: true }).waitFor()
+    await dialog.getByText('Type a complete customer username or select a suggestion (at least 2 characters).', { exact: true }).waitFor()
     assert.deepEqual(state.lookups, [])
     assert.equal(await submit.isDisabled(), true)
     await input.fill('missing')
-    await dialog.getByText('User not found', { exact: true }).waitFor()
+    await dialog.getByText('User not found.', { exact: true }).waitFor()
     assert.equal(await submit.isDisabled(), true)
     state.lookupFailure = true
     await input.fill('bo')
     await dialog.getByRole('button', { name: 'Retry username search' }).waitFor()
-    assert.equal(await dialog.getByText('User not found', { exact: true }).count(), 0)
+    assert.equal(await dialog.getByText('User not found.', { exact: true }).count(), 0)
     assert.equal(await submit.isDisabled(), true)
     state.lookupFailure = false
     await dialog.getByRole('button', { name: 'Retry username search' }).click()
@@ -90,11 +90,12 @@ test('acceptance needs confirmation, cannot be withdrawn, and never triggers set
     const accept = dialog.getByRole('button', { name: 'Accept match', exact: true })
     await accept.waitFor()
     assert.equal(await dialog.getByRole('button', { name: 'Cancel match', exact: true }).count(), 0)
-    page.once('dialog', popup => { assert.match(popup.message(), /acceptance cannot be withdrawn/); void popup.dismiss() })
     await accept.click()
+    await page.getByRole('alertdialog').getByText(/acceptance cannot be withdrawn/).waitFor()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Go Back', exact: true }).click()
     assert.equal(state.writes.length, 0)
-    page.once('dialog', popup => { void popup.accept() })
     await accept.click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Confirm acceptance', exact: true }).click()
     const accepted = dialog.getByRole('button', { name: 'Accepted', exact: true })
     await accepted.waitFor()
     assert.equal(await accepted.isDisabled(), true)
@@ -109,6 +110,7 @@ test('acceptance needs confirmation, cannot be withdrawn, and never triggers set
     state.match = { ...initialMatch }
     await page.reload()
     await dialog.getByRole('button', { name: 'Reject match', exact: true }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Confirm rejection', exact: true }).click()
     await dialog.getByText('This match was rejected.', { exact: true }).waitFor()
     state.match = { ...initialMatch, expiresAt: '2000-01-01T00:00:00Z' }
     await page.reload()
