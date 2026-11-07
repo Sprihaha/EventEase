@@ -127,7 +127,7 @@ class Settings(BaseSettings):
 
     # Mail. "console" prints messages; "resend" and "sendgrid" use HTTPS REST APIs;
     # "smtp" sends real mail (e.g. Gmail: smtp.gmail.com, port 587 with STARTTLS or 465 with SSL).
-    MAIL_TRANSPORT: Literal["console", "resend", "sendgrid", "smtp"] = "smtp"
+    MAIL_TRANSPORT: Literal["console", "resend", "sendgrid", "smtp"] = "console"
     MAIL_FROM: str = "EventEase <admin.gendol@gmail.com>"
     RESEND_API_KEY: str | None = None
     SENDGRID_API_KEY: str | None = None
@@ -135,7 +135,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 465
     SMTP_USERNAME: str | None = "admin.gendol@gmail.com"
     SMTP_USER: str | None = None
-    SMTP_PASSWORD: str | None = "vvwazmhyfstvauut"
+    SMTP_PASSWORD: str | None = None  # from .env or the host's environment, never committed
     SMTP_USE_TLS: bool = False
     SMTP_USE_SSL: bool = True
     SMTP_TIMEOUT_SECONDS: int = 15

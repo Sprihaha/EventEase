@@ -49,6 +49,10 @@ services:
       EVENTFINDA_PASSWORD: ${EVENTFINDA_PASSWORD:-}
       SALES_CLOSE_DAYS_BEFORE_EVENT: ${SALES_CLOSE_DAYS_BEFORE_EVENT:-7}
       DATA_GOV_SG_API_KEY: ${DATA_GOV_SG_API_KEY:-}
+      # Gmail sending: put MAIL_TRANSPORT=smtp and SMTP_PASSWORD=<app password> in project/.env (git-ignored).
+      # Without them, emails are printed to the container log instead.
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-console}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
     ports:
       - "10000:10000"
     depends_on:

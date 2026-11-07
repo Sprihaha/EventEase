@@ -82,4 +82,4 @@ services:
       - key: SMTP_USERNAME
         value: admin.gendol@gmail.com
       - key: SMTP_PASSWORD
-        value: "vvwazmhyfstvauut"
+        sync: false  # Gmail app password: set it in the Render dashboard, never in this file

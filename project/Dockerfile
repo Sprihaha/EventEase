@@ -44,8 +44,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     MAIL_TRANSPORT=smtp \
     SMTP_HOST=smtp.gmail.com \
     SMTP_PORT=465 \
-    SMTP_USERNAME=admin.gendol@gmail.com \
-    SMTP_PASSWORD=vvwazmhyfstvauut
+    SMTP_USERNAME=admin.gendol@gmail.com
 
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

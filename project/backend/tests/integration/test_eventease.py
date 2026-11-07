@@ -501,7 +501,7 @@ def test_release_job_runs_once_and_emails_the_codes(client, db, booked):
     assert release_due_qr_codes(db, get_settings(), now=due) == 0
     outbox = get_mailer().outbox[before:]
     assert len(outbox) == 1 and outbox[0].to == "fan@gmail.com"
-    assert outbox[0].subject == "Your QR tickets for Big Show are ready" and booked.code in outbox[0].body
+    assert outbox[0].subject.startswith("Your QR tickets for Big Show are ready (released ") and booked.code in outbox[0].body
 
     released = client.get(f"/api/v1/me/bookings/{booked.booking['id']}", headers=booked.headers).json()
     assert released["qrReleased"] is True and all(t["code"] for t in released["tickets"])
@@ -519,3 +519,39 @@ def test_qr_shows_inside_the_last_30_days_even_if_the_job_has_not_run(client, db
     db.commit()
     booking = client.get(f"/api/v1/me/bookings/{booked.booking['id']}", headers=booked.headers).json()
     assert booking["qrReleased"] is True and all(t["code"] for t in booking["tickets"])
+
+
+def _wait_for_release_mail():
+    import threading
+    for thread in threading.enumerate():
+        if thread.name == "qr-release-mailer":
+            thread.join(timeout=10)
+
+
+def test_every_forced_re_release_sends_a_new_email_with_its_own_subject(db, booked):
+    """Admins re-run the job after rewinding the business date: each run must look like a brand-new email."""
+    due = booked.event.start_at - timedelta(days=6)
+    before = len(get_mailer().outbox)
+    assert release_due_qr_codes(db, get_settings(), now=due, force=True) == 1
+    _wait_for_release_mail()
+    assert release_due_qr_codes(db, get_settings(), now=due, force=True) == 1
+    _wait_for_release_mail()
+    first, second = get_mailer().outbox[before:]
+    assert first.to == second.to == "fan@gmail.com"
+    assert first.subject.startswith("Your QR tickets for Big Show are ready (released ")
+    assert first.subject != second.subject
+
+
+def test_smtp_emails_each_get_a_unique_message_id():
+    from email.message import EmailMessage
+
+    from app.services.mail.base import _unique_headers
+
+    settings = get_settings().model_copy(update={"MAIL_FROM": "EventEase <tickets@eventease.example.com>"})
+    ids = set()
+    for _ in range(2):
+        message = EmailMessage()
+        _unique_headers(message, settings)
+        assert message["Message-ID"].endswith("@eventease.example.com>")
+        ids.add(message["Message-ID"])
+    assert len(ids) == 2

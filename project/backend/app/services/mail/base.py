@@ -5,6 +5,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.message import EmailMessage
+from email.utils import make_msgid
 from typing import Callable, Protocol
 
 from app.core.config import Settings, get_settings
@@ -203,6 +204,7 @@ class SmtpMailer:
         message["From"] = settings.MAIL_FROM
         message["To"] = to
         message["Subject"] = subject
+        _unique_headers(message, settings)
         message.set_content(body)
 
         if html:
@@ -255,6 +257,7 @@ class SmtpMailer:
             msg["From"] = settings.MAIL_FROM
             msg["To"] = to
             msg["Subject"] = subject
+            _unique_headers(msg, settings)
             msg.set_content(body)
             if html:
                 msg.add_alternative(html, subtype="html")
@@ -299,6 +302,13 @@ class SmtpMailer:
                 except Exception as e:
                     logger.warning("Failed sending batch email to %s: %s", msg["To"], e)
         return sent
+
+
+def _unique_headers(message: EmailMessage, settings: Settings) -> None:
+    """Give every email its own ID, so Gmail never merges or collapses repeat notifications."""
+    sender = (settings.MAIL_FROM or "").split("<")[-1].rstrip(">").strip()
+    message["Message-ID"] = make_msgid(domain=sender.rsplit("@", 1)[-1] if "@" in sender else None)
+    message["X-Entity-Ref-ID"] = message["Message-ID"].strip("<>")
 
 
 MailerFactory = Callable[[Settings], Mailer]

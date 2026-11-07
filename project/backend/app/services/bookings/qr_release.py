@@ -6,6 +6,7 @@ marks each due booking released once and emails every ticket holder their codes.
 """
 
 import logging
+import secrets
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -98,6 +99,9 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime, forc
     rows = db.execute(query).all()
     due = [(booking, event) for booking, event in rows if is_qr_release_due(event, now, settings)]
     tz, link = settings.tz, f"{settings.FRONTEND_URL.rstrip('/')}/dashboard/customer"
+    # Each run's email gets its own subject (release time + reference), so Gmail shows every re-release
+    # as a new email instead of tucking it into the earlier conversation with the same subject.
+    released_on = now.astimezone(tz).strftime("%d %b, %I:%M %p").replace(" 0", " ")
     emails = []
     for booking, event in due:
         booking.qr_released_at = now
@@ -127,7 +131,7 @@ def release_due_qr_codes(db: Session, settings: Settings, *, now: datetime, forc
             )
             email_tasks.append((
                 user.email,
-                f"Your QR tickets for {event.title} are ready",
+                f"Your QR tickets for {event.title} are ready (released {released_on}, Ref {secrets.token_hex(3).upper()})",
                 text_body,
                 html_body,
                 inline_images,
