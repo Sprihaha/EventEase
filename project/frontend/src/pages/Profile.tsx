@@ -17,7 +17,6 @@ import {
   ArrowRight,
   LogOut,
   ArrowLeft,
-  Briefcase,
   ShieldAlert,
   CalendarCheck,
   Code2,
@@ -524,15 +523,6 @@ export default function Profile() {
                   <Building2 className="h-5 w-5 text-brand-orange" />
                   <span>Organiser Affiliations</span>
                 </h2>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate("/select-organisation")}
-                  className="rounded-xl border-brand-purple/20 text-xs font-bold hover:border-brand-purple/40"
-                >
-                  <Briefcase className="h-3.5 w-3.5 text-brand-purple" />
-                  <span>Switch Organisation</span>
-                </Button>
               </div>
 
               {/* Active Organisation Highlight */}
