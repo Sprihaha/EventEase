@@ -127,7 +127,7 @@ class Settings(BaseSettings):
 
     # Mail. "console" prints messages; "resend" and "sendgrid" use HTTPS REST APIs;
     # "smtp" sends real mail (e.g. Gmail: smtp.gmail.com, port 587 with STARTTLS or 465 with SSL).
-    MAIL_TRANSPORT: Literal["console", "resend", "sendgrid", "smtp"] = "console"
+    MAIL_TRANSPORT: Literal["console", "resend", "sendgrid", "smtp", "gmail_api"] = "console"
     MAIL_FROM: str = "EventEase <admin.gendol@gmail.com>"
     RESEND_API_KEY: str | None = None
     SENDGRID_API_KEY: str | None = None
@@ -138,6 +138,12 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None  # from .env or the host's environment, never committed
     SMTP_USE_TLS: bool = False
     SMTP_USE_SSL: bool = True
+    # "gmail_api": send as the Gmail account over HTTPS (for hosts that block SMTP, e.g. Render's free plan).
+    # Values come from .env or the host's environment, never committed. Get the refresh token with
+    # `python -m app.cli gmail-authorize --client-secrets <downloaded client_secret.json> --save`.
+    GMAIL_CLIENT_ID: str | None = None
+    GMAIL_CLIENT_SECRET: str | None = None
+    GMAIL_REFRESH_TOKEN: str | None = None
     SMTP_TIMEOUT_SECONDS: int = 15
 
     # Email verification: required for new sign-ups; accounts created earlier get reminders.
@@ -190,6 +196,10 @@ class Settings(BaseSettings):
             raise ValueError("STRIPE_SECRET_KEY is required when PAYMENT_PROVIDER=stripe")
         if self.MAIL_TRANSPORT == "smtp" and not (self.SMTP_HOST and (self.SMTP_USERNAME or self.SMTP_USER) and self.SMTP_PASSWORD):
             raise ValueError("SMTP_HOST, SMTP_USERNAME and SMTP_PASSWORD are required when MAIL_TRANSPORT=smtp")
+        if self.MAIL_TRANSPORT == "gmail_api" and not (
+                self.GMAIL_CLIENT_ID and self.GMAIL_CLIENT_SECRET and self.GMAIL_REFRESH_TOKEN):
+            raise ValueError("GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN are required "
+                             "when MAIL_TRANSPORT=gmail_api")
         if self.MAIL_TRANSPORT == "resend" and not self.RESEND_API_KEY:
             raise ValueError("RESEND_API_KEY is required when MAIL_TRANSPORT=resend")
         if self.MAIL_TRANSPORT == "sendgrid" and not self.SENDGRID_API_KEY:

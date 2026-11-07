@@ -33,3 +33,6 @@ logs/
 Thumbs.db
 .tmp-*
 *.patch
+
+# Google OAuth client credentials (Gmail API) - never commit
+client_secret*.json

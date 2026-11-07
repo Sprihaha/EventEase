@@ -70,11 +70,19 @@ services:
       - key: PAYMENT_PROVIDER
         value: mock
 
-      # ── Mail (Gmail SMTP over port 465 for verified inbox delivery) ──
+      # ── Mail (Gmail API over HTTPS: Render's free plan blocks SMTP ports 25/465/587) ──
       - key: MAIL_TRANSPORT
-        value: smtp
+        value: gmail_api
       - key: MAIL_FROM
         value: "EventEase <admin.gendol@gmail.com>"
+      # OAuth client + refresh token from `python -m app.cli gmail-authorize`; set in the Render dashboard only
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      # SMTP settings stay for local/Docker use (MAIL_TRANSPORT=smtp); unused on Render
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT

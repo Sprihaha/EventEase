@@ -1,7 +1,10 @@
+import base64
 import logging
 import smtplib
 import ssl
 import sys
+import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.message import EmailMessage
@@ -200,35 +203,7 @@ class SmtpMailer:
         inline_images: dict[str, tuple[bytes, str, str]] | None = None,
     ) -> None:
         settings = self.settings or get_settings()
-        message = EmailMessage()
-        message["From"] = settings.MAIL_FROM
-        message["To"] = to
-        message["Subject"] = subject
-        _unique_headers(message, settings)
-        message.set_content(body)
-
-        if html:
-            message.add_alternative(html, subtype="html")
-            images = dict(inline_images) if inline_images else {}
-            if "cid:eventease_logo" in html or "cid:gendol_company_logo" in html:
-                try:
-                    from app.services.mail.templates import get_branding_images
-                    for k, v in get_branding_images().items():
-                        if k not in images and f"cid:{k}" in html:
-                            images[k] = v
-                except Exception:
-                    pass
-            if images:
-                html_part = message.get_payload()[-1]
-                for cid, (img_bytes, mime_type, filename) in images.items():
-                    maintype, subtype = mime_type.split("/", 1)
-                    html_part.add_related(
-                        img_bytes,
-                        maintype=maintype,
-                        subtype=subtype,
-                        cid=f"<{cid}>",
-                        filename=filename,
-                    )
+        message = build_message(settings, to, subject, body, html, inline_images)
 
         context = ssl.create_default_context()
         if settings.SMTP_PORT == 465:
@@ -251,37 +226,7 @@ class SmtpMailer:
         if not messages:
             return 0
         settings = self.settings or get_settings()
-        prepared = []
-        for to, subject, body, html, inline_images in messages:
-            msg = EmailMessage()
-            msg["From"] = settings.MAIL_FROM
-            msg["To"] = to
-            msg["Subject"] = subject
-            _unique_headers(msg, settings)
-            msg.set_content(body)
-            if html:
-                msg.add_alternative(html, subtype="html")
-                images = dict(inline_images) if inline_images else {}
-                if "cid:eventease_logo" in html or "cid:gendol_company_logo" in html:
-                    try:
-                        from app.services.mail.templates import get_branding_images
-                        for k, v in get_branding_images().items():
-                            if k not in images and f"cid:{k}" in html:
-                                images[k] = v
-                    except Exception:
-                        pass
-                if images:
-                    html_part = msg.get_payload()[-1]
-                    for cid, (img_bytes, mime_type, filename) in images.items():
-                        maintype, subtype = mime_type.split("/", 1)
-                        html_part.add_related(
-                            img_bytes,
-                            maintype=maintype,
-                            subtype=subtype,
-                            cid=f"<{cid}>",
-                            filename=filename,
-                        )
-            prepared.append(msg)
+        prepared = [build_message(settings, *message) for message in messages]
 
         context = ssl.create_default_context()
         sent = 0
@@ -301,6 +246,123 @@ class SmtpMailer:
                     sent += 1
                 except Exception as e:
                     logger.warning("Failed sending batch email to %s: %s", msg["To"], e)
+        return sent
+
+
+def build_message(
+    settings: Settings,
+    to: str,
+    subject: str,
+    body: str,
+    html: str | None = None,
+    inline_images: dict[str, tuple[bytes, str, str]] | None = None,
+) -> EmailMessage:
+    """One MIME email (text, optional HTML, inline cid: images) shared by the SMTP and Gmail API transports."""
+    message = EmailMessage()
+    message["From"] = settings.MAIL_FROM
+    message["To"] = to
+    message["Subject"] = subject
+    _unique_headers(message, settings)
+    message.set_content(body)
+    if not html:
+        return message
+    message.add_alternative(html, subtype="html")
+    images = dict(inline_images) if inline_images else {}
+    if "cid:eventease_logo" in html or "cid:gendol_company_logo" in html:
+        try:
+            from app.services.mail.templates import get_branding_images
+            for k, v in get_branding_images().items():
+                if k not in images and f"cid:{k}" in html:
+                    images[k] = v
+        except Exception:
+            pass
+    if images:
+        html_part = message.get_payload()[-1]
+        for cid, (img_bytes, mime_type, filename) in images.items():
+            maintype, subtype = mime_type.split("/", 1)
+            html_part.add_related(img_bytes, maintype=maintype, subtype=subtype, cid=f"<{cid}>", filename=filename)
+    return message
+
+
+class GmailApiMailer:
+    """Sends as the Gmail account itself through the Gmail API over HTTPS.
+
+    For hosts that block SMTP ports (Render's free plan blocks 25, 465 and 587). Google sends the mail
+    from the real account, so it passes Gmail's sender checks and lands in the inbox. Needs an OAuth
+    client and a refresh token for the gmail.send scope (`python -m app.cli gmail-authorize`).
+    """
+
+    TOKEN_URL = "https://oauth2.googleapis.com/token"
+    SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+
+    def __init__(self, settings: Settings | None = None, transport=None) -> None:
+        cfg = settings or get_settings()
+        if not (cfg.GMAIL_CLIENT_ID and cfg.GMAIL_CLIENT_SECRET and cfg.GMAIL_REFRESH_TOKEN):
+            raise RuntimeError("GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN must be set "
+                               "when MAIL_TRANSPORT=gmail_api")
+        self.settings = cfg
+        self._transport = transport  # tests pass an httpx.MockTransport
+        self._token: str | None = None
+        self._expires_at = 0.0
+        self._lock = threading.Lock()
+
+    def _client(self):
+        import httpx
+        return httpx.Client(timeout=20.0, transport=self._transport)
+
+    def _access_token(self, client, *, renew: bool = False) -> str:
+        with self._lock:
+            if renew or not self._token or time.monotonic() >= self._expires_at:
+                resp = client.post(self.TOKEN_URL, data={
+                    "client_id": self.settings.GMAIL_CLIENT_ID,
+                    "client_secret": self.settings.GMAIL_CLIENT_SECRET,
+                    "refresh_token": self.settings.GMAIL_REFRESH_TOKEN,
+                    "grant_type": "refresh_token",
+                })
+                if resp.is_error:
+                    logger.error("Gmail API token refresh failed (%s): %s", resp.status_code, resp.text)
+                    resp.raise_for_status()
+                data = resp.json()
+                self._token = data["access_token"]
+                self._expires_at = time.monotonic() + int(data.get("expires_in", 3600)) - 60
+            return self._token
+
+    def _deliver(self, client, message: EmailMessage) -> None:
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode("ascii")
+        for attempt in range(2):
+            token = self._access_token(client, renew=attempt > 0)
+            resp = client.post(self.SEND_URL, headers={"Authorization": f"Bearer {token}"}, json={"raw": raw})
+            if resp.status_code == 401 and attempt == 0:
+                continue  # access token expired or revoked early: renew once
+            if resp.is_error:
+                logger.error("Gmail API delivery to %s failed (%s): %s", message["To"], resp.status_code, resp.text)
+                resp.raise_for_status()
+            logger.info("Gmail API mail sent to %s (id: %s)", message["To"], resp.json().get("id"))
+            return
+
+    def send(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        html: str | None = None,
+        inline_images: dict[str, tuple[bytes, str, str]] | None = None,
+    ) -> None:
+        with self._client() as client:
+            self._deliver(client, build_message(self.settings, to, subject, body, html, inline_images))
+
+    def send_batch(
+        self,
+        messages: list[tuple[str, str, str, str | None, dict[str, tuple[bytes, str, str]] | None]],
+    ) -> int:
+        sent = 0
+        with self._client() as client:
+            for message in messages:
+                try:
+                    self._deliver(client, build_message(self.settings, *message))
+                    sent += 1
+                except Exception as e:
+                    logger.warning("Failed sending batch email to %s: %s", message[0], e)
         return sent
 
 
@@ -326,6 +388,7 @@ register_mailer("console", lambda settings: ConsoleMailer())
 register_mailer("resend", lambda settings: ResendMailer(settings))
 register_mailer("sendgrid", lambda settings: SendGridMailer(settings))
 register_mailer("smtp", lambda settings: SmtpMailer(settings))
+register_mailer("gmail_api", lambda settings: GmailApiMailer(settings))
 
 _mailer: Mailer | None = None
 
