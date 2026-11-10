@@ -16,7 +16,7 @@ import { useStore, currency, fmtDate } from "../lib/store";
 import { fetchOwnedTickets, payBooking, type OwnedTicket } from "../lib/ticketingApi";
 import { getExchangeActivity, type ExchangeActivity } from "../lib/exchangeApi";
 import { DashboardShell, type NavItem } from "../components/DashboardShell";
-import { QRCode, ticketPayload, Button, Badge, Card, cx } from "../components/ui";
+import { QRCode, ticketPayload, Button, Badge, Card, cx, Select } from "../components/ui";
 
 const nav: NavItem[] = [
   { id: "tickets", label: "Dashboard", icon: LayoutDashboard },
@@ -508,28 +508,58 @@ export default function CustomerDashboard() {
           {/* COMBINED 1 TABLE BOOKING & EXCHANGE HISTORY WITH PAGINATION */}
           {active === "history" && (
             <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-brand text-xl font-bold text-brand-deep">Unified Activity & Booking History</h3>
-                  <p className="text-xs text-muted mt-0.5">
-                    All your ticket purchases, reservations, and EaseXchange transactions combined in one chronological table.
-                  </p>
-                </div>
+              <div>
+                <h3 className="font-brand text-xl font-bold text-brand-deep">Unified Activity & Booking History</h3>
+                <p className="text-xs text-muted mt-0.5">
+                  All your ticket purchases, reservations, and EaseXchange transactions combined in one chronological table.
+                </p>
+              </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted font-medium">Filter:</span>
-                  <select
-                    className="rounded-lg border border-line bg-white px-2.5 py-1 text-xs font-semibold"
-                    value={historyFilter}
-                    onChange={(e) => {
-                      setHistoryFilter(e.target.value as "all" | "booking" | "exchange");
-                      setHistoryPage(1);
-                    }}
-                  >
-                    <option value="all">All Activities ({bookingRows.length + exchangeRows.length})</option>
-                    <option value="booking">Bookings Only ({bookingRows.length})</option>
-                    <option value="exchange">Exchanges Only ({exchangeRows.length})</option>
-                  </select>
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-medium text-muted">
+                <span>
+                  {allHistoryRows.length
+                    ? `Showing ${(currentHistoryPage - 1) * historyPageSize + 1}–${Math.min(currentHistoryPage * historyPageSize, allHistoryRows.length)} of ${allHistoryRows.length} ${allHistoryRows.length === 1 ? "activity" : "activities"}`
+                    : "Showing 0 activities"}
+                </span>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-muted">Filter</span>
+                    <span className="w-40">
+                      <Select
+                        aria-label="Filter activity"
+                        value={historyFilter}
+                        onChange={(e) => {
+                          setHistoryFilter(e.target.value as "all" | "booking" | "exchange");
+                          setHistoryPage(1);
+                        }}
+                      >
+                        <option value="all">All ({bookingRows.length + exchangeRows.length})</option>
+                        <option value="booking">Bookings ({bookingRows.length})</option>
+                        <option value="exchange">Exchanges ({exchangeRows.length})</option>
+                      </Select>
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-muted">Per page</span>
+                    <span className="w-24">
+                      <Select
+                        aria-label="Activities per page"
+                        value={String(historyPageSize)}
+                        onChange={(e) => {
+                          setHistoryPageSize(Number(e.target.value));
+                          setHistoryPage(1);
+                        }}
+                      >
+                        {[10, 20, 50].map((size) => (
+                          <option key={size} value={size}>
+                            {size}
+                          </option>
+                        ))}
+                      </Select>
+                    </span>
+                  </label>
                 </div>
               </div>
 
@@ -607,54 +637,50 @@ export default function CustomerDashboard() {
                 {!allHistoryRows.length && (
                   <div className="p-8 text-center text-sm text-muted">No booking or exchange history found.</div>
                 )}
-
-                {/* PAGINATION CONTROLS */}
-                {allHistoryRows.length > 0 && (
-                  <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line bg-mist/20 p-3.5 text-xs text-muted">
-                    <div className="flex items-center gap-2">
-                      <span>Rows per page:</span>
-                      <select
-                        className="rounded border border-line bg-white p-1 text-xs"
-                        value={historyPageSize}
-                        onChange={(e) => {
-                          setHistoryPageSize(Number(e.target.value));
-                          setHistoryPage(1);
-                        }}
-                      >
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                      </select>
-                      <span>
-                        Showing {(currentHistoryPage - 1) * historyPageSize + 1}–
-                        {Math.min(currentHistoryPage * historyPageSize, allHistoryRows.length)} of {allHistoryRows.length}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={currentHistoryPage <= 1}
-                        onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
-                      >
-                        <ChevronLeft className="h-3.5 w-3.5" /> Previous
-                      </Button>
-                      <span className="px-2 font-medium">
-                        Page {currentHistoryPage} of {totalHistoryPages}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={currentHistoryPage >= totalHistoryPages}
-                        onClick={() => setHistoryPage((p) => Math.min(totalHistoryPages, p + 1))}
-                      >
-                        Next <ChevronRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </Card>
+
+              {totalHistoryPages > 1 && (
+                <nav aria-label="Booking history pages" className="mt-8 flex flex-wrap items-center justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Previous page"
+                    disabled={currentHistoryPage === 1}
+                    onClick={() => {
+                      setHistoryPage((p) => Math.max(1, p - 1));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {Array.from({ length: totalHistoryPages }, (_, index) => index + 1).map((number) => (
+                    <Button
+                      key={number}
+                      size="sm"
+                      variant={number === currentHistoryPage ? "primary" : "ghost"}
+                      aria-current={number === currentHistoryPage ? "page" : undefined}
+                      onClick={() => {
+                        setHistoryPage(number);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      {number}
+                    </Button>
+                  ))}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Next page"
+                    disabled={currentHistoryPage === totalHistoryPages}
+                    onClick={() => {
+                      setHistoryPage((p) => Math.min(totalHistoryPages, p + 1));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </nav>
+              )}
             </div>
           )}
 
