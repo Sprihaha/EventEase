@@ -9,8 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { useStore, currency, fmtDate } from "../lib/store";
 import { fetchOwnedTickets, payBooking, type OwnedTicket } from "../lib/ticketingApi";
@@ -95,9 +93,10 @@ export default function CustomerDashboard() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
-  // Ticket filtering & grouping states
+  // Ticket filtering & pagination states
   const [ticketFilter, setTicketFilter] = useState<TicketCategoryFilter>("all");
-  const [lumpUsedOpen, setLumpUsedOpen] = useState(true);
+  const [ticketPage, setTicketPage] = useState(1);
+  const [ticketPageSize, setTicketPageSize] = useState(10);
 
   // Booking history unified pagination & filter states
   const [historyPage, setHistoryPage] = useState(1);
@@ -191,7 +190,16 @@ export default function CustomerDashboard() {
   const usedTickets = classifiedTickets.filter((c) => c.status.key === "used");
   const exchangedTickets = classifiedTickets.filter((c) => c.isExchanged);
   const expiredTickets = classifiedTickets.filter((c) => c.status.key === "expired");
-  const pastAndUsedTickets = classifiedTickets.filter((c) => c.status.key !== "upcoming");
+
+  // Sorted classified tickets for "all": upcoming/active tickets first, then by event start date
+  const allTicketsSorted = useMemo(() => {
+    return [...classifiedTickets].sort((a, b) => {
+      const aUpcoming = a.status.key === "upcoming" ? 1 : 0;
+      const bUpcoming = b.status.key === "upcoming" ? 1 : 0;
+      if (aUpcoming !== bUpcoming) return bUpcoming - aUpcoming;
+      return Date.parse(b.ticket.event?.startAt || "") - Date.parse(a.ticket.event?.startAt || "");
+    });
+  }, [classifiedTickets]);
 
   // Filtered ticket view
   const displayedTickets =
@@ -205,7 +213,15 @@ export default function CustomerDashboard() {
             ? exchangedTickets
             : ticketFilter === "expired"
               ? expiredTickets
-              : classifiedTickets;
+              : allTicketsSorted;
+
+  const totalTicketPages = Math.max(1, Math.ceil(displayedTickets.length / ticketPageSize));
+  const currentTicketPage = Math.min(ticketPage, totalTicketPages);
+  const firstTicketShown = (currentTicketPage - 1) * ticketPageSize;
+  const paginatedTickets = displayedTickets.slice(
+    firstTicketShown,
+    firstTicketShown + ticketPageSize,
+  );
 
   // Unified Booking & Exchange History
   type UnifiedHistoryRow = {
@@ -393,7 +409,10 @@ export default function CustomerDashboard() {
                     <button
                       key={tab.key}
                       type="button"
-                      onClick={() => setTicketFilter(tab.key)}
+                      onClick={() => {
+                        setTicketFilter(tab.key);
+                        setTicketPage(1);
+                      }}
                       className={cx(
                         "rounded-xl px-3.5 py-1.5 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5",
                         ticketFilter === tab.key
@@ -426,77 +445,92 @@ export default function CustomerDashboard() {
                 </Card>
               )}
 
-              {/* When Filter is "All": Display Upcoming Tickets on Top, Lump Past & Used Tickets Below */}
-              {!loading && ticketFilter === "all" && classifiedTickets.length > 0 && (
-                <div className="space-y-6">
-                  {/* Section 1: Upcoming Active Tickets */}
-                  <div className="space-y-4">
-                    <h3 className="font-brand text-lg font-bold text-brand-deep flex items-center gap-2">
-                      <span>Upcoming & Active Tickets</span>
-                      <Badge tone="live">{upcomingTickets.length}</Badge>
-                    </h3>
-                    {upcomingTickets.length === 0 ? (
-                      <Card className="p-6 text-sm text-muted">
-                        No active upcoming tickets. Check below for past or used tickets.
-                      </Card>
-                    ) : (
-                      <div className="space-y-4">{upcomingTickets.map(renderTicketCard)}</div>
-                    )}
-                  </div>
+              {/* Tickets Summary & Per-Page Controls */}
+              {!loading && classifiedTickets.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-medium text-muted">
+                  <span>
+                    {displayedTickets.length
+                      ? `Showing ${firstTicketShown + 1}–${firstTicketShown + paginatedTickets.length} of ${displayedTickets.length} ${displayedTickets.length === 1 ? "ticket" : "tickets"}`
+                      : "Showing 0 tickets"}
+                  </span>
 
-                  {/* Section 2: Lumped Used, Exchanged, and Expired Tickets */}
-                  {pastAndUsedTickets.length > 0 && (
-                    <div className="rounded-2xl border border-line bg-mist/30 p-4">
-                      <button
-                        type="button"
-                        onClick={() => setLumpUsedOpen((prev) => !prev)}
-                        className="flex w-full items-center justify-between text-left font-brand text-base font-bold text-brand-deep cursor-pointer"
+                  <label className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-muted">Per page</span>
+                    <span className="w-24">
+                      <Select
+                        aria-label="Tickets per page"
+                        value={String(ticketPageSize)}
+                        onChange={(e) => {
+                          setTicketPageSize(Number(e.target.value));
+                          setTicketPage(1);
+                        }}
                       >
-                        <span className="flex items-center gap-2">
-                          <span>Past & Used Tickets</span>
-                          <span className="rounded-full bg-line px-2 py-0.5 text-xs font-semibold text-muted">
-                            {pastAndUsedTickets.length}
-                          </span>
-                        </span>
-                        <span className="text-muted flex items-center gap-1 text-xs font-medium">
-                          {lumpUsedOpen ? (
-                            <>
-                              <span>Collapse</span>
-                              <ChevronUp className="h-4 w-4" />
-                            </>
-                          ) : (
-                            <>
-                              <span>Expand</span>
-                              <ChevronDown className="h-4 w-4" />
-                            </>
-                          )}
-                        </span>
-                      </button>
-
-                      {lumpUsedOpen && (
-                        <div className="mt-4 space-y-3">
-                          <p className="text-xs text-muted mb-2">
-                            Tickets that have already been admitted, exchanged, or whose event dates have expired are lumped here for your records.
-                          </p>
-                          {pastAndUsedTickets.map(renderTicketCard)}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        {[10, 20, 50].map((size) => (
+                          <option key={size} value={size}>
+                            {size}
+                          </option>
+                        ))}
+                      </Select>
+                    </span>
+                  </label>
                 </div>
               )}
 
-              {/* When Specific Filter is Selected */}
-              {!loading && ticketFilter !== "all" && (
-                <div className="space-y-4">
-                  {displayedTickets.length === 0 ? (
-                    <Card className="p-8 text-center text-sm text-muted">
-                      No tickets match the "{ticketFilter}" filter.
-                    </Card>
-                  ) : (
-                    displayedTickets.map(renderTicketCard)
-                  )}
-                </div>
+              {/* Paginated Tickets Display */}
+              {!loading && classifiedTickets.length > 0 && (
+                displayedTickets.length === 0 ? (
+                  <Card className="p-8 text-center text-sm text-muted">
+                    No tickets match the "{ticketFilter}" filter.
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {paginatedTickets.map(renderTicketCard)}
+                  </div>
+                )
+              )}
+
+              {/* Discover-Style Bottom Pagination Navigation */}
+              {!loading && totalTicketPages > 1 && (
+                <nav aria-label="Ticket pages" className="mt-8 flex flex-wrap items-center justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Previous page"
+                    disabled={currentTicketPage === 1}
+                    onClick={() => {
+                      setTicketPage((p) => Math.max(1, p - 1));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  {Array.from({ length: totalTicketPages }, (_, index) => index + 1).map((number) => (
+                    <Button
+                      key={number}
+                      size="sm"
+                      variant={number === currentTicketPage ? "primary" : "ghost"}
+                      aria-current={number === currentTicketPage ? "page" : undefined}
+                      onClick={() => {
+                        setTicketPage(number);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      {number}
+                    </Button>
+                  ))}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Next page"
+                    disabled={currentTicketPage === totalTicketPages}
+                    onClick={() => {
+                      setTicketPage((p) => Math.min(totalTicketPages, p + 1));
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </nav>
               )}
             </div>
           )}
