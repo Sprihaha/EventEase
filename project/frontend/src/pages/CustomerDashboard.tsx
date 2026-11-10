@@ -301,13 +301,11 @@ export default function CustomerDashboard() {
 
   const renderTicketCard = (item: (typeof classifiedTickets)[0]) => {
     const { ticket: t, status: st, isExchanged } = item;
-    const canExchange =
+    const salesOpen =
       st.key === "upcoming" &&
       (t.status === "VALID" || t.status === "EXCHANGED") &&
       !t.checkedInAt &&
       !t.code &&
-      !t.exchangedAt &&
-      Date.parse(t.event.startAt) - 7 * 24 * 60 * 60 * 1000 > Date.now() &&
       !eventPassed(t.event.endAt ?? t.event.startAt);
 
     return (
@@ -343,12 +341,21 @@ export default function CustomerDashboard() {
           >
             <QrCode className="h-4 w-4" /> Show ticket
           </Button>
-          {canExchange && (
-            <Link to={`/community?tab=exchange&view=create&ticket=${encodeURIComponent(t.id)}`}>
-              <Button variant="outline">
-                <ArrowLeftRight className="h-4 w-4" /> Exchange ticket
-              </Button>
-            </Link>
+          {salesOpen && (
+            isExchanged ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" disabled aria-disabled="true">
+                  <ArrowLeftRight className="h-4 w-4" /> Exchange ticket
+                </Button>
+                <span className="text-xs text-muted italic">Already exchanged (Limit 1 per ticket)</span>
+              </div>
+            ) : (
+              <Link to={`/community?tab=exchange&view=create&ticket=${encodeURIComponent(t.id)}`}>
+                <Button variant="outline">
+                  <ArrowLeftRight className="h-4 w-4" /> Exchange ticket
+                </Button>
+              </Link>
+            )
           )}
         </div>
       </Card>
