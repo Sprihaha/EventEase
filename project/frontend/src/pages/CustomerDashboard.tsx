@@ -40,7 +40,7 @@ const exchangeMessages: Record<string, string> = {
   EXCHANGE_EXPIRED: "Exchange expired",
 };
 
-export type TicketCategoryFilter = "all" | "upcoming" | "used" | "exchanged" | "expired";
+export type TicketCategoryFilter = "all" | "active" | "upcoming" | "used" | "exchanged" | "expired";
 
 function getTicketStatus(t: OwnedTicket): {
   key: "upcoming" | "used" | "exchanged" | "expired";
@@ -49,14 +49,6 @@ function getTicketStatus(t: OwnedTicket): {
   description: string;
 } {
   const isPast = Date.parse(t.event.endAt ?? t.event.startAt) <= Date.now();
-  if (t.exchangedAt || t.status === "EXCHANGED") {
-    return {
-      key: "exchanged",
-      label: "Exchanged",
-      tone: "warn",
-      description: "Exchanged via EaseXchange (One-time exchange completed).",
-    };
-  }
   if (t.checkedInAt) {
     return {
       key: "used",
@@ -76,9 +68,13 @@ function getTicketStatus(t: OwnedTicket): {
   if (t.status === "VALID") {
     return {
       key: "upcoming",
-      label: t.code ? "VALID" : "Confirmed",
+      label: t.code ? "ACTIVE" : "Confirmed",
       tone: "live",
-      description: t.code ? "Ready for admission" : (t.qrAvailableFrom ? `Your QR code will be available from ${fmtDate(t.qrAvailableFrom)}` : "Booking confirmed"),
+      description: t.code
+        ? "Ready for admission"
+        : t.qrAvailableFrom
+          ? `Your QR code will be available from ${fmtDate(t.qrAvailableFrom)}`
+          : "Booking confirmed",
     };
   }
   return {
@@ -185,24 +181,31 @@ export default function CustomerDashboard() {
   const eventPassed = (date?: string) => !!date && Date.parse(date) <= Date.now();
 
   // Classified tickets with their computed statuses
-  const classifiedTickets = tickets.map((t) => ({ ticket: t, status: getTicketStatus(t) }));
+  const classifiedTickets = tickets.map((t) => ({
+    ticket: t,
+    status: getTicketStatus(t),
+    isExchanged: Boolean(t.exchangedAt || t.status === "EXCHANGED"),
+  }));
+  const activeTickets = classifiedTickets.filter((c) => c.status.label === "ACTIVE");
   const upcomingTickets = classifiedTickets.filter((c) => c.status.key === "upcoming");
   const usedTickets = classifiedTickets.filter((c) => c.status.key === "used");
-  const exchangedTickets = classifiedTickets.filter((c) => c.status.key === "exchanged");
+  const exchangedTickets = classifiedTickets.filter((c) => c.isExchanged);
   const expiredTickets = classifiedTickets.filter((c) => c.status.key === "expired");
   const pastAndUsedTickets = classifiedTickets.filter((c) => c.status.key !== "upcoming");
 
   // Filtered ticket view
   const displayedTickets =
-    ticketFilter === "upcoming"
-      ? upcomingTickets
-      : ticketFilter === "used"
-        ? usedTickets
-        : ticketFilter === "exchanged"
-          ? exchangedTickets
-          : ticketFilter === "expired"
-            ? expiredTickets
-            : classifiedTickets;
+    ticketFilter === "active"
+      ? activeTickets
+      : ticketFilter === "upcoming"
+        ? upcomingTickets
+        : ticketFilter === "used"
+          ? usedTickets
+          : ticketFilter === "exchanged"
+            ? exchangedTickets
+            : ticketFilter === "expired"
+              ? expiredTickets
+              : classifiedTickets;
 
   // Unified Booking & Exchange History
   type UnifiedHistoryRow = {
@@ -292,15 +295,10 @@ export default function CustomerDashboard() {
       !eventPassed(t.event.endAt ?? t.event.startAt);
 
     return (
-      <Card key={t.id} className="flex flex-wrap items-center justify-between gap-4 p-6 transition-shadow hover:shadow-md">
+      <Card key={t.id} className="flex flex-col gap-4 p-6 transition-shadow hover:shadow-md">
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={st.tone}>{st.label}</Badge>
-            {t.exchangedAt && (
-              <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-0.5">
-                Single exchange used
-              </span>
-            )}
             <span className="text-xs text-muted">ID: {t.id.slice(0, 8)}</span>
           </div>
           <h2 className="font-brand text-xl font-bold text-brand-deep">{t.event.title}</h2>
@@ -321,9 +319,9 @@ export default function CustomerDashboard() {
           {st.key !== "upcoming" && <p className="text-xs font-medium text-muted">{st.description}</p>}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-line/60">
           <Button
-            disabled={!t.code || t.status !== "VALID" || t.bookingStatus !== "CONFIRMED" || !!t.checkedInAt || !!t.exchangedAt}
+            disabled={!t.code || t.status !== "VALID" || t.bookingStatus !== "CONFIRMED" || !!t.checkedInAt}
             onClick={() => setQr(t)}
           >
             <QrCode className="h-4 w-4" /> Show ticket
@@ -334,9 +332,6 @@ export default function CustomerDashboard() {
                 <ArrowLeftRight className="h-4 w-4" /> Exchange ticket
               </Button>
             </Link>
-          )}
-          {t.exchangedAt && (
-            <span className="text-xs text-muted italic px-2 py-1">Exchanged (Limit 1 per ticket)</span>
           )}
         </div>
       </Card>
@@ -388,6 +383,7 @@ export default function CustomerDashboard() {
                   {(
                     [
                       { key: "all", label: "All Tickets", count: classifiedTickets.length },
+                      { key: "active", label: "Active", count: activeTickets.length },
                       { key: "upcoming", label: "Upcoming", count: upcomingTickets.length },
                       { key: "used", label: "Used / Admitted", count: usedTickets.length },
                       { key: "exchanged", label: "Exchanged", count: exchangedTickets.length },
