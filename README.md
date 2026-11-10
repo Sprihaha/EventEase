@@ -40,7 +40,6 @@ EventEase is deployed as an enterprise single-container monolith on **Render**:
   - [Time-Travel Clock Simulation & Developer Tools](#7-time-travel-clock-simulation--developer-tools)
   - [Community Forum, EasePoints & Knowledge Base](#8-community-forum-easepoints--knowledge-base)
 - [Technology Stack](#-technology-stack)
-- [Domain Architecture & SOLID Foundations](#-domain-architecture--solid-foundations)
 - [Directory Structure](#-directory-structure)
 - [Role-Based Access Control (RBAC)](#-role-based-access-control-rbac)
 - [Quick Start & Local Development](#-quick-start--local-development)
@@ -172,40 +171,6 @@ flowchart TD
 | **Hosting Platform** | [Render](https://render.com/) | Native Docker | Monolith web service with automated health checks |
 | **Email Transports** | Gmail API (OAuth 2.0) / SMTP | — | Dual mailer engine for reliable transactional emails |
 | **Testing Framework** | [pytest](https://pytest.org/) | `8.3` | Comprehensive unit, integration, and architecture tests |
-
----
-
-## 🏛️ Domain Architecture & SOLID Foundations
-
-The EventEase codebase is structured around **Clean Architecture** and strict **SOLID** principles, organized into distinct packages:
-
-```text
-Package A: Authentication, RBAC & PDPA Governance
-  ├── Single-responsibility authentication & token issuance services
-  ├── Strict role isolation (Customer, Organiser, Admin)
-  └── PDPA data-minimisation & retention purge policies
-
-Package B: Concurrency-Safe Ticketing & Seating
-  ├── Open-Closed Principle (OCP) seat allocation strategies
-  ├── Atomic row-level lock concurrency & 10-minute hold rollbacks
-  └── Configurable anti-scalping purchase quotas
-
-Package C: Moderation & Ingestion Pipelines
-  ├── Dependency Inversion (DIP) external ingestion adapters
-  ├── Eventfinda Singapore API & CSV/JSON bulk import modules
-  └── Administrative review, approval, and suspension workflows
-
-Package D: Inclusive Accessibility (EaseVoice)
-  ├── Web Speech API speech synthesis integration
-  ├── WCAG AAA high-contrast modes, typography scaling, & Dyslexic fonts
-  └── Dedicated on-site accommodation coordination queue
-
-Package E: Operational Excellence & Resale
-  ├── Dynamic anti-scalping QR pass release scheduler
-  ├── EaseXchange fair peer-to-peer resale mechanics
-  ├── Heuristic fraud detection & anomaly alerting
-  └── Multi-tenant organisation governance & ACRA UEN verification
-```
 
 ---
 
@@ -541,7 +506,7 @@ pytest tests/unit -v
 # Run integration tests only
 pytest tests/integration -v
 
-# Run SOLID architecture and security compliance tests
+# Run business rule and security compliance tests
 pytest tests/unit/test_rules.py tests/unit/test_no_hardcoded_secrets.py -v
 ```
 
