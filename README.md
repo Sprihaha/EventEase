@@ -86,7 +86,7 @@ flowchart TD
     subgraph ExternalServices["External APIs & Integrations"]
         GmailAPI["📧 Gmail API (OAuth 2.0) / SMTP"]
         ACRA["🏛️ Data.gov.sg (ACRA UEN Registry)"]
-        Ticketmaster["🎫 Ticketmaster Discovery API"]
+        Eventfinda["🎫 Eventfinda Singapore API"]
         SpeechAPI["🗣️ Browser Web Speech API (EaseVoice)"]
     end
 
@@ -96,7 +96,7 @@ flowchart TD
     FastAPI <-->|SQLAlchemy 2.0 / Alembic| Postgres
     FastAPI <-->|OAuth2 Token Exchange| GmailAPI
     FastAPI <-->|UEN Verification| ACRA
-    FastAPI <-->|Event Ingestion| Ticketmaster
+    FastAPI <-->|Event Ingestion| Eventfinda
     SPA -.->|Text-to-Speech| SpeechAPI
     Scheduler <-->|Dynamic QR Release & Sweeps| Postgres
 ```
@@ -192,7 +192,7 @@ Package B: Concurrency-Safe Ticketing & Seating
 
 Package C: Moderation & Ingestion Pipelines
   ├── Dependency Inversion (DIP) external ingestion adapters
-  ├── Ticketmaster Discovery API & CSV/JSON bulk import modules
+  ├── Eventfinda Singapore API & CSV/JSON bulk import modules
   └── Administrative review, approval, and suspension workflows
 
 Package D: Inclusive Accessibility (EaseVoice)
@@ -242,7 +242,7 @@ EventEase/
     │   │   ├── schemas/                # Pydantic v2 request & response schemas
     │   │   ├── services/               # Core business services
     │   │   │   ├── bookings/           # Dynamic QR release & seat hold sweepers
-    │   │   │   ├── ingestion/          # Ticketmaster & external sync adapters
+    │   │   │   ├── ingestion/          # Eventfinda & external sync adapters
     │   │   │   ├── mail/               # Gmail API & SMTP transactional mailers
     │   │   │   └── reports/            # CSV/PDF reporting engines
     │   │   ├── cli.py                  # Administrative CLI commands
@@ -289,7 +289,7 @@ EventEase enforces strict role-based separation:
 | :--- | :--- | :--- |
 | **`CUSTOMER`** | `/dashboard/customer` | Browse catalog, select seats with 10-min hold, checkout, view passes with dynamic QR release, request on-site accessibility assistance, cancel eligible bookings (48h cutoff), list tickets on EaseXchange, earn EasePoints. |
 | **`ORGANISER`** | `/dashboard/organizer` | Register organisation with ACRA UEN lookup, invite team members, build venue seating layouts, configure ticket tier pricing and quotas, monitor live venue occupancy via `OperationsSeatMap`, process assistance requests, download CSV/PDF sales reports. |
-| **`ADMIN`** | `/dashboard/admin` | Moderate pending events (Approve / Reject / Suspend), bulk import external events (CSV / JSON / Ticketmaster), manage users and account suspensions, audit fraud signals and security logs, trigger background scheduler jobs, control time-travel clock simulation. |
+| **`ADMIN`** | `/dashboard/admin` | Moderate pending events (Approve / Reject / Suspend), bulk import external events (CSV / JSON / Eventfinda sync), manage users and account suspensions, audit fraud signals and security logs, trigger background scheduler jobs, control time-travel clock simulation. |
 | **`GATE STAFF`** | `/verify/:ref` | Public turnstile verification view with live camera QR scanning and manual reference lookup to validate and claim attendee tickets at the venue door. |
 
 ---
@@ -455,7 +455,10 @@ All configuration is driven through environment variables defined in `project/ba
 | `GMAIL_REFRESH_TOKEN` | — | Google Cloud OAuth Refresh Token |
 | `PAYMENT_PROVIDER` | `mock` | Payment gateway integration (`mock` or `stripe`) |
 | `DATA_GOV_SG_API_KEY` | — | Optional API key for live ACRA Singapore business entity queries |
-| `TICKETMASTER_API_KEY` | — | Optional API key for syncing external Ticketmaster Singapore listings |
+| `EVENTFINDA_USERNAME` | — | HTTP Basic auth username for Eventfinda Singapore API |
+| `EVENTFINDA_PASSWORD` | — | HTTP Basic auth password for Eventfinda Singapore API |
+| `EVENTFINDA_BASE_URL` | `https://api.eventfinda.sg/v2` | Base URL for the Eventfinda Singapore API |
+| `INGEST_AUTO_APPROVE` | `true` | Automatically approve imported Eventfinda events |
 | `DATA_RETENTION_DAYS` | `90` | Singapore PDPA retention window for login logs and IP records |
 
 ---
@@ -509,14 +512,13 @@ The backend provides versioned endpoints prefixed with `/api/v1`. Full schema de
 
 ### System Administration & Moderation (`/api/v1/admin`)
 - `GET /events` & `POST /events/{id}/approve|reject|suspend` 🔒 — Event moderation pipeline.
-- `POST /events/import` 🔒 — Bulk upload events via CSV or JSON.
-- `POST /sources/ticketmaster/sync` 🔒 — Synchronize external events from Ticketmaster.
+- `POST /events/import` 🔒 — Bulk upload curated events via CSV or JSON.
 - `GET /users` & `POST /users/{id}/suspend` 🔒 — Account governance and penalty actions.
 - `GET /fraud-signals` & `GET /audit-logs` 🔒 — Platform security and compliance audit logs.
 
 ### Developer & Time Travel (`/api/v1/developer`)
 - `GET /clock` & `POST /clock/simulate` 🔒 — Time-travel clock simulation for testing.
-- `POST /jobs/{job_name}/run` 🔒 — Trigger background scheduler tasks on demand.
+- `POST /admin/developer/scheduler/jobs/{job_id}/run` 🔒 — Trigger background scheduler tasks on demand (e.g. `EVENTFINDA_SYNC`, `HOLD_SWEEPER`, `RETENTION_PURGE`).
 - `POST /reset-demo-data` 🔒 — Reset test environment to pristine baseline state.
 
 ---
