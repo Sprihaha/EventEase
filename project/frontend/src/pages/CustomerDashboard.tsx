@@ -429,6 +429,7 @@ export default function CustomerDashboard() {
                   <p>
                     All ticket sales are final and strictly <strong>non-refundable</strong>. Tickets cannot be returned once confirmed.
                     Tickets are eligible for a <strong>one-time exchange</strong> via EaseXchange before ticket sales close.
+                    Organisers reserve the right to cancel the event without prior notice.
                   </p>
                 </div>
               </div>
@@ -439,10 +440,10 @@ export default function CustomerDashboard() {
                   {(
                     [
                       { key: "all", label: "All Tickets", count: classifiedTickets.length },
-                      { key: "active", label: "Active", count: activeTickets.length },
                       { key: "upcoming", label: "Upcoming / Confirmed", count: upcomingTickets.length },
-                      { key: "used", label: "Used / Admitted", count: usedTickets.length },
+                      { key: "active", label: "Active", count: activeTickets.length },
                       { key: "exchanged", label: "Exchanged", count: exchangedTickets.length },
+                      { key: "used", label: "Used / Admitted", count: usedTickets.length },
                       { key: "unused", label: "Unused", count: unusedTickets.length },
                       { key: "cancelled", label: "Cancelled", count: cancelledTickets.length },
                     ] as const
