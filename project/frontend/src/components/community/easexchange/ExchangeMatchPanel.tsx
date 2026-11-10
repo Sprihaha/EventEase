@@ -18,7 +18,14 @@ import useExchangeResource from "../../../lib/useExchangeResource";
 import { matchDisplayStatus, requestNumbers } from "../../../lib/exchangePresentation";
 import ExchangeStatusBadge from "./ExchangeStatusBadge";
 import { Button, Card } from "../../ui";
-import { awardCompletedExchangePointsOnce } from "../../../lib/easePoints";
+import {
+  awardCompletedExchangePointsOnce,
+  calculateExchangeDiscount,
+  deductEasePoints,
+  getUserEasePoints,
+  EASEPOINTS_RULES,
+} from "../../../lib/easePoints";
+import { Sparkles } from "lucide-react";
 
 export type ExchangeMatchPanelProps = {
   matchId: string;
@@ -47,6 +54,18 @@ export function ExchangeMatchPanel({
   const submitting = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now);
+  const [userPoints, setUserPoints] = useState<number>(() => (userId ? getUserEasePoints(userId) : 0));
+  const [applyDiscount, setApplyDiscount] = useState(false);
+
+  useEffect(() => {
+    if (userId) setUserPoints(getUserEasePoints(userId));
+    const onPointsChanged = () => {
+      if (userId) setUserPoints(getUserEasePoints(userId));
+    };
+    window.addEventListener("eventease:easepoints-updated", onPointsChanged);
+    return () => window.removeEventListener("eventease:easepoints-updated", onPointsChanged);
+  }, [userId]);
+
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
@@ -131,13 +150,32 @@ export function ExchangeMatchPanel({
     }
   };
 
+  const discount = calculateExchangeDiscount(userPoints, match?.amountCents ?? 0, applyDiscount);
+
   const pay = async () => {
     if (!match || match.status !== "READY" || !match.isPayer || !match.amountCents || expired || pending || submitting.current) return;
-    if (!await confirm({ title: "Confirm simulated payment", message: `Pay S$${(match.amountCents / 100).toFixed(2)} using simulated payment? Successful payment automatically completes the exchange and cannot be undone.`, confirmLabel: "Confirm payment" })) return;
+    const payableStr = (discount.finalDifferenceCents / 100).toFixed(2);
+    const discountMsg = discount.discountCents > 0
+      ? ` 100 EasePoints will be redeemed for a 10% discount (saving S$${(discount.discountCents / 100).toFixed(2)}).`
+      : "";
+    if (!await confirm({
+      title: "Confirm simulated payment",
+      message: `Pay S$${payableStr} using simulated payment?${discountMsg} Successful payment automatically completes the exchange and cannot be undone.`,
+      confirmLabel: `Confirm payment (S$${payableStr})`,
+    })) return;
     if (submitting.current || Date.parse(match.expiresAt) <= Date.now()) return;
     submitting.current = true; setPending("pay"); setError(null);
     try {
-      setConfirmed(await settleExchangeMatch(matchId, paymentMethod));
+      const result = await settleExchangeMatch(matchId, paymentMethod);
+      if (result.status === "COMPLETED") {
+        if (discount.pointsToDeduct > 0 && userId) {
+          deductEasePoints(userId, discount.pointsToDeduct);
+        }
+        if (userId) {
+          awardCompletedExchangePointsOnce(userId, matchId);
+        }
+      }
+      setConfirmed(result);
       resource.refresh(); onChanged();
     } catch (cause) {
       setError(exchangeErrorMessage(cause)); resource.refresh(); onChanged();
@@ -221,21 +259,98 @@ export function ExchangeMatchPanel({
             </div>
           )}
           {match.status === "READY" && (
-            <div role="status" className="space-y-2 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
+            <div role="status" className="space-y-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
               <p className="font-semibold">Both users accepted.</p>
-              {match.amountCents != null && match.amountCents > 0 ? <>
-                <p>Price difference: S${(match.amountCents / 100).toFixed(2)} · Payment status: {match.paymentStatus ?? "PENDING"}</p>
-                <p>{match.isPayer ? "You receive the higher-valued ticket and must pay the difference." : "Waiting for the other participant to pay the difference."} Tickets will transfer automatically only after successful payment.</p>
-                {match.isPayer && !expired && <div className="space-y-3">
-                  <label className="block">Simulated payment result
-                    <select className="ml-2 rounded-lg border bg-white p-2" disabled={!!pending} value={paymentMethod} onChange={event => setPaymentMethod(event.target.value as ExchangePaymentMethod)}>
-                      <option value="mock_success">Success</option><option value="mock_fail">Declined</option>
-                      <option value="mock_pending">Pending</option><option value="mock_cancel">Cancelled</option>
-                    </select>
-                  </label>
-                  <Button disabled={!!pending} onClick={() => void pay()}>{pending === "pay" ? "Processing payment…" : `Pay S$${(match.amountCents / 100).toFixed(2)} difference`}</Button>
-                </div>}
-              </> : <p>Awaiting exchange completion. Refresh to check the latest status.</p>}
+              {match.amountCents != null && match.amountCents > 0 ? (
+                <>
+                  <p>
+                    Original price difference: S${(match.amountCents / 100).toFixed(2)} · Payment status: {match.paymentStatus ?? "PENDING"}
+                  </p>
+                  <p>
+                    {match.isPayer
+                      ? "You receive the higher-valued ticket and must pay the difference."
+                      : "Waiting for the other participant to pay the difference."}{" "}
+                    Tickets will transfer automatically only after successful payment.
+                  </p>
+                  {match.isPayer && !expired && (
+                    <div className="space-y-3 pt-1">
+                      {/* EasePoints Discount Card */}
+                      {discount.isEligible ? (
+                        <div className="rounded-xl border border-brand-purple/20 bg-white p-3.5 space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-brand-deep flex items-center gap-1.5">
+                              <Sparkles className="h-4 w-4 text-brand-orange" /> EasePoints Balance: {userPoints} pts
+                            </span>
+                            <span className="rounded-full bg-brand-orange/15 px-2 py-0.5 text-[11px] font-bold text-brand-deep">
+                              10% discount available
+                            </span>
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer font-medium text-brand-deep pt-1">
+                            <input
+                              type="checkbox"
+                              checked={applyDiscount}
+                              onChange={(e) => setApplyDiscount(e.target.checked)}
+                              disabled={!!pending}
+                              className="h-4 w-4 rounded border-brand-purple/30 text-brand-purple focus:ring-brand-purple/30"
+                            />
+                            <span>Redeem 100 EasePoints for a 10% discount (-S${(discount.discountCents / 100).toFixed(2)})</span>
+                          </label>
+                          {applyDiscount && (
+                            <div className="pt-2 border-t border-brand-purple/10 space-y-1 text-muted">
+                              <div className="flex justify-between">
+                                <span>Original difference:</span>
+                                <span>S${((match.amountCents ?? 0) / 100).toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between text-brand-orange font-semibold">
+                                <span>EasePoints 10% discount:</span>
+                                <span>-S${(discount.discountCents / 100).toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between font-bold text-brand-deep text-sm pt-0.5">
+                                <span>Final payable difference:</span>
+                                <span>S${(discount.finalDifferenceCents / 100).toFixed(2)}</span>
+                              </div>
+                              <p className="text-[11px] text-muted pt-0.5">
+                                Balance after swap: {discount.remainingPoints} pts (+{EASEPOINTS_RULES.POINTS_PER_COMPLETED_EXCHANGE} pts earned on completion).
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-brand-purple/15 bg-white/70 p-3 text-xs text-muted flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                          <span className="flex items-center gap-1.5 font-medium text-brand-deep">
+                            <Sparkles className="h-4 w-4 text-brand-orange" /> EasePoints: {userPoints} pts
+                          </span>
+                          <span className="text-[11px]">
+                            Earn {100 - userPoints} more pts to unlock 10% off ticket swap difference
+                          </span>
+                        </div>
+                      )}
+
+                      <label className="block text-xs">
+                        Simulated payment result
+                        <select
+                          className="ml-2 rounded-lg border bg-white p-2 text-xs"
+                          disabled={!!pending}
+                          value={paymentMethod}
+                          onChange={(event) => setPaymentMethod(event.target.value as ExchangePaymentMethod)}
+                        >
+                          <option value="mock_success">Success</option>
+                          <option value="mock_fail">Declined</option>
+                          <option value="mock_pending">Pending</option>
+                          <option value="mock_cancel">Cancelled</option>
+                        </select>
+                      </label>
+                      <Button disabled={!!pending} onClick={() => void pay()}>
+                        {pending === "pay"
+                          ? "Processing payment…"
+                          : `Pay S$${(discount.finalDifferenceCents / 100).toFixed(2)} difference`}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p>Awaiting exchange completion. Refresh to check the latest status.</p>
+              )}
               {expired && <p>The exchange deadline has passed. Payment is no longer available.</p>}
             </div>
           )}
@@ -251,9 +366,15 @@ export function ExchangeMatchPanel({
             <p className="text-sm text-muted">This match was cancelled.</p>
           )}
           {match.status === "COMPLETED" && (
-            <p className="text-sm text-muted">
-              Exchange completed. Your received ticket is now in My Tickets. {match.updatedAt && `Completed ${new Date(match.updatedAt).toLocaleString("en-SG")}.`}
-            </p>
+            <div className="space-y-1.5 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+              <p className="text-sm font-semibold text-emerald-900 flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-brand-orange" />
+                Exchange completed! +{EASEPOINTS_RULES.POINTS_PER_COMPLETED_EXCHANGE} EasePoints awarded ✨
+              </p>
+              <p className="text-xs text-emerald-800">
+                Your received ticket is now in My Tickets. {match.updatedAt && `Completed ${new Date(match.updatedAt).toLocaleString("en-SG")}.`}
+              </p>
+            </div>
           )}
           {match.status === "COMPLETED" && <Link className="font-semibold text-brand-purple underline" to="/dashboard/customer?exchange=completed">Open My Tickets</Link>}
           {expired && match.status === "PENDING" && (
