@@ -63,7 +63,7 @@ function getTicketStatus(t: OwnedTicket): {
       description: "Event has concluded.",
     };
   }
-  if (t.status === "VALID") {
+  if (t.status === "VALID" || t.status === "EXCHANGED") {
     return {
       key: "upcoming",
       label: t.code ? "ACTIVE" : "Confirmed",
@@ -300,10 +300,10 @@ export default function CustomerDashboard() {
   );
 
   const renderTicketCard = (item: (typeof classifiedTickets)[0]) => {
-    const { ticket: t, status: st } = item;
+    const { ticket: t, status: st, isExchanged } = item;
     const canExchange =
       st.key === "upcoming" &&
-      t.status === "VALID" &&
+      (t.status === "VALID" || t.status === "EXCHANGED") &&
       !t.checkedInAt &&
       !t.code &&
       !t.exchangedAt &&
@@ -314,6 +314,7 @@ export default function CustomerDashboard() {
       <Card key={t.id} className="flex flex-col gap-4 p-6 transition-shadow hover:shadow-md">
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
+            {isExchanged && <Badge tone="accent">Exchanged</Badge>}
             <Badge tone={st.tone}>{st.label}</Badge>
             <span className="text-xs text-muted">ID: {t.id.slice(0, 8)}</span>
           </div>
@@ -337,7 +338,7 @@ export default function CustomerDashboard() {
 
         <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-line/60">
           <Button
-            disabled={!t.code || t.status !== "VALID" || t.bookingStatus !== "CONFIRMED" || !!t.checkedInAt}
+            disabled={!t.code || (t.status !== "VALID" && t.status !== "EXCHANGED") || (t.bookingStatus && t.bookingStatus !== "CONFIRMED" && t.status !== "EXCHANGED") || !!t.checkedInAt}
             onClick={() => setQr(t)}
           >
             <QrCode className="h-4 w-4" /> Show ticket
