@@ -87,7 +87,7 @@ export default function EasePoints() {
       id: "views",
       label: "EasePix",
       title: "Share your seat view",
-      pts: "+23 pts",
+      pts: `+${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} pts`,
       desc: "Earn points after your original EasePix photo is approved. Unlimited uploads. No per-event earning cap.",
       iconRender: () => (
         <div
@@ -104,7 +104,7 @@ export default function EasePoints() {
       id: "exchange",
       label: "EaseXchange",
       title: "Complete a ticket swap",
-      pts: "+17 pts",
+      pts: `+${EASEPOINTS_RULES.POINTS_PER_COMPLETED_EXCHANGE} pts`,
       desc: "Each participant earns points once the EaseXchange is fully completed.",
       iconRender: () => (
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-100 text-brand-orange shadow-2xs">
@@ -118,7 +118,7 @@ export default function EasePoints() {
       id: "feed",
       label: "EaseConnect",
       title: "Ask a useful event question",
-      pts: "+3 pts",
+      pts: `+${EASEPOINTS_RULES.POINTS_PER_QUALIFYING_QUESTION} pts`,
       desc: "Earn points for a qualifying EaseConnect question after relevance and duplicate checks.",
       iconRender: () => (
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-lilac/70 text-brand-purple shadow-2xs">
@@ -218,7 +218,7 @@ export default function EasePoints() {
                 Log in to view your EasePoints balance
               </h2>
               <p className="text-xs sm:text-sm text-muted max-w-xl">
-                Earn EasePoints with every approved seat photo (+23 pts), completed swap (+17 pts), and qualifying question (+3 pts).
+                Earn EasePoints with every approved seat photo (+{EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} pts), completed swap (+{EASEPOINTS_RULES.POINTS_PER_COMPLETED_EXCHANGE} pts), and qualifying question (+{EASEPOINTS_RULES.POINTS_PER_QUALIFYING_QUESTION} pts).
               </p>
             </div>
             <Link

@@ -18,6 +18,7 @@ import useExchangeResource from "../../../lib/useExchangeResource";
 import { matchDisplayStatus, requestNumbers } from "../../../lib/exchangePresentation";
 import ExchangeStatusBadge from "./ExchangeStatusBadge";
 import { Button, Card } from "../../ui";
+import { awardCompletedExchangePointsOnce } from "../../../lib/easePoints";
 
 export type ExchangeMatchPanelProps = {
   matchId: string;
@@ -56,9 +57,12 @@ export function ExchangeMatchPanel({
   useEffect(() => {
     if (match?.status === "PENDING" || match?.status === "READY") sawActive.current = true;
     if (match?.status !== "COMPLETED" || !sawActive.current) return;
+    if (userId && matchId) {
+      awardCompletedExchangePointsOnce(userId, matchId);
+    }
     const timer = window.setTimeout(() => navigate("/dashboard/customer?exchange=completed"), 1500);
     return () => window.clearTimeout(timer);
-  }, [match?.status, navigate]);
+  }, [match?.status, matchId, userId, navigate]);
   const numbers = requestNumbers(myRequests);
   const ownRequest = match && myRequests.find(request =>
     request.requesterUserId === userId &&

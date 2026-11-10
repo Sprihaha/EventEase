@@ -2,8 +2,8 @@
 
 export const EASEPOINTS_RULES = {
   POINTS_PER_APPROVED_PHOTO: 23,
-  POINTS_PER_COMPLETED_EXCHANGE: 17,
-  POINTS_PER_QUALIFYING_QUESTION: 3,
+  POINTS_PER_COMPLETED_EXCHANGE: 5,
+  POINTS_PER_QUALIFYING_QUESTION: 7,
   REDEMPTION_COST_POINTS: 100,
   DISCOUNT_PERCENT: 10, // 10% max per exchange
   MAX_DISCOUNT_PERCENT: 10,
@@ -11,6 +11,34 @@ export const EASEPOINTS_RULES = {
 
 const STORAGE_PREFIX = "eventease_easepoints_"
 const AWARDED_PIX_PREFIX = "eventease_awarded_pix_"
+const AWARDED_EXCHANGE_PREFIX = "eventease_awarded_exchange_"
+
+export function getAwardedExchangeIds(userId: string): Set<string> {
+  if (!userId) return new Set()
+  const key = `${AWARDED_EXCHANGE_PREFIX}${userId}`
+  const saved = localStorage.getItem(key)
+  if (saved) {
+    try {
+      const arr = JSON.parse(saved)
+      if (Array.isArray(arr)) return new Set(arr)
+    } catch {
+      // ignore
+    }
+  }
+  return new Set()
+}
+
+export function awardCompletedExchangePointsOnce(userId: string, matchId: string): boolean {
+  if (!userId || !matchId) return false
+  const awarded = getAwardedExchangeIds(userId)
+  if (awarded.has(matchId)) {
+    return false
+  }
+  awarded.add(matchId)
+  localStorage.setItem(`${AWARDED_EXCHANGE_PREFIX}${userId}`, JSON.stringify(Array.from(awarded)))
+  awardEasePoints(userId, EASEPOINTS_RULES.POINTS_PER_COMPLETED_EXCHANGE, "Completed ticket exchange")
+  return true
+}
 
 export function getAwardedPixIds(userId: string): Set<string> {
   if (!userId) return new Set()

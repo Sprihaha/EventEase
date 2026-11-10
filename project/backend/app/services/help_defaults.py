@@ -6,8 +6,8 @@ help text matches how EventEase actually behaves when this content is first show
 from app.core.config import get_settings
 
 EASEPOINTS_PER_PHOTO = 23
-EASEPOINTS_PER_EXCHANGE = 17
-EASEPOINTS_PER_QUESTION = 3
+EASEPOINTS_PER_EXCHANGE = 5
+EASEPOINTS_PER_QUESTION = 7
 EASEPOINTS_PER_DISCOUNT = 100
 
 

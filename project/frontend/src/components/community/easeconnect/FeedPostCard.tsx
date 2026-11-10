@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { cx } from "../../ui"
 import type { DisplayPost, Preview360Photo, User } from "../types"
+import { EASEPOINTS_RULES } from "../../../lib/easePoints"
 
 interface FeedPostCardProps {
   post: DisplayPost
@@ -183,7 +184,7 @@ export function FeedPostCard({
 
             {user && user.role !== "organizer" && user.role !== "admin" && post.isQuestion && (
               <div className="ml-auto inline-flex items-center gap-1 text-[11px] font-extrabold text-brand-orange">
-                <Sparkles className="h-3 w-3" /> +3 EasePoints
+                <Sparkles className="h-3 w-3" /> +{EASEPOINTS_RULES.POINTS_PER_QUALIFYING_QUESTION} EasePoints
               </div>
             )}
           </div>
