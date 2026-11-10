@@ -9,10 +9,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
+  Info,
 } from "lucide-react";
 import { useStore, currency, fmtDate } from "../lib/store";
 import { fetchOwnedTickets, payBooking, type OwnedTicket } from "../lib/ticketingApi";
-import { getExchangeActivity, type ExchangeActivity } from "../lib/exchangeApi";
+import { getExchangeActivity, getMyExchanges, type ExchangeActivity, type MyExchanges } from "../lib/exchangeApi";
 import { DashboardShell, type NavItem } from "../components/DashboardShell";
 import { QRCode, ticketPayload, Button, Badge, Card, cx, Select } from "../components/ui";
 
@@ -106,6 +107,7 @@ export default function CustomerDashboard() {
   const { user, sessionLoading, bookings, bookingsError, refreshBookings } = useStore();
   const [tickets, setTickets] = useState<OwnedTicket[]>([]);
   const [exchangeActivity, setExchangeActivity] = useState<ExchangeActivity[]>([]);
+  const [myExchanges, setMyExchanges] = useState<MyExchanges>({ requests: [], matches: [] });
   const [qr, setQr] = useState<OwnedTicket | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -124,13 +126,15 @@ export default function CustomerDashboard() {
   const load = useCallback(async (signal?: AbortSignal) => {
     if (!user || user.role !== "customer") return;
     try {
-      const [ticketResult, exchangeResult] = await Promise.all([
+      const [ticketResult, exchangeResult, myExchangesResult] = await Promise.all([
         fetchOwnedTickets(signal),
         getExchangeActivity(signal).catch(() => [] as ExchangeActivity[]),
+        getMyExchanges(signal).catch(() => ({ requests: [], matches: [] } as MyExchanges)),
       ]);
       if (!signal?.aborted) {
         setTickets(ticketResult);
         setExchangeActivity(exchangeResult);
+        setMyExchanges(myExchangesResult);
         setQr((current) => (current ? ticketResult.find((t) => t.id === current.id) ?? null : null));
       }
     } catch (cause) {
@@ -143,6 +147,7 @@ export default function CustomerDashboard() {
   useEffect(() => {
     setTickets([]);
     setExchangeActivity([]);
+    setMyExchanges({ requests: [], matches: [] });
     setQr(null);
     setError("");
     if (!user || user.role !== "customer") {
@@ -198,13 +203,77 @@ export default function CustomerDashboard() {
   const eventPassed = (date?: string) => !!date && Date.parse(date) <= Date.now();
 
   // Classified tickets with their computed statuses
-  const classifiedTickets = tickets.map((t) => ({
-    ticket: t,
-    status: getTicketStatus(t),
-    isExchanged: Boolean(t.exchangedAt || t.status === "EXCHANGED"),
-  }));
+  const classifiedTickets = tickets.map((t) => {
+    // Check if this ticket is in an exchange match or request
+    const userRequest = myExchanges.requests.find((r) => r.offeredTicketId === t.id);
+    const userMatch = myExchanges.matches.find(
+      (m) =>
+        m.ticketA?.id === t.id ||
+        m.ticketB?.id === t.id ||
+        (userRequest && (m.requestAId === userRequest.id || m.requestBId === userRequest.id)),
+    );
+
+    // Is the ticket currently at the payment / settlement phase of an exchange?
+    const isMatchInPayment = Boolean(
+      userMatch &&
+        (userMatch.status === "READY" ||
+          userMatch.paymentStatus === "PENDING" ||
+          (userMatch.status === "PENDING" && userMatch.aAccepted && userMatch.bAccepted)) &&
+        Date.parse(userMatch.expiresAt) > Date.now(),
+    );
+
+    // Check if an exchange attempt on this ticket did not go through (deadline ended, rejected, cancelled, or failed)
+    let failedExchangeReason: string | null = null;
+    if (!isMatchInPayment && !t.exchangedAt && t.status === "VALID") {
+      if (userMatch) {
+        if (
+          userMatch.status === "EXPIRED" ||
+          (userMatch.status === "READY" && Date.parse(userMatch.expiresAt) <= Date.now())
+        ) {
+          failedExchangeReason = "Payment deadline ended before payment was settled.";
+        } else if (userMatch.status === "CANCELLED" || userMatch.paymentStatus === "CANCELLED") {
+          failedExchangeReason = "Exchange was cancelled before payment was completed.";
+        } else if (userMatch.status === "REJECTED") {
+          failedExchangeReason = "Exchange proposal was rejected.";
+        } else if (userMatch.paymentStatus === "FAILED") {
+          failedExchangeReason = "Payment could not be processed.";
+        }
+      } else if (userRequest && userRequest.status === "EXPIRED") {
+        failedExchangeReason = "Exchange request expired before completion.";
+      } else if (userRequest && userRequest.status === "CANCELLED") {
+        failedExchangeReason = "Exchange request was cancelled.";
+      }
+    }
+
+    const baseStatus = getTicketStatus(t);
+
+    // If ticket is undergoing exchange and at the payment phase:
+    // It gets UNCONFIRMED tag instead of Confirmed, plus EXCHANGED tag.
+    const isUnconfirmedPayment = isMatchInPayment;
+    const status = isUnconfirmedPayment
+      ? {
+          ...baseStatus,
+          label: "UNCONFIRMED",
+          tone: "warn" as const,
+          description: "Exchange proposal accepted — awaiting payment & settlement.",
+        }
+      : baseStatus;
+
+    const isExchanged = Boolean(t.exchangedAt || t.status === "EXCHANGED" || isUnconfirmedPayment);
+
+    return {
+      ticket: t,
+      status,
+      isExchanged,
+      isUnconfirmedPayment,
+      failedExchangeReason,
+      userMatch: isMatchInPayment ? userMatch : null,
+    };
+  });
   const activeTickets = classifiedTickets.filter((c) => c.status.label === "ACTIVE");
-  const upcomingTickets = classifiedTickets.filter((c) => c.status.label === "Confirmed");
+  const upcomingTickets = classifiedTickets.filter(
+    (c) => c.status.label === "Confirmed" || c.status.label === "UNCONFIRMED",
+  );
   const usedTickets = classifiedTickets.filter((c) => c.status.key === "used");
   const exchangedTickets = classifiedTickets.filter((c) => c.isExchanged);
   const unusedTickets = classifiedTickets.filter((c) => c.status.key === "unused");
@@ -321,9 +390,10 @@ export default function CustomerDashboard() {
   );
 
   const renderTicketCard = (item: (typeof classifiedTickets)[0]) => {
-    const { ticket: t, status: st, isExchanged } = item;
+    const { ticket: t, status: st, isExchanged, isUnconfirmedPayment, failedExchangeReason, userMatch } = item;
     const salesOpen =
       st.key === "upcoming" &&
+      !isUnconfirmedPayment &&
       (t.status === "VALID" || t.status === "EXCHANGED") &&
       !t.checkedInAt &&
       !t.code &&
@@ -360,20 +430,50 @@ export default function CustomerDashboard() {
               <span className="font-medium text-emerald-800">Non-refundable policy</span>
             )}
           </div>
-          {!t.code && t.qrAvailableFrom && st.key === "upcoming" && (
+          {!t.code && t.qrAvailableFrom && st.key === "upcoming" && !isUnconfirmedPayment && (
             <p className="text-xs text-muted italic">Your QR code will be available from {fmtDate(t.qrAvailableFrom)}.</p>
           )}
           {st.key !== "upcoming" && <p className="text-xs font-medium text-muted">{st.description}</p>}
+          {failedExchangeReason && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-900 font-medium flex items-start gap-2">
+              <Info className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-semibold text-amber-950">Exchange Did Not Go Through</p>
+                <p>
+                  {failedExchangeReason}
+                  {t.code ? " Your original ticket has been activated for admission." : " Your original ticket remains confirmed."}
+                </p>
+              </div>
+            </div>
+          )}
+          {isUnconfirmedPayment && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-900 font-medium flex items-start gap-2">
+              <Info className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-semibold text-amber-950">Exchange In Progress (Payment Phase)</p>
+                <p>Both parties have accepted this exchange proposal. Please complete the simulated payment to finalize the ticket swap.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-line/60">
           <Button
-            disabled={!t.code || st.key === "cancelled" || st.key === "unused" || (t.status !== "VALID" && t.status !== "EXCHANGED") || (t.bookingStatus && t.bookingStatus !== "CONFIRMED" && t.status !== "EXCHANGED") || !!t.checkedInAt}
+            disabled={!t.code || isUnconfirmedPayment || st.key === "cancelled" || st.key === "unused" || (t.status !== "VALID" && t.status !== "EXCHANGED") || (t.bookingStatus && t.bookingStatus !== "CONFIRMED" && t.status !== "EXCHANGED") || !!t.checkedInAt}
             onClick={() => setQr(t)}
           >
             <QrCode className="h-4 w-4" /> Show ticket
           </Button>
-          {salesOpen && (
+          {isUnconfirmedPayment && userMatch ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Link to={`/community?tab=exchange&view=mine&match=${encodeURIComponent(userMatch.id)}`}>
+                <Button variant="outline">
+                  <ArrowLeftRight className="h-4 w-4" /> Complete exchange payment
+                </Button>
+              </Link>
+              <span className="text-xs text-amber-700 italic">Unconfirmed until payment settles</span>
+            </div>
+          ) : salesOpen && (
             isExchanged ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" disabled aria-disabled="true">
