@@ -178,6 +178,8 @@ export default function Login() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSending, setForgotSending] = useState(false);
 
+  const isBusy = signingIn || resendState === "sending";
+
   const openForgot = () => {
     setForgotUsername(username);
     setError("");
@@ -601,7 +603,12 @@ export default function Login() {
                     <div className="mt-1.5 text-right">
                       <button
                         type="button"
-                        className="cursor-pointer text-xs font-semibold text-brand-purple underline-offset-2 hover:underline"
+                        disabled={isBusy}
+                        className={`text-xs font-semibold underline-offset-2 ${
+                          isBusy
+                            ? "pointer-events-none cursor-not-allowed text-gray-400 opacity-50 select-none"
+                            : "cursor-pointer text-brand-purple hover:underline"
+                        }`}
                         onClick={openForgot}
                       >
                         Forgot password?
@@ -612,8 +619,19 @@ export default function Login() {
                 <p className="-mt-1 text-xs text-muted">
                   By signing in, you agree to the{" "}
                   <Link
-                    to="/help#terms"
-                    className="font-semibold text-brand-purple underline underline-offset-2 hover:text-brand-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/40"
+                    to={isBusy ? "#" : "/help#terms"}
+                    onClick={(e) => {
+                      if (isBusy) {
+                        e.preventDefault();
+                      }
+                    }}
+                    tabIndex={isBusy ? -1 : undefined}
+                    aria-disabled={isBusy}
+                    className={`font-semibold underline underline-offset-2 transition-colors ${
+                      isBusy
+                        ? "pointer-events-none cursor-not-allowed text-gray-400 opacity-50 select-none"
+                        : "text-brand-purple hover:text-brand-orange focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/40"
+                    }`}
                   >
                     Terms and conditions
                   </Link>
