@@ -186,7 +186,7 @@ export default function CustomerDashboard() {
     isExchanged: Boolean(t.exchangedAt || t.status === "EXCHANGED"),
   }));
   const activeTickets = classifiedTickets.filter((c) => c.status.label === "ACTIVE");
-  const upcomingTickets = classifiedTickets.filter((c) => c.status.key === "upcoming");
+  const upcomingTickets = classifiedTickets.filter((c) => c.status.label === "Confirmed");
   const usedTickets = classifiedTickets.filter((c) => c.status.key === "used");
   const exchangedTickets = classifiedTickets.filter((c) => c.isExchanged);
   const expiredTickets = classifiedTickets.filter((c) => c.status.key === "expired");
@@ -401,7 +401,7 @@ export default function CustomerDashboard() {
                     [
                       { key: "all", label: "All Tickets", count: classifiedTickets.length },
                       { key: "active", label: "Active", count: activeTickets.length },
-                      { key: "upcoming", label: "Upcoming", count: upcomingTickets.length },
+                      { key: "upcoming", label: "Upcoming / Confirmed", count: upcomingTickets.length },
                       { key: "used", label: "Used / Admitted", count: usedTickets.length },
                       { key: "exchanged", label: "Exchanged", count: exchangedTickets.length },
                       { key: "expired", label: "Expired", count: expiredTickets.length },
@@ -481,7 +481,7 @@ export default function CustomerDashboard() {
               {!loading && classifiedTickets.length > 0 && (
                 displayedTickets.length === 0 ? (
                   <Card className="p-8 text-center text-sm text-muted">
-                    No tickets match the "{ticketFilter}" filter.
+                    No tickets match the "{ticketFilter === "upcoming" ? "Upcoming / Confirmed" : ticketFilter}" filter.
                   </Card>
                 ) : (
                   <div className="space-y-4">
