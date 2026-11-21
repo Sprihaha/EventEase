@@ -79,3 +79,12 @@ class EaseConnectPostModerateRequest(CamelModel):
     is_flagged: bool | None = None
     is_removed: bool | None = None
     flag_reason: str | None = None
+
+
+class EasePointsOut(CamelModel):
+    balance: int
+    earned: int
+    redeemed: int
+    approved_photos: int
+    questions: int
+    completed_exchanges: int

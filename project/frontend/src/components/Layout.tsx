@@ -33,7 +33,7 @@ import { AccessibilityBar } from "./layout/AccessibilityBar";
 import { OrganisationSwitcher } from "./layout/OrganisationSwitcher";
 import { WebSearchableControl } from "./common";
 import { getPublicBusinessDateState, formatDDMMYYYY, formatDeviceCurrent, formatDeviceBusiness, type BusinessDateState } from "../lib/api/developer";
-import { getUserEasePoints } from "../lib/easePoints";
+import { useEasePoints } from "../lib/easePoints";
 
 const navLinks = [
   { to: "/events", label: "Discover", icon: Search },
@@ -54,25 +54,7 @@ export default function Layout() {
   const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
   const [expiredReturnTo, setExpiredReturnTo] = useState<string | null>(null);
   const [businessClock, setBusinessClock] = useState<BusinessDateState | null>(null);
-  const [userEasePoints, setUserEasePoints] = useState<number>(() =>
-    user?.role === "customer" ? getUserEasePoints(user.id) : 0
-  );
-
-  // Sync EasePoints balance for customer users
-  useEffect(() => {
-    if (!user || user.role !== "customer") {
-      setUserEasePoints(0);
-      return;
-    }
-    const syncPoints = () => {
-      setUserEasePoints(getUserEasePoints(user.id));
-    };
-    syncPoints();
-    window.addEventListener("eventease:easepoints-updated", syncPoints);
-    return () => {
-      window.removeEventListener("eventease:easepoints-updated", syncPoints);
-    };
-  }, [user]);
+  const { points: userEasePoints } = useEasePoints(user);
 
   // Load Business Date state for footer display (available for all users, logged in or out)
   useEffect(() => {

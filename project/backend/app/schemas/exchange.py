@@ -41,6 +41,7 @@ class TicketInterest(CamelModel):
 class SettleExchange(CamelModel):
     model_config = ConfigDict(extra="forbid")
     payment_method: Literal["mock_success", "mock_fail", "mock_pending", "mock_cancel"] = "mock_success"
+    redeem_easepoints: bool = False
 
 
 class ExchangeTicketView(CamelModel):
@@ -105,6 +106,7 @@ class ExchangeMatchView(CamelModel):
     expires_at: datetime
     updated_at: datetime
     amount_cents: int
+    easepoints_discount_cents: int = 0
     is_payer: bool
     payment_status: Literal["NOT_STARTED", "PENDING", "FAILED", "CANCELLED", "SUCCEEDED"]
 

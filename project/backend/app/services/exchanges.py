@@ -12,6 +12,7 @@ from app.core.errors import AppError
 from app.core.security import utcnow
 from app.db.models import AuditLog, User, UserStatus, Role
 from app.db.models.exchange import ExchangeMatch, ExchangeMatchStatus as MS, ExchangeRequest, ExchangeRequestStatus as RS, ExchangeSettlement
+from app.db.models.easepoints import EasePointsRedemption
 from app.schemas.exchange import CreateExchangeRequest
 from app.services import audit
 from app.services.exchange_ticketing import TicketingGateway
@@ -542,7 +543,7 @@ def _complete(db, gateway, user, m, requests, settlement):
     _state(db, m, MS.COMPLETED, actor=user)
 
 
-def settle(db, gateway, settings, user, match_id, payment_method):
+def settle(db, gateway, settings, user, match_id, payment_method, redeem_easepoints=False):
     """One locked simulated payment/transfer transaction; never calls a live gateway."""
     if settings.PAYMENT_PROVIDER != "mock":
         fail("SETTLEMENT_UNAVAILABLE", "Simulated exchange payment is unavailable with this payment provider.", 501)
@@ -565,6 +566,10 @@ def settle(db, gateway, settings, user, match_id, payment_method):
         if outcome == "FAILED":
             fail("EXCHANGE_PAYMENT_FAILED", "Simulated payment declined. Tickets are unchanged; you can retry.", 402)
         return m
+    if redeem_easepoints and payer == user.id and settlement.amount_cents > 0:
+        # Spent in the same transaction as the swap, so a failed transfer never costs points.
+        from app.services.easepoints import redeem_for_exchange
+        redeem_for_exchange(db, user.id, m.id, settlement.amount_cents)
     _complete(db, gateway, user, m, requests, settlement)
     db.commit()
     return m
@@ -577,7 +582,9 @@ def match_view(db, user, m):
     cents_b = int(Decimal(str(m.ticket_b["price"])) * 100)
     settlement = db.scalar(select(ExchangeSettlement).where(ExchangeSettlement.match_id == m.id))
     fields = {name: getattr(m, name) for name in ("id", "request_a_id", "request_b_id", "ticket_a", "ticket_b", "a_accepted", "b_accepted", "status", "expires_at", "updated_at")}
-    return {**fields, "amount_cents": abs(cents_b - cents_a),
+    discount = db.scalar(select(EasePointsRedemption.discount_cents).where(
+        EasePointsRedemption.match_id == m.id, EasePointsRedemption.user_id == user.id)) or 0
+    return {**fields, "amount_cents": abs(cents_b - cents_a), "easepoints_discount_cents": discount,
             "is_payer": (cents_b > cents_a if own_a else cents_a > cents_b),
             "payment_status": settlement.status if settlement else "NOT_STARTED"}
 

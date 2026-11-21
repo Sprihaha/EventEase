@@ -4,13 +4,7 @@ import { Sparkles, Camera, Rotate3d, Users, Bookmark, Clock } from "lucide-react
 import { cx } from "../components/ui";
 import { SEO } from "../components/common";
 import { useStore } from "../lib/store";
-import {
-  getUserEasePoints,
-  awardEasePoints,
-  awardApprovedEasePixPointsOnce,
-  markPixAsAwarded,
-  EASEPOINTS_RULES,
-} from "../lib/easePoints";
+import { EASEPOINTS_RULES, notifyEasePointsChanged } from "../lib/easePoints";
 import {
   backendListPosts,
   backendListEasePix,
@@ -56,42 +50,6 @@ export default function Community() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<number | null>(null);
 
-  // EasePoints calculation & tracking for logged-in users
-  const userUploadedPixCount = useMemo(() => {
-    if (!user) return 0;
-    return backendEasePixList.filter(
-      (pix) =>
-        (pix.userId && pix.userId === user.id) ||
-        (pix.authorName && user.name && pix.authorName.toLowerCase() === user.name.toLowerCase())
-    ).length;
-  }, [backendEasePixList, user]);
-
-  const [userPoints, setUserPoints] = useState<number>(() =>
-    user ? getUserEasePoints(user.id) : 0
-  );
-
-  useEffect(() => {
-    if (!user) {
-      setUserPoints(0);
-      return;
-    }
-    setUserPoints(getUserEasePoints(user.id));
-
-    const handlePointsUpdate = (e: Event) => {
-      const customEvent = e as CustomEvent<{ userId: string; points: number }>;
-      if (customEvent.detail?.userId === user.id) {
-        setUserPoints(customEvent.detail.points);
-      }
-    };
-
-    window.addEventListener("eventease:easepoints-updated", handlePointsUpdate);
-    return () => {
-      window.removeEventListener("eventease:easepoints-updated", handlePointsUpdate);
-    };
-  }, [user]);
-
-  const totalUserPoints = userPoints;
-
   const showToast = useCallback((msg: string) => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToastMessage(msg);
@@ -99,46 +57,6 @@ export default function Community() {
       setToastMessage(null);
     }, 2800);
   }, []);
-
-  // Award EasePoints only once an uploaded EasePix is officially approved (never at upload time)
-  useEffect(() => {
-    if (!user || user.role === "organizer" || user.role === "admin") return;
-    if (!backendEasePixList.length) return;
-
-    const storageKey = `eventease_awarded_pix_${user.id}`;
-    const isFirstRun = localStorage.getItem(storageKey) === null;
-
-    if (isFirstRun) {
-      backendEasePixList.forEach((pix) => {
-        const isOwner =
-          (pix.userId && pix.userId === user.id) ||
-          (pix.authorName && user.name && pix.authorName.toLowerCase() === user.name.toLowerCase());
-        if (isOwner && (pix.status === "APPROVED" || pix.pointsAwarded)) {
-          markPixAsAwarded(user.id, pix.id);
-        }
-      });
-      return;
-    }
-
-    let newlyAwardedCount = 0;
-    backendEasePixList.forEach((pix) => {
-      const isOwner =
-        (pix.userId && pix.userId === user.id) ||
-        (pix.authorName && user.name && pix.authorName.toLowerCase() === user.name.toLowerCase());
-      if (isOwner && (pix.status === "APPROVED" || pix.pointsAwarded)) {
-        const awarded = awardApprovedEasePixPointsOnce(user.id, pix.id);
-        if (awarded) {
-          newlyAwardedCount++;
-        }
-      }
-    });
-
-    if (newlyAwardedCount > 0) {
-      showToast(
-        `EasePix approved! You earned +${newlyAwardedCount * EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints ✨`
-      );
-    }
-  }, [backendEasePixList, user, showToast]);
 
   const reloadCommunityData = useCallback(async () => {
     try {
@@ -149,6 +67,8 @@ export default function Community() {
       ]);
       setBackendPosts(fetchedPosts);
       setBackendEasePixList(fetchedPix);
+      // Approvals and new questions change the server-side balance
+      notifyEasePointsChanged();
     } catch {
       // ignore
     }
@@ -184,14 +104,11 @@ export default function Community() {
       data: { status: string; rejectionReason?: string | null }
     ) => {
       try {
+        // The author's points are computed by the server from approved photos
         await backendModerateEasePix(easepixId, data);
-        const targetPix = backendEasePixList.find((p) => p.id === easepixId);
-        if (data.status === "APPROVED" && targetPix?.userId) {
-          awardApprovedEasePixPointsOnce(targetPix.userId, easepixId);
-        }
         await reloadCommunityData();
         if (data.status === "APPROVED") {
-          showToast("EasePix approved! (+23 EasePoints awarded to author) ✨");
+          showToast(`EasePix approved! (+${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints for the author) ✨`);
         } else if (data.status === "REJECTED") {
           showToast("EasePix rejected");
         }
@@ -199,7 +116,7 @@ export default function Community() {
         showToast(e?.message || "Failed to moderate EasePix");
       }
     },
-    [backendEasePixList, reloadCommunityData, showToast]
+    [reloadCommunityData, showToast]
   );
 
   useEffect(() => {

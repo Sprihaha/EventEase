@@ -18,60 +18,15 @@ import {
   LogIn,
 } from "lucide-react";
 import { useStore } from "../lib/store";
-import { getUserEasePoints, EASEPOINTS_RULES } from "../lib/easePoints";
-import { backendListEasePix, type BackendEasePix } from "../lib/api/community";
+import { useEasePoints, EASEPOINTS_RULES } from "../lib/easePoints";
 
 export default function EasePoints() {
   const { user } = useStore();
   const navigate = useNavigate();
 
-  const [points, setPoints] = useState<number>(() =>
-    user ? getUserEasePoints(user.id) : 0
-  );
-  const [approvedPixCount, setApprovedPixCount] = useState<number>(0);
-  const [loadingPix, setLoadingPix] = useState(false);
-
-  // Sync points from localStorage and custom events
-  useEffect(() => {
-    if (!user) {
-      setPoints(0);
-      return;
-    }
-    const updatePoints = () => {
-      setPoints(getUserEasePoints(user.id));
-    };
-    updatePoints();
-    window.addEventListener("eventease:easepoints-updated", updatePoints);
-    return () => {
-      window.removeEventListener("eventease:easepoints-updated", updatePoints);
-    };
-  }, [user]);
-
-  // Load user's approved EasePix count
-  const loadApprovedPix = useCallback(async () => {
-    if (!user) return;
-    try {
-      setLoadingPix(true);
-      const list = await backendListEasePix();
-      const userApproved = list.filter((pix) => {
-        const isOwner =
-          (pix.userId && pix.userId === user.id) ||
-          (pix.authorName &&
-            user.name &&
-            pix.authorName.toLowerCase() === user.name.toLowerCase());
-        return isOwner && (pix.status === "APPROVED" || pix.pointsAwarded);
-      });
-      setApprovedPixCount(userApproved.length);
-    } catch {
-      // Fallback silently if offline or endpoint unavailable
-    } finally {
-      setLoadingPix(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    void loadApprovedPix();
-  }, [loadApprovedPix]);
+  // Server-computed from approved EasePix, questions and completed exchanges, minus redemptions
+  const { points, summary } = useEasePoints(user);
+  const approvedPixCount = summary.approvedPhotos;
 
   const tierName =
     points >= 200

@@ -326,9 +326,17 @@ export async function cancelExchangeMatch(
 }
 
 export type ExchangePaymentMethod = "mock_success" | "mock_fail" | "mock_pending" | "mock_cancel"
-export async function settleExchangeMatch(matchId: string, outcome: boolean | ExchangePaymentMethod = false): Promise<ExchangeMatch> {
+export async function settleExchangeMatch(
+  matchId: string,
+  outcome: boolean | ExchangePaymentMethod = false,
+  redeemEasePoints = false,
+): Promise<ExchangeMatch> {
   return match(await request<unknown>(`${matchPath(matchId)}/settle`, {
-    method: "POST", body: JSON.stringify({ paymentMethod: typeof outcome === "boolean" ? (outcome ? "mock_fail" : "mock_success") : outcome }),
+    method: "POST",
+    body: JSON.stringify({
+      paymentMethod: typeof outcome === "boolean" ? (outcome ? "mock_fail" : "mock_success") : outcome,
+      redeemEasepoints: redeemEasePoints,
+    }),
   }, true))
 }
 export async function cancelExchangeRequest(

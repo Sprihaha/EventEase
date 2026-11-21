@@ -1,4 +1,6 @@
 // EasePoints Rulebook and Utilities
+import { useCallback, useEffect, useState } from "react"
+import { request } from "./backendApi"
 
 export const EASEPOINTS_RULES = {
   POINTS_PER_APPROVED_PHOTO: 23,
@@ -9,112 +11,58 @@ export const EASEPOINTS_RULES = {
   MAX_DISCOUNT_PERCENT: 10,
 } as const
 
-const STORAGE_PREFIX = "eventease_easepoints_"
-const AWARDED_PIX_PREFIX = "eventease_awarded_pix_"
-const AWARDED_EXCHANGE_PREFIX = "eventease_awarded_exchange_"
+// Balances are computed by the server from real activity (approved EasePix, EaseConnect questions,
+// completed exchanges) minus redemptions, so every account starts at 0 and matches on every device.
+// Keep EASEPOINTS_RULES in sync with backend/app/services/easepoints.py.
 
-export function getAwardedExchangeIds(userId: string): Set<string> {
-  if (!userId) return new Set()
-  const key = `${AWARDED_EXCHANGE_PREFIX}${userId}`
-  const saved = localStorage.getItem(key)
-  if (saved) {
-    try {
-      const arr = JSON.parse(saved)
-      if (Array.isArray(arr)) return new Set(arr)
-    } catch {
-      // ignore
+export interface EasePointsSummary {
+  balance: number
+  earned: number
+  redeemed: number
+  approvedPhotos: number
+  questions: number
+  completedExchanges: number
+}
+
+const EMPTY_SUMMARY: EasePointsSummary = {
+  balance: 0, earned: 0, redeemed: 0, approvedPhotos: 0, questions: 0, completedExchanges: 0,
+}
+const UPDATED_EVENT = "eventease:easepoints-updated"
+
+export function fetchEasePoints(): Promise<EasePointsSummary> {
+  return request<EasePointsSummary>("/community/easepoints/me", {}, true)
+}
+
+/** Tell every mounted useEasePoints() to re-fetch (after a question, approval or exchange). */
+export function notifyEasePointsChanged(): void {
+  window.dispatchEvent(new CustomEvent(UPDATED_EVENT))
+}
+
+/** Points come from the server; organisers and admins don't earn them. */
+export function useEasePoints(user: { id: string; role: string } | null | undefined) {
+  const [summary, setSummary] = useState<EasePointsSummary>(EMPTY_SUMMARY)
+  const userId = user?.id
+  const isCustomer = user?.role === "customer"
+
+  const refresh = useCallback(async () => {
+    if (!userId || !isCustomer) {
+      setSummary(EMPTY_SUMMARY)
+      return
     }
-  }
-  return new Set()
-}
-
-export function awardCompletedExchangePointsOnce(userId: string, matchId: string): boolean {
-  if (!userId || !matchId) return false
-  const awarded = getAwardedExchangeIds(userId)
-  if (awarded.has(matchId)) {
-    return false
-  }
-  awarded.add(matchId)
-  localStorage.setItem(`${AWARDED_EXCHANGE_PREFIX}${userId}`, JSON.stringify(Array.from(awarded)))
-  awardEasePoints(userId, EASEPOINTS_RULES.POINTS_PER_COMPLETED_EXCHANGE, "Completed ticket exchange")
-  return true
-}
-
-export function getAwardedPixIds(userId: string): Set<string> {
-  if (!userId) return new Set()
-  const key = `${AWARDED_PIX_PREFIX}${userId}`
-  const saved = localStorage.getItem(key)
-  if (saved) {
     try {
-      const arr = JSON.parse(saved)
-      if (Array.isArray(arr)) return new Set(arr)
+      setSummary(await fetchEasePoints())
     } catch {
-      // ignore
+      // Keep the last known balance if the request fails
     }
-  }
-  return new Set()
-}
+  }, [userId, isCustomer])
 
-export function markPixAsAwarded(userId: string, pixId: string): void {
-  if (!userId || !pixId) return
-  const set = getAwardedPixIds(userId)
-  set.add(pixId)
-  const key = `${AWARDED_PIX_PREFIX}${userId}`
-  localStorage.setItem(key, JSON.stringify(Array.from(set)))
-}
+  useEffect(() => {
+    void refresh()
+    window.addEventListener(UPDATED_EVENT, refresh)
+    return () => window.removeEventListener(UPDATED_EVENT, refresh)
+  }, [refresh])
 
-/**
- * Awards points for an approved EasePix photo exactly once.
- * Returns true if points were newly awarded, or false if already awarded before.
- */
-export function awardApprovedEasePixPointsOnce(userId: string, pixId: string): boolean {
-  if (!userId || !pixId) return false
-  const awarded = getAwardedPixIds(userId)
-  if (awarded.has(pixId)) {
-    return false
-  }
-  markPixAsAwarded(userId, pixId)
-  awardEasePoints(userId, EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO, "Approved EasePix photo")
-  return true
-}
-
-export function getUserEasePoints(userId: string): number {
-  if (!userId) return 0
-  const key = `${STORAGE_PREFIX}${userId}`
-  const saved = localStorage.getItem(key)
-  if (saved !== null) {
-    const val = parseInt(saved, 10)
-    return isNaN(val) ? 46 : val
-  }
-  // Initialize new active user with a starting balance (e.g. 2 qualifying photos = 46 pts)
-  const initial = 46
-  localStorage.setItem(key, initial.toString())
-  return initial
-}
-
-export function setUserEasePoints(userId: string, points: number): void {
-  if (!userId) return
-  const key = `${STORAGE_PREFIX}${userId}`
-  localStorage.setItem(key, Math.max(0, points).toString())
-  // Dispatch custom event so all open views update simultaneously
-  window.dispatchEvent(new CustomEvent("eventease:easepoints-updated", { detail: { userId, points } }))
-}
-
-export function awardEasePoints(userId: string, amount: number, reason?: string): number {
-  if (!userId || amount <= 0) return getUserEasePoints(userId)
-  const current = getUserEasePoints(userId)
-  const updated = current + amount
-  setUserEasePoints(userId, updated)
-  return updated
-}
-
-export function deductEasePoints(userId: string, amount: number): boolean {
-  if (!userId || amount <= 0) return false
-  const current = getUserEasePoints(userId)
-  if (current < amount) return false
-  const updated = current - amount
-  setUserEasePoints(userId, updated)
-  return true
+  return { points: summary.balance, summary, refresh }
 }
 
 export function calculateExchangeDiscount(

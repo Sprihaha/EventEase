@@ -120,7 +120,8 @@ def cancel_match(match_id: UUID, user: User = Depends(require_customer), db: Ses
 @router.post("/matches/{match_id}/settle", response_model=ExchangeMatchView)
 def settle(match_id: UUID, body: SettleExchange, user: User = Depends(require_customer), db: Session = Depends(get_db),
            gateway: TicketingGateway = Depends(get_exchange_ticketing)):
-    return _run_match(db, user, exchanges.settle, gateway, get_settings(), user, match_id, body.payment_method)
+    return _run_match(db, user, exchanges.settle, gateway, get_settings(), user, match_id, body.payment_method,
+                      body.redeem_easepoints)
 
 
 @router.get("/{request_id}/matches", response_model=list[ExchangeListingView])

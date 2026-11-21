@@ -8,7 +8,7 @@ import {
 } from "../../../lib/backendApi"
 import { parseSeatParts } from "../easepix/seatMatching"
 import { formatRelativeWhen } from "../dateUtils"
-import { awardEasePoints, EASEPOINTS_RULES } from "../../../lib/easePoints"
+import { EASEPOINTS_RULES } from "../../../lib/easePoints"
 import type { DisplayPost, FilterType, AttachedEasePix, EventItem, Post, User } from "../types"
 
 interface UseCommunityFeedParams {
@@ -243,12 +243,8 @@ export function useCommunityFeed({
         onPostCreatedWithPhoto(targetEventId, sectionToSubmit)
       }
 
-      const isEligibleCustomer = Boolean(user?.id && user?.role !== "organizer")
-      if (isEligibleCustomer && user?.id) {
-        if (!photoToSubmit && isQuestionPost) {
-          awardEasePoints(user.id, EASEPOINTS_RULES.POINTS_PER_QUALIFYING_QUESTION, "Qualifying event question")
-        }
-      }
+      // Question points are counted by the server; reloadCommunityData() refreshes the balance.
+      const isEligibleCustomer = user?.role === "customer"
 
       await reloadCommunityData()
       setDraft("")

@@ -2,7 +2,7 @@ import uuid
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_optional_user, require_roles
+from app.core.deps import get_current_user, get_optional_user, require_roles
 from app.db.models import Role, User
 from app.db.session import get_db
 from app.schemas.community import (
@@ -12,8 +12,10 @@ from app.schemas.community import (
     EasePixCreate,
     EasePixModerateRequest,
     EasePixOut,
+    EasePointsOut,
 )
 from app.services import community as community_service
+from app.services import easepoints as easepoints_service
 
 router = APIRouter(prefix="/community", tags=["Community"])
 
@@ -120,3 +122,11 @@ def moderate_easepix(
         status=body.status,
         rejection_reason=body.rejection_reason,
     )
+
+
+@router.get("/easepoints/me", response_model=EasePointsOut, summary="Your EasePoints balance, computed from your activity")
+def my_easepoints(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return easepoints_service.summary(db, user.id).as_dict()

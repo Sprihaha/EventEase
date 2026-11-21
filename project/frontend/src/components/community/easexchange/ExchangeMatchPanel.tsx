@@ -19,10 +19,9 @@ import { matchDisplayStatus, requestNumbers } from "../../../lib/exchangePresent
 import ExchangeStatusBadge from "./ExchangeStatusBadge";
 import { Button, Card } from "../../ui";
 import {
-  awardCompletedExchangePointsOnce,
   calculateExchangeDiscount,
-  deductEasePoints,
-  getUserEasePoints,
+  notifyEasePointsChanged,
+  useEasePoints,
   EASEPOINTS_RULES,
 } from "../../../lib/easePoints";
 import { Sparkles } from "lucide-react";
@@ -54,17 +53,8 @@ export function ExchangeMatchPanel({
   const submitting = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now);
-  const [userPoints, setUserPoints] = useState<number>(() => (userId ? getUserEasePoints(userId) : 0));
+  const { points: userPoints } = useEasePoints(userId ? { id: userId, role: "customer" } : null);
   const [applyDiscount, setApplyDiscount] = useState(false);
-
-  useEffect(() => {
-    if (userId) setUserPoints(getUserEasePoints(userId));
-    const onPointsChanged = () => {
-      if (userId) setUserPoints(getUserEasePoints(userId));
-    };
-    window.addEventListener("eventease:easepoints-updated", onPointsChanged);
-    return () => window.removeEventListener("eventease:easepoints-updated", onPointsChanged);
-  }, [userId]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -76,9 +66,7 @@ export function ExchangeMatchPanel({
   useEffect(() => {
     if (match?.status === "PENDING" || match?.status === "READY") sawActive.current = true;
     if (match?.status !== "COMPLETED" || !sawActive.current) return;
-    if (userId && matchId) {
-      awardCompletedExchangePointsOnce(userId, matchId);
-    }
+    notifyEasePointsChanged();
     const timer = window.setTimeout(() => navigate("/dashboard/customer?exchange=completed"), 1500);
     return () => window.clearTimeout(timer);
   }, [match?.status, matchId, userId, navigate]);
@@ -166,15 +154,9 @@ export function ExchangeMatchPanel({
     if (submitting.current || Date.parse(match.expiresAt) <= Date.now()) return;
     submitting.current = true; setPending("pay"); setError(null);
     try {
-      const result = await settleExchangeMatch(matchId, paymentMethod);
-      if (result.status === "COMPLETED") {
-        if (discount.pointsToDeduct > 0 && userId) {
-          deductEasePoints(userId, discount.pointsToDeduct);
-        }
-        if (userId) {
-          awardCompletedExchangePointsOnce(userId, matchId);
-        }
-      }
+      // The server applies the 10% discount and records the 100-point redemption with the swap.
+      const result = await settleExchangeMatch(matchId, paymentMethod, discount.pointsToDeduct > 0);
+      if (result.status === "COMPLETED") notifyEasePointsChanged();
       setConfirmed(result);
       resource.refresh(); onChanged();
     } catch (cause) {
