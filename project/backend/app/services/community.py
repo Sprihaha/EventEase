@@ -95,6 +95,7 @@ def list_easepix(
     row_label: str | None = None,
     status: str | None = None,
     is_admin: bool = False,
+    viewer_id: uuid.UUID | None = None,
     limit: int = 100,
 ) -> list[EasePix]:
     stmt = select(EasePix).order_by(EasePix.created_at.desc())
@@ -102,7 +103,11 @@ def list_easepix(
         if status and status.strip().upper() != "ALL":
             stmt = stmt.where(EasePix.status == status.strip().upper())
     else:
-        stmt = stmt.where(or_(EasePix.status == "APPROVED", EasePix.status.is_(None)))
+        # Everyone sees approved photos; uploaders also see their own pending/rejected ones.
+        visible = [EasePix.status == "APPROVED", EasePix.status.is_(None)]
+        if viewer_id:
+            visible.append(EasePix.user_id == viewer_id)
+        stmt = stmt.where(or_(*visible))
 
     if event_id:
         stmt = stmt.where(EasePix.event_id == event_id)

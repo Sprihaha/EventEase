@@ -242,7 +242,8 @@ export async function backendListEasePix(params?: {
   if (params?.status) q.set("status", params.status);
   if (params?.limit) q.set("limit", String(params.limit));
   const query = q.toString() ? `?${q.toString()}` : "";
-  return request<BackendEasePix[]>(`/community/easepix${query}`);
+  // Signed in, the response also includes the viewer's own pending/rejected uploads (all, for admins).
+  return request<BackendEasePix[]>(`/community/easepix${query}`, {}, true);
 }
 
 export async function backendCreateEasePix(data: BackendEasePixCreate): Promise<BackendEasePix> {

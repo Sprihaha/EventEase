@@ -39,7 +39,7 @@ import {
 } from "../components/community";
 
 export default function Community() {
-  const { posts, events, publicEvents, user, addPost } = useStore();
+  const { posts, events, publicEvents, user } = useStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const isOrganizer = user?.role === "organizer";
@@ -301,7 +301,6 @@ export default function Community() {
     events,
     posts,
     backendPosts,
-    addPost,
     reloadCommunityData,
     onShowToast: showToast,
     onPostCreatedWithPhoto: (targetEventId, section) => {
@@ -399,17 +398,6 @@ export default function Community() {
           authorName: user?.name ?? "Fan",
         });
 
-        addPost({
-          author: user?.name ?? "You",
-          eventId: targetEventId || (events[0]?.id ?? ""),
-          body: matchedEvent?.title
-            ? `View from ${sec}, ${row} at ${targetVenue} (${matchedEvent.title}). Fantastic sightlines!`
-            : `View from ${sec}, ${row} at ${targetVenue}. Fantastic sightlines!`,
-          photo: photoToUse,
-          section: sec,
-          seatLabel: row,
-        });
-
         await reloadCommunityData();
         easePix.setSeatPhotoInput("");
         easePix.setIsShareModalOpen(false);
@@ -422,23 +410,13 @@ export default function Community() {
         const isEligibleCustomer = Boolean(user?.id && user?.role !== "organizer");
         showToast(
           isEligibleCustomer
-            ? `Seat view uploaded to EasePix successfully! (+${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints awarded once approved) ✨`
-            : "Seat view uploaded to EasePix successfully! ✨"
+            ? `Seat view uploaded to EasePix! It's pending review (+${EASEPOINTS_RULES.POINTS_PER_APPROVED_PHOTO} EasePoints awarded once approved) ✨`
+            : "Seat view uploaded to EasePix! It's pending review ✨"
         );
         scrollToSection("seat-search-results");
-      } catch {
-        addPost({
-          author: user?.name ?? "You",
-          eventId: targetEventId || (events[0]?.id ?? ""),
-          body: `View from ${sec}, ${row} at ${targetVenue}!`,
-          photo: photoToUse,
-          section: sec,
-          seatLabel: row,
-        });
-        easePix.setIsShareModalOpen(false);
-        easePix.setHasSearched(true);
-        showToast("Seat view uploaded to EasePix successfully! ✨");
-        scrollToSection("seat-search-results");
+      } catch (err: unknown) {
+        // Keep the modal open so the photo isn't lost, and say what went wrong.
+        showToast(err instanceof Error ? `EasePix upload failed: ${err.message}` : "EasePix upload failed. Please try again.");
       }
     }
   };

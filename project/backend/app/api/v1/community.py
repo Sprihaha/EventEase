@@ -85,6 +85,7 @@ def list_easepix(
         row_label=row_label,
         status=status,
         is_admin=is_admin,
+        viewer_id=user.id if user is not None else None,
         limit=limit,
     )
 

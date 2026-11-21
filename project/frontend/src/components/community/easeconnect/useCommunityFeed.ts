@@ -16,7 +16,6 @@ interface UseCommunityFeedParams {
   events: EventItem[]
   posts: Post[]
   backendPosts: BackendCommunityPost[]
-  addPost: (post: Omit<Post, "id" | "likes" | "when">) => void
   reloadCommunityData: () => Promise<void>
   onShowToast: (msg: string) => void
   onPostCreatedWithPhoto?: (targetEventId: string, section?: string) => void
@@ -27,7 +26,6 @@ export function useCommunityFeed({
   events,
   posts,
   backendPosts,
-  addPost,
   reloadCommunityData,
   onShowToast,
   onPostCreatedWithPhoto,
@@ -239,16 +237,6 @@ export function useCommunityFeed({
         photoUrl: photoToSubmit,
         isQuestion: isQuestionPost,
         easepix: easepixPayload,
-      })
-
-      addPost({
-        eventId: targetEventId,
-        author: user.name.split(" ")[0] || "You",
-        body: draft.trim(),
-        section: sectionToSubmit,
-        seatLabel: rowToSubmit,
-        photo: photoToSubmit,
-        isQuestion: isQuestionPost,
       })
 
       if (photoToSubmit && onPostCreatedWithPhoto) {

@@ -122,7 +122,12 @@ def _run_easecomms_auto_moderator(db: Session) -> str:
     pix_rejected = 0
 
     for pix in pending_pix:
-        text = f"{pix.caption or ''} {pix.photo_url or ''}".lower()
+        # Uploaded photos are stored as base64 data URLs; scanning that random text matches
+        # keywords like "shit" by chance, so only scan the caption and real (non-data) links.
+        photo_link = pix.photo_url or ""
+        if photo_link.startswith("data:"):
+            photo_link = ""
+        text = f"{pix.caption or ''} {photo_link}".lower()
         if any(kw in text for kw in prohibited_keywords):
             pix.status = "REJECTED"
             pix.rejection_reason = "Violated community guidelines: prohibited or spam content."

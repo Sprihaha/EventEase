@@ -397,6 +397,20 @@ export function EasePixSectionGrid({
                                       Community Attendee
                                     </span>
                                   )}
+                                  {/* Customers only receive their own non-approved uploads; admins see status in the bar below */}
+                                  {user?.role !== "admin" && p.status === "PENDING" && (
+                                    <span className="rounded-full bg-amber-400/95 px-2 py-0.5 text-[9px] font-extrabold text-amber-950 backdrop-blur shadow-xs">
+                                      Pending review · only you can see this
+                                    </span>
+                                  )}
+                                  {user?.role !== "admin" && p.status === "REJECTED" && (
+                                    <span
+                                      className="rounded-full bg-rose-500/95 px-2 py-0.5 text-[9px] font-extrabold text-white backdrop-blur shadow-xs"
+                                      title={p.rejectionReason || undefined}
+                                    >
+                                      Rejected · only you can see this
+                                    </span>
+                                  )}
                                 </div>
                                 {p.pixId && (
                                   <button
